@@ -1,0 +1,46 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<DataTemplate xmlns="http://xamarin.com/schemas/2014/forms"
+              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+              xmlns:views="clr-namespace:Movies.Views"
+              xmlns:viewmodels="clr-namespace:Movies.ViewModels"
+              x:Class="Movies.Templates.EpisodeTemplate">
+    <views:CollectionItemView>
+        <views:CollectionItemView.Title>
+            <MultiBinding StringFormat="{}{0}. {1}">
+                <Binding Path="Number" />
+                <Binding Path="Title" />
+            </MultiBinding>
+        </views:CollectionItemView.Title>
+
+        <views:CollectionItemView.ThumbnailTemplate>
+            <DataTemplate>
+                <StackLayout Orientation="Vertical"
+                             VerticalOptions="Center">
+                    <views:ImageView views:Extensions.AspectRequest="1.778">
+                        <Image Source="{Binding PosterPath}"
+                               Aspect="AspectFill" />
+                    </views:ImageView>
+
+                    <Label Style="{StaticResource MultiPartLabel}"
+                           HorizontalTextAlignment="Center"
+                           LineBreakMode="NoWrap">
+                        <Label.FormattedText>
+                            <FormattedString>
+                                <Span Text="{Binding AirDate, StringFormat='{0:M/d/yy}', FallbackValue=''}"
+                                      x:DataType="viewmodels:TVEpisodeViewModel" />
+                                <!--<Span Text="{Binding Runtime, Converter={Static views:HrMinConverter.Instance}, TargetNullValue={StaticResource DetailedTemplateNullValue}}" />-->
+                                <Span Text="{Binding Ratings[0].Score}" />
+                            </FormattedString>
+                        </Label.FormattedText>
+                    </Label>
+                </StackLayout>
+            </DataTemplate>
+        </views:CollectionItemView.ThumbnailTemplate>
+
+        <StackLayout Orientation="Vertical">
+            <Label Text="{Binding Description}"
+                   LineBreakMode="TailTruncation"
+                   MaxLines="5" />
+        </StackLayout>
+    </views:CollectionItemView>
+</DataTemplate>

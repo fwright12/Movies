@@ -1,0 +1,191 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<DataTemplate xmlns="http://xamarin.com/schemas/2014/forms"
+              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+              xmlns:forms="clr-namespace:Xamarin.Forms;assembly=Xamarin.Forms.Extensions"
+              xmlns:ext="clr-namespace:Xamarin.Forms.Extensions;assembly=Xamarin.Forms.Extensions"
+              xmlns:views="clr-namespace:Movies.Views"
+              xmlns:viewmodels="clr-namespace:Movies.ViewModels"
+              xmlns:movies="clr-namespace:Movies"
+              x:Class="Movies.Templates.FullMovieTemplate">
+    <AbsoluteLayout Style="{StaticResource BatchStyle}">
+        <Image Source="{Binding PosterPath, Converter={Static views:ImageSizeConverter.Instance}}"
+               Aspect="AspectFill"
+               AbsoluteLayout.LayoutBounds="0.5,0,1,-1"
+               AbsoluteLayout.LayoutFlags="PositionProportional,WidthProportional" />
+
+        <ScrollView Orientation="Vertical"
+                    AbsoluteLayout.LayoutBounds="0,0,1,1"
+                    AbsoluteLayout.LayoutFlags="All">
+            <Frame CornerRadius="10"
+                   Padding="{StaticResource PagePadding}"
+                   BackgroundColor="{Binding BackgroundColor, Source={RelativeSource AncestorType={x:Type Page}}}">
+                <StackLayout Orientation="Vertical"
+                             Spacing="25">
+                    <View.Margin>
+                        <MultiBinding Converter="{Static forms:ThicknessConverter.Instance}"
+                                      ConverterParameter="bottom">
+                            <Binding Path="IndicatorView.Height"
+                                     Source="{RelativeSource AncestorType={x:Type CarouselView}}" />
+                        </MultiBinding>
+                    </View.Margin>
+
+                    <VisualElement.Resources>
+                        <ResourceDictionary>
+                            <ResourceDictionary.MergedDictionaries>
+                                <views:InfoPageResources />
+                            </ResourceDictionary.MergedDictionaries>
+                        </ResourceDictionary>
+                    </VisualElement.Resources>
+
+                    <Label Text="{Binding Title}"
+                           Style="{StaticResource TitleStyle}" />
+
+                    <ContentView ControlTemplate="{StaticResource BasicInfoTemplate}">
+                        <StackLayout Orientation="Vertical">
+                            <views:LabeledLabel x:DataType="viewmodels:MovieViewModel"
+                                                Label="Released"
+                                                Value="{Binding Year, StringFormat='{0:MMM d, yyyy}', TargetNullValue={Static x:String.Empty}}" />
+
+                            <views:LabeledLabel x:DataType="viewmodels:TVShowViewModel"
+                                                Label="Years Active">
+                                <VisualElement.Triggers>
+                                    <DataTrigger TargetType="VisualElement"
+                                                 Binding="{Binding Value, Source={RelativeSource Self}}"
+                                                 Value="{Static x:String.Empty}">
+                                        <Setter Property="IsVisible"
+                                                Value="False" />
+                                    </DataTrigger>
+                                </VisualElement.Triggers>
+
+                                <MultiBinding StringFormat="{}{0}{1}">
+                                    <Binding Path="FirstAirDate"
+                                             StringFormat="{}{0:yyyy}-" />
+
+                                    <Binding Path="LastAirDate"
+                                             StringFormat="{}{0:yyyy}" />
+                                </MultiBinding>
+                            </views:LabeledLabel>
+
+                            <views:LabeledLabel Label="Runtime"
+                                                Value="{Binding Runtime, Converter={Static movies:HrMinConverter.Instance}, TargetNullValue={Static x:String.Empty}}" />
+
+                            <views:LabeledLabel Label="Certification"
+                                                Value="{Binding ContentRating, TargetNullValue={Static x:String.Empty}}" />
+
+                            <views:LabeledLabel Label="Genres"
+                                                Value="{Binding Genres, Converter={StaticResource ListToString}, TargetNullValue={Static x:String.Empty}}"
+                                                StyleClass="AutoSize" />
+                        </StackLayout>
+                    </ContentView>
+
+                    <ContentView x:DataType="viewmodels:TVShowViewModel"
+                                 ext:ContentView.ItemSource="{Binding Seasons}"
+                                 HeightRequest="200"
+                                 Style="{StaticResource InfoSectionStyle}"
+                                 CompressedLayout.IsHeadless="False" />
+
+                    <views:SectionView Title="Ratings"
+                                       ext:ContentView.ItemSource="{Binding Ratings, TargetNullValue={StaticResource EmptyRatings}}"
+                                       Style="{StaticResource InfoSectionStyle}" />
+
+                    <forms:AdView Style="{StaticResource InlineBannerAdStyle}"
+                                  AdUnitID="{Static movies:App.InlineBannerAdUnitID1}"/>
+
+                    <views:SectionView Title="Summary"
+                                       ext:ContentView.ItemSource="{Binding Description, TargetNullValue='No description provided'}"
+                                       Style="{StaticResource InfoSectionStyle}" />
+
+                    <views:SectionView Title="Where to Watch"
+                                       ext:ContentView.ItemSource="{Binding WatchProviders, TargetNullValue={StaticResource EmptyWatchProviders}}"
+                                       Style="{StaticResource InfoSectionStyle}">
+                        <views:SectionView.Header>
+                            <DataTemplate>
+                                <Frame BackgroundColor="{AppThemeBinding Light={StaticResource LightSecondaryBackground}, Dark={StaticResource DarkSecondaryBackground}}"
+                                       HorizontalOptions="Start"
+                                       Style="{StaticResource RoundedFrameStyle}"
+                                       Padding="10, 5">
+                                    <Grid ColumnDefinitions="Auto, *"
+                                          ColumnSpacing="0">
+                                        <Label Text="Powered by "
+                                               FontSize="Small"
+                                               VerticalOptions="Center"
+                                               x:Name="poweredBy" />
+
+                                        <Image BindingContext="{Static movies:App.JustWatch}"
+                                               HeightRequest="{Binding Height, Source={x:Reference poweredBy}}"
+                                               Source="{Binding LogoPath}"
+                                               Grid.Column="1" />
+                                    </Grid>
+                                </Frame>
+                            </DataTemplate>
+                        </views:SectionView.Header>
+                    </views:SectionView>
+
+                    <views:SectionView Title="People"
+                                       Style="{StaticResource InfoSectionStyle}">
+                        <StackLayout Orientation="Vertical">
+                            <views:SectionView Title="Cast"
+                                               ext:ContentView.ItemSource="{Binding Cast, TargetNullValue={StaticResource EmptyCredits}}"
+                                               Style="{StaticResource InfoSubsectionStyle}" />
+
+                            <views:SectionView Title="Crew"
+                                               ext:ContentView.ItemSource="{Binding Crew, TargetNullValue={StaticResource EmptyCredits}}"
+                                               Style="{StaticResource InfoSubsectionStyle}" />
+                        </StackLayout>
+                    </views:SectionView>
+
+                    <forms:AdView Style="{StaticResource InlineBannerAdStyle}"
+                                  AdUnitID="{Static movies:App.InlineBannerAdUnitID2}"/>
+
+                    <views:SectionView Title="Production"
+                                       Style="{StaticResource InfoSectionStyle}">
+                        <StackLayout Orientation="Vertical">
+                            <views:SectionView Title="Companies"
+                                               ext:ContentView.ItemSource="{Binding ProductionCompanies, TargetNullValue={StaticResource EmptyCompanies}}"
+                                               Style="{StaticResource InfoSubsectionStyle}" />
+
+                            <views:SectionView Title="Networks"
+                                               x:DataType="viewmodels:TVShowViewModel"
+                                               ext:ContentView.ItemSource="{Binding Networks, TargetNullValue={StaticResource EmptyCompanies}}"
+                                               Style="{StaticResource InfoSubsectionStyle}" />
+
+                            <views:LabeledLabel Label="Budget"
+                                                Value="{Binding Budget, StringFormat='{0:C}'}" />
+
+                            <views:LabeledLabel Label="Revenue"
+                                                Value="{Binding Revenue, StringFormat='{0:C}'}" />
+                        </StackLayout>
+                    </views:SectionView>
+
+                    <views:SectionView Title="Additional Info"
+                                       Style="{StaticResource InfoSectionStyle}">
+                        <StackLayout Orientation="Vertical">
+                            <views:LabeledLabel Label="Original Title"
+                                                Value="{Binding OriginalTitle, TargetNullValue={Static x:String.Empty}}" />
+
+                            <views:LabeledLabel Label="Original Language"
+                                                Value="{Binding OriginalLanguage, TargetNullValue={Static x:String.Empty}}" />
+                        </StackLayout>
+                    </views:SectionView>
+
+                    <ContentView x:DataType="viewmodels:MovieViewModel"
+                                 ext:ContentView.ItemSource="{Binding ParentCollection}"
+                                 HeightRequest="200"
+                                 Style="{StaticResource InfoSectionStyle}"
+                                 CompressedLayout.IsHeadless="False" />
+
+                    <ContentView ext:ContentView.ItemSource="{Binding Recommended}"
+                                 HeightRequest="200"
+                                 Style="{StaticResource InfoSectionStyle}"
+                                 CompressedLayout.IsHeadless="False" />
+
+                    <views:LabeledLabel Label="Keywords"
+                                        Value="{Binding Keywords, Converter={StaticResource ListToString}}" />
+
+                    <forms:AdView Style="{StaticResource BannerAdStyle}"
+                                  AdUnitID="{Static movies:App.BottomBannerAdUnitID}"/>
+                </StackLayout>
+            </Frame>
+        </ScrollView>
+    </AbsoluteLayout>
+</DataTemplate>

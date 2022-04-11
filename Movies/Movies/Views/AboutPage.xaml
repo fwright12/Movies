@@ -1,0 +1,18 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://xamarin.com/schemas/2014/forms"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:movies="clr-namespace:Movies"
+             x:Class="Movies.Views.AboutPage"
+             Title="About">
+    <FlexLayout Direction="Column"
+                JustifyContent="Center">
+        <Image BindingContext="{Static movies:TMDB.TMDb}"
+               Source="{Binding LogoPath}"
+               HeightRequest="50"
+               Margin="0,0,0,10" />
+        
+        <Label Text="This product uses the TMDB API but is not endorsed or certified by TMDB."
+               HorizontalTextAlignment="Center"
+               FontSize="Large" />
+    </FlexLayout>
+</ContentPage>

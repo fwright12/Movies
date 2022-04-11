@@ -1,0 +1,217 @@
+{
+  "format": 1,
+  "restore": {
+    "C:\\Users\\Flint\\Documents\\MovieApp\\Movies\\Movies\\Movies.Android\\Movies.Android.csproj": {}
+  },
+  "projects": {
+    "C:\\Users\\Flint\\Documents\\Code\\C#\\System.Extensions\\System.Extensions.csproj": {
+      "restore": {
+        "projectUniqueName": "C:\\Users\\Flint\\Documents\\Code\\C#\\System.Extensions\\System.Extensions.csproj",
+        "projectName": "System.Extensions",
+        "projectPath": "C:\\Users\\Flint\\Documents\\Code\\C#\\System.Extensions\\System.Extensions.csproj",
+        "frameworks": {
+          "net471": {
+            "projectReferences": {}
+          }
+        }
+      },
+      "frameworks": {
+        "net471": {}
+      }
+    },
+    "C:\\Users\\Flint\\Documents\\Code\\C#\\Xamarin.Forms.Extensions\\Xamarin.Forms.Extensions.csproj": {
+      "restore": {
+        "projectUniqueName": "C:\\Users\\Flint\\Documents\\Code\\C#\\Xamarin.Forms.Extensions\\Xamarin.Forms.Extensions.csproj",
+        "projectName": "Xamarin.Forms.Extensions",
+        "projectPath": "C:\\Users\\Flint\\Documents\\Code\\C#\\Xamarin.Forms.Extensions\\Xamarin.Forms.Extensions.csproj",
+        "frameworks": {
+          "net471": {
+            "projectReferences": {
+              "C:\\Users\\Flint\\Documents\\Code\\C#\\System.Extensions\\System.Extensions.csproj": {
+                "projectPath": "C:\\Users\\Flint\\Documents\\Code\\C#\\System.Extensions\\System.Extensions.csproj"
+              }
+            }
+          }
+        }
+      },
+      "frameworks": {
+        "net471": {}
+      }
+    },
+    "C:\\Users\\Flint\\Documents\\MovieApp\\Movies\\Movies\\Movies.Android\\Movies.Android.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "C:\\Users\\Flint\\Documents\\MovieApp\\Movies\\Movies\\Movies.Android\\Movies.Android.csproj",
+        "projectName": "Movies.Android",
+        "projectPath": "C:\\Users\\Flint\\Documents\\MovieApp\\Movies\\Movies\\Movies.Android\\Movies.Android.csproj",
+        "packagesPath": "C:\\Users\\Flint\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\Flint\\Documents\\MovieApp\\Movies\\Movies\\Movies.Android\\obj\\",
+        "projectStyle": "PackageReference",
+        "skipContentFileWrite": true,
+        "configFilePaths": [
+          "C:\\Users\\Flint\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
+        ],
+        "originalTargetFrameworks": [
+          "monoandroid11.0"
+        ],
+        "sources": {
+          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "monoandroid11.0": {
+            "projectReferences": {
+              "C:\\Users\\Flint\\Documents\\Code\\C#\\Xamarin.Forms.Extensions\\Xamarin.Forms.Extensions.csproj": {
+                "projectPath": "C:\\Users\\Flint\\Documents\\Code\\C#\\Xamarin.Forms.Extensions\\Xamarin.Forms.Extensions.csproj"
+              },
+              "C:\\Users\\Flint\\Documents\\MovieApp\\Movies\\Movies\\Movies\\Movies.csproj": {
+                "projectPath": "C:\\Users\\Flint\\Documents\\MovieApp\\Movies\\Movies\\Movies\\Movies.csproj"
+              }
+            }
+          }
+        }
+      },
+      "frameworks": {
+        "monoandroid11.0": {
+          "dependencies": {
+            "Xamarin.Android.Support.Design": {
+              "target": "Package",
+              "version": "[28.0.0.3, )"
+            },
+            "Xamarin.Android.Support.v4": {
+              "target": "Package",
+              "version": "[28.0.0.3, )"
+            },
+            "Xamarin.Android.Support.v7.AppCompat": {
+              "target": "Package",
+              "version": "[28.0.0.3, )"
+            },
+            "Xamarin.Android.Support.v7.CardView": {
+              "target": "Package",
+              "version": "[28.0.0.3, )"
+            },
+            "Xamarin.Android.Support.v7.MediaRouter": {
+              "target": "Package",
+              "version": "[28.0.0.3, )"
+            },
+            "Xamarin.AndroidX.MediaRouter": {
+              "target": "Package",
+              "version": "[1.2.5.2, )"
+            },
+            "Xamarin.AndroidX.Palette": {
+              "target": "Package",
+              "version": "[1.0.0.10, )"
+            },
+            "Xamarin.Forms": {
+              "target": "Package",
+              "version": "[5.0.0.2291, )"
+            },
+            "Xamarin.Forms.AppLinks": {
+              "target": "Package",
+              "version": "[5.0.0.2401, )"
+            },
+            "Xamarin.GooglePlayServices.Ads.Lite": {
+              "target": "Package",
+              "version": "[120.3.0.3, )"
+            }
+          }
+        }
+      }
+    },
+    "C:\\Users\\Flint\\Documents\\MovieApp\\Movies\\Movies\\Movies\\Movies.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "C:\\Users\\Flint\\Documents\\MovieApp\\Movies\\Movies\\Movies\\Movies.csproj",
+        "projectName": "Movies",
+        "projectPath": "C:\\Users\\Flint\\Documents\\MovieApp\\Movies\\Movies\\Movies\\Movies.csproj",
+        "packagesPath": "C:\\Users\\Flint\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\Flint\\Documents\\MovieApp\\Movies\\Movies\\Movies\\obj\\",
+        "projectStyle": "PackageReference",
+        "fallbackFolders": [
+          "C:\\Program Files\\dotnet\\sdk\\NuGetFallbackFolder"
+        ],
+        "configFilePaths": [
+          "C:\\Users\\Flint\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
+        ],
+        "originalTargetFrameworks": [
+          "netstandard2.1"
+        ],
+        "sources": {
+          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "netstandard2.1": {
+            "targetAlias": "netstandard2.1",
+            "projectReferences": {
+              "C:\\Users\\Flint\\Documents\\Code\\C#\\System.Extensions\\System.Extensions.csproj": {
+                "projectPath": "C:\\Users\\Flint\\Documents\\Code\\C#\\System.Extensions\\System.Extensions.csproj"
+              },
+              "C:\\Users\\Flint\\Documents\\Code\\C#\\Xamarin.Forms.Extensions\\Xamarin.Forms.Extensions.csproj": {
+                "projectPath": "C:\\Users\\Flint\\Documents\\Code\\C#\\Xamarin.Forms.Extensions\\Xamarin.Forms.Extensions.csproj"
+              }
+            }
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        }
+      },
+      "frameworks": {
+        "netstandard2.1": {
+          "targetAlias": "netstandard2.1",
+          "dependencies": {
+            "Microsoft.CSharp": {
+              "target": "Package",
+              "version": "[4.7.0, )"
+            },
+            "Newtonsoft.Json": {
+              "target": "Package",
+              "version": "[13.0.1, )"
+            },
+            "System.Text.Json": {
+              "target": "Package",
+              "version": "[6.0.2, )"
+            },
+            "TMDbLib": {
+              "target": "Package",
+              "version": "[1.9.1, )"
+            },
+            "Xamarin.Essentials": {
+              "target": "Package",
+              "version": "[1.7.1, )"
+            },
+            "Xamarin.Forms": {
+              "target": "Package",
+              "version": "[5.0.0.2291, )"
+            },
+            "sqlite-net-pcl": {
+              "target": "Package",
+              "version": "[1.8.116, )"
+            }
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "NETStandard.Library": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\6.0.201\\RuntimeIdentifierGraph.json"
+        }
+      }
+    }
+  }
+}

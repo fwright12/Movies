@@ -1,0 +1,74 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://xamarin.com/schemas/2014/forms"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:views="clr-namespace:Movies.Views"
+             x:Class="Movies.Views.ReviewsPage">
+    <CollectionView views:Extensions.ItemsSource="{Binding Reviews}"
+                    RemainingItemsThreshold="1"
+                    Margin="10, 0">
+        <CollectionView.ItemsLayout>
+            <LinearItemsLayout Orientation="Vertical"
+                               ItemSpacing="10" />
+        </CollectionView.ItemsLayout>
+
+        <CollectionView.ItemTemplate>
+            <DataTemplate>
+                <views:SectionView Style="{StaticResource ExpandableSectionViewStyle}"
+                                   Title="{Binding Author}"
+                                   BackgroundColor="{AppThemeBinding Light={StaticResource LightSecondaryBackground}, Dark={StaticResource DarkSecondaryBackground}}">
+                    <TemplatedView.ControlTemplate>
+                        <ControlTemplate>
+                            <StackLayout Orientation="Vertical">
+                                <Label Text="{TemplateBinding Title}"
+                                       TextColor="{AppThemeBinding Light={StaticResource LightPrimaryText}, Dark={StaticResource DarkPrimaryText}}" />
+
+                                <ContentPresenter />
+                            </StackLayout>
+                        </ControlTemplate>
+                    </TemplatedView.ControlTemplate>
+
+                    <Label Text="{Binding Content}" />
+                </views:SectionView>
+            </DataTemplate>
+        </CollectionView.ItemTemplate>
+
+        <CollectionView.Header>
+            <StackLayout Orientation="Vertical">
+                <VisualElement.Resources>
+                    <Style TargetType="Label">
+                        <Setter Property="TextColor"
+                                Value="{AppThemeBinding Light={StaticResource LightPrimaryText}, Dark={StaticResource DarkPrimaryText}}" />
+                    </Style>
+                </VisualElement.Resources>
+
+                <Label Text="{Binding Company.Name}"
+                       IsVisible="False"
+                       Style="{StaticResource ValueDescriptorStyle}"
+                       FontSize="Title" />
+
+                <FlexLayout Direction="Column"
+                            AlignContent="Center">
+                    <StackLayout Orientation="Horizontal"
+                                 Spacing="10">
+                        <Image Source="{Binding Company.LogoPath}"
+                               Margin="0, 20, 0, 15"
+                               StyleClass="AutoSize" />
+
+                        <Label Text="{Binding Score}"
+                               VerticalOptions="Center"
+                               FontSize="75"
+                               FontAttributes="Bold" />
+                    </StackLayout>
+
+                    <Label Text="{Binding TotalVotes, StringFormat='{0} Ratings'}"
+                           FontSize="Body" />
+                </FlexLayout>
+
+                <Label Text="Reviews"
+                       FontSize="Large"
+                       Padding="0,0,0,6"
+                       Style="{StaticResource ValueDescriptorStyle}" />
+            </StackLayout>
+        </CollectionView.Header>
+    </CollectionView>
+</ContentPage>

@@ -1,0 +1,89 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<DataTemplate xmlns="http://xamarin.com/schemas/2014/forms"
+              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+              xmlns:movies="clr-namespace:Movies"
+              xmlns:views="clr-namespace:Movies.Views"
+              xmlns:viewmodels="clr-namespace:Movies.ViewModels"
+              xmlns:models="clr-namespace:Movies.Models"
+              x:Class="Movies.Templates.DetailedMovieTemplate">
+    <views:CollectionItemView Title="{Binding Title}"
+                              ThumbnailTemplate="{StaticResource CompressedMovieTemplate}">
+        <VisualElement.Resources>
+            <Style TargetType="Label">
+                <Setter Property="LineBreakMode"
+                        Value="TailTruncation" />
+            </Style>
+        </VisualElement.Resources>
+        
+        <StackLayout Orientation="Vertical">
+            <VisualElement.Behaviors>
+                <movies:BatchBehavior />
+            </VisualElement.Behaviors>
+
+            <Label Style="{StaticResource MultiPartLabel}"
+                   LineBreakMode="NoWrap">
+                <Label.FormattedText>
+                    <FormattedString>
+                        <Span x:DataType="viewmodels:TVShowViewModel">
+                            <Span.Text>
+                                <MultiBinding StringFormat="{}{0}{1}">
+                                    <Binding Path="FirstAirDate"
+                                             StringFormat="{}{0:yyyy}-"
+                                             TargetNullValue=""
+                                             FallbackValue="" />
+                                    <Binding Path="LastAirDate"
+                                             StringFormat="{}{0:yyyy}" />
+                                </MultiBinding>
+                            </Span.Text>
+                        </Span>
+
+                        <Span Text="{Binding Year, StringFormat='{0:yyyy}', FallbackValue=''}"
+                              x:DataType="viewmodels:MovieViewModel" />
+
+                        <!--<Span Text="{Binding Item.Items.Count, StringFormat='{0} seasons', FallbackValue=''}"
+                              x:DataType="{x:Null}" />-->
+
+                        <Span Text="{Binding Runtime, Converter={Static movies:HrMinConverter.Instance}}" />
+
+                        <Span Text="{Binding ContentRating}" />
+                    </FormattedString>
+                </Label.FormattedText>
+            </Label>
+
+            <Label Text="{Binding Genres, Converter={StaticResource ListToString}}" />
+
+            <StackLayout Orientation="Horizontal"
+                         BindableLayout.ItemsSource="{Binding Ratings}"
+                         BindableLayout.EmptyView="No ratings available">
+                <BindableLayout.ItemTemplate>
+                    <DataTemplate x:DataType="models:Rating">
+                        <StackLayout Orientation="Horizontal">
+                            <Image Source="{Binding Company.LogoPath}"
+                                   HeightRequest="{Binding Height, Source={x:Reference score}}" />
+
+                            <Label Text="{Binding Score}"
+                                   VerticalOptions="Start"
+                                   x:Name="score" />
+                        </StackLayout>
+                    </DataTemplate>
+                </BindableLayout.ItemTemplate>
+            </StackLayout>
+
+            <views:LabeledContentView BindingContext="{Binding WatchProviders[0]}"
+                                      Label="{Binding Name, StringFormat='{0}:', FallbackValue='Not available to stream'}"
+                                      LabelPosition="Left">
+                <StackLayout Orientation="Horizontal"
+                             BindableLayout.ItemsSource="{Binding}"
+                             HeightRequest="0">
+                    <BindableLayout.ItemTemplate>
+                        <DataTemplate x:DataType="models:WatchProvider">
+                            <views:ImageView WidthRequest="{Binding Height, Source={RelativeSource Self}}">
+                                <Image Source="{Binding Company.LogoPath}" />
+                            </views:ImageView>
+                        </DataTemplate>
+                    </BindableLayout.ItemTemplate>
+                </StackLayout>
+            </views:LabeledContentView>
+        </StackLayout>
+    </views:CollectionItemView>
+</DataTemplate>

@@ -1,0 +1,40 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ResourceDictionary xmlns="http://xamarin.com/schemas/2014/forms"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Movies.Constants">
+    <!--India Green-->
+    <Color x:Key="Primary">#138808</Color>
+
+    <Color x:Key="LightPrimaryBackground">MintCream</Color>
+    <!--Light Gray with elevated green channel-->
+    <Color x:Key="LightSecondaryBackground">#D3E9D3</Color>
+    <Color x:Key="LightPrimaryText">Black</Color>
+    <Color x:Key="LightSecondaryText">Gray</Color>
+
+    <Color x:Key="DarkPrimaryBackground">Black</Color>
+    <!--Dark Slate Gray (two shades darker)-->
+    <Color x:Key="DarkSecondaryBackground">#1F3333</Color>
+    <Color x:Key="DarkPrimaryText">White</Color>
+    <Color x:Key="DarkSecondaryText">Gray</Color>
+
+    <x:String x:Key="IoniconsFont">Ionicons</x:String>
+
+    <!--Global Styles-->
+    <x:Double x:Key="PagePadding">10</x:Double>
+    <x:Double x:Key="PosterRatio">0.6667</x:Double>
+    <NamedSize x:Key="BodyFontSize">Small</NamedSize>
+
+    <Style TargetType="VisualElement"
+           Class="PrimaryBackground"
+           ApplyToDerivedTypes="True">
+        <Setter Property="BackgroundColor"
+                Value="{AppThemeBinding Light={StaticResource LightPrimaryBackground}, Dark={StaticResource DarkPrimaryBackground}}" />
+    </Style>
+    
+    <Style TargetType="VisualElement"
+           Class="SecondaryBackground"
+           ApplyToDerivedTypes="True">
+        <Setter Property="BackgroundColor"
+                Value="{AppThemeBinding Light={StaticResource LightSecondaryBackground}, Dark={StaticResource DarkSecondaryBackground}}" />
+    </Style>
+</ResourceDictionary>

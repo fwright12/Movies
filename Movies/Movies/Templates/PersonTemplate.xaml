@@ -1,0 +1,41 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<DataTemplate xmlns="http://xamarin.com/schemas/2014/forms"
+              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+              xmlns:movies="clr-namespace:Movies"
+              xmlns:views="clr-namespace:Movies.Views"
+              x:Class="Movies.Templates.PersonTemplate">
+    <views:CollectionItemView Title="{Binding Name}">
+        <views:CollectionItemView.ThumbnailTemplate>
+            <DataTemplate>
+                <views:ImageView Style="{StaticResource PersonImageStyle}"
+                                 HeightRequest="100"
+                                 VerticalOptions="Center" />
+            </DataTemplate>
+        </views:CollectionItemView.ThumbnailTemplate>
+
+        <VisualElement.Resources>
+            <Style TargetType="Label">
+                <Setter Property="LineBreakMode"
+                        Value="TailTruncation" />
+            </Style>
+        </VisualElement.Resources>
+
+        <StackLayout Orientation="Vertical">
+            <VisualElement.Behaviors>
+                <movies:BatchBehavior />
+            </VisualElement.Behaviors>
+
+            <Label>
+                <Label.FormattedText>
+                    <FormattedString>
+                        <Span Text="{Binding Birthday, StringFormat='{0:d}'}" />
+                        <Span Text="{Binding Deathday, StringFormat='-{0:d}', TargetNullValue=''}" />
+                        <Span Text="{Binding Age, StringFormat=' ({0})', TargetNullValue=''}" />
+                    </FormattedString>
+                </Label.FormattedText>
+            </Label>
+
+            <Label Text="{Binding Birthplace}" />
+        </StackLayout>
+    </views:CollectionItemView>
+</DataTemplate>

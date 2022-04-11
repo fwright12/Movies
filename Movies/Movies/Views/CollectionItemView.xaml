@@ -1,0 +1,25 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<Frame xmlns="http://xamarin.com/schemas/2014/forms"
+       xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+       xmlns:views="clr-namespace:Movies.Views"
+       x:Class="Movies.Views.CollectionItemView">
+    <TemplatedView.ControlTemplate>
+        <ControlTemplate>
+            <Grid ColumnDefinitions="100, *"
+                  Padding="10,0">
+                <ContentView Content="{TemplateBinding ThumbnailView}"
+                             HeightRequest="150"
+                             VerticalOptions="Center"
+                             Grid.Column="0"/>
+
+                <StackLayout Orientation="Vertical"
+                             Grid.Column="1">
+                    <Label Text="{TemplateBinding Title}"
+                           LineBreakMode="TailTruncation"
+                           Style="{StaticResource PrimaryLabel}" />
+                    <ContentPresenter />
+                </StackLayout>
+            </Grid>
+        </ControlTemplate>
+    </TemplatedView.ControlTemplate>
+</Frame>

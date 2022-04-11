@@ -1,0 +1,87 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<ContentView xmlns="http://xamarin.com/schemas/2014/forms"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:views="clr-namespace:Movies.Views"
+             x:Class="Movies.Views.LabeledContentView"
+             x:Name="this">
+    <TemplatedView.ControlTemplate>
+        <ControlTemplate>
+            <Grid RowSpacing="{TemplateBinding Spacing}"
+                  ColumnSpacing="{TemplateBinding Spacing}">
+                <VisualStateManager.VisualStateGroups>
+                    <VisualStateGroup Name="CommonStates">
+                        <VisualState Name="Normlal" />
+                    </VisualStateGroup>
+
+                    <VisualStateGroup>
+                        <VisualState Name="Left">
+                            <VisualState.StateTriggers>
+                                <CompareStateTrigger Property="{Binding LabelPosition, Source={x:Reference this}}"
+                                                     Value="{Static views:LabelPosition.Left}" />
+                            </VisualState.StateTriggers>
+
+                            <VisualState.Setters>
+                                <Setter Property="RowDefinitions">
+                                    <RowDefinitionCollection />
+                                </Setter>
+                                <Setter Property="ColumnDefinitions"
+                                        Value="Auto, *" />
+
+                                <Setter TargetName="Content"
+                                        Property="Grid.Row"
+                                        Value="0" />
+                                <Setter TargetName="Content"
+                                        Property="Grid.Column"
+                                        Value="1" />
+
+                                <Setter TargetName="Label"
+                                        Property="Grid.Row"
+                                        Value="0" />
+                                <Setter TargetName="Label"
+                                        Property="Grid.Column"
+                                        Value="0" />
+                            </VisualState.Setters>
+                        </VisualState>
+                        
+                        <VisualState Name="Bottom">
+                            <VisualState.StateTriggers>
+                                <CompareStateTrigger Property="{Binding LabelPosition, Source={x:Reference this}}"
+                                                     Value="{Static views:LabelPosition.Bottom}" />
+                            </VisualState.StateTriggers>
+
+                            <VisualState.Setters>
+                                <Setter Property="RowDefinitions"
+                                        Value="*, Auto" />
+                                <Setter Property="ColumnDefinitions">
+                                    <ColumnDefinitionCollection />
+                                </Setter>
+
+                                <Setter TargetName="Content"
+                                        Property="Grid.Row"
+                                        Value="0" />
+                                <Setter TargetName="Content"
+                                        Property="Grid.Column"
+                                        Value="0" />
+                                
+                                <Setter TargetName="Label"
+                                        Property="Grid.Row"
+                                        Value="1" />
+                                <Setter TargetName="Label"
+                                        Property="Grid.Column"
+                                        Value="0" />
+                            </VisualState.Setters>
+                        </VisualState>
+                    </VisualStateGroup>
+                </VisualStateManager.VisualStateGroups>
+
+                <ContentPresenter x:Name="Content"/>
+
+                <Label x:Name="Label"
+                       Text="{TemplateBinding Label}"
+                       LineBreakMode="TailTruncation"
+                       HorizontalTextAlignment="Center"
+                       VerticalTextAlignment="Center"/>
+            </Grid>
+        </ControlTemplate>
+    </TemplatedView.ControlTemplate>
+</ContentView>

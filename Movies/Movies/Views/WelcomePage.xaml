@@ -1,0 +1,44 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://xamarin.com/schemas/2014/forms"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:views="clr-namespace:Movies.Views"
+             x:Class="Movies.Views.WelcomePage">
+    <FlexLayout Direction="Column"
+                JustifyContent="SpaceEvenly">
+        <VisualElement.Resources>
+            <Style TargetType="views:SectionView"
+                   ApplyToDerivedTypes="True"
+                   BasedOn="{StaticResource CardStyle}">
+                <Setter Property="Margin"
+                        Value="{StaticResource PagePadding}" />
+                <Setter Property="Padding"
+                        Value="{Binding CornerRadius, Source={RelativeSource Self}}" />
+                <Setter Property="BorderColor"
+                        Value="{StaticResource Primary}" />
+            </Style>
+        </VisualElement.Resources>
+        
+        <Label Text="Welcome to Nexus!"
+               HorizontalTextAlignment="Center"
+               Style="{StaticResource TitleStyle}"/>
+
+        <Label Text="Choose a sign in option"
+               FontSize="Subtitle" />
+
+        <views:SectionView Title="Sign in to TMDb">
+            <Label Text="Sign in with your existing TMDb account to get access to your lists, ratings, and more" />
+        </views:SectionView>
+
+        <views:SectionView Title="Create a guest session">
+            <Label Text="This will allow you to use some of the features of TMDb without creating a full account. You will be able to rate movies and get personalized recommendations. This can be upgraded to an official account later if you choose." />
+        </views:SectionView>
+
+        <Label Text="Skip and set up later in settings"
+               TextDecorations="Underline">
+            <View.GestureRecognizers>
+                <TapGestureRecognizer Command="{Binding MainPageCommand, Source={Static Application.Current}}"
+                                      CommandParameter="{x:Null}"/>
+            </View.GestureRecognizers>
+        </Label>
+    </FlexLayout>
+</ContentPage>

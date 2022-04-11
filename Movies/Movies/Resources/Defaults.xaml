@@ -1,0 +1,39 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ResourceDictionary xmlns="http://xamarin.com/schemas/2014/forms"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+                    x:Class="Movies.Defaults">
+    <Style TargetType="ContentView">
+        <Setter Property="CompressedLayout.IsHeadless"
+                Value="True" />
+    </Style>
+
+    <Style TargetType="FlexLayout">
+        <Setter Property="AlignItems"
+                Value="Center" />
+    </Style>
+    
+    <Style TargetType="ScrollView"
+           ApplyToDerivedTypes="True">
+        <Setter Property="HorizontalScrollBarVisibility"
+                Value="Never" />
+        <Setter Property="VerticalScrollBarVisibility"
+                Value="Never" />
+    </Style>
+
+    <Style x:Key="FrameStyle"
+           TargetType="Frame">
+        <Setter Property="BackgroundColor"
+                Value="Transparent" />
+        <Setter Property="HasShadow"
+                Value="False" />
+        <Setter Property="IsClippedToBounds"
+                Value="True" />
+        <Setter Property="Padding"
+                Value="0" />
+    </Style>
+
+    <Style TargetType="SwipeView">
+        <Setter Property="BackgroundColor"
+                Value="Transparent" />
+    </Style>
+</ResourceDictionary>

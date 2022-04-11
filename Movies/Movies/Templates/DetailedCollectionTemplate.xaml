@@ -1,0 +1,45 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<DataTemplate xmlns="http://xamarin.com/schemas/2014/forms"
+              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+              xmlns:views="clr-namespace:Movies.Views"
+              xmlns:models="clr-namespace:Movies.Models"
+              x:Class="Movies.Templates.DetailedCollectionTemplate">
+    <views:CollectionItemView Title="{Binding Name}"
+                              ThumbnailTemplate="{StaticResource CompressedCollectionTemplate}">
+        <StackLayout Orientation="Vertical">
+            <Label Style="{StaticResource MultiPartLabel}">
+                <Label.FormattedText>
+                    <FormattedString>
+                        <Span x:DataType="{x:Null}">
+                            <Span.Text>
+                                <MultiBinding StringFormat="{}{0} {1}">
+                                    <Binding Path="Count" />
+                                    <Binding Path="ListLabel"
+                                             TargetNullValue="Items"/>
+                                </MultiBinding>
+                            </Span.Text>
+                        </Span>
+                        <Span Text="{Binding Author, FallbackValue=''}"
+                              x:DataType="models:List" />
+                        <!--<Span x:DataType="models:List">
+                            <Span.Text>
+                                <Binding Path="Private"
+                                         TargetNullValue="{StaticResource DetailedTemplateNullValue}"
+                                         FallbackValue="">
+                                    <Binding.Converter>
+                                        <views:BoolToObjectConverter TrueObject="Private"
+                                                                     FalseObject="Public" />
+                                    </Binding.Converter>
+                                </Binding>
+                            </Span.Text>
+                        </Span>-->
+                    </FormattedString>
+                </Label.FormattedText>
+            </Label>
+
+            <Label Text="{Binding Item.Description, TargetNullValue='No description provided'}"
+                   LineBreakMode="TailTruncation"
+                   MaxLines="3" />
+        </StackLayout>
+    </views:CollectionItemView>
+</DataTemplate>

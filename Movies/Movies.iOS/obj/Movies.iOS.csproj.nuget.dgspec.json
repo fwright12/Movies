@@ -1,0 +1,196 @@
+{
+  "format": 1,
+  "restore": {
+    "C:\\Users\\Flint\\Documents\\MovieApp\\Movies\\Movies\\Movies.iOS\\Movies.iOS.csproj": {}
+  },
+  "projects": {
+    "C:\\Users\\Flint\\Documents\\Code\\C#\\System.Extensions\\System.Extensions.csproj": {
+      "restore": {
+        "projectUniqueName": "C:\\Users\\Flint\\Documents\\Code\\C#\\System.Extensions\\System.Extensions.csproj",
+        "projectName": "System.Extensions",
+        "projectPath": "C:\\Users\\Flint\\Documents\\Code\\C#\\System.Extensions\\System.Extensions.csproj",
+        "frameworks": {
+          "net471": {
+            "projectReferences": {}
+          }
+        }
+      },
+      "frameworks": {
+        "net471": {}
+      }
+    },
+    "C:\\Users\\Flint\\Documents\\Code\\C#\\Xamarin.Forms.Extensions\\Xamarin.Forms.Extensions.csproj": {
+      "restore": {
+        "projectUniqueName": "C:\\Users\\Flint\\Documents\\Code\\C#\\Xamarin.Forms.Extensions\\Xamarin.Forms.Extensions.csproj",
+        "projectName": "Xamarin.Forms.Extensions",
+        "projectPath": "C:\\Users\\Flint\\Documents\\Code\\C#\\Xamarin.Forms.Extensions\\Xamarin.Forms.Extensions.csproj",
+        "frameworks": {
+          "net471": {
+            "projectReferences": {
+              "C:\\Users\\Flint\\Documents\\Code\\C#\\System.Extensions\\System.Extensions.csproj": {
+                "projectPath": "C:\\Users\\Flint\\Documents\\Code\\C#\\System.Extensions\\System.Extensions.csproj"
+              }
+            }
+          }
+        }
+      },
+      "frameworks": {
+        "net471": {}
+      }
+    },
+    "C:\\Users\\Flint\\Documents\\MovieApp\\Movies\\Movies\\Movies.iOS\\Movies.iOS.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "C:\\Users\\Flint\\Documents\\MovieApp\\Movies\\Movies\\Movies.iOS\\Movies.iOS.csproj",
+        "projectName": "Movies.iOS",
+        "projectPath": "C:\\Users\\Flint\\Documents\\MovieApp\\Movies\\Movies\\Movies.iOS\\Movies.iOS.csproj",
+        "packagesPath": "C:\\Users\\Flint\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\Flint\\Documents\\MovieApp\\Movies\\Movies\\Movies.iOS\\obj\\",
+        "projectStyle": "PackageReference",
+        "skipContentFileWrite": true,
+        "configFilePaths": [
+          "C:\\Users\\Flint\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
+        ],
+        "originalTargetFrameworks": [
+          "xamarinios10"
+        ],
+        "sources": {
+          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "xamarinios10": {
+            "projectReferences": {
+              "C:\\Users\\Flint\\Documents\\Code\\C#\\Xamarin.Forms.Extensions\\Xamarin.Forms.Extensions.csproj": {
+                "projectPath": "C:\\Users\\Flint\\Documents\\Code\\C#\\Xamarin.Forms.Extensions\\Xamarin.Forms.Extensions.csproj"
+              },
+              "C:\\Users\\Flint\\Documents\\MovieApp\\Movies\\Movies\\Movies\\Movies.csproj": {
+                "projectPath": "C:\\Users\\Flint\\Documents\\MovieApp\\Movies\\Movies\\Movies\\Movies.csproj"
+              }
+            }
+          }
+        }
+      },
+      "frameworks": {
+        "xamarinios10": {
+          "dependencies": {
+            "Xamarin.Forms": {
+              "target": "Package",
+              "version": "[5.0.0.2291, )"
+            },
+            "Xamarin.Google.iOS.MobileAds": {
+              "target": "Package",
+              "version": "[8.13.0, )"
+            }
+          }
+        }
+      },
+      "runtimes": {
+        "win": {
+          "#import": []
+        },
+        "win-x64": {
+          "#import": []
+        },
+        "win-x86": {
+          "#import": []
+        }
+      }
+    },
+    "C:\\Users\\Flint\\Documents\\MovieApp\\Movies\\Movies\\Movies\\Movies.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "C:\\Users\\Flint\\Documents\\MovieApp\\Movies\\Movies\\Movies\\Movies.csproj",
+        "projectName": "Movies",
+        "projectPath": "C:\\Users\\Flint\\Documents\\MovieApp\\Movies\\Movies\\Movies\\Movies.csproj",
+        "packagesPath": "C:\\Users\\Flint\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\Flint\\Documents\\MovieApp\\Movies\\Movies\\Movies\\obj\\",
+        "projectStyle": "PackageReference",
+        "fallbackFolders": [
+          "C:\\Program Files\\dotnet\\sdk\\NuGetFallbackFolder"
+        ],
+        "configFilePaths": [
+          "C:\\Users\\Flint\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
+        ],
+        "originalTargetFrameworks": [
+          "netstandard2.1"
+        ],
+        "sources": {
+          "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "netstandard2.1": {
+            "targetAlias": "netstandard2.1",
+            "projectReferences": {
+              "C:\\Users\\Flint\\Documents\\Code\\C#\\System.Extensions\\System.Extensions.csproj": {
+                "projectPath": "C:\\Users\\Flint\\Documents\\Code\\C#\\System.Extensions\\System.Extensions.csproj"
+              },
+              "C:\\Users\\Flint\\Documents\\Code\\C#\\Xamarin.Forms.Extensions\\Xamarin.Forms.Extensions.csproj": {
+                "projectPath": "C:\\Users\\Flint\\Documents\\Code\\C#\\Xamarin.Forms.Extensions\\Xamarin.Forms.Extensions.csproj"
+              }
+            }
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        }
+      },
+      "frameworks": {
+        "netstandard2.1": {
+          "targetAlias": "netstandard2.1",
+          "dependencies": {
+            "Microsoft.CSharp": {
+              "target": "Package",
+              "version": "[4.7.0, )"
+            },
+            "Newtonsoft.Json": {
+              "target": "Package",
+              "version": "[13.0.1, )"
+            },
+            "System.Text.Json": {
+              "target": "Package",
+              "version": "[6.0.2, )"
+            },
+            "TMDbLib": {
+              "target": "Package",
+              "version": "[1.9.1, )"
+            },
+            "Xamarin.Essentials": {
+              "target": "Package",
+              "version": "[1.7.1, )"
+            },
+            "Xamarin.Forms": {
+              "target": "Package",
+              "version": "[5.0.0.2291, )"
+            },
+            "sqlite-net-pcl": {
+              "target": "Package",
+              "version": "[1.8.116, )"
+            }
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "NETStandard.Library": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\6.0.201\\RuntimeIdentifierGraph.json"
+        }
+      }
+    }
+  }
+}

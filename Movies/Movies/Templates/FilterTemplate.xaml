@@ -1,0 +1,184 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<DataTemplate xmlns="http://xamarin.com/schemas/2014/forms"
+              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+              xmlns:ext="clr-namespace:Xamarin.Forms.Extensions;assembly=Xamarin.Forms.Extensions"
+              xmlns:forms="clr-namespace:Xamarin.Forms;assembly=Xamarin.Forms.Extensions"
+              xmlns:views="clr-namespace:Movies.Views"
+              xmlns:viewmodels="clr-namespace:Movies.ViewModels"
+              x:Class="Movies.Views.FilterTemplate">
+    <StackLayout BackgroundColor="{AppThemeBinding Light={StaticResource LightSecondaryBackground}, Dark={StaticResource DarkSecondaryBackground}}"
+                 Orientation="Vertical"
+                 x:Name="parent">
+        <!--<VisualStateManager.VisualStateGroups>
+            <VisualStateGroup>
+                <VisualState Name="{Static forms:DrawerView+VisualStates.Closed}">
+                    <VisualState.Setters>
+                        <Setter Property="HeightRequest">
+                            <MultiBinding>
+                                <MultiBinding.Converter>
+                                    <views:ArithmeticConverter Operation="Add" />
+                                </MultiBinding.Converter>
+
+                                <Binding Path="Y"
+                                         Source="{x:Reference minheight}" />
+                                <Binding Path="Child.Height">
+                                    <Binding.Source>
+                                        <views:ChildViewModel Layout="{x:Reference minheight}"
+                                                              Index="0" />
+                                    </Binding.Source>
+                                </Binding>
+                            </MultiBinding>
+                        </Setter>
+                    </VisualState.Setters>
+                </VisualState>
+
+                <VisualState Name="{Static forms:DrawerView+VisualStates.Open}">
+                    <VisualState.Setters>
+                        <Setter Property="HeightRequest"
+                                Value="500" />
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+        </VisualStateManager.VisualStateGroups>
+
+        <ext:VisualStateManager.VisualState>Normal</ext:VisualStateManager.VisualState>-->
+
+        <VisualElement.Resources>
+            <Style x:Key="StringSelectorStyle"
+                   TargetType="FlexLayout">
+                <Setter Property="Wrap"
+                        Value="Wrap" />
+                <Setter Property="forms:Selection.SelectionMode"
+                        Value="Multiple" />
+                <Setter Property="forms:Selection.SelectedItems"
+                        Value="{Binding SelectedOptions}" />
+                <Setter Property="BindableLayout.ItemsSource"
+                        Value="{Binding Options}" />
+                <Setter Property="BindableLayout.ItemTemplate">
+                    <DataTemplate>
+                        <Frame Padding="10, 8"
+                               Margin="2, 0"
+                               BorderColor="{Binding TextColor, Source={x:Reference Option}}"
+                               Style="{StaticResource RoundedFrameStyle}">
+                            <VisualStateManager.VisualStateGroups>
+                                <VisualStateGroup Name="CommonStates">
+                                    <VisualState Name="{Static VisualStateManager+CommonStates.Normal}" />
+                                    <VisualState Name="{Static VisualStateManager+CommonStates.Selected}">
+                                        <VisualState.Setters>
+                                            <Setter Property="BackgroundColor"
+                                                    Value="{StaticResource Primary}" />
+                                            <Setter Property="BorderColor"
+                                                    Value="{Binding BackgroundColor, Source={RelativeSource Self}}" />
+
+                                            <Setter TargetName="Option"
+                                                    Property="Label.TextColor"
+                                                    Value="{StaticResource DarkPrimaryText}" />
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                </VisualStateGroup>
+                            </VisualStateManager.VisualStateGroups>
+
+                            <Label x:Name="Option"
+                                   Text="{Binding}" />
+                        </Frame>
+                    </DataTemplate>
+                </Setter>
+            </Style>
+
+            <DataTemplate x:Key="SearchTemplate">
+                <SearchBar Text="{Binding Query, Mode=TwoWay}"
+                           SearchCommand="{Binding SearchCommand}"
+                           TextColor="{AppThemeBinding Light={StaticResource LightPrimaryText}, Dark={StaticResource DarkPrimaryText}}"
+                           Placeholder="{Binding Placeholder}"
+                           PlaceholderColor="{AppThemeBinding Light={StaticResource LightSecondaryText}, Dark={StaticResource DarkSecondaryText}}"
+                           CancelButtonColor="{StaticResource Primary}"/>
+            </DataTemplate>
+
+            <DataTemplate x:Key="StringOptionsTemplate">
+                <views:SectionView Title="{Binding Name}"
+                                   ControlTemplate="{x:Null}">
+                    <FlexLayout Style="{StaticResource StringSelectorStyle}" />
+                </views:SectionView>
+            </DataTemplate>
+
+            <DataTemplate x:Key="NumberOptionsTemplate">
+                <views:SectionView Title="Runtime">
+                    <StackLayout Orientation="Vertical">
+                        <FlexLayout Direction="Row"
+                                    AlignItems="Center">
+                            <Label Text="Min: "
+                                   VerticalOptions="Center" />
+                            <Entry x:Name="value"
+                                   Keyboard="Numeric"
+                                   WidthRequest="50" />
+                            <Slider Maximum="400"
+                                    Minimum="1"
+                                    Value="{Binding Text, Source={x:Reference value}, Mode=TwoWay}"
+                                    FlexLayout.Grow="1" />
+                        </FlexLayout>
+                    </StackLayout>
+                </views:SectionView>
+            </DataTemplate>
+
+            <DataTemplate x:Key="ListOptionsTemplate">
+                <views:SectionView Title="Lists">
+                    <StackLayout Orientation="Vertical">
+                        <FlexLayout Direction="Row"
+                                    AlignItems="Center">
+                            <CheckBox />
+                            <Label Text="Only stuff I've seen" />
+                        </FlexLayout>
+
+                        <FlexLayout Direction="Row"
+                                    AlignItems="Center">
+                            <CheckBox x:Name="notseen" />
+                            <Label Text="Only stuff I haven't seen" />
+                        </FlexLayout>
+                    </StackLayout>
+                </views:SectionView>
+            </DataTemplate>
+
+            <DataTemplate x:Key="DateTimeOptionsTemplate">
+                <views:SectionView Title="Release Date">
+                    <StackLayout Orientation="Vertical">
+                        <FlexLayout Direction="Row"
+                                    AlignItems="Center">
+                            <Label Text="After:" />
+                            <DatePicker />
+                        </FlexLayout>
+
+                        <FlexLayout Direction="Row"
+                                    AlignItems="Center">
+                            <Label Text="Before:" />
+                            <DatePicker />
+                        </FlexLayout>
+                    </StackLayout>
+                </views:SectionView>
+            </DataTemplate>
+
+            <forms:TypeTemplateSelector x:Key="FilterTemplateSelector">
+                <forms:TypeTemplateSelector.Templates>
+                    <forms:TypeDataTemplate Type="{x:Type viewmodels:StringFilterViewModel}"
+                                            Template="{StaticResource StringOptionsTemplate}" />
+                    <forms:TypeDataTemplate Type="{x:Type viewmodels:SearchFilterViewModel}"
+                                            Template="{StaticResource SearchTemplate}" />
+                </forms:TypeTemplateSelector.Templates>
+            </forms:TypeTemplateSelector>
+        </VisualElement.Resources>
+
+        <StackLayout Orientation="Vertical"
+                     Spacing="10"
+                     BindableLayout.ItemsSource="{Binding}"
+                     BindableLayout.ItemTemplateSelector="{StaticResource FilterTemplateSelector}">
+            <Layout.Padding>
+                <MultiBinding Converter="{Static forms:ThicknessConverter.Instance}"
+                              ConverterParameter="horizontal, vertical">
+                    <Binding Source="{StaticResource PagePadding}" />
+                    <Binding Path="CornerRadius"
+                             Source="{RelativeSource AncestorType={x:Type Frame}}"
+                             FallbackValue="{StaticResource PagePadding}" />
+                </MultiBinding>
+            </Layout.Padding>
+        </StackLayout>
+    </StackLayout>
+</DataTemplate>

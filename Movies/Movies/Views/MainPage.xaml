@@ -1,0 +1,251 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<Shell xmlns="http://xamarin.com/schemas/2014/forms"
+       xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+       xmlns:ios="clr-namespace:Xamarin.Forms.PlatformConfiguration.iOSSpecific;assembly=Xamarin.Forms.Core"
+       xmlns:forms="clr-namespace:Xamarin.Forms;assembly=Xamarin.Forms.Extensions"
+       xmlns:ext="clr-namespace:Xamarin.Forms.Extensions;assembly=Xamarin.Forms.Extensions"
+       xmlns:movies="clr-namespace:Movies"
+       xmlns:views="clr-namespace:Movies.Views"
+       xmlns:viewmodels="clr-namespace:Movies.ViewModels"
+       xmlns:models="clr-namespace:Movies.Models"
+       x:Class="Movies.Views.MainPage"
+       BackgroundColor="{AppThemeBinding Light='White', Dark='#1B1B1B'}"
+       TitleColor="{AppThemeBinding Light={StaticResource LightPrimaryText}, Dark={StaticResource DarkPrimaryText}}"
+       ForegroundColor="#138808"
+       UnselectedColor="{AppThemeBinding Light={StaticResource LightSecondaryText}, Dark={StaticResource DarkSecondaryText}}">
+    <VisualElement.Resources>
+        <DataTemplate x:Key="ExploreTemplate">
+            <ContentPage>
+                <!--<Shell.TitleView>
+                    <ContentView Padding="{OnPlatform Android='50,0,0,0', iOS='50,0,0,0'}">
+                        <forms:AdView Style="{StaticResource BannerAdStyle}"
+                                      AdUnitID="{Static movies:App.TopBannerAdUnitID}" />
+                    </ContentView>
+                </Shell.TitleView>-->
+
+                <Page.ToolbarItems>
+                    <ToolbarItem Text="Settings">
+                        <ToolbarItem.Command>
+                            <views:PushPageCommand PageTemplate="{DataTemplate views:SettingsPage}" />
+                        </ToolbarItem.Command>
+                    </ToolbarItem>
+                </Page.ToolbarItems>
+
+                <CollectionView ItemsSource="{Binding}"
+                                ItemTemplate="{StaticResource CondensedListTemplate}"
+                                Margin="10, 0">
+                    <VisualElement.Resources>
+                        <Style TargetType="CollectionView"
+                               x:Key="test">
+                            <Setter Property="BackgroundColor"
+                                    Value="Red"/>
+                            <Setter Property="EmptyView"
+                                    Value="test"/>
+                            <Setter Property="EmptyViewTemplate">
+                                <DataTemplate>
+                                    <StackLayout>
+                                        <Label Text="test"
+                                           BackgroundColor="Green"
+                                           IsVisible="{Binding IsVisible, Source={RelativeSource AncestorType={x:Type views:SectionView}}, Mode=OneWayToSource, FallbackValue='False'}"/>
+                                    </StackLayout>
+                                </DataTemplate>
+                            </Setter>
+                        </Style>
+                        
+                        <Style TargetType="views:SectionView"
+                               BasedOn="{StaticResource DefaultSectionViewStyle}"
+                               x:Key="asdf">
+                            <Setter Property="IsVisible"
+                                    Value="{OnPlatform iOS='False'}"/>
+                            <Setter Property="IsEnabled"
+                                    Value="{Binding LoadMoreCommand}"/>
+
+                            <Style.Triggers>
+                                <DataTrigger TargetType="VisualElement"
+                                             Binding="{Binding Count}"
+                                             Value="1">
+                                    <Setter Property="IsVisible"
+                                            Value="True"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </VisualElement.Resources>
+                </CollectionView>
+            </ContentPage>
+        </DataTemplate>
+
+        <ControlTemplate x:Key="SwipeTemplate">
+            <SwipeView>
+                <SwipeView.RightItems>
+                    <SwipeItems>
+                        <SwipeItem Text="Delete"
+                                   BackgroundColor="Red"
+                                   Command="{Binding DeleteListCommand, Source={Static Application.Current}}"
+                                   CommandParameter="{TemplateBinding BindingContext}" />
+                    </SwipeItems>
+                </SwipeView.RightItems>
+
+                <ContentPresenter />
+            </SwipeView>
+        </ControlTemplate>
+    </VisualElement.Resources>
+
+    <TabBar Shell.TabBarBackgroundColor="{Binding Parent.BackgroundColor}"
+            Shell.TabBarTitleColor="{StaticResource Primary}">
+        <Tab Title="Explore">
+            <Tab.Icon>
+                <FontImageSource Glyph="&#xf273;"
+                                 FontFamily="{StaticResource IoniconsFont}" />
+            </Tab.Icon>
+
+            <ShellContent Title="Movies"
+                          BindingContext="{Binding MovieExplore, Source={Static Application.Current}}"
+                          ContentTemplate="{StaticResource ExploreTemplate}" />
+            <ShellContent Title="TV Shows"
+                          BindingContext="{Binding TVExplore, Source={Static Application.Current}}"
+                          ContentTemplate="{StaticResource ExploreTemplate}" />
+            <ShellContent Title="People"
+                          BindingContext="{Binding PeopleExplore, Source={Static Application.Current}}"
+                          ContentTemplate="{StaticResource ExploreTemplate}" />
+        </Tab>
+
+        <ShellContent Title="Find">
+            <ShellContent.Icon>
+                <FontImageSource Glyph="{OnPlatform iOS='&#xf4a4;', Android='&#xf2f5;'}"
+                                 FontFamily="{StaticResource IoniconsFont}" />
+            </ShellContent.Icon>
+
+            <ShellContent.ContentTemplate>
+                <DataTemplate>
+                    <ContentPage BindingContext="{Binding Popular, Source={Static Application.Current}}"
+                                 Shell.NavBarIsVisible="False"
+                                 ios:Page.UseSafeArea="True">
+                        <ContentPage.ControlTemplate>
+                            <movies:ListTemplate />
+                        </ContentPage.ControlTemplate>
+                    </ContentPage>
+                </DataTemplate>
+            </ShellContent.ContentTemplate>
+        </ShellContent>
+
+        <ShellContent Title="Lists">
+            <ShellContent.Icon>
+                <FontImageSource Glyph="&#xf36b;"
+                                 FontFamily="{StaticResource IoniconsFont}" />
+            </ShellContent.Icon>
+
+            <ShellContent.ContentTemplate>
+                <DataTemplate>
+                    <ContentPage Title="My Lists">
+                        <StackLayout Orientation="Vertical"
+                                     Spacing="0">
+                            <CollectionView views:CollectionViewExt.IsEditing="False"
+                                            Style="{StaticResource CustomListsStyle}">
+                                <CollectionView.ItemTemplate>
+                                    <views:EditDataTemplateSelector Main="{StaticResource ListSelector}"
+                                                                    SwipeTemplate="{StaticResource SwipeTemplate}"
+                                                                    EditTemplate="{OnPlatform iOS={StaticResource iOSEditListTemplate}, Android={StaticResource AndroidEditListTemplate}}" />
+                                </CollectionView.ItemTemplate>
+
+                                <View.Margin>
+                                    <MultiBinding Converter="{Static forms:ThicknessConverter.Instance}"
+                                                  ConverterParameter="horizontal">
+                                        <Binding Source="{StaticResource PagePadding}" />
+                                    </MultiBinding>
+                                </View.Margin>
+
+                                <CollectionView.Header>
+                                    <StackLayout Orientation="Vertical">
+                                        <forms:AdView Style="{StaticResource BannerAdStyle}"
+                                                      AdUnitID="{Static movies:App.TopBannerAdUnitID}" />
+
+                                        <StackLayout Orientation="Vertical"
+                                                     CompressedLayout.IsHeadless="True"
+                                                     BindableLayout.ItemTemplate="{StaticResource CondensedListTemplate}">
+                                            <BindableLayout.ItemsSource>
+                                                <MultiBinding>
+                                                    <MultiBinding.Converter>
+                                                        <forms:ObservableConverter />
+                                                    </MultiBinding.Converter>
+
+                                                    <Binding Path="Watchlist" />
+                                                    <Binding Path="Favorites" />
+                                                    <Binding Path="History" />
+                                                </MultiBinding>
+                                            </BindableLayout.ItemsSource>
+                                        </StackLayout>
+
+                                        <views:SectionView Title="Custom Lists">
+                                            <StackLayout Orientation="Horizontal"
+                                                         BindingContext="{Binding SelectionMode, Source={RelativeSource AncestorType={x:Type CollectionView}}, Converter={Static views:SelectionModeToBoolConverter.Instance}}">
+                                                <Button Command="{Static views:CollectionViewExt.ToggleSelectionModeCommand}"
+                                                        CommandParameter="{Binding Source={RelativeSource AncestorType={x:Type CollectionView}}}">
+                                                    <Button.Text>
+                                                        <Binding>
+                                                            <Binding.Converter>
+                                                                <forms:BoolToObjectConverter TrueObject="Done"
+                                                                                             FalseObject="Edit" />
+                                                            </Binding.Converter>
+                                                        </Binding>
+                                                    </Button.Text>
+                                                </Button>
+
+                                                <Button Text="+"
+                                                        FontSize="Title"
+                                                        IsVisible="{Binding Converter={Static forms:NegateBoolConverter.Instance}}"
+                                                        HorizontalOptions="EndAndExpand"
+                                                        Style="{StaticResource CreateListStyle}" />
+                                            </StackLayout>
+                                        </views:SectionView>
+                                    </StackLayout>
+                                </CollectionView.Header>
+
+                                <CollectionView.Footer>
+                                    <ContentView>
+                                        <forms:AdView Style="{StaticResource BannerAdStyle}"
+                                                      AdUnitID="{Static movies:App.BottomBannerAdUnitID}" />
+                                    </ContentView>
+                                </CollectionView.Footer>
+                            </CollectionView>
+
+                            <StackLayout Orientation="Horizontal"
+                                         BindingContext="{Binding Parent.Children[0], Source={RelativeSource Self}}"
+                                         StyleClass="SecondaryBackground"
+                                         IsVisible="{Binding SelectionMode, Converter={Static views:SelectionModeToBoolConverter.Instance}}"
+                                         Padding="10, 5">
+                                <!--<Button CommandParameter="{Binding}">
+                        <VisualStateManager.VisualStateGroups>
+                            <VisualStateGroup>
+                                <VisualState Name="Select all">
+                                    <VisualState.Setters>
+                                        <Setter Property="Text"
+                                                Value="Select all" />
+                                        <Setter Property="Command"
+                                                Value="{Static views:CollectionViewExt.SelectAllCommand}" />
+                                    </VisualState.Setters>
+                                </VisualState>
+
+                                <VisualState Name="Deselect all">
+                                    <VisualState.Setters>
+                                        <Setter Property="Text"
+                                                Value="Deselect all" />
+                                        <Setter Property="Command"
+                                                Value="{Static views:CollectionViewExt.DeselectAllCommand}" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                            </VisualStateGroup>
+                        </VisualStateManager.VisualStateGroups>
+                    </Button>-->
+
+                                <Button Text="Delete"
+                                        HorizontalOptions="EndAndExpand"
+                                        Command="{Static views:CollectionViewExt.DeleteSelectedCommand}"
+                                        CommandParameter="{Binding}" />
+                            </StackLayout>
+                        </StackLayout>
+                    </ContentPage>
+                </DataTemplate>
+            </ShellContent.ContentTemplate>
+        </ShellContent>
+    </TabBar>
+</Shell>
