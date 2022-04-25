@@ -36,6 +36,7 @@ namespace Movies
 
     public interface IAccount : IService
     {
+        public Company Company { get; }
         public string Username { get; }
 
         Task<string> GetOAuthURL(Uri redirectUri);

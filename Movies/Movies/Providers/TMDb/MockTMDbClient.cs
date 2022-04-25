@@ -54,7 +54,7 @@ namespace Movies
                 PosterPath = "https://www4.pictures.zimbio.com/mp/-7nXotCKELnx.jpg",
                 BackdropPath = "interstellar backdrop.jpg",
                 Overview = "Astronauts go to space",
-                VoteAverage = 10,
+                VoteAverage = 7.8,
                 VoteCount = 503,
                 Genres = new List<Genre>
                     {

@@ -152,17 +152,8 @@
                 </VisualElement.Behaviors>
 
                 <forms:Ads.CollectionAds>
-                    <forms:AdInfo Frequency="10">
-                        <forms:AdInfo.Template>
-                            <DataTemplate>
-                                <forms:AdView Style="{StaticResource InlineBannerAdStyle}"
-                                              AdUnitID="{Static movies:App.ListInlineBannerAdUnitID}"
-                                              AdSize="MediumRectangle"
-                                              WidthRequest="-1"
-                                              HeightRequest="-1" />
-                            </DataTemplate>
-                        </forms:AdInfo.Template>
-                    </forms:AdInfo>
+                    <forms:AdInfo Frequency="10"
+                                  Template="{StaticResource InlineBannerTemplate}"/>
                 </forms:Ads.CollectionAds>
 
                 <CollectionView.Header>

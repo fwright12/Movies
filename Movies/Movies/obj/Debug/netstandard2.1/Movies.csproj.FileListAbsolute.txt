@@ -22,7 +22,6 @@ C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies\obj\Debug\netstandard2.1\
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies\obj\Debug\netstandard2.1\Templates\ListTemplate.xaml.g.cs
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies\obj\Debug\netstandard2.1\Templates\PersonTemplate.xaml.g.cs
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies\obj\Debug\netstandard2.1\Templates\QuickActionsTemplate.xaml.g.cs
-C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies\obj\Debug\netstandard2.1\Views\AboutPage.xaml.g.cs
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies\obj\Debug\netstandard2.1\Views\CollectionItemView.xaml.g.cs
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies\obj\Debug\netstandard2.1\Views\EditView.xaml.g.cs
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies\obj\Debug\netstandard2.1\Views\ImageView.xaml.g.cs

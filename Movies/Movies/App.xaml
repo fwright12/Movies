@@ -44,6 +44,17 @@
                         Value="{Static forms:AdView.InlineBannerHeight}" />
             </Style>
 
+            <DataTemplate x:Key="InlineBannerTemplate">
+                <ContentView>
+                    <forms:AdView Style="{StaticResource InlineBannerAdStyle}"
+                                  AdUnitID="{Static movies:App.ListInlineBannerAdUnitID}"
+                                  AdSize="MediumRectangle"
+                                  VerticalOptions="Center"
+                                  WidthRequest="-1"
+                                  HeightRequest="-1" />
+                </ContentView>
+            </DataTemplate>
+
             <Style TargetType="Page"
                    ApplyToDerivedTypes="True">
                 <Setter Property="BackgroundColor"
@@ -408,8 +419,7 @@
             </Style>
 
             <DataTemplate x:Key="CondensedListTemplate">
-                <views:SectionView Title="{Binding Name}"
-                                   HeightRequest="300">
+                <views:SectionView Title="{Binding Name}">
                     <views:SectionView.Header>
                         <DataTemplate>
                             <StackLayout Orientation="Horizontal">
@@ -429,6 +439,7 @@
                                         RemainingItemsThresholdReachedCommand="{Binding LoadMoreCommand}"
                                         RemainingItemsThreshold="0"
                                         Style="{StaticResource UniformGridStyle}"
+                                        HeightRequest="250"
                                         AbsoluteLayout.LayoutBounds="0.5,0.5,1,1"
                                         AbsoluteLayout.LayoutFlags="All">
                             <CollectionView.ItemsLayout>

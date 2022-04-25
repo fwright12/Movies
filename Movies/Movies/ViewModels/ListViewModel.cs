@@ -192,13 +192,11 @@ namespace Movies.ViewModels
 
     public class NamedListViewModel : ListViewModel
     {
-        public NamedListViewModel(DataManager dataManager, string name, ItemType allowedTypes, IEnumerable<SyncOptions> sources) : base(dataManager, sources)
+        public NamedListViewModel(DataManager dataManager, string name, IEnumerable<SyncOptions> sources, ItemType? allowedTypes = null) : base(dataManager, sources, allowedTypes, true)
         {
             if (Item is List list)
             {
-                list.Reverse = true;
                 list.Name = name;
-                list.AllowedTypes = allowedTypes;
             }
         }
     }
@@ -250,6 +248,9 @@ namespace Movies.ViewModels
 
         private Dictionary<object, bool?> ContainsCache = new Dictionary<object, bool?>();
         private IList<SyncOptions> SyncBackup;
+        private ItemType? AllowedTypes;
+
+        private bool IsAllowed(Item item) => (AllowedTypes ?? (Item as List)?.AllowedTypes)?.HasFlag(item.ItemType) == true;
 
         public class SyncOptions
         {
@@ -265,17 +266,18 @@ namespace Movies.ViewModels
         }
 
         public ListViewModel(DataManager manager, params SyncOptions[] sources) : this(manager, (IEnumerable<SyncOptions>)sources) { }
-        public ListViewModel(DataManager manager, IEnumerable<SyncOptions> sources) : base(manager, new SyncList(sources.Select(sync => sync.List)))
+        public ListViewModel(DataManager manager, IEnumerable<SyncOptions> sources, ItemType? allowedTypes = null, bool reverse = false) : base(manager, new SyncList(sources.Select(sync => sync.List), reverse))
         {
             SyncWith = new ObservableCollection<SyncOptions>(sources);
             SyncBackup = new List<SyncOptions>(SyncWith);
+            AllowedTypes = allowedTypes;
 
             SyncCommand = new Command<SyncOptions>(AddSync);
             RemoveSyncCommand = new Command<SyncOptions>(options => RemoveSync(options), options => SyncWith.Count > 1);
             SyncWith.CollectionChanged += (sender, e) => (RemoveSyncCommand as Command)?.ChangeCanExecute();
 
-            AddCommand = new Command<Item>(item => _ = Add(item), item => item != null && (Item as List)?.AllowedTypes.HasFlag(item.ItemType) == true && Contains(item) == false);
-            RemoveCommand = new Command<Item>(item => _ = Remove(item), item => item != null && (Item as List)?.AllowedTypes.HasFlag(item.ItemType) == true && Contains(item) == true);
+            AddCommand = new Command<Item>(item => _ = Add(item), item => item != null && IsAllowed(item) && Contains(item) == false);
+            RemoveCommand = new Command<Item>(item => _ = Remove(item), item => item != null && IsAllowed(item) && Contains(item) == true);
             RemoveMultipleCommand = new Command<IEnumerable>(items => _ = Remove(items.OfType<ItemViewModel>().Select(item => item.Item)));
 
             DeleteListCommand = new Command(async () =>
@@ -324,11 +326,21 @@ namespace Movies.ViewModels
             for (int i = 0; i < SyncBackup.Count; i++)
             {
                 var backup = SyncBackup[i];
-                var same = SyncWith.FirstOrDefault(sync => sync.Provider == backup.Provider);
 
-                if (same != null && same.List != backup.List)
+                for (int j = 0; j < SyncWith.Count; j++)
                 {
-                    SyncBackup[i] = same;
+                    var sync = SyncWith[j];
+
+                    if (sync.Provider == backup.Provider)
+                    {
+                        if (sync.List != backup.List)
+                        {
+                            //SyncBackup[i] = same;
+                            SyncWith[j] = backup;
+                        }
+
+                        break;
+                    }
                 }
             }
 
@@ -344,11 +356,6 @@ namespace Movies.ViewModels
 
                 if (Item is List list)
                 {
-                    if (string.IsNullOrEmpty(list.Description))
-                    {
-                        list.Description = null;
-                    }
-
                     await list.Update();
                 }
 
@@ -498,6 +505,10 @@ namespace Movies.ViewModels
                     ContainsCache[item] = true;
                 }
 
+                foreach (var sync in SyncWith)
+                {
+                    //await sync.List.AddAsync(newItems);
+                }
                 await (Item as List)?.AddAsync(newItems);
             }
 
@@ -508,6 +519,10 @@ namespace Movies.ViewModels
                     ContainsCache[item] = false;
                 }
 
+                foreach (var sync in SyncWith)
+                {
+                    //await sync.List.RemoveAsync(oldItems);
+                }
                 await (Item as List)?.RemoveAsync(oldItems);
             }
 

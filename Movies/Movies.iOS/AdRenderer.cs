@@ -21,9 +21,9 @@ namespace Movies.iOS
         {
             get
             {
-                if (nativeAdView != null)
+                if (_NativeAdView != null)
                 {
-                    return nativeAdView;
+                    return _NativeAdView;
                 }
                 else if (Element?.AdUnitID == null || Element?.AdSize == null)
                 {
@@ -32,32 +32,37 @@ namespace Movies.iOS
 
                 // Setup your BannerView, review AdSizeCons class for more Ad sizes. 
                 //adView = new BannerView(size: AdSizeCons.SmartBannerPortrait, origin: new CGPoint(0, UIScreen.MainScreen.Bounds.Size.Height - AdSizeCons.Banner.Size.Height))
-                nativeAdView = new BannerView(GetAdSize())
+                _NativeAdView = new BannerView(GetAdSize())
                 {
                     AdUnitId = Element.AdUnitID,
                     RootViewController = GetVisibleViewController()
                 };
                 AdSizeUpdated();
 
-                // Wire AdReceived event to know when the Ad is ready to be displayed
-                /*adView.AdReceived += (object sender, EventArgs e) =>
+                var request = Request.GetDefaultRequest();
+                request.RegisterAdNetworkExtras(new Extras
                 {
-                    //ad has come in
-                };*/
+                    AdditionalParameters = new NSDictionary(new NSString("npa"), new NSString("1"))
+                });
+                request.Keywords = App.AdKeywords;
 
-                nativeAdView.LoadRequest(Request.GetDefaultRequest());
-                return nativeAdView;
+                _NativeAdView.LoadRequest(request);
+                return _NativeAdView;
             }
         }
-        private BannerView nativeAdView;
+        private BannerView _NativeAdView;
 
         protected override void OnElementChanged(ElementChangedEventArgs<AdView> e)
         {
             base.OnElementChanged(e);
             
-            if (Control == null && nativeAdView == null)
+            if (Control == null && _NativeAdView == null)
             {
-                SetNativeControl(NativeAdView);
+                try
+                {
+                    SetNativeControl(NativeAdView);
+                }
+                catch { }
             }
         }
 
@@ -78,20 +83,21 @@ namespace Movies.iOS
         private void AdSizeUpdated()
         {
             var size = NativeAdView.AdSize.Size;
-            /*if (Element.HeightRequest == AdView.InlineBannerHeight)
+            Element.HeightRequest = size.Height;
+
+            if (Element.HeightRequest == AdView.InlineBannerHeight)
             {
-                AdView.AdListener = new Listener(() =>
+                // Wire AdReceived event to know when the Ad is ready to be displayed
+                _NativeAdView.AdReceived += (sender, e) =>
                 {
-                    Print.Log("loaded", AdView.AdSize.Height);
-                    Element.HeightRequest = AdView.AdSize.Height;
-                });
+                    Element.HeightRequest = ((BannerView)sender).AdSize.Size.Height;
+                };
             }
             else
             {
-                Element.HeightRequest = AdView.AdSize.Height;
-            }*/
+                
+            }
 
-            Element.HeightRequest = size.Height;
             Element.WidthRequest = size.Width;
         }
 
@@ -110,6 +116,7 @@ namespace Movies.iOS
             else if (Element.HeightRequest == AdView.InlineBannerHeight)
             {
                 return AdSizeCons.MediumRectangle;
+                return AdSizeCons.GetCurrentOrientationInlineAdaptiveBannerAdSizeh((nfloat)Element.WidthRequest);
             }
             else
             {

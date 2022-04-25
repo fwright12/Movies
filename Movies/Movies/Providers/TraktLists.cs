@@ -18,7 +18,11 @@ namespace Movies
 
         public TMDB TMDb { get; }
         public string Username { get; private set; }
-        public string Name { get; } = "Trakt";
+        public string Name => Company.Name;
+        public Company Company { get; } = new Company
+        {
+            Name = "Trakt"
+        };
         public Uri RedirectUri { get; set; }
 
         private HttpClient Client;
@@ -26,6 +30,9 @@ namespace Movies
         private string ClientSecret;
         private string UserAccessToken;
         private string UserSlug;
+
+        private Lazy<Task<List<Models.List>>> LazyAllLists;
+        private Lazy<Task<JsonNode>> LastActivities;
 
         public Trakt(TMDB tmdb, string clientID, string clientSecret = null)
         {
@@ -40,13 +47,38 @@ namespace Movies
 
             Client.DefaultRequestHeaders.Add("trakt-api-key", ClientID);
             Client.DefaultRequestHeaders.Add("trakt-api-version", "2");
+
+            LazyAllLists = new Lazy<Task<List<Models.List>>>(() => GetAllLists());
+            LastActivities = new Lazy<Task<JsonNode>>(() => GetLastActivities());
         }
 
-        public IAsyncEnumerable<Item> GetAnticpatedMoviesAsync() => FlattenPages(Client, "movies/anticipated").Select(json => json["movie"] is JsonNode value && TryParseMovie(value, out var movie) ? movie : null);
-        public IAsyncEnumerable<Item> GetRecommendedMoviesAsync() => FlattenPages(Client, "recommendations/movies").Select(json => json["movie"] is JsonNode value && TryParseMovie(value, out var movie) ? movie : null);
+        private bool TryParseListMovie(JsonNode json, out Movie movie)
+        {
+            if (json["movie"] is JsonNode value && TryParseMovie(value, out movie))
+            {
+                return true;
+            }
 
-        public IAsyncEnumerable<Item> GetAnticipatedTVAsync() => FlattenPages(Client, "shows/anticipated").Select(json => json["show"] is JsonNode value && TryParseTVShow(value, TMDb, out var show) ? show : null);
-        public IAsyncEnumerable<Item> GetRecommendedTVAsync() => FlattenPages(Client, "recommendations/shows").Select(json => json["show"] is JsonNode value && TryParseTVShow(value, TMDb, out var show) ? show : null);
+            movie = null;
+            return false;
+        }
+
+        private bool TryParseListShow(JsonNode json, out TVShow show)
+        {
+            if (json["show"] is JsonNode value && TryParseTVShow(value, TMDb, out show))
+            {
+                return true;
+            }
+
+            show = null;
+            return false;
+        }
+
+        public IAsyncEnumerable<Item> GetAnticpatedMoviesAsync() => FlattenPages(Client, "movies/anticipated").TrySelect<JsonNode, Movie>(TryParseListMovie);
+        public IAsyncEnumerable<Item> GetRecommendedMoviesAsync() => FlattenPages(Client, "recommendations/movies").TrySelect<JsonNode, Movie>(TryParseListMovie);
+
+        public IAsyncEnumerable<Item> GetAnticipatedTVAsync() => FlattenPages(Client, "shows/anticipated").TrySelect<JsonNode, TVShow>(TryParseListShow);
+        public IAsyncEnumerable<Item> GetRecommendedTVAsync() => FlattenPages(Client, "recommendations/shows").TrySelect<JsonNode, TVShow>(TryParseListShow);
 
         private static async IAsyncEnumerable<JsonNode> FlattenPages(HttpClient client, string apiCall, string accessToken = null, int? pageSize = null, bool reverse = false)
         {
@@ -376,7 +408,7 @@ namespace Movies
             {
                 Trakt = trakt;
                 _ID = id;
-                Items = GetItems(pageSize).Select(item => TryParseItem(item, out Item i) ? i : null);
+                Items = GetItems(pageSize).TrySelect<JsonNode, Item>(TryParseItem);
 
                 Client = new HttpClient
                 {
@@ -543,37 +575,43 @@ namespace Movies
                 return false;
             }
 
-            public static List FromJson(JsonNode json, Trakt trakt)
+            public static bool TryParse(JsonNode json, Trakt trakt, out Models.List list)
             {
+                list = null;
+
                 if (!TryParseListID(json, out int id))
                 {
-                    return null;
+                    return false;
                 }
 
-                var list = new List(trakt, id)
+                var localList = new List(trakt, id)
                 {
                     Name = json["name"]?.TryGetValue<string>(),
+                    Description = json["description"]?.TryGetValue<string>(),
                     Count = json["item_count"]?.TryGetValue<int?>(),
                     Public = json["privacy"]?.TryGetValue<string>()?.ToLower() == "public"
                 };
 
-                if (json.TryGetValue("description", out string description))
+                if (DateTime.TryParse(json["updated_at"]?.TryGetValue<string>(), out DateTime date))
                 {
-                    list.Description = description;
+                    localList.LastUpdated = date.ToUniversalTime();
                 }
 
-                list.DetailsBackup = list.DetailsAsJson();
+                localList.DetailsBackup = localList.DetailsAsJson();
 
-                return list;
+                list = localList;
+                return true;
             }
 
             public override Task Delete() => Client.TrySendAsync(ID, method: HttpMethod.Delete);
 
             private string DetailsBackup;
             private string DetailsAsJson() => JsonExtensions.JsonObject(
-                JsonExtensions.FormatJson("name", Name ?? string.Empty),
-                JsonExtensions.FormatJson("description", Description ?? string.Empty),
+                JsonExtensions.FormatJson("name", CleanString(Name)),
+                JsonExtensions.FormatJson("description", CleanString(Description)),
                 JsonExtensions.FormatJson("privacy", Public ? "public" : "private"));
+
+            private string CleanString(string value) => (value ?? string.Empty).Trim();
 
             public override async Task Update()
             {
@@ -609,14 +647,14 @@ namespace Movies
             }
         }
 
-        public class NamedList : BaseList
+        public abstract class BaseNamedList : BaseList
         {
             protected override string ItemsEndpoint => ID;
             protected override string AddEndpoint => ID;
             protected override string RemoveEndpoint => string.Format("{0}/remove", ID);
             protected override string ReorderEndpoint => string.Format("{0}/reorder", ID);
 
-            public NamedList(Trakt trakt, string endpoint, int? pageSize = null) : base(trakt, endpoint, pageSize)
+            public BaseNamedList(Trakt trakt, string endpoint, int? pageSize = null) : base(trakt, endpoint, pageSize)
             {
                 AllowedTypes = ItemType.AllMedia;
                 Client.BaseAddress = new Uri("https://api.trakt.tv/sync/");
@@ -627,7 +665,12 @@ namespace Movies
             public override Task Update() => Task.CompletedTask;
         }
 
-        public class History : NamedList
+        public class NamedList : BaseNamedList
+        {
+            public NamedList(Trakt trakt, string endpoint, int? pageSize = null) : base(trakt, endpoint, pageSize) { }
+        }
+
+        public class History : BaseNamedList
         {
             protected override string ItemsEndpoint => string.Format("{0}/movies", ID);
             protected override string ReorderEndpoint => null;
@@ -711,31 +754,98 @@ namespace Movies
 
         public async Task<Models.List> GetListAsync(string id)
         {
-            //return List.FromJson(JsonNode.Parse("{\"name\":\"Trakt List\",\"description\":\"List from Trakt\",\"privacy\":\"private\",\"display_numbers\":false,\"allow_comments\":true,\"sort_by\":\"rank\",\"sort_how\":\"asc\",\"created_at\":\"2022-04-03T17:38:23.000Z\",\"updated_at\":\"2022-04-03T17:57:47.000Z\",\"item_count\":2,\"comment_count\":0,\"likes\":0,\"ids\":{\"trakt\":23304032,\"slug\":\"trakt-list\"},\"user\":{\"username\":\"GreenMountainLabs\",\"private\":false,\"name\":\"\",\"vip\":false,\"vip_ep\":false,\"ids\":{\"slug\":\"greenmountainlabs\"}}}"), this);
-            var response = await Client.TrySendAsync(AuthedRequest(HttpMethod.Get, string.Format("users/me/lists/{0}", id)));
+            if ((await LazyAllLists.Value).FirstOrDefault(list => list.ID == id) is Models.List temp)
+            {
+                return temp;
+            }
 
-            return response?.IsSuccessStatusCode == true ? List.FromJson(JsonNode.Parse(await response.Content.ReadAsStringAsync()), this) : null;
+            //return List.FromJson(JsonNode.Parse("{\"name\":\"Trakt List\",\"description\":\"List from Trakt\",\"privacy\":\"private\",\"display_numbers\":false,\"allow_comments\":true,\"sort_by\":\"rank\",\"sort_how\":\"asc\",\"created_at\":\"2022-04-03T17:38:23.000Z\",\"updated_at\":\"2022-04-03T17:57:47.000Z\",\"item_count\":2,\"comment_count\":0,\"likes\":0,\"ids\":{\"trakt\":23304032,\"slug\":\"trakt-list\"},\"user\":{\"username\":\"GreenMountainLabs\",\"private\":false,\"name\":\"\",\"vip\":false,\"vip_ep\":false,\"ids\":{\"slug\":\"greenmountainlabs\"}}}"), this);
+            var response = await Client.SendAsync(AuthedRequest(HttpMethod.Get, string.Format("users/me/lists/{0}", id)));
+
+            return response?.IsSuccessStatusCode == true && List.TryParse(JsonNode.Parse(await response.Content.ReadAsStringAsync()), this, out var list) ? list : null;
         }
 
         public async IAsyncEnumerable<Models.List> GetAllListsAsync()
         {
-            var response = await Client.TrySendAsync(AuthedRequest(HttpMethod.Get, "users/me/lists"));
+            List<Models.List> lists;
+
+            try
+            {
+                lists = await LazyAllLists.Value;
+            }
+            catch
+            {
+                yield break;
+            }
+
+            foreach (var list in lists)
+            {
+                yield return list;
+            }
+        }
+
+        public async Task<List<Models.List>> GetAllLists()
+        {
+            var lists = new List<Models.List>();
+            var response = await Client.SendAsync(AuthedRequest(HttpMethod.Get, "users/me/lists"));
 
             if (response?.IsSuccessStatusCode == true)
             {
                 var json = JsonNode.Parse(await response.Content.ReadAsStringAsync());
 
-                foreach (var list in json.AsArray())
+                foreach (var item in json.AsArray())
                 {
-                    yield return List.FromJson(list, this);
+                    if (List.TryParse(item, this, out var list))
+                    {
+                        lists.Add(list);
+                    }
                 }
+            }
+
+            return lists;
+        }
+
+        private async Task<JsonNode> GetLastActivities()
+        {
+            var response = await Client.TrySendAsync(AuthedRequest(HttpMethod.Get, "https://api.trakt.tv/sync/last_activities"));
+
+            if (response?.IsSuccessStatusCode == true)
+            {
+                return JsonNode.Parse(await response.Content.ReadAsStringAsync());
+            }
+            else
+            {
+                return null;
             }
         }
 
-        public Task<Models.List> GetWatchlist() => Task.FromResult<Models.List>(new NamedList(this, "watchlist"));
+        public async Task<Models.List> GetWatchlist()
+        {
+            var list = new NamedList(this, "watchlist");
+            var json = await LastActivities.Value;
+
+            if (DateTime.TryParse(json?["watchlist"]?["updated_at"]?.TryGetValue<string>(), out DateTime date) == true)
+            {
+                list.LastUpdated = date.ToUniversalTime();
+            }
+
+            return list;
+        }
 
         public Task<Models.List> GetFavorites() => Task.FromResult<Models.List>(null);
 
-        public Task<Models.List> GetHistory() => Task.FromResult<Models.List>(new History(this));
+        public async Task<Models.List> GetHistory()
+        {
+            var list = new History(this);
+            return list;
+            var json = await LastActivities.Value;
+
+            if (DateTime.TryParse(json?["movies"]?["watched_at"].TryGetValue<string>(), out DateTime date) == true)
+            {
+                list.LastUpdated = date.ToUniversalTime();
+            }
+
+            return list;
+        }
     }
 }

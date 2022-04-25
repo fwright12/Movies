@@ -46,6 +46,19 @@ namespace System.Linq.Async
             }
         }
 
+        public delegate bool TryParse<TSource, TParsed>(TSource source, out TParsed parsed);
+
+        public static async IAsyncEnumerable<TResult> TrySelect<TSource, TResult>(this IAsyncEnumerable<TSource> source, TryParse<TSource, TResult> selector)
+        {
+            await foreach (var item in source)
+            {
+                if (selector(item, out var selected))
+                {
+                    yield return selected;
+                }
+            }
+        }
+
         public static async IAsyncEnumerable<TResult> Select<TSource, TResult>(this IAsyncEnumerable<TSource> source, Func<TSource, TResult> selector)
         {
             await foreach (var item in source)
@@ -60,11 +73,6 @@ namespace Movies
 {
     public partial class TMDB : IDataProvider, IAccount, IAssignID<int>
     {
-        public static readonly Models.Company TMDb = new Models.Company
-        {
-            Name = "TMDb",
-            LogoPath = Xamarin.Forms.ImageSource.FromResource("Movies.Logos.TMDbLogo.png")
-        };
         public static readonly string LANGUAGE = System.Globalization.CultureInfo.CurrentCulture.TwoLetterISOLanguageName;
         public static readonly string REGION = System.Globalization.RegionInfo.CurrentRegion.TwoLetterISORegionName;
 
@@ -77,13 +85,19 @@ namespace Movies
         private static readonly string STREAMING_LOGO_SIZE = "/w45";
         private static readonly string LOGO_SIZE = "/w300";
 
-        public string Name { get; } = "TMDb";
+        public Models.Company Company { get; } = new Models.Company
+        {
+            Name = "TMDb"
+        };
+        public string Name => Company.Name;
         public string Username { get; private set; }
 
         private string UserAccessToken;
         private string AccountID;
         private string SessionID;
         private string ApiKey;
+
+        private Lazy<Task<List<Models.List>>> LazyAllLists;
 
 #if DEBUG
         private TMDbClient Client
@@ -120,6 +134,8 @@ namespace Movies
                     Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", bearer)
                 }
             };
+
+            LazyAllLists = new Lazy<Task<List<Models.List>>>(() => GetAllLists());
         }
 
         private string RequestToken;
@@ -270,14 +286,14 @@ namespace Movies
             }
         }
 
-        public IAsyncEnumerable<Models.Item> GetRecommendedMoviesAsync() => CacheStream(FlattenPages(WebClient, string.Format("4/account/{0}/movie/recommendations?page={{0}}", AccountID), UserAccessToken), json => GetCacheKey<Models.Movie>(json)).Select(json => TryParseMovie(json, out var movie) ? movie : null);
+        public IAsyncEnumerable<Models.Item> GetRecommendedMoviesAsync() => CacheStream(FlattenPages(WebClient, string.Format("4/account/{0}/movie/recommendations?page={{0}}", AccountID), UserAccessToken), json => GetCacheKey<Models.Movie>(json)).TrySelect<JsonNode, Models.Movie>(TryParseMovie);
         public IAsyncEnumerable<Models.Item> GetTrendingMoviesAsync(TimeWindow timeWindow = TimeWindow.Week) => FlattenPages(page => Client.GetTrendingMoviesAsync(timeWindow, page), GetCacheKey).Select(GetItem);
         public IAsyncEnumerable<Models.Item> GetPopularMoviesAsync() => FlattenPages(page => Client.GetMoviePopularListAsync(page: page), GetCacheKey).Select(GetItem);
         public IAsyncEnumerable<Models.Item> GetTopRatedMoviesAsync() => FlattenPages(page => Client.GetMovieTopRatedListAsync(page: page), GetCacheKey).Select(GetItem);
         public IAsyncEnumerable<Models.Item> GetNowPlayingMoviesAsync() => FlattenPages<SearchMovie>(async page => await Client.GetMovieNowPlayingListAsync(page: page), GetCacheKey).Select(GetItem);
         public IAsyncEnumerable<Models.Item> GetUpcomingMoviesAsync() => FlattenPages<SearchMovie>(async page => await Client.GetMovieUpcomingListAsync(page: page), GetCacheKey).Select(GetItem);
 
-        public IAsyncEnumerable<Models.Item> GetRecommendedTVShowsAsync() => CacheStream(FlattenPages(WebClient, string.Format("4/account/{0}/tv/recommendations?page={{0}}", AccountID), UserAccessToken), json => GetCacheKey<Models.TVShow>(json)).Select(json => TryParseTVShow(json, out var show) ? show : null);
+        public IAsyncEnumerable<Models.Item> GetRecommendedTVShowsAsync() => CacheStream(FlattenPages(WebClient, string.Format("4/account/{0}/tv/recommendations?page={{0}}", AccountID), UserAccessToken), json => GetCacheKey<Models.TVShow>(json)).TrySelect<JsonNode, Models.TVShow>(TryParseTVShow);
         public IAsyncEnumerable<Models.Item> GetTrendingTVShowsAsync(TimeWindow timeWindow = TimeWindow.Week) => FlattenPages(page => Client.GetTrendingTvAsync(timeWindow, page), GetCacheKey).Select(GetItem);
         public IAsyncEnumerable<Models.Item> GetPopularTVShowsAsync() => FlattenPages(page => Client.GetTvShowPopularAsync(page), GetCacheKey).Select(GetItem);
         public IAsyncEnumerable<Models.Item> GetTopRatedTVShowsAsync() => FlattenPages(page => Client.GetTvShowTopRatedAsync(page), GetCacheKey).Select(GetItem);
@@ -358,7 +374,7 @@ namespace Movies
 
                 if (results == null)
                 {
-                    results = FlattenPages(page => Client.SearchMultiAsync(e.Query, page), TryGetCacheKey).Select(TryGetItem);
+                    results = FlattenPages(page => Client.SearchMultiAsync(e.Query, page), TryGetCacheKey).TrySelect<object, Models.Item>(TryGetItem);
                 }
             }
             else
@@ -430,12 +446,18 @@ namespace Movies
                 }
 
                 var sorted = sources.Count == 1 ? sources[0] : Merge(sources, compare, e.SortAscending ? -1 : 1);
-                results = sorted.Select(item =>
+                results = sorted.TrySelect<object, Models.Item>((object item, out Models.Item result) =>
                 {
-                    if (item is SearchMovie movie) return GetItem(movie);
-                    else if (item is SearchTv show) return GetItem(show);
-                    else if (item is PersonResult person) return GetItem(person);
-                    else return (Models.Item)null;
+                    if (item is SearchMovie movie) result = GetItem(movie);
+                    else if (item is SearchTv show) result = GetItem(show);
+                    else if (item is PersonResult person) result = GetItem(person);
+                    else
+                    {
+                        result = null;
+                        return false;
+                    }
+
+                    return true;
                 });
             }
 
@@ -1089,7 +1111,7 @@ namespace Movies
         private Models.Rating GetRating(TvShow show) => GetRating(show.VoteAverage, show.VoteCount, page => Client.GetTvShowReviewsAsync(show.Id, page: page));
         private Models.Rating GetRating(double score, double total, Func<int, Task<SearchContainerWithId<ReviewBase>>> getReviews) => new Models.Rating
         {
-            Company = TMDb,
+            Company = Company,
             Score = score,
             TotalVotes = total,
             Reviews = FlattenPages<ReviewBase>(async page => await getReviews(page))?.Select(GetItem)

@@ -97,7 +97,7 @@ namespace Movies.Views
             //await test.ExecuteAsync("drop table if exists " + MyLists.Name);
             //await test.ExecuteAsync("drop table if exists " + LocalLists.Name);
             //await UserInfo.ExecuteAsync("drop table if exists " + LocalList.ItemsTable.Name);
-            //await SQL.ExecuteAsync("drop table if exists " + LocalList.DetailsTable.Name);
+            //await UserInfo.ExecuteAsync("drop table if exists " + LocalList.DetailsTable.Name);
             //await UserInfo.ExecuteAsync("drop table if exists " + SyncLists.Name);
 
             await UserInfo.ExecuteAsync("drop table if exists Movies");
@@ -158,9 +158,9 @@ namespace Movies.Views
             }
 
             Print.Log("local lists", (await UserInfo.QueryScalarsAsync<int>(string.Format("select count(*) from {0}", LocalList.DetailsTable))).FirstOrDefault());
-            foreach (var row in await UserInfo.QueryAsync<(int, int, string)>("select * from " + LocalList.DetailsTable.Name))
+            foreach (var row in await UserInfo.QueryAsync<(string, string, string, string, string, string, string)>("select * from " + LocalList.DetailsTable.Name))
             {
-                Print.Log(row);
+                Print.Log(DateTime.TryParse(row.Item7, out var date) ? date.ToLocalTime().ToString() : "", row);
             }
 
             //Print.Log(DateTime.Parse((await UserInfo.QueryScalarsAsync<string>("SELECT CURRENT_TIMESTAMP")).FirstOrDefault()));
@@ -341,7 +341,7 @@ namespace Movies.Views
             return item;
         }
 
-        private class LocalList : List
+        public class LocalList : List
         {
             public static class DetailsCols
             {
@@ -351,7 +351,8 @@ namespace Movies.Views
                 public static readonly Table.Column DESCRIPTION = new Table.Column("Description", SQLTypeFromProperty<List>(nameof(Description)));
                 public static readonly Table.Column AUTHOR = new Table.Column("Author", SQLTypeFromProperty<List>(nameof(Author)));
                 public static readonly Table.Column PRIVATE = new Table.Column("Private", SQLTypeFromProperty<List>(nameof(Public)));
-                public static readonly Table.Column EDITABLE = new Table.Column("Editable", SQLTypeFromProperty<List>(nameof(Editable)));
+                //public static readonly Table.Column EDITABLE = new Table.Column("Editable", SQLTypeFromProperty<List>(nameof(Editable)));
+                public static readonly Table.Column UPDATED_AT = new Table.Column("UpdatedAt", "datetime");
             }
 
             public static class ItemsCols
@@ -362,7 +363,7 @@ namespace Movies.Views
                 public static readonly Table.Column DATE_ADDED = new Table.Column("DateAdded", "datetime default current_timestamp");
             }
 
-            public static readonly Table DetailsTable = new Table(DetailsCols.ID, DetailsCols.ALLOWED_TYPES, DetailsCols.NAME, DetailsCols.DESCRIPTION, DetailsCols.AUTHOR, DetailsCols.PRIVATE) { Name = "LocalLists" };
+            public static readonly Table DetailsTable = new Table(DetailsCols.ID, DetailsCols.ALLOWED_TYPES, DetailsCols.NAME, DetailsCols.DESCRIPTION, DetailsCols.AUTHOR, DetailsCols.PRIVATE, DetailsCols.UPDATED_AT) { Name = "LocalLists" };
             public static readonly Table ItemsTable = new Table(ItemsCols.LIST_ID, ItemsCols.ITEM_ID, ItemsCols.ITEM_TYPE, ItemsCols.DATE_ADDED) { Name = "LocalListItems" };
 
             public SQLiteAsyncConnection SQLDB;
@@ -385,6 +386,10 @@ namespace Movies.Views
 #endif
             }
 
+            private object GetUpdatedAt() => "current_timestamp";
+
+            private async Task Updated() => await SQLDB.ExecuteAsync(string.Format("update {0} set {1} = {2} where {3} = ?", DetailsTable, DetailsCols.UPDATED_AT, GetUpdatedAt(), DetailsCols.ID), ID);
+
             protected override async Task<bool> AddAsyncInternal(IEnumerable<Item> items)
             {
                 var rows = new List<List<object>>();
@@ -406,7 +411,14 @@ namespace Movies.Views
                 if (rows.Count > 0)
                 {
                     string values = string.Join(',', Enumerable.Repeat("(?,?,?)", rows.Count));
-                    return (await SQLDB.ExecuteAsync(string.Format("insert into {0}({1}) values " + values, ItemsTable, string.Join(',', ItemsTable.Columns.SkipLast(1))), rows.SelectMany(row => row).ToArray())) == rows.Count;
+                    var modified = await SQLDB.ExecuteAsync(string.Format("insert into {0}({1}) values " + values, ItemsTable, string.Join(',', ItemsTable.Columns.SkipLast(1))), rows.SelectMany(row => row).ToArray());
+
+                    if (modified > 0)
+                    {
+                        await Updated();
+                    }
+
+                    return modified == rows.Count;
                 }
 
                 return true;
@@ -421,6 +433,7 @@ namespace Movies.Views
             protected override async Task<bool> RemoveAsyncInternal(IEnumerable<Item> items)
             {
                 bool success = true;
+                int total = 0;
 
                 foreach (var item in items)
                 {
@@ -429,12 +442,18 @@ namespace Movies.Views
                     if (IDSystem.TryGetID(item, out var id))
                     {
                         rows = await SQLDB.ExecuteAsync(string.Format("delete from {0} where {1} = ? and {2} = ? and {3} = ?", ItemsTable, ItemsCols.LIST_ID, ItemsCols.ITEM_ID, ItemsCols.ITEM_TYPE), Id, id, AppItemTypeToDatabaseItemType(item.ItemType));
+                        total += rows;
                     }
 
                     if (rows == 0)
                     {
                         success = false;
                     }
+                }
+
+                if (total > 0)
+                {
+                    await Updated();
                 }
 
                 return success;
@@ -445,6 +464,7 @@ namespace Movies.Views
                 //while (await test.ExecuteScalarAsync<int>(string.Format("select count(*) from {0} where {1} = ?", LocalLists.Name, LocalListsCols.ID.Name), list.ID) > 0)
                 if (Id >= 0 && Id <= 2)
                 {
+                    await Updated();
                     return;
                 }
 
@@ -461,12 +481,12 @@ namespace Movies.Views
 
                 if (Id == -1)
                 {
-                    await SQLDB.ExecuteAsync(string.Format("insert into {0} ({1}) values ({2})", DetailsTable, string.Join(",", cols), string.Join(",", Enumerable.Repeat("?", values.Length))), values);
+                    await SQLDB.ExecuteAsync(string.Format("insert into {0} ({1}) values ({2},{3})", DetailsTable, string.Join(",", cols), string.Join(",", Enumerable.Repeat("?", values.Length)), GetUpdatedAt()), values);
                     Id = (await SQLDB.QueryScalarsAsync<int>("select last_insert_rowid()")).First();
                 }
                 else
                 {
-                    await SQLDB.ExecuteAsync(string.Format("update {0} set {1} where {2} = {3}", DetailsTable, string.Join(",", cols.Select(col => col + "=?")), DetailsCols.ID, Id), values);
+                    await SQLDB.ExecuteAsync(string.Format("update {0} set {1}{4} where {2} = {3}", DetailsTable, string.Join(",", cols.Select(col => col + "=?")).TrimEnd('?'), DetailsCols.ID, Id, GetUpdatedAt()), values);
                 }
             }
 
@@ -543,16 +563,21 @@ namespace Movies.Views
 
         #region IListSource Implementation
 
-        public Task<List> GetHistory() => GetNamedList(0);
-        public Task<List> GetWatchlist() => GetNamedList(1);
-        public Task<List> GetFavorites() => GetNamedList(2);
-
-        private async Task<List> GetNamedList(int id)
+        public async Task<List> GetHistory()
         {
-            var list = CreateList(id);
-            list.Count = await list.CountAsync();
+            var list = await GetListAsync("0");
+            list.AllowedTypes = Test.ItemType.Movie | Test.ItemType.TVShow;
+            list.LastUpdated = null;
             return list;
         }
+        public async Task<List> GetWatchlist()
+        {
+            var list = await GetListAsync("1");
+            list.AllowedTypes = Test.ItemType.Movie | Test.ItemType.TVShow;
+            return list;
+        }
+
+        public Task<List> GetFavorites() => GetListAsync("2");
 
         public async IAsyncEnumerable<List> GetAllListsAsync()
         {
@@ -566,7 +591,11 @@ namespace Movies.Views
         }
 
         public List CreateList() => CreateList(-1);
-        private List CreateList(int id) => new LocalList(UserInfo, id) { IDSystem = this };
+        private List CreateList(int id, Test.ItemType allowedTypes = Test.ItemType.All) => new LocalList(UserInfo, id)
+        {
+            IDSystem = this,
+            AllowedTypes = allowedTypes
+        };
 
         public async Task DeleteListAsync(int listID)
         {
@@ -574,11 +603,11 @@ namespace Movies.Views
             await UserInfo.ExecuteAsync(string.Format("delete from {0} where {1} = ?", LocalList.DetailsTable.Name, LocalList.DetailsCols.ID.Name), listID);
         }
 
-        public async Task<List> GetListAsync(string id) => (await QueryListsAsync(string.Format("where {0} = ?", LocalList.DetailsCols.ID), id)).FirstOrDefault();
+        public async Task<List> GetListAsync(string id) => !int.TryParse(id, out var intID) || intID < 0 ? null : (await QueryListsAsync(string.Format("where {0} = ?", LocalList.DetailsCols.ID), id)).FirstOrDefault();
 
         private async Task<List<List>> QueryListsAsync(string where = null, params object[] args)
         {
-            var query = await UserInfo.QueryAsync<(int, int, string, string, string, bool, bool)>(string.Format("select * from {0} " + where, LocalList.DetailsTable), args);
+            var query = await UserInfo.QueryAsync<(int, int?, string, string, string, bool, string)>(string.Format("select {0} from {1} " + where, string.Join(',', (object[])LocalList.DetailsTable.Columns), LocalList.DetailsTable), args);
 
             var lists = new List<List>();
 
@@ -587,13 +616,20 @@ namespace Movies.Views
                 var list = new LocalList(UserInfo, row.Item1)
                 {
                     IDSystem = this,
-                    AllowedTypes = LocalList.DatabaseItemTypeToAppItemType((ItemType)row.Item2),
                     Name = row.Item3,
                     Description = row.Item4,
                     Author = row.Item5,
                     Public = row.Item6,
-                    Editable = row.Item7
                 };
+
+                if (row.Item2.HasValue)
+                {
+                    list.AllowedTypes = LocalList.DatabaseItemTypeToAppItemType((ItemType)row.Item2.Value);
+                }
+                if (DateTime.TryParse(row.Item7, out var date))
+                {
+                    list.LastUpdated = date;
+                }
                 list.Count = await list.CountAsync();
 
                 lists.Add(list);

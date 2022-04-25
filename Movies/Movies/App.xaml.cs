@@ -37,6 +37,26 @@ namespace Movies
         All = ~0,
     }
 
+    /* Changelog:
+     * 
+     * Images on settings page
+     * Company field required for IAccount
+     * TrySelect
+     * Last updated timestamp for lists, pull down entire list to sync if changed
+     * Add last updated column to db local lists table
+     * TMDb NamedList get added items
+     * IListProvider.GetListAsync returns null if list not found, may throw error
+     * Handle empty list description better from XAML
+     * Ads on explore page, updated to be non personalized
+     * Upgraded named list loading handling
+     * Load all custom lists to check for list
+     * Fix people allowed to be added to watchlist and watched
+     * Sync details and items on SyncList creation
+     * Fix update ListViewModel SyncWith from SyncBackup on save
+     * Same method for building SyncList for custom and named lists
+     * 
+     */
+
     public partial class App : Application
     {
         private enum ServiceName
@@ -46,71 +66,55 @@ namespace Movies
             Trakt
         }
 
+        public static readonly string[] AdKeywords = "movie,tv,shows,tv show,series,streaming,entertainment,watch,list,film,actor,guide,library,theater".Split(',').ToArray();
+
         private static readonly object HISTORY_ID = new string("History");
         private static readonly object WATCHLIST_ID = new string("Watchlist");
         private static readonly object FAVORITES_ID = new string("Favorites");
 
         public static readonly DataManager DataManager = new DataManager();
 
-        public static readonly Company TMDb = new Company
-        {
-            Name = "TMDb",
-            LogoPath = ImageSource.FromResource("Movies.Logos.TMDbLogo.png")
-        };
-
-        public static readonly Company Trakt = new Company
-        {
-            Name = "Trakt",
-            LogoPath = ImageSource.FromResource("Movies.Logos.TMDbLogo.png")
-        };
-
-        public static readonly Company JustWatch = new Company
-        {
-            Name = "JustWatch",
-            LogoPath = ImageSource.FromResource("Movies.Logos.JustWatchLogo.png")
-        };
-
-        public static readonly ImageSource TraktLogoLight = ImageSource.FromResource("Movies.Logos.TraktLogoLight.png");
-        public static readonly ImageSource TraktLogoDark = ImageSource.FromResource("Movies.Logos.TraktLogoDark.png");
+        public static readonly ImageSource TMDbAttribution = ImageSource.FromResource("Movies.Logos.TMDbAttribution.png");
+        public static readonly ImageSource TraktAttributionLight = ImageSource.FromResource("Movies.Logos.TraktAttributionLight.png");
+        public static readonly ImageSource TraktAttributionDark = ImageSource.FromResource("Movies.Logos.TraktAttributionDark.png");
+        public static readonly ImageSource JustWatchAttribution = ImageSource.FromResource("Movies.Logos.JustWatchAttribution.png");
 
         //public IReadOnlyList<IDataSource> DataSources { get; }
         //public List<Group<CollectionViewModel>> Lists { get; private set; }
-        public ListViewModel Watchlist
-        {
-            get => LoadNamedList(ref _Watchlist);
-            private set => _Watchlist = value;
-        }
-        public ListViewModel History
-        {
-            get => LoadNamedList(ref _History);
-            private set => _History = value;
-        }
-        public ListViewModel Favorites
-        {
-            get => LoadNamedList(ref _Favorites);
-            private set => _Favorites = value;
-        }
+        public ListViewModel Watchlist => ValueFromTask(LazyWatchlist.Value);
+        public ListViewModel History => ValueFromTask(LazyHistory.Value);
+        public ListViewModel Favorites => ValueFromTask(LazyFavorites.Value);
         public IList<ListViewModel> CustomLists { get; }
 
-        private Lazy<Task> LazyNamedLists;
-        private ListViewModel _Watchlist;
-        private ListViewModel _History;
-        private ListViewModel _Favorites;
+        private Lazy<Task<ListViewModel>> LazyWatchlist;
+        private Lazy<Task<ListViewModel>> LazyHistory;
+        private Lazy<Task<ListViewModel>> LazyFavorites;
 
-        private ListViewModel LoadNamedList(ref ListViewModel list)
+        private HashSet<Task> QueuedTasks = new HashSet<Task>();
+        private T ValueFromTask<T>(Task<T> task, [System.Runtime.CompilerServices.CallerMemberName] string property = null)
         {
-            if (LazyNamedLists == null)
+            if (task.IsCompleted)
             {
-                LazyNamedLists = new Lazy<Task>(() => LoadNamedLists());
-                _ = LazyNamedLists.Value;
+                return task.Result;
+            }
+            else if (QueuedTasks.Add(task))
+            {
+                _ = NotifyWhenTaskCompleted(task, property);
             }
 
-            return list;
+            return default;
         }
 
-        public IList<CollectionViewModel> MovieExplore { get; }
-        public IList<CollectionViewModel> TVExplore { get; }
-        public IList<CollectionViewModel> PeopleExplore { get; }
+        private async Task NotifyWhenTaskCompleted(Task task, string property)
+        {
+            await task;
+            QueuedTasks.Remove(task);
+            OnPropertyChanged(property);
+        }
+
+        public IList<object> MovieExplore { get; }
+        public IList<object> TVExplore { get; }
+        public IList<object> PeopleExplore { get; }
         public CollectionViewModel Popular => _Popular ??= GetPopular();
         //public List<WatchProvider> MyServices { get; } = null;// new List<WatchProvider>(MockData.Interstellar.WatchProviders);
 
@@ -141,15 +145,19 @@ namespace Movies
             TMDB tmdb = new TMDB(TMDB_API_KEY, TMDB_V4_BEARER);
             Trakt trakt = new Trakt(tmdb, TRAKT_CLIENT_ID, TRAKT_CLIENT_SECRET);
 
+            tmdb.Company.LogoPath = ImageSource.FromResource("Movies.Logos.TMDbLogo.png");
+            trakt.Company.LogoPath = ImageSource.FromResource("Movies.Logos.TraktLogo.png");
+
 #if DEBUG && false
             LocalDatabase = new Database(MockData.Instance, MockData.IDKey);
 
             DataManager.AddDataSource(MockData.Instance);
             //DataManager.AddDataSource(LocalDatabase);
-
-            MovieExplore = new List<CollectionViewModel>()
+            
+            MovieExplore = new List<object>()
             {
                 new CollectionViewModel(DataManager, "Trending", MockData.Instance.GetTrending()),
+                new CollectionViewModel(DataManager, "Test", null),
                 new CollectionViewModel(DataManager, "Recommended", MockData.Instance.GetRecommended()),
                 new CollectionViewModel(DataManager, "In Theaters", MockData.Instance.GetInTheaters()),
                 new CollectionViewModel(DataManager, "Upcoming", MockData.Instance.GetUpcoming())
@@ -164,14 +172,14 @@ namespace Movies
             DataManager.AddDataSource(tmdb);
 
 #if DEBUG
-            MovieExplore = new List<CollectionViewModel>
+            MovieExplore = new List<object>
             {
                 new CollectionViewModel(DataManager, "Trending Movies", tmdb.GetTrendingMoviesAsync()),
                 new CollectionViewModel(DataManager, "Trending TV", tmdb.GetTrendingTVShowsAsync()),
                 new CollectionViewModel(DataManager, "Trending People", tmdb.GetTrendingPeopleAsync()),
             };
 #else
-            MovieExplore = new ObservableCollection<CollectionViewModel>
+            MovieExplore = new ObservableCollection<object>
             {
                 new CollectionViewModel(DataManager, "Trending", tmdb.GetTrendingMoviesAsync()),
                 new CollectionViewModel(DataManager, "Most Anticipated", trakt.GetAnticpatedMoviesAsync()),
@@ -180,7 +188,7 @@ namespace Movies
                 new CollectionViewModel(DataManager, "Top Rated", tmdb.GetTopRatedMoviesAsync()),
             };
 
-            TVExplore = new ObservableCollection<CollectionViewModel>
+            TVExplore = new ObservableCollection<object>
             {
                 new CollectionViewModel(DataManager, "Trending", tmdb.GetTrendingTVShowsAsync()),
                 new CollectionViewModel(DataManager, "Most Anticipated", trakt.GetAnticipatedTVAsync()),
@@ -189,7 +197,7 @@ namespace Movies
                 new CollectionViewModel(DataManager, "Top Rated", tmdb.GetTopRatedTVShowsAsync()),
             };
 
-            PeopleExplore = new ObservableCollection<CollectionViewModel>
+            PeopleExplore = new ObservableCollection<object>
             {
                 new CollectionViewModel(DataManager, "Trending", tmdb.GetTrendingPeopleAsync()),
                 //new CollectionViewModel(DataManager, "Popular", tmdb.GetPopularPeopleAsync())
@@ -236,31 +244,12 @@ namespace Movies
                 }
             }
 
+            LazyWatchlist = new Lazy<Task<ListViewModel>>(GetWatchlist);
+            LazyFavorites = new Lazy<Task<ListViewModel>>(GetFavorites);
+            LazyHistory = new Lazy<Task<ListViewModel>>(GetHistory);
             var customLists = new ObservableCollection<ListViewModel>();
 
             customLists.CollectionChanged += CustomListsChanged;
-            PropertyChanged += (sender, e) =>
-            {
-                ListViewModel list = null;
-
-                if (e.PropertyName == nameof(Watchlist))
-                {
-                    list = Watchlist;
-                }
-                else if (e.PropertyName == nameof(Favorites))
-                {
-                    list = Favorites;
-                }
-                else if (e.PropertyName == nameof(History))
-                {
-                    list = History;
-                }
-
-                if (list != null)
-                {
-                    CustomListsChanged(null, new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Add, new List<ListViewModel> { list }));
-                }
-            };
 
             CustomLists = customLists;
 
@@ -371,6 +360,19 @@ namespace Movies
                         if (temp.Name == model.Name)
                         {
                             list = temp;
+
+                            /*for (int i = 0; i < CustomLists.Count; i++)
+                            {
+                                if (CustomLists[i].SyncWith.FirstOrDefault(sync => Equals(sync.List.ID, temp.ID)) is ListViewModel.SyncOptions sync)
+                                {
+                                    if (!CustomLists[i].RemoveSync(sync))
+                                    {
+                                        CustomLists.RemoveAt(i);
+                                    }
+                                    break;
+                                }
+                            }*/
+
                             break;
                         }
                     }
@@ -397,6 +399,25 @@ namespace Movies
         private void TMDBSetup(AccountViewModel tmdb) { }
         private void TraktSetup(AccountViewModel tmdb) { }
 #else
+        private void AddFirst(IList<object> list, CollectionViewModel model)
+        {
+            if (model.Items is INotifyCollectionChanged observable)
+            {
+                NotifyCollectionChangedEventHandler handler = null;
+                handler = (sender, e) =>
+                {
+                    if ((sender as IList)?.Count != 0)
+                    {
+                        ((INotifyCollectionChanged)sender).CollectionChanged -= handler;
+                        list.Insert(0, model);
+                    }
+                };
+
+                observable.CollectionChanged += handler;
+                _ = model.LoadMoreCommand;
+            }
+        }
+
         private void TMDBSetup(AccountViewModel tmdb)
         {
             string recommended = "Recommended by TMDb";
@@ -407,18 +428,18 @@ namespace Movies
 
                 if (account.Account is TMDB tmdb)
                 {
-                    MovieExplore.Insert(0, new CollectionViewModel(DataManager, recommended, tmdb.GetRecommendedMoviesAsync()));
-                    TVExplore.Insert(0, new CollectionViewModel(DataManager, recommended, tmdb.GetRecommendedTVShowsAsync()));
+                    AddFirst(MovieExplore, new CollectionViewModel(DataManager, recommended, tmdb.GetRecommendedMoviesAsync()));
+                    AddFirst(TVExplore, new CollectionViewModel(DataManager, recommended, tmdb.GetRecommendedTVShowsAsync()));
                 }
             };
 
             tmdb.LoggedOut += (sender, e) =>
             {
-                foreach (var list in new IList<CollectionViewModel>[] { MovieExplore, TVExplore })
+                foreach (var list in new List<IList<object>> { MovieExplore, TVExplore })
                 {
                     for (int i = 0; i < list.Count; i++)
                     {
-                        if (list[i].Name == recommended)
+                        if ((list[i] as CollectionViewModel)?.Name == recommended)
                         {
                             list.RemoveAt(i);
                             break;
@@ -438,18 +459,18 @@ namespace Movies
 
                 if (account.Account is Trakt trakt)
                 {
-                    MovieExplore.Insert(0, new CollectionViewModel(DataManager, recommended, trakt.GetRecommendedMoviesAsync()));
-                    TVExplore.Insert(0, new CollectionViewModel(DataManager, recommended, trakt.GetRecommendedTVAsync()));
+                    AddFirst(MovieExplore, new CollectionViewModel(DataManager, recommended, trakt.GetRecommendedMoviesAsync()));
+                    AddFirst(TVExplore, new CollectionViewModel(DataManager, recommended, trakt.GetRecommendedTVAsync()));
                 }
             };
 
             trakt.LoggedOut += (sender, e) =>
             {
-                foreach (var list in new IList<CollectionViewModel>[] { MovieExplore, TVExplore })
+                foreach (var list in new List<IList<object>> { MovieExplore, TVExplore })
                 {
                     for (int i = 0; i < list.Count; i++)
                     {
-                        if (list[i].Name == recommended)
+                        if ((list[i] as CollectionViewModel)?.Name == recommended)
                         {
                             list.RemoveAt(i);
                             break;
@@ -567,7 +588,7 @@ namespace Movies
                         {
                             if (list.SyncWith.Count == 1)
                             {
-                                list.AddSync((await ParseSync((ServiceName.Local.ToString(), GetNamedId(list)))).First());
+                                list.AddSync(await TryParseSync(ServiceName.Local.ToString(), GetNamedId(list)));
                             }
                         }
                         else
@@ -662,43 +683,99 @@ namespace Movies
             }
         }
 
-        private async Task<IEnumerable<ListViewModel.SyncOptions>> GetNamedSyncList(object name)
-        {
-            var syncs = await LocalDatabase.GetSyncsWithAsync(ServiceName.Local.ToString(), name.ToString());
-
-            if (syncs.Count == 0)
-            {
-                syncs.Add((ServiceName.Local.ToString(), null));
-            }
-
-            var result = new List<ListViewModel.SyncOptions>();
-            foreach (var sync in syncs)
-            {
-                result.Add((await ParseSync((sync.Name, name))).FirstOrDefault() ?? (await ParseSync(sync)).FirstOrDefault());
-            }
-
-            return result.Where(options => options != null);
-        }
-
-        private async Task LoadNamedLists()
+        private async Task<List<ListViewModel.SyncOptions>> GetSyncOptionsAsync(ServiceName name, object id)
         {
             await LocalDatabase.Init;
 
-            Watchlist = new NamedListViewModel(DataManager, "Watchlist", ItemType.Movie | ItemType.TVShow, await GetNamedSyncList(WATCHLIST_ID));
-            OnPropertyChanged(nameof(Watchlist));
+            var result = new List<ListViewModel.SyncOptions>();
 
-            Favorites = new NamedListViewModel(DataManager, "Favorites", ItemType.All, await GetNamedSyncList(FAVORITES_ID));
-            OnPropertyChanged(nameof(Favorites));
+            foreach (var sync in await LocalDatabase.GetSyncsWithAsync(name.ToString(), id.ToString()))
+            {
+                try
+                {
+                    ListViewModel.SyncOptions options = null;
 
-            History = new NamedListViewModel(DataManager, "Watched", ItemType.Movie | ItemType.TVShow, await GetNamedSyncList(HISTORY_ID));
-            OnPropertyChanged(nameof(History));
+                    if (id == WATCHLIST_ID || id == HISTORY_ID || id == FAVORITES_ID)
+                    {
+                        options = await TryParseSync(sync.Name, id);
+                    }
+
+                    if (options == null)
+                    {
+                        options = await TryParseSync(sync.Name, sync.ID);
+                    }
+
+                    if (options == null)
+                    {
+                        await Task.WhenAll(
+                            LocalDatabase.RemoveSyncsWithAsync(sync.Name, sync.ID, name.ToString(), id.ToString()),
+                            LocalDatabase.RemoveSyncsWithAsync(name.ToString(), id.ToString(), sync.Name, sync.ID));
+                    }
+                    else
+                    {
+                        result.Add(options);
+                    }
+                }
+                catch { }
+            }
+
+            return result;
+        }
+
+        private async Task<List<ListViewModel.SyncOptions>> GetNamedSyncList(object name)
+        {
+            var result = await GetSyncOptionsAsync(ServiceName.Local, name);
+
+            if (result.Count == 0)
+            {
+                result.Add(new ListViewModel.SyncOptions
+                {
+                    Provider = LocalDatabase,
+                    List = await GetList(LocalDatabase, name)
+                });
+                //result.Add((ServiceName.Local.ToString(), null));
+            }
+
+            return result;
+        }
+
+        /*private async Task<List<ListViewModel.SyncOptions>> GetNamedSyncList(object name)
+        {
+            await LocalDatabase.Init;
+
+            var syncs = await LocalDatabase.GetSyncsWithAsync(ServiceName.Local.ToString(), name.ToString());
+            var result = new List<ListViewModel.SyncOptions>();
+
+            foreach (var sync in syncs)
+            {
+                try
+                {
+                    if ((await TryParseSync(sync.Name, name) ?? await TryParseSync(sync.Name, sync.ID)) is ListViewModel.SyncOptions options)
+                    {
+                        result.Add(options);
+                    }
+                }
+                catch { }
+            }
+
+            return result;
+        }*/
+
+        private async Task<ListViewModel> GetWatchlist() => WithHandlers(new NamedListViewModel(DataManager, "Watchlist", await GetNamedSyncList(WATCHLIST_ID), ItemType.Movie | ItemType.TVShow));
+        private async Task<ListViewModel> GetFavorites() => WithHandlers(new NamedListViewModel(DataManager, "Favorites", await GetNamedSyncList(FAVORITES_ID)));
+        private async Task<ListViewModel> GetHistory() => WithHandlers(new NamedListViewModel(DataManager, "Watched", await GetNamedSyncList(HISTORY_ID), ItemType.Movie | ItemType.TVShow));
+
+        private ListViewModel WithHandlers(ListViewModel list)
+        {
+            CustomListsChanged(null, new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Add, new List<ListViewModel> { list }));
+            return list;
         }
 
         private Queue<(IListProvider Provider, IAsyncEnumerator<List> Itr)> QueuedProviders;
         //private Dictionary<ServiceName, HashSet<object>> lists = new Dictionary<ServiceName, HashSet<object>>();
         private async Task<IEnumerable<ListViewModel>> AllLists()
         {
-            await LazyNamedLists.Value;
+            await Task.WhenAll(LazyFavorites.Value, LazyWatchlist.Value, LazyHistory.Value);
             return CustomLists.Prepend(Favorites).Prepend(Watchlist).Prepend(History);
         }
 
@@ -745,8 +822,8 @@ namespace Movies
                         await list.AddAsync(items);
                     }*/
 
-                    var syncs = await LocalDatabase.GetSyncsWithAsync(name.ToString(), list.ID);
-                    var sync = (await ParseSync(syncs.Select(temp => (temp.Name, (object)temp.ID)))).Prepend(new ListViewModel.SyncOptions
+                    //var syncs = await LocalDatabase.GetSyncsWithAsync(name.ToString(), list.ID);
+                    var sources = (await GetSyncOptionsAsync(name, list.ID)).Prepend(new ListViewModel.SyncOptions
                     {
                         Provider = source,
                         List = list
@@ -767,7 +844,8 @@ namespace Movies
                         l.Add(synced.List.ID);
                     }*/
 
-                    CustomLists.Add(new ListViewModel(DataManager, sync));
+                    var lvm = new ListViewModel(DataManager, sources);
+                    CustomLists.Add(lvm);
                     i++;
                 }
             }
@@ -805,6 +883,7 @@ namespace Movies
                     }
                     //lvm.SyncWith.CollectionChanged += UpdateSyncTable;
                     list.SyncChanged += (sender, e) => CoerceSyncList(((ListViewModel)sender).SyncWith);
+                    list.SyncWith.CollectionChanged += (sender, e) => (AddSyncSourceCommand as Command)?.ChangeCanExecute();
                     CoerceSyncList(list.SyncWith);
                 }
             }
@@ -812,8 +891,6 @@ namespace Movies
 
         private async void CoerceSyncList(IList<ListViewModel.SyncOptions> list)
         {
-            (AddSyncSourceCommand as Command)?.ChangeCanExecute();
-
             if (list.Count > 1 && list[0].Provider != LocalDatabase)
             {
                 int i;
@@ -847,29 +924,39 @@ namespace Movies
             }
         }
 
-        private Task<IEnumerable<ListViewModel.SyncOptions>> ParseSync(params (string Name, object ID)[] syncs) => ParseSync((IEnumerable<(string, object)>)syncs);
+        /*private Task<IEnumerable<ListViewModel.SyncOptions>> ParseSync(params (string Name, object ID)[] syncs) => ParseSync((IEnumerable<(string, object)>)syncs);
         private async Task<IEnumerable<ListViewModel.SyncOptions>> ParseSync(IEnumerable<(string Name, object ID)> syncs)
         {
             var parsed = new List<ListViewModel.SyncOptions>();
 
             foreach (var sync in syncs)
             {
-                if (TryGetProvider<IListProvider>(sync.Name, out var provider))
+                if ((await TryParseSync(sync.Name, sync.ID)) is ListViewModel.SyncOptions options)
                 {
-                    List list = await GetList(provider, sync.ID);
-
-                    if (list != null)
-                    {
-                        parsed.Add(new ListViewModel.SyncOptions
-                        {
-                            Provider = provider,
-                            List = list
-                        });
-                    }
+                    parsed.Add(options);
                 }
             }
 
             return parsed;
+        }*/
+
+        private async Task<ListViewModel.SyncOptions> TryParseSync(string name, object id)
+        {
+            if (TryGetProvider<IListProvider>(name, out var provider))
+            {
+                List list = await GetList(provider, id);
+
+                if (list != null)
+                {
+                    return new ListViewModel.SyncOptions
+                    {
+                        Provider = provider,
+                        List = list
+                    };
+                }
+            }
+
+            return null;
         }
 
         private IEnumerable<(string Name, string ID)> ParseSync(IEnumerable<ListViewModel.SyncOptions> sources)

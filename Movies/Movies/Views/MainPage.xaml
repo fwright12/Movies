@@ -33,43 +33,32 @@
 
                 <CollectionView ItemsSource="{Binding}"
                                 ItemTemplate="{StaticResource CondensedListTemplate}"
-                                Margin="10, 0">
-                    <VisualElement.Resources>
-                        <Style TargetType="CollectionView"
-                               x:Key="test">
-                            <Setter Property="BackgroundColor"
-                                    Value="Red"/>
-                            <Setter Property="EmptyView"
-                                    Value="test"/>
-                            <Setter Property="EmptyViewTemplate">
-                                <DataTemplate>
-                                    <StackLayout>
-                                        <Label Text="test"
-                                           BackgroundColor="Green"
-                                           IsVisible="{Binding IsVisible, Source={RelativeSource AncestorType={x:Type views:SectionView}}, Mode=OneWayToSource, FallbackValue='False'}"/>
-                                    </StackLayout>
-                                </DataTemplate>
-                            </Setter>
-                        </Style>
-                        
-                        <Style TargetType="views:SectionView"
-                               BasedOn="{StaticResource DefaultSectionViewStyle}"
-                               x:Key="asdf">
-                            <Setter Property="IsVisible"
-                                    Value="{OnPlatform iOS='False'}"/>
-                            <Setter Property="IsEnabled"
-                                    Value="{Binding LoadMoreCommand}"/>
+                                Margin="10, 0"
+                                ItemsUpdatingScrollMode="KeepScrollOffset"
+                                Header="test"
+                                Footer="test">
+                    <CollectionView.HeaderTemplate>
+                        <DataTemplate>
+                            <ContentView>
+                                <forms:AdView Style="{StaticResource BannerAdStyle}"
+                                              AdUnitID="{Static movies:App.TopBannerAdUnitID}" />
+                            </ContentView>
+                        </DataTemplate>
+                    </CollectionView.HeaderTemplate>
 
-                            <Style.Triggers>
-                                <DataTrigger TargetType="VisualElement"
-                                             Binding="{Binding Count}"
-                                             Value="1">
-                                    <Setter Property="IsVisible"
-                                            Value="True"/>
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </VisualElement.Resources>
+                    <CollectionView.FooterTemplate>
+                        <DataTemplate>
+                            <ContentView>
+                                <forms:AdView Style="{StaticResource BannerAdStyle}"
+                                              AdUnitID="{Static movies:App.BottomBannerAdUnitID}" />
+                            </ContentView>
+                        </DataTemplate>
+                    </CollectionView.FooterTemplate>
+
+                    <forms:Ads.CollectionAds>
+                        <forms:AdInfo Frequency="3"
+                                      Template="{StaticResource InlineBannerTemplate}" />
+                    </forms:Ads.CollectionAds>
                 </CollectionView>
             </ContentPage>
         </DataTemplate>

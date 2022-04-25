@@ -111,9 +111,8 @@
                                                VerticalOptions="Center"
                                                x:Name="poweredBy" />
 
-                                        <Image BindingContext="{Static movies:App.JustWatch}"
-                                               HeightRequest="{Binding Height, Source={x:Reference poweredBy}}"
-                                               Source="{Binding LogoPath}"
+                                        <Image HeightRequest="{Binding Height, Source={x:Reference poweredBy}}"
+                                               Source="{Static movies:App.JustWatchAttribution}"
                                                Grid.Column="1" />
                                     </Grid>
                                 </Frame>

@@ -25,21 +25,28 @@ namespace Movies
         public override string ID => Sources.FirstOrDefault()?.ID;
         private IList<List> Sources;
 
-        public SyncList(IEnumerable<List> sources)
+        public SyncList(IEnumerable<List> sources, bool reverse = false)
         {
             Sources = new List<List>(sources);
             Items = GetItems(Sources);
             Count = Sources.FirstOrDefault()?.Count;
+            Reverse = reverse;
 
-            if (SyncDetails())
-            {
-                _ = Update();
-            }
+            _ = Sync();
         }
 
-        public bool SyncDetails()
+        private string CleanString(string value) => (value ?? string.Empty).Trim();
+
+        private async Task Sync()
         {
             var changed = false;
+
+            if (Sources.Skip(1).Any(source => source.LastUpdated > Sources[0].LastUpdated))
+            {
+                changed = true;
+                await GetAsyncEnumerator().MoveNextAsync();
+            }
+
             var values = new object[Properties.Count];//.Select(property => property.GetValue(main)).ToArray();
 
             for (int i = 0; i < Properties.Count; i++)
@@ -49,8 +56,8 @@ namespace Movies
                 foreach (var list in Sources)
                 {
                     var other = property.GetValue(list);
-
-                    if (!Equals(values[i], other))
+                    
+                    if (!Equals(values[i], other) && !(property.PropertyType == typeof(string) && Equals(CleanString((string)values[i]), CleanString((string)other))))
                     {
                         values[i] = other;
 
@@ -65,7 +72,10 @@ namespace Movies
                 property.SetValue(this, values[i]);
             }
 
-            return changed;
+            if (changed)
+            {
+                await Update();
+            }
         }
 
         private void CopyChanges(IEnumerable<PropertyInfo> changes, List from, params List[] to) => CopyChanges(changes, from, (IEnumerable<List>)to);
@@ -93,9 +103,11 @@ namespace Movies
                 buffer[1].Reverse();
             }
 
-            await Task.WhenAll(AddAsync(buffer[1]), list.AddAsync(buffer[0]), Update(list));
+            await Update(list);
+            await Task.WhenAll(list.AddAsync(buffer[0]), AddAsync(buffer[1]));
 
             Sources.Add(list);
+            await Task.WhenAll(Deffered.Select(list => list.Update()));
         }
 
         public void RemoveSource(List list)
@@ -103,7 +115,7 @@ namespace Movies
             Sources.Remove(list);
         }
 
-        protected override async Task<bool> AddAsyncInternal(IEnumerable<Item> items) => !(await Task.WhenAll(Sources.Select(source => source.AddAsync(items)))).Contains(false);
+        protected override async Task<bool> AddAsyncInternal(IEnumerable<Item> items) => !(await ExecuteDeffered(source => source.AddAsync(items))).Contains(false);
 
         protected override async Task<bool?> ContainsAsyncInternal(Item item)
         {
@@ -118,13 +130,9 @@ namespace Movies
             {
                 var contains = await source.ContainsAsync(item);
 
-                if (!contains.HasValue)
+                if (contains != true)
                 {
-                    return null;
-                }
-                else if (!contains.Value)
-                {
-                    return false;
+                    return contains;
                 }
             }
 
@@ -135,26 +143,53 @@ namespace Movies
 
         public override Task Delete() => Task.WhenAll(Sources.Select(source => source.Delete()));
 
-        protected override async Task<bool> RemoveAsyncInternal(IEnumerable<Item> items) => !(await Task.WhenAll(Sources.Select(source => source.RemoveAsync(items)))).Contains(false);
+        protected override async Task<bool> RemoveAsyncInternal(IEnumerable<Item> items) => !(await ExecuteDeffered(source => source.RemoveAsync(items))).Contains(false);
 
-        public override Task Update() => Update(Sources);
+        private IEnumerable<List> Deffered => Sources.OfType<Views.Database.LocalList>();
 
-        private Task Update(params List[] lists) => Update((IEnumerable<List>)lists);
-        private Task Update(IEnumerable<List> lists)
+        public override Task Update() => ExecuteDeffered(source => Update(source));
+
+        //private Task Update(params List[] lists) => Update((IEnumerable<List>)lists);
+        private Task Update(List list)
         {
-            foreach (var list in lists)
+            foreach (var property in Properties)
             {
-                foreach (var property in Properties)
-                {
-                    property.SetValue(list, property.GetValue(this));
-                }
-
-                AllowedTypes |= list.AllowedTypes;
+                property.SetValue(list, property.GetValue(this));
             }
+
+            AllowedTypes |= list.AllowedTypes;
 
             //Author = string.Join(", ", lists.Select(list => list.Author).Prepend(Author).Where(author => !string.IsNullOrEmpty(author)));
 
-            return Task.WhenAll(lists.Select(list => list.Update()));
+            return list.Update();
+            //return ExecuteDeffered(list => list.Update(), lists, Deffered.ToList());
+            //return Task.WhenAll(lists.Select(list => list.Update()));
+        }
+
+        private Task ExecuteDeffered(Func<List, Task> execute) => ExecuteDeffered(execute, Sources, Deffered.ToList());
+        private async Task ExecuteDeffered<T>(Func<T, Task> execute, IEnumerable<T> source, IEnumerable<T> deffered)
+        {
+            await Task.WhenAll(source.Except(deffered).Select(execute));
+            await Task.WhenAll(deffered.Select(execute));
+        }
+
+        private Task<T[]> ExecuteDeffered<T>(Func<List, Task<T>> execute) => ExecuteDeffered(execute, Sources, Deffered.ToList());
+        private async Task<TResult[]> ExecuteDeffered<TSource, TResult>(Func<TSource, Task<TResult>> execute, IEnumerable<TSource> source, IEnumerable<TSource> deffered)
+        {
+            var first = (await Task.WhenAll(source.Except(deffered).Select(execute))).OfType<TResult>().GetEnumerator();
+            var second = (await Task.WhenAll(deffered.Select(execute))).OfType<TResult>().GetEnumerator();
+
+            TResult[] result = new TResult[Sources.Count];
+
+            for (int i = 0; i < result.Count(); i++)
+            {
+                IEnumerator<TResult> itr = deffered.Contains(source.ElementAt(i)) ? second : first;
+
+                itr.MoveNext();
+                result[i] = itr.Current;
+            }
+
+            return result;
         }
 
         public void DiscardEdits()
@@ -164,14 +199,17 @@ namespace Movies
 
         private const int PageSize = 20;
 
-        private async Task Buffer(int count, Cached source)
+        private async Task Buffer(int? count, Cached source)
         {
             try
             {
-                for (int i = 0; i < count && await source.Itr.MoveNextAsync(); i++)
+                for (int i = 0; !(i >= count) && await source.Itr.MoveNextAsync();)
                 {
-                    source.Buffer.Add(source.Itr.Current);
-                    source.Cache.Add(source.Itr.Current);
+                    if (source.Cache.Add(source.Itr.Current))
+                    {
+                        source.Buffer.Add(source.Itr.Current);
+                        i++;
+                    }
                 }
             }
             catch
@@ -240,21 +278,13 @@ namespace Movies
 
         private async IAsyncEnumerable<Item> GetItems(IList<List> sources, int size = 1)
         {
-            if (sources.Count <= 1)
+            if (sources.Count == 0)
             {
-                if (sources.Count == 1)
-                {
-                    sources[0].Reverse = Reverse;
-                    await foreach (var item in sources[0])
-                    {
-                        yield return item;
-                    }
-                }
-
                 yield break;
             }
-
-            List<Cached> itrs = sources.Select(source =>
+            
+            List main = sources[0];
+            List<Cached> itrs = sources.Where(source => source != main && !(source.LastUpdated <= main.LastUpdated)).Prepend(main).Select(source =>
             {
                 source.Reverse = Reverse;
                 return new Cached
@@ -267,24 +297,71 @@ namespace Movies
             }).ToList();
             List<Item> allAdditions = new List<Item>();
 
-            while (true)
+            if (itrs.Count == 1)
             {
-                itrs[0].Buffer.Clear();
-                await Buffer(size, itrs[0]);
-                bool success = itrs[0].Buffer.Count == size;
-
-                var diffs = new (List<Item> Add, List<Item> Remove)[sources.Count];
-
-                for (int i = 1; i < sources.Count; i++)
+                sources[0].Reverse = Reverse;
+                await foreach (var item in sources[0])
                 {
-                    int count;
+                    yield return item;
+                }
+
+                yield break;
+            }
+
+            var lazyMain = new Lazy<Task<List<Item>>>(() => System.Linq.Async.Enumerable.ReadAll(main));
+
+            foreach (var itr in itrs.Skip(1))
+            {
+                try
+                {
+                    if (main.LastUpdated.HasValue && itr.List.LastUpdated.HasValue)
+                    {
+                        await Task.WhenAll(lazyMain.Value, Buffer(null, itr));
+
+                        foreach (var item in await Except(itr, lazyMain.Value.Result))
+                        {
+                            if (itrs[0].Cache.Add(item))
+                            {
+                                itrs[0].Buffer.Add(item);
+                            }
+                        }
+
+                        //added = await itr.List.GetAdditionsAsync(main, false);
+                        //removed = await main.GetAdditionsAsync(itr.List, false);
+                    }
+                    else
+                    {
+                        var added = await itr.List.GetAdditionsAsync(main);
+
+                        foreach (var item in itr.List.Reverse ? added.Reverse<Item>() : added)
+                        {
+                            if (itr.Cache.Add(item))
+                            {
+                                itr.Buffer.Add(item);
+                            }
+                        }
+                    }
+                }
+                catch { }
+            }
+
+            for (; ; itrs[0].Buffer.Clear())
+            {
+                await Buffer(size, itrs[0]);
+                bool success = itrs[0].Buffer.Count >= size;
+
+                var diffs = new (List<Item> Add, List<Item> Remove)[itrs.Count];
+
+                for (int i = 1; i < itrs.Count; i++)
+                {
+                    int? count;
                     if (success)
                     {
                         count = PageSize * itrs[0].Buffer.Sum(item => itrs[i].Cache.Contains(item) ? 0 : 1);
                     }
                     else
                     {
-                        count = int.MaxValue;
+                        count = null;
                     }
 
                     diffs[i] = (new List<Item>(), new List<Item>());
@@ -298,10 +375,10 @@ namespace Movies
                         // Process additions from the buffer
                         while (itrs[i].Buffer.Count > 0)
                         {
-                            var additions = await Except(itrs[0], itrs[i].Buffer);
-                            bool more = additions.Count > 0 && itrs[i].Buffer.Count > 0 && additions[additions.Count - 1] == itrs[i].Buffer[itrs[i].Buffer.Count - 1];
+                            var added = await Except(itrs[0], itrs[i].Buffer);
+                            bool more = added.Count > 0 && itrs[i].Buffer.Count > 0 && added[added.Count - 1] == itrs[i].Buffer[itrs[i].Buffer.Count - 1];
 
-                            diffs[i].Add.AddRange(additions);
+                            diffs[i].Add.AddRange(added);
                             itrs[i].Buffer.Clear();
 
                             // If the last thing in the buffer is a new addition, check the next page - there may be a block that got split
@@ -319,26 +396,30 @@ namespace Movies
                     diffs.Skip(1).SelectMany(diff => diff.Add).Except(empty).ToList(),
                     diffs.Skip(1).SelectMany(diff => diff.Remove).Except(empty).ToList());
 
-                var updates = new List<Task>();
-
-                for (int i = 0; i < diffs.Length; i++)
+                IEnumerable<Task> Updates(List list)
                 {
-                    var add = diffs[0].Add.Except(itrs[i].Cache);
+                    IEnumerable<Item> add = diffs[0].Add;
                     IEnumerable<Item> remove = diffs[0].Remove;
 
-                    if (i > 0)
+                    int i = itrs.FindIndex(itr => itr.List == list);
+                    if (i != -1)
                     {
-                        add = add.Except(diffs[i].Add);
-                        remove = remove.Except(diffs[i].Remove);
+                        add = add.Except(itrs[i].Cache);
+
+                        if (list != main)
+                        {
+                            add = add.Except(diffs[i].Add);
+                            remove = remove.Except(diffs[i].Remove);
+                        }
                     }
 
-                    updates.Add(sources[i].RemoveAsync(remove));
-                    updates.Add(sources[i].AddAsync(itrs[i].List.Reverse ? add.Reverse() : add));
+                    yield return list.RemoveAsync(remove);
+                    yield return list.AddAsync(list.Reverse ? add.Reverse() : add);
                 }
 
-                await Task.WhenAll(updates);
+                await Task.WhenAll(sources.Where(source => source != main).SelectMany(Updates));
+                await Task.WhenAll(Updates(main));
 
-                //Count = sources[0].Count;
                 var items = itrs[0].Buffer.Except(diffs[0].Remove);
                 if (Reverse)
                 {
@@ -348,6 +429,7 @@ namespace Movies
                 {
                     allAdditions.AddRange(diffs[0].Add);
                 }
+                Count = sources[0].Count;
 
                 foreach (var item in items)
                 {

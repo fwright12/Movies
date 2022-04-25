@@ -13,17 +13,21 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Remove="Logos\JustWatchLogo.png" />
-    <None Remove="Logos\TraktLogoDark.png" />
-    <None Remove="Logos\TraktLogoLight.png" />
+    <None Remove="Logos\JustWatchAttribution.png" />
+    <None Remove="Logos\TMDbAttribution.png" />
+    <None Remove="Logos\TraktAttributionDark.png" />
+    <None Remove="Logos\TraktAttributionLight.png" />
+    <None Remove="Logos\TraktLogo.png" />
   </ItemGroup>
 
   <ItemGroup>
     <EmbeddedResource Include="Ionicons.ttf" />
-    <EmbeddedResource Include="Logos\JustWatchLogo.png" />
+    <EmbeddedResource Include="Logos\JustWatchAttribution.png" />
+    <EmbeddedResource Include="Logos\TMDbAttribution.png" />
     <EmbeddedResource Include="Logos\TMDbLogo.png" />
-    <EmbeddedResource Include="Logos\TraktLogoDark.png" />
-    <EmbeddedResource Include="Logos\TraktLogoLight.png" />
+    <EmbeddedResource Include="Logos\TraktAttributionDark.png" />
+    <EmbeddedResource Include="Logos\TraktAttributionLight.png" />
+    <EmbeddedResource Include="Logos\TraktLogo.png" />
   </ItemGroup>
 
   <ItemGroup>
@@ -79,9 +83,6 @@
       <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
     </EmbeddedResource>
     <EmbeddedResource Update="Templates\QuickActionsTemplate.xaml">
-      <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
-    </EmbeddedResource>
-    <EmbeddedResource Update="Views\AboutPage.xaml">
       <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
     </EmbeddedResource>
     <EmbeddedResource Update="Views\EditView.xaml">

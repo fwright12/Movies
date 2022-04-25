@@ -13,7 +13,8 @@
                     xmlns:templates="clr-namespace:Movies.Templates"
                     x:Class="Movies.Views.InfoPageResources">
     <DataTemplate x:Key="DefaultTemplate">
-        <Label Text="{Binding}" />
+        <Label Text="{Binding}"
+               IsVisible="{Binding Text, Source={RelativeSource Self}, Converter={Static forms:ObjectToFalseConverter.Instance}, ConverterParameter={Static x:String.Empty}}"/>
     </DataTemplate>
 
     <DataTemplate x:Key="DefaultInfoTemplate">
@@ -351,7 +352,7 @@
     <Style x:Key="OptionalContentViewStyle"
            TargetType="ContentView">
         <Setter Property="IsVisible"
-                Value="{Binding Content, Source={RelativeSource Self}, Converter={Static forms:FalseIfNullConverter.Instance}}" />
+                Value="{Binding Content.IsVisible, Source={RelativeSource Self}, FallbackValue='False'}" />
     </Style>
 
     <DataTemplate x:Key="DefaultEmptyViewTemplate">

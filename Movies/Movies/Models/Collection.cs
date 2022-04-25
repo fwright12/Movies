@@ -15,7 +15,7 @@ namespace Movies.Models
         public string Description { get; set; }
         public string PosterPath { get; set; }
         public int? Count { get; set; }
-        public IAsyncEnumerable<Item> Items { private get; set; }
+        public IAsyncEnumerable<Item> Items { protected get; set; }
         public bool IsFullyLoaded { get; private set; }
 
         private LinkedList<Item> Cached;
@@ -117,6 +117,8 @@ namespace Movies.Models
 
         protected bool Contains(Item item) => Cache.Contains(item);
 
+        public virtual Task<List<Item>> GetAdditionsAsync(List list) => Task.FromResult(new List<Item>());
+
         private SemaphoreSlim ItrSemaphore = new SemaphoreSlim(1, 1);
         public bool Reverse { get; set; } = false;
 
@@ -136,7 +138,7 @@ namespace Movies.Models
                         {
                             added = Insert(Itr.Current, Middle, !Reverse);
                         }
-                        
+
                         if (added != null)
                         {
                             Count = Math.Max(Count ?? 0, Cache.Count);
@@ -181,6 +183,7 @@ namespace Movies.Models
         public string Author { get; set; }
         public bool Public { get; set; }
         public bool Editable { get; set; } = true;
+        public DateTime? LastUpdated { get; set; }
 
         private Dictionary<Item, Task<bool?>> Cache = new Dictionary<Item, Task<bool?>>();
 
@@ -189,6 +192,29 @@ namespace Movies.Models
             Count = 0;
         }
         //public List(IAsyncEnumerable<Item> items, int? count = null) : base(items, count) { }
+
+        /*public virtual async Task<(IEnumerable<Item> Added, IEnumerable<Item> Removed)> DiffAsync(List other)
+        {
+            var diff = (new List<Item>(), new List<Item>());
+
+            foreach (var item in items[0])
+            {
+                if (await other.ContainsAsync(item) != true)
+                {
+                    diff.Item1.Insert(0, item);
+                }
+            }
+
+            foreach (var item in items[1])
+            {
+                if (await ContainsAsync(item) != true)
+                {
+                    diff.Item2.Add(item);
+                }
+            }
+
+            return diff;
+        }*/
 
         public abstract Task Update();
         public abstract Task Delete();

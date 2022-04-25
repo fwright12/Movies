@@ -137,7 +137,7 @@ namespace Movies
                 Token = bearer;
 
                 var temp = cacheWrapper == null ? GetItems() : cacheWrapper(GetItems());
-                Items = temp.Select(json => TryParse(json, out var item) ? item : null);
+                Items = temp.TrySelect<JsonNode, Models.Item>(TryParse);
             }
 
             protected abstract IAsyncEnumerable<JsonNode> GetItems();
@@ -217,32 +217,36 @@ namespace Movies
                 Client.BaseAddress = new Uri("https://api.themoviedb.org/4/");
             }
 
-            public static List FromJson(JsonNode json, string token, TMDB idSystem, Func<IAsyncEnumerable<JsonNode>, IAsyncEnumerable<JsonNode>> cacheWrapper = null)
+            public static bool TryParse(JsonNode json, string token, TMDB idSystem, out Models.List list, Func<IAsyncEnumerable<JsonNode>, IAsyncEnumerable<JsonNode>> cacheWrapper = null)
             {
+                list = null;
+
                 if (!json.TryGetValue("id", out int id))
                 {
-                    return null;
+                    return false;
                 }
 
-                var list = new List(id, token, idSystem, cacheWrapper)
+                var localList = new List(id, token, idSystem, cacheWrapper)
                 {
                     Name = json["name"]?.TryGetValue<string>(),
+                    Description = json["description"]?.TryGetValue<string>(),
                     PosterPath = (json["poster_path"]?.TryGetValue<string>() ?? json["backdrop_path"]?.TryGetValue<string>()) is string posterPath ? BuildImageURL(posterPath, POSTER_SIZE) : null,
                     Count = json.TryGetValue("number_of_items", out int count) ? count : json["total_results"]?.TryGetValue<int?>(),
-                    Author = json["created_by"]?["username"]?.TryGetValue<string>()
+                    Author = json["created_by"]?["username"]?.TryGetValue<string>(),
                 };
 
-                if (json.TryGetValue("description", out string description) && !string.IsNullOrEmpty(description))
+                if (DateTime.TryParse(json["updated_at"]?.TryGetValue<string>(), out DateTime date))
                 {
-                    list.Description = description;
+                    localList.LastUpdated = date;
                 }
 
                 var node = json["public"];
-                list.Public = node != null && node.TryGetValue<int>(out var i) ? (i != 0) : (node?.TryGetValue<bool>() ?? false);
+                localList.Public = node != null && node.TryGetValue<int>(out var i) ? (i != 0) : (node?.TryGetValue<bool>() ?? false);
 
-                list.DetailsBackup = list.DetailsAsJson();
+                localList.DetailsBackup = localList.DetailsAsJson();
 
-                return list;
+                list = localList;
+                return true;
             }
 
             protected override async Task<bool> AddAsyncInternal(IEnumerable<Models.Item> items)
@@ -303,9 +307,11 @@ namespace Movies
                 return response?.IsSuccessStatusCode == true && JsonNode.Parse(await response.Content.ReadAsStringAsync())["success"]?.GetValue<bool>() == true;
             }
 
+            private string CleanString(string value) => (value ?? string.Empty).Trim();
+
             private string DetailsAsJson() => JsonExtensions.JsonObject(
-                JsonExtensions.FormatJson("name", Name ?? string.Empty),
-                JsonExtensions.FormatJson("description", Description ?? string.Empty),
+                JsonExtensions.FormatJson("name", CleanString(Name)),
+                JsonExtensions.FormatJson("description", CleanString(Description)),
                 JsonExtensions.FormatJson("public", Public));
 
             public override async Task Update()
@@ -344,6 +350,44 @@ namespace Movies
                 DetailsBackup = json;
             }
 
+            /*private async IAsyncEnumerable<Models.Item> ReadAll()
+            {
+                var items = await this.ReadAll<Models.Item>();
+
+                if (!Reverse)
+                {
+                    items.Reverse();
+                }
+
+                foreach (var item in items)
+                {
+                    yield return item;
+                }
+            }
+
+            public override async Task<IEnumerable<Models.Item>> GetAddedAsync(Models.List list)
+            {
+                if (Reverse)
+                {
+                    return await base.GetAddedAsync(list);
+                }
+
+                var added = new List<Models.Item>();
+                var items = Count.HasValue && Count <= 20 ? ReadAll() : FlattenPages(string.Format("list/{0}?page={{0}}&sort_by=original_order.desc", ID)).TrySelect<JsonNode, Models.Item>(TryParse);
+
+                await foreach (var item in items)
+                {
+                    if (await list.ContainsAsync(item) == true)
+                    {
+                        break;
+                    }
+
+                    added.Insert(0, item);
+                }
+
+                return added;
+            }*/
+
             protected override async IAsyncEnumerable<JsonNode> GetItems()
             {
                 if (ID == null)
@@ -365,6 +409,7 @@ namespace Movies
 
             private string AccountID;
             private string SessionID;
+            private Models.Collection Movies;
 
             public NamedList(string itemsPath, string statusPath, string bearer, string accountID, string sessionId, TMDB idSystem, Func<IAsyncEnumerable<JsonNode>, IAsyncEnumerable<JsonNode>> cacheWrapper = null) : base(itemsPath, idSystem, bearer, cacheWrapper)
             {
@@ -377,6 +422,26 @@ namespace Movies
                 StatusPath = statusPath;
 
                 Reverse = true;
+
+                Movies = new Models.Collection
+                {
+                    Reverse = true,
+                    Items = (cacheWrapper == null ? GetMovies() : cacheWrapper(GetMovies())).TrySelect<JsonNode, Models.Item>(TryParse)
+                };
+                Items = Concat(Items, Movies);
+            }
+
+            private static async IAsyncEnumerable<T> Concat<T>(IAsyncEnumerable<T> first, IAsyncEnumerable<T> second)
+            {
+                await foreach (var item in first)
+                {
+                    yield return item;
+                }
+
+                await foreach (var item in second)
+                {
+                    yield return item;
+                }
             }
 
             private async Task<bool> UpdateStatus(bool status, IEnumerable<Models.Item> items)
@@ -437,17 +502,59 @@ namespace Movies
 
             public override Task Update() => Task.CompletedTask;
 
+            public override async Task<List<Models.Item>> GetAdditionsAsync(Models.List list)
+            {
+                var added = new List<Models.Item>();
+
+                if (Reverse)
+                {
+                    try
+                    {
+                        await foreach (var item in Movies)
+                        {
+                            if (await list.ContainsAsync(item) != true)
+                            {
+                                added.Insert(Reverse ? 0 : added.Count, item);
+                            }
+                            else
+                            {
+                                break;
+                            }
+                        }
+                    }
+                    catch
+                    {
+                        added.Clear();
+                    }
+                }
+
+                return added;
+            }
+
+            /*public override async Task<List<Models.Item>> GetAdditionsAsync(Models.List list, bool onlyFromFront = true)
+            {
+                var items = await GetAdditionsAsync(list);
+
+                if (!(items.FirstOrDefault() is Models.Movie))
+                {
+                    items.AddRange(await Movies.GetAdditionsAsync(list));
+                }
+
+                return items.OfType<Models.TVShow>().Concat<Models.Item>(items.OfType<Models.Movie>()).ToList();
+            }*/
+
             protected override async IAsyncEnumerable<JsonNode> GetItems()
             {
-#if !DEBUG
                 await foreach (var item in FlattenPages(string.Format("4/account/{0}/tv/" + ID + "?page={{0}}", AccountID)))
                 {
                     var show = item.AsObject();
                     show.Add("media_type", "tv");
                     yield return show;
                 }
-#endif
+            }
 
+            private async IAsyncEnumerable<JsonNode> GetMovies()
+            {
                 await foreach (var item in FlattenPages(string.Format("4/account/{0}/movie/" + ID + "?page={{0}}", AccountID)))
                 {
                     var movie = item.AsObject();
@@ -511,23 +618,49 @@ namespace Movies
         {
             for (int i = 0; i < 20; i++)
                 yield return new DummyList();
-            //yield return List.FromJson(JsonNode.Parse("{\"adult\":0,\"average_rating\":8.36,\"backdrop_path\":\"/xJHokMbljvjADYdit5fK5VQsXEG.jpg\",\"created_at\":\"2022-03-08 20:37:35\",\"description\":\"List from TMDb\",\"featured\":0,\"id\":8194544,\"iso_3166_1\":\"US\",\"iso_639_1\":\"en\",\"name\":\"TMDb List\",\"number_of_items\":1,\"public\":0,\"revenue\":\"701729206\",\"runtime\":169,\"sort_by\":1,\"updated_at\":\"2022-03-08 20:38:14\"}"), UserAccessToken, this, CacheItems);
             await Task.CompletedTask;
         }
 #endif
 
         public Models.List CreateList() => new List(UserAccessToken, this, CacheItems);
 
-        public IAsyncEnumerable<Models.List> GetAllListsAsync() => SafeFlattenPages(WebClient, string.Format("https://api.themoviedb.org/4/account/{0}/lists?page={{0}}", AccountID), UserAccessToken).Select(json => ParseList(json, out var value) ? value : default);
+        public async Task<List<Models.List>> GetAllLists()
+        {
+            var lists = new List<Models.List>();
+
+            await foreach (var list in FlattenPages(WebClient, string.Format("https://api.themoviedb.org/4/account/{0}/lists?page={{0}}", AccountID), UserAccessToken).TrySelect<JsonNode, Models.List>(TryParseList))
+            {
+                lists.Add(list);
+            }
+
+            return lists;
+        }
+
+        public async IAsyncEnumerable<Models.List> GetAllListsAsync()
+        {
+            List<Models.List> lists;
+
+            try
+            {
+                lists = await LazyAllLists.Value;
+            }
+            catch
+            {
+                yield break;
+            }
+
+            foreach (var list in lists)
+            {
+                yield return list;
+            }
+        }
+
+        //public IAsyncEnumerable<Models.List> GetAllListsAsync() => SafeFlattenPages(WebClient, string.Format("https://api.themoviedb.org/4/account/{0}/lists?page={{0}}", AccountID), UserAccessToken).TrySelect<JsonNode, Models.List>(TryParseList);
 
         private string GetCacheKey<T>(JsonNode json) => json.TryGetValue<int>("id", out var id) ? GetCacheKey<T>(id) : null;
         private string GetListItemCacheKey(JsonNode json) => json.TryGetValue<int>("id", out var id) ? (json["media_type"]?.TryGetValue<string>() == "tv" ? GetCacheKey<Models.TVShow>(id) : GetCacheKey<Models.Movie>(id)) : null;
 
-        private bool ParseList(JsonNode json, out Models.List list)
-        {
-            list = List.FromJson(json, UserAccessToken, this, CacheItems);
-            return list != null;
-        }
+        private bool TryParseList(JsonNode json, out Models.List list) => List.TryParse(json, UserAccessToken, this, out list, CacheItems);
 
         private IAsyncEnumerable<JsonNode> CacheItems(IAsyncEnumerable<JsonNode> items) => CacheStream(items, GetListItemCacheKey);
         private async IAsyncEnumerable<T> CacheStream<T>(IAsyncEnumerable<T> items, Func<T, string> getCacheKey)
@@ -601,7 +734,13 @@ namespace Movies
         {
             //return new DummyList(id) { Name = "Tmdb list" };
             //var response = await WebClient.GetAsync(string.Format("https://api.themoviedb.org/4/list/{0}", 
-            var response = await WebClient.TrySendAsync(new HttpRequestMessage(HttpMethod.Get, string.Format("4/list/{0}", id))
+
+            if ((await LazyAllLists.Value).FirstOrDefault(list => list.ID == id) is Models.List temp)
+            {
+                return temp;
+            }
+
+            var response = await WebClient.SendAsync(new HttpRequestMessage(HttpMethod.Get, string.Format("4/list/{0}", id))
             {
                 Headers =
                 {
@@ -609,7 +748,7 @@ namespace Movies
                 }
             });
 
-            return response?.IsSuccessStatusCode == true ? List.FromJson(JsonNode.Parse(await response.Content.ReadAsStringAsync()), UserAccessToken, this) : null;
+            return response?.IsSuccessStatusCode == true && List.TryParse(JsonNode.Parse(await response.Content.ReadAsStringAsync()), UserAccessToken, this, out var list) ? list : null;
         }
 
         private Models.List GetNamedList(string itemsPath, string statusPath) => new NamedList(itemsPath, statusPath, UserAccessToken, AccountID, SessionID, this, CacheItems);

@@ -1072,18 +1072,6 @@ com.google.android.ump.UserMessagingPlatform$OnConsentFormLoadSuccessListener;co
 Xamarin.Google.UserMesssagingPlatform.UserMessagingPlatform+IOnConsentFormLoadSuccessListenerImplementor, Xamarin.Google.UserMessagingPlatform;mono.com.google.android.ump.UserMessagingPlatform_OnConsentFormLoadSuccessListenerImplementor
 Xamarin.Google.UserMesssagingPlatform.UserMessagingPlatform.IOnConsentFormLoadSuccessListenerImplementor;mono.com.google.android.ump.UserMessagingPlatform_OnConsentFormLoadSuccessListenerImplementor
 mono.com.google.android.ump.UserMessagingPlatform_OnConsentFormLoadSuccessListenerImplementor;mono.com.google.android.ump.UserMessagingPlatform_OnConsentFormLoadSuccessListenerImplementor
-Android.Gms.Ads.IMediaContent, Xamarin.GooglePlayServices.Ads.Lite;com.google.android.gms.ads.MediaContent
-Android.Gms.Ads.IMediaContent;com.google.android.gms.ads.MediaContent
-com.google.android.gms.ads.MediaContent;com.google.android.gms.ads.MediaContent
-Android.Gms.Ads.IMuteThisAdListener, Xamarin.GooglePlayServices.Ads.Lite;com.google.android.gms.ads.MuteThisAdListener
-Android.Gms.Ads.IMuteThisAdListener;com.google.android.gms.ads.MuteThisAdListener
-com.google.android.gms.ads.MuteThisAdListener;com.google.android.gms.ads.MuteThisAdListener
-Android.Gms.Ads.IMuteThisAdListenerImplementor, Xamarin.GooglePlayServices.Ads.Lite;mono.com.google.android.gms.ads.MuteThisAdListenerImplementor
-Android.Gms.Ads.IMuteThisAdListenerImplementor;mono.com.google.android.gms.ads.MuteThisAdListenerImplementor
-mono.com.google.android.gms.ads.MuteThisAdListenerImplementor;mono.com.google.android.gms.ads.MuteThisAdListenerImplementor
-Android.Gms.Ads.IMuteThisAdReason, Xamarin.GooglePlayServices.Ads.Lite;com.google.android.gms.ads.MuteThisAdReason
-Android.Gms.Ads.IMuteThisAdReason;com.google.android.gms.ads.MuteThisAdReason
-com.google.android.gms.ads.MuteThisAdReason;com.google.android.gms.ads.MuteThisAdReason
 Android.Gms.Ads.IOnAdInspectorClosedListener, Xamarin.GooglePlayServices.Ads.Lite;com.google.android.gms.ads.OnAdInspectorClosedListener
 Android.Gms.Ads.IOnAdInspectorClosedListener;com.google.android.gms.ads.OnAdInspectorClosedListener
 com.google.android.gms.ads.OnAdInspectorClosedListener;com.google.android.gms.ads.OnAdInspectorClosedListener
@@ -1093,30 +1081,33 @@ com.google.android.gms.ads.OnPaidEventListener;com.google.android.gms.ads.OnPaid
 Android.Gms.Ads.IOnPaidEventListenerImplementor, Xamarin.GooglePlayServices.Ads.Lite;mono.com.google.android.gms.ads.OnPaidEventListenerImplementor
 Android.Gms.Ads.IOnPaidEventListenerImplementor;mono.com.google.android.gms.ads.OnPaidEventListenerImplementor
 mono.com.google.android.gms.ads.OnPaidEventListenerImplementor;mono.com.google.android.gms.ads.OnPaidEventListenerImplementor
-Android.Gms.Ads.NativeAd.INativeCustomFormatAdDisplayOpenMeasurement, Xamarin.GooglePlayServices.Ads.Lite;com.google.android.gms.ads.nativead.NativeCustomFormatAd$DisplayOpenMeasurement
-Android.Gms.Ads.NativeAd.INativeCustomFormatAdDisplayOpenMeasurement;com.google.android.gms.ads.nativead.NativeCustomFormatAd$DisplayOpenMeasurement
-com.google.android.gms.ads.nativead.NativeCustomFormatAd$DisplayOpenMeasurement;com.google.android.gms.ads.nativead.NativeCustomFormatAd$DisplayOpenMeasurement
-Android.Gms.Ads.NativeAd.INativeCustomFormatAdOnCustomClickListener, Xamarin.GooglePlayServices.Ads.Lite;com.google.android.gms.ads.nativead.NativeCustomFormatAd$OnCustomClickListener
-Android.Gms.Ads.NativeAd.INativeCustomFormatAdOnCustomClickListener;com.google.android.gms.ads.nativead.NativeCustomFormatAd$OnCustomClickListener
-com.google.android.gms.ads.nativead.NativeCustomFormatAd$OnCustomClickListener;com.google.android.gms.ads.nativead.NativeCustomFormatAd$OnCustomClickListener
-Android.Gms.Ads.NativeAd.INativeCustomFormatAdOnCustomFormatAdLoadedListener, Xamarin.GooglePlayServices.Ads.Lite;com.google.android.gms.ads.nativead.NativeCustomFormatAd$OnCustomFormatAdLoadedListener
-Android.Gms.Ads.NativeAd.INativeCustomFormatAdOnCustomFormatAdLoadedListener;com.google.android.gms.ads.nativead.NativeCustomFormatAd$OnCustomFormatAdLoadedListener
-com.google.android.gms.ads.nativead.NativeCustomFormatAd$OnCustomFormatAdLoadedListener;com.google.android.gms.ads.nativead.NativeCustomFormatAd$OnCustomFormatAdLoadedListener
-Android.Gms.Ads.NativeAd.INativeCustomFormatAd, Xamarin.GooglePlayServices.Ads.Lite;com.google.android.gms.ads.nativead.NativeCustomFormatAd
-Android.Gms.Ads.NativeAd.INativeCustomFormatAd;com.google.android.gms.ads.nativead.NativeCustomFormatAd
-com.google.android.gms.ads.nativead.NativeCustomFormatAd;com.google.android.gms.ads.nativead.NativeCustomFormatAd
-Android.Gms.Ads.NativeAd.NativeAd+IOnNativeAdLoadedListener, Xamarin.GooglePlayServices.Ads.Lite;com.google.android.gms.ads.nativead.NativeAd$OnNativeAdLoadedListener
-Android.Gms.Ads.NativeAd.NativeAd.IOnNativeAdLoadedListener;com.google.android.gms.ads.nativead.NativeAd$OnNativeAdLoadedListener
-com.google.android.gms.ads.nativead.NativeAd$OnNativeAdLoadedListener;com.google.android.gms.ads.nativead.NativeAd$OnNativeAdLoadedListener
-Android.Gms.Ads.NativeAd.NativeAd+IUnconfirmedClickListener, Xamarin.GooglePlayServices.Ads.Lite;com.google.android.gms.ads.nativead.NativeAd$UnconfirmedClickListener
-Android.Gms.Ads.NativeAd.NativeAd.IUnconfirmedClickListener;com.google.android.gms.ads.nativead.NativeAd$UnconfirmedClickListener
-com.google.android.gms.ads.nativead.NativeAd$UnconfirmedClickListener;com.google.android.gms.ads.nativead.NativeAd$UnconfirmedClickListener
-Android.Gms.Ads.NativeAd.NativeAd+IUnconfirmedClickListenerImplementor, Xamarin.GooglePlayServices.Ads.Lite;mono.com.google.android.gms.ads.nativead.NativeAd_UnconfirmedClickListenerImplementor
-Android.Gms.Ads.NativeAd.NativeAd.IUnconfirmedClickListenerImplementor;mono.com.google.android.gms.ads.nativead.NativeAd_UnconfirmedClickListenerImplementor
-mono.com.google.android.gms.ads.nativead.NativeAd_UnconfirmedClickListenerImplementor;mono.com.google.android.gms.ads.nativead.NativeAd_UnconfirmedClickListenerImplementor
+Android.Gms.Ads.Mediation.IMediationAdapter, Xamarin.GooglePlayServices.Ads.Lite;com.google.android.gms.ads.mediation.MediationAdapter
+Android.Gms.Ads.Mediation.IMediationAdapter;com.google.android.gms.ads.mediation.MediationAdapter
+com.google.android.gms.ads.mediation.MediationAdapter;com.google.android.gms.ads.mediation.MediationAdapter
+Android.Gms.Ads.Mediation.IMediationAdRequest, Xamarin.GooglePlayServices.Ads.Lite;com.google.android.gms.ads.mediation.MediationAdRequest
+Android.Gms.Ads.Mediation.IMediationAdRequest;com.google.android.gms.ads.mediation.MediationAdRequest
+com.google.android.gms.ads.mediation.MediationAdRequest;com.google.android.gms.ads.mediation.MediationAdRequest
+Android.Gms.Ads.Mediation.IMediationBannerAdapter, Xamarin.GooglePlayServices.Ads.Lite;com.google.android.gms.ads.mediation.MediationBannerAdapter
+Android.Gms.Ads.Mediation.IMediationBannerAdapter;com.google.android.gms.ads.mediation.MediationBannerAdapter
+com.google.android.gms.ads.mediation.MediationBannerAdapter;com.google.android.gms.ads.mediation.MediationBannerAdapter
+Android.Gms.Ads.Mediation.IMediationBannerListener, Xamarin.GooglePlayServices.Ads.Lite;com.google.android.gms.ads.mediation.MediationBannerListener
+Android.Gms.Ads.Mediation.IMediationBannerListener;com.google.android.gms.ads.mediation.MediationBannerListener
+com.google.android.gms.ads.mediation.MediationBannerListener;com.google.android.gms.ads.mediation.MediationBannerListener
+Android.Gms.Ads.Mediation.IMediationExtrasReceiver, Xamarin.GooglePlayServices.Ads.Lite;com.google.android.gms.ads.mediation.MediationExtrasReceiver
+Android.Gms.Ads.Mediation.IMediationExtrasReceiver;com.google.android.gms.ads.mediation.MediationExtrasReceiver
+com.google.android.gms.ads.mediation.MediationExtrasReceiver;com.google.android.gms.ads.mediation.MediationExtrasReceiver
+Android.Gms.Ads.Mediation.IMediationInterstitialAdapter, Xamarin.GooglePlayServices.Ads.Lite;com.google.android.gms.ads.mediation.MediationInterstitialAdapter
+Android.Gms.Ads.Mediation.IMediationInterstitialAdapter;com.google.android.gms.ads.mediation.MediationInterstitialAdapter
+com.google.android.gms.ads.mediation.MediationInterstitialAdapter;com.google.android.gms.ads.mediation.MediationInterstitialAdapter
+Android.Gms.Ads.Mediation.IMediationInterstitialListener, Xamarin.GooglePlayServices.Ads.Lite;com.google.android.gms.ads.mediation.MediationInterstitialListener
+Android.Gms.Ads.Mediation.IMediationInterstitialListener;com.google.android.gms.ads.mediation.MediationInterstitialListener
+com.google.android.gms.ads.mediation.MediationInterstitialListener;com.google.android.gms.ads.mediation.MediationInterstitialListener
 Android.Gms.Ads.Mediation.INetworkExtras, Xamarin.GooglePlayServices.Ads.Lite;com.google.android.gms.ads.mediation.NetworkExtras
 Android.Gms.Ads.Mediation.INetworkExtras;com.google.android.gms.ads.mediation.NetworkExtras
 com.google.android.gms.ads.mediation.NetworkExtras;com.google.android.gms.ads.mediation.NetworkExtras
+Android.Gms.Ads.Mediation.IOnImmersiveModeUpdatedListener, Xamarin.GooglePlayServices.Ads.Lite;com.google.android.gms.ads.mediation.OnImmersiveModeUpdatedListener
+Android.Gms.Ads.Mediation.IOnImmersiveModeUpdatedListener;com.google.android.gms.ads.mediation.OnImmersiveModeUpdatedListener
+com.google.android.gms.ads.mediation.OnImmersiveModeUpdatedListener;com.google.android.gms.ads.mediation.OnImmersiveModeUpdatedListener
 Android.Gms.Ads.Initialization.IAdapterStatus, Xamarin.GooglePlayServices.Ads.Lite;com.google.android.gms.ads.initialization.AdapterStatus
 Android.Gms.Ads.Initialization.IAdapterStatus;com.google.android.gms.ads.initialization.AdapterStatus
 com.google.android.gms.ads.initialization.AdapterStatus;com.google.android.gms.ads.initialization.AdapterStatus
@@ -1126,39 +1117,6 @@ com.google.android.gms.ads.initialization.InitializationStatus;com.google.androi
 Android.Gms.Ads.Initialization.IOnInitializationCompleteListener, Xamarin.GooglePlayServices.Ads.Lite;com.google.android.gms.ads.initialization.OnInitializationCompleteListener
 Android.Gms.Ads.Initialization.IOnInitializationCompleteListener;com.google.android.gms.ads.initialization.OnInitializationCompleteListener
 com.google.android.gms.ads.initialization.OnInitializationCompleteListener;com.google.android.gms.ads.initialization.OnInitializationCompleteListener
-Android.Gms.Ads.AdManager.IAppEventListener, Xamarin.GooglePlayServices.Ads.Lite;com.google.android.gms.ads.admanager.AppEventListener
-Android.Gms.Ads.AdManager.IAppEventListener;com.google.android.gms.ads.admanager.AppEventListener
-com.google.android.gms.ads.admanager.AppEventListener;com.google.android.gms.ads.admanager.AppEventListener
-Android.Gms.Ads.AdManager.IAppEventListenerImplementor, Xamarin.GooglePlayServices.Ads.Lite;mono.com.google.android.gms.ads.admanager.AppEventListenerImplementor
-Android.Gms.Ads.AdManager.IAppEventListenerImplementor;mono.com.google.android.gms.ads.admanager.AppEventListenerImplementor
-mono.com.google.android.gms.ads.admanager.AppEventListenerImplementor;mono.com.google.android.gms.ads.admanager.AppEventListenerImplementor
-Android.Gms.Ads.Formats.INativeCustomTemplateAdDisplayOpenMeasurement, Xamarin.GooglePlayServices.Ads.Lite;com.google.android.gms.ads.formats.NativeCustomTemplateAd$DisplayOpenMeasurement
-Android.Gms.Ads.Formats.INativeCustomTemplateAdDisplayOpenMeasurement;com.google.android.gms.ads.formats.NativeCustomTemplateAd$DisplayOpenMeasurement
-com.google.android.gms.ads.formats.NativeCustomTemplateAd$DisplayOpenMeasurement;com.google.android.gms.ads.formats.NativeCustomTemplateAd$DisplayOpenMeasurement
-Android.Gms.Ads.Formats.INativeCustomTemplateAdOnCustomClickListener, Xamarin.GooglePlayServices.Ads.Lite;com.google.android.gms.ads.formats.NativeCustomTemplateAd$OnCustomClickListener
-Android.Gms.Ads.Formats.INativeCustomTemplateAdOnCustomClickListener;com.google.android.gms.ads.formats.NativeCustomTemplateAd$OnCustomClickListener
-com.google.android.gms.ads.formats.NativeCustomTemplateAd$OnCustomClickListener;com.google.android.gms.ads.formats.NativeCustomTemplateAd$OnCustomClickListener
-Android.Gms.Ads.Formats.INativeCustomTemplateAdOnCustomTemplateAdLoadedListener, Xamarin.GooglePlayServices.Ads.Lite;com.google.android.gms.ads.formats.NativeCustomTemplateAd$OnCustomTemplateAdLoadedListener
-Android.Gms.Ads.Formats.INativeCustomTemplateAdOnCustomTemplateAdLoadedListener;com.google.android.gms.ads.formats.NativeCustomTemplateAd$OnCustomTemplateAdLoadedListener
-com.google.android.gms.ads.formats.NativeCustomTemplateAd$OnCustomTemplateAdLoadedListener;com.google.android.gms.ads.formats.NativeCustomTemplateAd$OnCustomTemplateAdLoadedListener
-Android.Gms.Ads.Formats.INativeCustomTemplateAd, Xamarin.GooglePlayServices.Ads.Lite;com.google.android.gms.ads.formats.NativeCustomTemplateAd
-Android.Gms.Ads.Formats.INativeCustomTemplateAd;com.google.android.gms.ads.formats.NativeCustomTemplateAd
-com.google.android.gms.ads.formats.NativeCustomTemplateAd;com.google.android.gms.ads.formats.NativeCustomTemplateAd
-Android.Gms.Ads.Formats.IOnAdManagerAdViewLoadedListener, Xamarin.GooglePlayServices.Ads.Lite;com.google.android.gms.ads.formats.OnAdManagerAdViewLoadedListener
-Android.Gms.Ads.Formats.IOnAdManagerAdViewLoadedListener;com.google.android.gms.ads.formats.OnAdManagerAdViewLoadedListener
-com.google.android.gms.ads.formats.OnAdManagerAdViewLoadedListener;com.google.android.gms.ads.formats.OnAdManagerAdViewLoadedListener
-Android.Gms.Ads.Formats.UnifiedNativeAd+IOnUnifiedNativeAdLoadedListener, Xamarin.GooglePlayServices.Ads.Lite;com.google.android.gms.ads.formats.UnifiedNativeAd$OnUnifiedNativeAdLoadedListener
-Android.Gms.Ads.Formats.UnifiedNativeAd.IOnUnifiedNativeAdLoadedListener;com.google.android.gms.ads.formats.UnifiedNativeAd$OnUnifiedNativeAdLoadedListener
-com.google.android.gms.ads.formats.UnifiedNativeAd$OnUnifiedNativeAdLoadedListener;com.google.android.gms.ads.formats.UnifiedNativeAd$OnUnifiedNativeAdLoadedListener
-Android.Gms.Ads.Formats.UnifiedNativeAd+IUnconfirmedClickListener, Xamarin.GooglePlayServices.Ads.Lite;com.google.android.gms.ads.formats.UnifiedNativeAd$UnconfirmedClickListener
-Android.Gms.Ads.Formats.UnifiedNativeAd.IUnconfirmedClickListener;com.google.android.gms.ads.formats.UnifiedNativeAd$UnconfirmedClickListener
-com.google.android.gms.ads.formats.UnifiedNativeAd$UnconfirmedClickListener;com.google.android.gms.ads.formats.UnifiedNativeAd$UnconfirmedClickListener
-Android.Gms.Ads.Formats.UnifiedNativeAd+IUnconfirmedClickListenerImplementor, Xamarin.GooglePlayServices.Ads.Lite;mono.com.google.android.gms.ads.formats.UnifiedNativeAd_UnconfirmedClickListenerImplementor
-Android.Gms.Ads.Formats.UnifiedNativeAd.IUnconfirmedClickListenerImplementor;mono.com.google.android.gms.ads.formats.UnifiedNativeAd_UnconfirmedClickListenerImplementor
-mono.com.google.android.gms.ads.formats.UnifiedNativeAd_UnconfirmedClickListenerImplementor;mono.com.google.android.gms.ads.formats.UnifiedNativeAd_UnconfirmedClickListenerImplementor
-Android.Gms.Common.Internal.SafeParcel.ISafeParcelable, Xamarin.GooglePlayServices.Basement;com.google.android.gms.common.internal.safeparcel.SafeParcelable
-Android.Gms.Common.Internal.SafeParcel.ISafeParcelable;com.google.android.gms.common.internal.safeparcel.SafeParcelable
-com.google.android.gms.common.internal.safeparcel.SafeParcelable;com.google.android.gms.common.internal.safeparcel.SafeParcelable
 Android.Gms.Tasks.IContinuation, Xamarin.GooglePlayServices.Tasks;com.google.android.gms.tasks.Continuation
 Android.Gms.Tasks.IContinuation;com.google.android.gms.tasks.Continuation
 com.google.android.gms.tasks.Continuation;com.google.android.gms.tasks.Continuation

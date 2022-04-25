@@ -1,10 +1,11 @@
 ﻿<?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://xamarin.com/schemas/2014/forms"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:forms="clr-namespace:Xamarin.Forms;assembly=Xamarin.Forms.Extensions"
+             xmlns:ext="clr-namespace:Xamarin.Forms.Extensions;assembly=Xamarin.Forms.Extensions"
              xmlns:movies="clr-namespace:Movies"
              xmlns:views="clr-namespace:Movies.Views"
              xmlns:viewmodels="clr-namespace:Movies.ViewModels"
-             xmlns:forms="clr-namespace:Xamarin.Forms;assembly=Xamarin.Forms.Extensions"
              x:Class="Movies.Views.SettingsPage">
     <VisualElement.Resources>
         <Style TargetType="Label">
@@ -12,60 +13,90 @@
                     Value="{AppThemeBinding Light={StaticResource LightPrimaryText}, Dark={StaticResource DarkPrimaryText}}" />
         </Style>
 
-        <ControlTemplate x:Key="LoggedInTemplate">
-            <FlexLayout BindingContext="{TemplateBinding BindingContext}"
-                        Direction="Row">
-                <Label Text="{Binding Account.Name, StringFormat='{0}:'}"
-                       Padding="0,0,5,0"
-                       FlexLayout.Shrink="0" />
-                <Label Text="{Binding Account.Username, StringFormat='Signed in as {0}'}"
-                       LineBreakMode="HeadTruncation"
-                       FlexLayout.Grow="1" />
-
-                <Button Text="Logout"
-                        Command="{Binding LogoutCommand}"
-                        FlexLayout.Shrink="0">
-                </Button>
-            </FlexLayout>
-        </ControlTemplate>
-
-        <ControlTemplate x:Key="LoggedOutTemplate">
-            <FlexLayout BindingContext="{TemplateBinding BindingContext}"
-                        Direction="Row">
-                <Label Text="{Binding Account.Name, StringFormat='{0}: '}"
-                       FlexLayout.Shrink="0" />
-                <Label Text=" Not signed in"
-                       FlexLayout.Grow="1" />
-
-                <Button Text="Login"
-                        Command="{Binding LoginCommand}"
-                        FlexLayout.Shrink="0">
-                </Button>
-            </FlexLayout>
-        </ControlTemplate>
-
         <Style x:Key="ViewCellStyle"
                TargetType="Layout">
             <Setter Property="Padding"
-                    Value="{OnPlatform iOS='20, 0', Android='15, 0'}"/>
+                    Value="{OnPlatform iOS='20, 0', Android='15, 0'}" />
         </Style>
 
         <Style x:Key="AccountStyle"
                TargetType="ContentView"
                BasedOn="{StaticResource ViewCellStyle}">
+            <Setter Property="ControlTemplate">
+                <ControlTemplate>
+                    <StackLayout BindingContext="{TemplateBinding BindingContext}"
+                                 x:DataType="viewmodels:AccountViewModel"
+                                 Orientation="Horizontal">
+                        <Image Source="{Binding Account.Company.LogoPath}"
+                               WidthRequest="{Binding Height, Source={RelativeSource Self}}" />
+
+                        <ContentPresenter HorizontalOptions="FillAndExpand"
+                                          VerticalOptions="Center"
+                                          WidthRequest="0" />
+
+                        <Button>
+                            <VisualStateManager.VisualStateGroups>
+                                <VisualStateGroup>
+                                    <VisualState Name="LoggedIn">
+                                        <VisualState.StateTriggers>
+                                            <StateTrigger IsActive="{Binding IsLoggedIn}" />
+                                        </VisualState.StateTriggers>
+
+                                        <VisualState.Setters>
+                                            <Setter Property="Text"
+                                                    Value="Logout" />
+                                            <Setter Property="Command"
+                                                    Value="{Binding LogoutCommand}" />
+                                        </VisualState.Setters>
+                                    </VisualState>
+
+                                    <VisualState Name="LoggedOut">
+                                        <VisualState.StateTriggers>
+                                            <StateTrigger IsActive="True" />
+                                        </VisualState.StateTriggers>
+
+                                        <VisualState.Setters>
+                                            <Setter Property="Text"
+                                                    Value="Login" />
+                                            <Setter Property="Command"
+                                                    Value="{Binding LoginCommand}" />
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                </VisualStateGroup>
+                            </VisualStateManager.VisualStateGroups>
+                        </Button>
+                    </StackLayout>
+                </ControlTemplate>
+            </Setter>
+
             <Style.Triggers>
                 <DataTrigger TargetType="ContentView"
-                                         Binding="{Binding IsLoggedIn}"
-                                         Value="True">
-                    <Setter Property="ControlTemplate"
-                                        Value="{StaticResource LoggedInTemplate}" />
+                             Binding="{Binding IsLoggedIn}"
+                             Value="True">
+                    <Setter Property="ext:ContentView.EmptyView">
+                        <DataTemplate>
+                            <Label LineBreakMode="HeadTruncation">
+                                <Label.FormattedText>
+                                    <FormattedString>
+                                        <Span Text="{Binding Account.Name, StringFormat='{0}:'}" />
+                                        <Span Text=" " />
+                                        <Span Text="{Binding Account.Username}" />
+                                    </FormattedString>
+                                </Label.FormattedText>
+                            </Label>
+                        </DataTemplate>
+                    </Setter>
                 </DataTrigger>
 
                 <DataTrigger TargetType="ContentView"
-                                         Binding="{Binding IsLoggedIn}"
-                                         Value="False">
-                    <Setter Property="ControlTemplate"
-                                        Value="{StaticResource LoggedOutTemplate}" />
+                             Binding="{Binding IsLoggedIn}"
+                             Value="False">
+                    <Setter Property="ext:ContentView.EmptyView">
+                        <DataTemplate>
+                            <Label Text="{Binding Account.Name, StringFormat='{0}: Not signed in'}"
+                                   MaxLines="1" />
+                        </DataTemplate>
+                    </Setter>
                 </DataTrigger>
             </Style.Triggers>
         </Style>
@@ -78,34 +109,32 @@
                           BindingContext="{Binding Source={Static Application.Current}}">
                 <ViewCell>
                     <ContentView BindingContext="{Binding Accounts[0]}"
-                                 Style="{StaticResource AccountStyle}"/>
+                                 Style="{StaticResource AccountStyle}" />
                 </ViewCell>
 
                 <ViewCell>
                     <ContentView BindingContext="{Binding Accounts[1]}"
-                                 Style="{StaticResource AccountStyle}"/>
+                                 Style="{StaticResource AccountStyle}" />
                 </ViewCell>
             </TableSection>
 
             <TableSection Title="Powered by">
                 <ViewCell>
                     <StackLayout Orientation="Vertical"
-                                 Spacing="20">
+                                 Spacing="40"
+                                 Padding="20,0">
                         <FlexLayout Direction="Column"
-                                JustifyContent="Center">
-                            <Image BindingContext="{Static movies:TMDB.TMDb}"
-                               Source="{Binding LogoPath}"
-                               HeightRequest="50"
-                               Margin="0,0,0,10" />
+                                    JustifyContent="Center">
+                            <Image Source="{Static movies:App.TMDbAttribution}"
+                                   HeightRequest="50" />
 
                             <Label Text="This product uses the TMDB API but is not endorsed or certified by TMDB."
-                               HorizontalTextAlignment="Center"
-                               FontSize="Large" />
+                                   HorizontalTextAlignment="Center" />
                         </FlexLayout>
-                        
-                        <Image Source="{AppThemeBinding Light={Static movies:App.TraktLogoLight}, Dark={Static movies:App.TraktLogoDark}}"
+
+                        <Image Source="{AppThemeBinding Light={Static movies:App.TraktAttributionLight}, Dark={Static movies:App.TraktAttributionDark}}"
                                HeightRequest="50"
-                               HorizontalOptions="Center"/>
+                               HorizontalOptions="Center" />
                     </StackLayout>
                 </ViewCell>
             </TableSection>

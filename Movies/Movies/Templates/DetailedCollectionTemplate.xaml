@@ -1,6 +1,7 @@
 ﻿<?xml version="1.0" encoding="UTF-8"?>
 <DataTemplate xmlns="http://xamarin.com/schemas/2014/forms"
               xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+              xmlns:forms="clr-namespace:Xamarin.Forms;assembly=Xamarin.Forms.Extensions"
               xmlns:views="clr-namespace:Movies.Views"
               xmlns:models="clr-namespace:Movies.Models"
               x:Class="Movies.Templates.DetailedCollectionTemplate">
@@ -37,7 +38,7 @@
                 </Label.FormattedText>
             </Label>
 
-            <Label Text="{Binding Item.Description, TargetNullValue='No description provided'}"
+            <Label Text="{Binding Item.Description, Converter={Static forms:NullIfEmptyConverter.Instance}, TargetNullValue='No description provided'}"
                    LineBreakMode="TailTruncation"
                    MaxLines="3" />
         </StackLayout>

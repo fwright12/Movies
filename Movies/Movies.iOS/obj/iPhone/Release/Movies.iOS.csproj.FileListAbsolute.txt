@@ -69,6 +69,7 @@ C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Release\Mo
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Release\Movies.iOS.csproj.CoreCompileInputs.cache
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Release\Movies.iOS.csproj.CopyComplete
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Release\Movies.iOS.exe
+C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhone\Release\System.Extensions.dll.mdb
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Release\actool\_PartialAppManifest.items
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Release\actool\_BundleResourceWithLogicalName.items
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Release\actool\_ProcessedImageAssetsPath.items
@@ -132,5 +133,6 @@ C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Release\Co
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Release\CopyFilesToMac\Xamarin.Forms.Extensions.dll.mdb.ReferenceCopyLocalPaths.stamp
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Release\CopyFilesToMac\Movies.pdb.ReferenceCopyLocalPaths.stamp
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Release\CopyFilesToMac\System.Extensions.pdb.ReferenceCopyLocalPaths.stamp
+C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Release\CopyFilesToMac\System.Extensions.dll.mdb.ReferenceCopyLocalPaths.stamp
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Release\CopyFilesToMac\Entitlements.plist.NoneOutput.stamp
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Release\CopyFilesToMac\Info.plist.NoneOutput.stamp

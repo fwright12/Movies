@@ -2,6 +2,7 @@
 using System.ComponentModel;
 using Android.Content;
 using Android.Gms.Ads;
+using Google.Ads.Mediation.Admob;
 using Xamarin.Forms.Platform.Android;
 using XFAdView = Xamarin.Forms.AdView;
 
@@ -25,18 +26,25 @@ namespace Movies.Droid
 
             // This is a string in the Resources/values/strings.xml that I added or you can modify it here. This comes from admob and contains a / in it
             //adUnitId = Forms.Context.Resources.GetString(Resource.String.banner_ad_unit_id);
-            adView = new AdView(Context);
-            adView.AdSize = adSize;
-            adView.AdUnitId = adUnitId;
+            adView = new AdView(Context)
+            {
+                AdSize = adSize,
+                AdUnitId = adUnitId,
+                LayoutParameters = new Android.Widget.LinearLayout.LayoutParams(LayoutParams.WrapContent, LayoutParams.WrapContent)
+            };
 
-            var adParams = new Android.Widget.LinearLayout.LayoutParams(LayoutParams.WrapContent, LayoutParams.WrapContent);
+            //var test = new AdLoader.Builder(Context, adUnitId);
+            //adView.LayoutParameters = adParams;
 
-            var test = new AdLoader.Builder(Context, adUnitId);
-            adView.LayoutParameters = adParams;
+            var extras = new Android.OS.Bundle();
+            extras.PutString("npa", "1");
+            var request = new AdRequest.Builder().AddNetworkExtrasBundle(new AdMobAdapter().Class, extras).Build();
+            foreach (var keyword in App.AdKeywords)
+            {
+                request.Keywords.Add(keyword);
+            }
 
-            adView.LoadAd(new AdRequest
-                            .Builder()
-                            .Build());
+            adView.LoadAd(request);
             return adView;
         }
 
@@ -106,7 +114,11 @@ namespace Movies.Droid
             {
                 AdView.AdListener = new Listener(() =>
                 {
-                    Element.HeightRequest = AdView.AdSize.Height;
+                    try
+                    {
+                        Element.HeightRequest = AdView.AdSize.Height;
+                    }
+                    catch { }
                 });
             }
             else
