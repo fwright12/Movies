@@ -39,21 +39,7 @@ namespace Movies
 
     /* Changelog:
      * 
-     * Images on settings page
-     * Company field required for IAccount
-     * TrySelect
-     * Last updated timestamp for lists, pull down entire list to sync if changed
-     * Add last updated column to db local lists table
-     * TMDb NamedList get added items
-     * IListProvider.GetListAsync returns null if list not found, may throw error
-     * Handle empty list description better from XAML
-     * Ads on explore page, updated to be non personalized
-     * Upgraded named list loading handling
-     * Load all custom lists to check for list
-     * Fix people allowed to be added to watchlist and watched
-     * Sync details and items on SyncList creation
-     * Fix update ListViewModel SyncWith from SyncBackup on save
-     * Same method for building SyncList for custom and named lists
+     * 
      * 
      */
 
@@ -148,7 +134,7 @@ namespace Movies
             tmdb.Company.LogoPath = ImageSource.FromResource("Movies.Logos.TMDbLogo.png");
             trakt.Company.LogoPath = ImageSource.FromResource("Movies.Logos.TraktLogo.png");
 
-#if DEBUG && false
+#if DEBUG && true
             LocalDatabase = new Database(MockData.Instance, MockData.IDKey);
 
             DataManager.AddDataSource(MockData.Instance);
@@ -1265,6 +1251,140 @@ namespace Movies.Views
         }
     }
 
+    public class DateTimeViewModel : INotifyPropertyChanged
+    {
+        public event PropertyChangedEventHandler PropertyChanged;
+
+        public DateTime Date
+        {
+            get => _Date;
+            set
+            {
+                if (value != _Date)
+                {
+                    _Date = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        public int Year
+        {
+            get => _Year;
+            set
+            {
+                if (value != _Year)
+                {
+                    _Year = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        public int Month
+        {
+            get => _Month;
+            set
+            {
+                if (value != _Month)
+                {
+                    _Month = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        public int Day
+        {
+            get => _Day;
+            set
+            {
+                if (value != _Day)
+                {
+                    _Day = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        public int DaysInMonth
+        {
+            get => _DaysInMonth;
+            private set
+            {
+                if (value != _DaysInMonth)
+                {
+                    _DaysInMonth = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        private DateTime _Date;
+        private int _Year;
+        private int _Month;
+        private int _Day;
+        private int _DaysInMonth;
+
+        public DateTimeViewModel()
+        {
+            UpdateComponents();
+
+            PropertyChanged += (sender, e) =>
+            {
+                if (e.PropertyName == nameof(Date))
+                {
+                    UpdateComponents();
+
+                    OnPropertyChanged(nameof(Year));
+                    OnPropertyChanged(nameof(Month));
+                    OnPropertyChanged(nameof(Day));
+                }
+                else if (e.PropertyName == nameof(Year) || e.PropertyName == nameof(Month) || e.PropertyName == nameof(Day))
+                {
+                    if (e.PropertyName != nameof(Day))
+                    {
+                        DaysInMonth = DateTime.DaysInMonth(Year, Month);
+                    }
+
+                    UpdateDate();
+                }
+            };
+        }
+
+        private void UpdateDate()
+        {
+            Date = new DateTime(Year, Month, Day);
+        }
+
+        private void UpdateComponents()
+        {
+            _Year = Date.Year;
+            _Month = Date.Month;
+            _Day = Date.Day;
+        }
+
+        protected virtual void OnPropertyChanged([System.Runtime.CompilerServices.CallerMemberName] string property = null)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(property));
+        }
+    }
+
+    public class DateTimeComponentConverter : IMultiValueConverter
+    {
+        public static readonly DateTimeComponentConverter Instance = new DateTimeComponentConverter();
+
+        public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
+
+        public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
     public class EditDataTemplateSelector : DecoratorDataTemplateSelector
     {
         public CollectionView CollectionView { get; private set; }
@@ -1491,6 +1611,57 @@ namespace Movies.Views
 
     public static class Extensions
     {
+        public static readonly BindableProperty ChildCountProperty = BindableProperty.CreateAttached("ChildCount", typeof(int), typeof(Layout), 0, coerceValue: (bindable, value) =>
+        {
+            if (bindable is ContentView contentView)
+            {
+                return contentView.Content == null ? 0 : 1;
+            }
+
+            return (bindable as Layout<View>)?.Children.Count ?? value;
+        },defaultValueCreator: bindable =>
+        {
+            if (bindable is ContentView)
+            {
+                bindable.PropertyChanged += (sender, e) =>
+                {
+                    if (e.PropertyName == ContentView.ContentProperty.PropertyName)
+                    {
+                        ((Layout)sender).SetChildCount(0);
+                    }
+                };
+            }
+            else if (bindable is Layout<View> layout && layout.Children is INotifyCollectionChanged observable)
+            {
+                observable.CollectionChanged += (sender, e) =>
+                {
+                    layout.SetChildCount(0);
+                };
+            }
+
+            return 0;
+        });
+
+        public static int GetChildCount(this Layout bindable) => (int)bindable.GetValue(ChildCountProperty);
+        public static void SetChildCount(this Layout bindable, int value) => bindable.SetValue(ChildCountProperty, value);
+
+        public static readonly BindableProperty StepProperty = BindableProperty.CreateAttached("Step", typeof(double), typeof(Slider), null, defaultValueCreator: bindable =>
+        {
+            ((Slider)bindable).ValueChanged += CoerceSliderValue;
+            return 1.0;
+        });
+
+        private static void CoerceSliderValue(object sender, ValueChangedEventArgs e)
+        {
+            Slider slider = (Slider)sender;
+            var step = slider.GetStep();
+
+            slider.Value = Math.Round(e.NewValue / step) * step;
+        }
+
+        public static double GetStep(this Slider bindable) => (double)bindable.GetValue(StepProperty);
+        public static void SetStep(this Slider bindable, double value) => bindable.SetValue(StepProperty, value);
+
         public static readonly BindableProperty SelectedItemChangedCommandProperty = BindableProperty.CreateAttached("SelectedItemChangedCommand", typeof(ICommand), typeof(Picker), null, propertyChanged: (bindable, oldValue, newValue) =>
         {
 

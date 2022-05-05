@@ -1,27 +1,818 @@
 ﻿<?xml version="1.0" encoding="UTF-8"?>
 <ControlTemplate xmlns="http://xamarin.com/schemas/2014/forms"
                  xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+                 xmlns:sys="clr-namespace:System;assembly=mscorlib"
+                 xmlns:collections="clr-namespace:System.Collections;assembly=mscorlib"
                  xmlns:ext="clr-namespace:Xamarin.Forms.Extensions;assembly=Xamarin.Forms.Extensions"
                  xmlns:forms="clr-namespace:Xamarin.Forms;assembly=Xamarin.Forms.Extensions"
                  xmlns:movies="clr-namespace:Movies"
                  xmlns:views="clr-namespace:Movies.Views"
                  xmlns:viewmodels="clr-namespace:Movies.ViewModels"
+                 xmlns:models="clr-namespace:Movies.Models"
                  x:Class="Movies.ListTemplate">
     <forms:DrawerView x:Name="root"
                       BackgroundColor="{Binding BackgroundColor, Source={RelativeSource AncestorType={x:Type Page}}}"
                       BindingContext="{TemplateBinding BindingContext}"
-                      Drawer="{Binding Filters}">
+                      Drawer="{Binding Filter}">
         <forms:DrawerView.DrawerTemplate>
-            <views:FilterTemplate />
+            <DataTemplate>
+                <StackLayout Orientation="Vertical"
+                             BackgroundColor="{AppThemeBinding Light={StaticResource LightSecondaryBackground}, Dark={StaticResource DarkSecondaryBackground}}">
+                    <VisualStateManager.VisualStateGroups>
+                        <VisualStateGroup>
+                            <VisualState Name="{Static forms:DrawerView+VisualStates.Closed}">
+                                <VisualState.Setters>
+                                    <Setter TargetName="scroll"
+                                            Property="ScrollView.Orientation"
+                                            Value="Neither" />
+                                    <Setter Property="HeightRequest"
+                                            Value="100" />
+                                    <!--<MultiBinding>
+                                            <MultiBinding.Converter>
+                                                <views:ArithmeticConverter Operation="Add" />
+                                            </MultiBinding.Converter>
+
+                                            <Binding Path="Y"
+                                                     Source="{x:Reference minheight}" />
+                                            <Binding Path="Child.Height">
+                                                <Binding.Source>
+                                                    <views:ChildViewModel Layout="{x:Reference minheight}"
+                                                                          Index="0" />
+                                                </Binding.Source>
+                                            </Binding>
+                                        </MultiBinding>
+                                    </Setter>-->
+                                </VisualState.Setters>
+                            </VisualState>
+
+                            <VisualState Name="{Static forms:DrawerView+VisualStates.Open}">
+                                <VisualState.Setters>
+                                    <Setter TargetName="scroll"
+                                            Property="ScrollView.Orientation"
+                                            Value="Vertical" />
+                                    <Setter Property="HeightRequest"
+                                            Value="500" />
+                                </VisualState.Setters>
+                            </VisualState>
+                        </VisualStateGroup>
+                    </VisualStateManager.VisualStateGroups>
+
+                    <StackLayout Orientation="Horizontal">
+                        <Label Text="Filters:" />
+
+                        <FlexLayout Direction="Row"
+                                    Wrap="Wrap"
+                                    BindableLayout.ItemsSource="{Binding Constraints.Expression}"
+                                    BindableLayout.ItemTemplateSelector="{StaticResource BooleanTemplateSelector}" />
+
+                        <Button Text="filter"
+                                Command="{Binding Toggle, Source={RelativeSource AncestorType={x:Type forms:DrawerView}}}"
+                                HorizontalOptions="End"
+                                VerticalOptions="Start" />
+                    </StackLayout>
+
+                    <ScrollView x:Name="scroll">
+                        <StackLayout Orientation="Vertical"
+                                     Spacing="10"
+                                     BindableLayout.ItemsSource="{Binding SelectedConstraints}"
+                                     BindableLayout.ItemTemplate="{StaticResource ConstraintTemplate}"
+                                     x:Name="parent">
+                            <Layout.Padding>
+                                <MultiBinding Converter="{Static forms:ThicknessConverter.Instance}"
+                                              ConverterParameter="horizontal, vertical">
+                                    <Binding Source="{StaticResource PagePadding}" />
+                                    <Binding Path="CornerRadius"
+                                             Source="{RelativeSource AncestorType={x:Type Frame}}"
+                                             FallbackValue="{StaticResource PagePadding}" />
+                                </MultiBinding>
+                            </Layout.Padding>
+                        </StackLayout>
+                    </ScrollView>
+                </StackLayout>
+            </DataTemplate>
         </forms:DrawerView.DrawerTemplate>
 
         <VisualElement.Resources>
-            <ResourceDictionary>
-                <Style Class="EditingOnly"
-                       TargetType="VisualElement"
-                       ApplyToDerivedTypes="True"
-                       BasedOn="{StaticResource EditingOnlyStyle}" />
-            </ResourceDictionary>
+            <Style TargetType="views:SectionView"
+                   BasedOn="{StaticResource DefaultSectionViewStyle}">
+                <Setter Property="Title"
+                        Value="{Binding Name}" />
+                <Setter Property="views:SectionView.Header">
+                    <DataTemplate>
+                        <ContentView>
+                            <Button Text="clear"
+                                    HorizontalOptions="End"
+                                    Command="{Binding ClearCommand, Source={RelativeSource AncestorType={x:Type viewmodels:FilterViewModel}}, Mode=OneTime}" />
+                        </ContentView>
+                    </DataTemplate>
+                </Setter>
+            </Style>
+
+            <DataTemplate x:Key="RoundedTextTemplate">
+                <Frame Padding="10, 8"
+                       Margin="2, 0"
+                       BorderColor="{Binding TextColor, Source={x:Reference Option}}"
+                       Style="{StaticResource RoundedFrameStyle}">
+                    <VisualStateManager.VisualStateGroups>
+                        <VisualStateGroup Name="CommonStates">
+                            <VisualState Name="{Static VisualStateManager+CommonStates.Normal}" />
+                            <VisualState Name="{Static VisualStateManager+CommonStates.Selected}">
+                                <VisualState.Setters>
+                                    <Setter Property="BackgroundColor"
+                                            Value="{StaticResource Primary}" />
+                                    <Setter Property="BorderColor"
+                                            Value="{Binding BackgroundColor, Source={RelativeSource Self}}" />
+
+                                    <Setter TargetName="Option"
+                                            Property="Label.TextColor"
+                                            Value="{StaticResource DarkPrimaryText}" />
+                                </VisualState.Setters>
+                            </VisualState>
+                        </VisualStateGroup>
+                    </VisualStateManager.VisualStateGroups>
+
+                    <Label x:Name="Option"
+                           Text="{Binding}" />
+                </Frame>
+            </DataTemplate>
+
+            <Style x:Key="StringSelectorStyle"
+                   TargetType="FlexLayout">
+                <Setter Property="Wrap"
+                        Value="Wrap" />
+                <Setter Property="forms:Selection.SelectionMode"
+                        Value="Multiple" />
+                <Setter Property="forms:Selection.SelectedItems"
+                        Value="{Binding SelectedOptions}" />
+                <Setter Property="BindableLayout.ItemsSource"
+                        Value="{Binding Options}" />
+                <Setter Property="BindableLayout.ItemTemplate"
+                        Value="{StaticResource RoundedTextTemplate}" />
+            </Style>
+
+            <DataTemplate x:Key="LiteralTemplate">
+                <Frame CornerRadius="10"
+                       BorderColor="{StaticResource Primary}"
+                       Padding="2">
+                    <StackLayout Orientation="Horizontal">
+                        <Label Text="{Binding Name, StringFormat='{0}:'}" />
+                        <Label Text="{Binding Comparison}" />
+                        <Label Text="{Binding Value}" />
+
+                        <Button Text="x"
+                                HeightRequest="0"
+                                Command="{Binding RemoveConstraintCommand, Source={RelativeSource AncestorType={x:Type viewmodels:BooleanExpressionViewModel}}, Mode=OneTime}"
+                                CommandParameter="{Binding}" />
+                    </StackLayout>
+                </Frame>
+            </DataTemplate>
+
+            <DataTemplate x:Key="SetTemplate">
+                <Frame CornerRadius="10"
+                       BorderColor="{StaticResource Primary}"
+                       Padding="2">
+                    <StackLayout Orientation="Horizontal">
+                        <Label Text="{Binding Name, StringFormat='{0}:'}" />
+
+                        <ContentView ext:ContentView.ItemSource="{Binding Value}"
+                                     ext:ContentView.ContentTemplate="{StaticResource BooleanExpressionTemplate}">
+                            
+                        </ContentView>
+                    </StackLayout>
+                </Frame>
+            </DataTemplate>
+
+            <DataTemplate x:Key="BooleanExpressionTemplate">
+                <StackLayout Orientation="Horizontal"
+                             BindableLayout.ItemsSource="{Binding Expression}"
+                             BindableLayout.ItemTemplateSelector="{StaticResource BooleanTemplateSelector}" />
+            </DataTemplate>
+
+            <forms:TypeTemplateSelector x:Key="BooleanTemplateSelector">
+                <forms:TypeTemplateSelector.Templates>
+                    <forms:TypeDataTemplate Type="{x:Type viewmodels:LiteralViewModel}"
+                                            Template="{StaticResource LiteralTemplate}" />
+                    <forms:TypeDataTemplate Type="{x:Type viewmodels:SetConstraintViewModel}"
+                                            Template="{StaticResource SetTemplate}" />
+                    <forms:TypeDataTemplate Type="{x:Type viewmodels:BooleanExpressionViewModel}"
+                                            Template="{StaticResource BooleanExpressionTemplate}" />
+                </forms:TypeTemplateSelector.Templates>
+            </forms:TypeTemplateSelector>
+
+            <DataTemplate x:Key="SearchTemplate">
+                <StackLayout Orientation="Horizontal">
+                    <SearchBar Text="{Binding Query, Mode=TwoWay}"
+                               SearchCommand="{Binding SearchCommand}"
+                               TextColor="{AppThemeBinding Light={StaticResource LightPrimaryText}, Dark={StaticResource DarkPrimaryText}}"
+                               Placeholder="{Binding Placeholder}"
+                               PlaceholderColor="{AppThemeBinding Light={StaticResource LightSecondaryText}, Dark={StaticResource DarkSecondaryText}}"
+                               CancelButtonColor="{StaticResource Primary}" />
+                </StackLayout>
+            </DataTemplate>
+
+            <DataTemplate x:Key="ItemTypeOptionsTemplate">
+                <FlexLayout Style="{StaticResource StringSelectorStyle}" />
+            </DataTemplate>
+
+            <DataTemplate x:Key="StringOptionsTemplate">
+                <views:SectionView>
+                    <FlexLayout Style="{StaticResource StringSelectorStyle}" />
+                </views:SectionView>
+            </DataTemplate>
+
+            <DataTemplate x:Key="NumberPicker">
+                <FlexLayout Direction="Row">
+                    <Button Text="-" />
+
+                    <Entry x:Name="value"
+                           Keyboard="Numeric"
+                           WidthRequest="75" />
+
+                    <Button Text="+" />
+                </FlexLayout>
+            </DataTemplate>
+
+            <DataTemplate x:Key="CompareTemplate">
+                <views:SectionView>
+                    <StackLayout Orientation="Horizontal">
+                        <FlexLayout Direction="Column"
+                                    forms:Selection.SelectionMode="MandatorySingle"
+                                    forms:Selection.SelectedIndices="{Binding Comparison, Converter={Static viewmodels:ComparisonConverter.Instance}}"
+                                    BindableLayout.ItemTemplate="{StaticResource RoundedTextTemplate}">
+                            <BindableLayout.ItemsSource>
+                                <x:Array Type="{x:Type x:String}">
+                                    <x:String>Under</x:String>
+                                    <x:String>Exactly</x:String>
+                                    <x:String>Over</x:String>
+                                </x:Array>
+                            </BindableLayout.ItemsSource>
+
+                            <VisualElement.Triggers>
+                                <DataTrigger TargetType="FlexLayout"
+                                             Binding="{Binding Value, Converter={Static forms:GetTypeConverter.Instance}}"
+                                             Value="{x:Type sys:DateTime}">
+                                    <Setter Property="BindableLayout.ItemsSource">
+                                        <x:Array Type="{x:Type x:String}">
+                                            <x:String>Before</x:String>
+                                            <x:String>Exactly</x:String>
+                                            <x:String>After</x:String>
+                                        </x:Array>
+                                    </Setter>
+                                </DataTrigger>
+                            </VisualElement.Triggers>
+                        </FlexLayout>
+
+                        <ContentView ext:ContentView.ItemSource="{Binding Values}"
+                                     ext:ContentView.ContentTemplate="{StaticResource PickerTemplateSelector}"
+                                     CompressedLayout.IsHeadless="False" />
+                    </StackLayout>
+                </views:SectionView>
+            </DataTemplate>
+
+            <ControlTemplate x:Key="CompareConstraintTemplate">
+                <StackLayout BindingContext="{TemplateBinding BindingContext}"
+                             Orientation="Horizontal">
+                    <FlexLayout Direction="Column"
+                                forms:Selection.SelectionMode="MandatorySingle"
+                                forms:Selection.SelectedIndices="{Binding Comparison, Converter={Static viewmodels:ComparisonConverter.Instance}}"
+                                BindableLayout.ItemTemplate="{StaticResource RoundedTextTemplate}">
+                        <BindableLayout.ItemsSource>
+                            <x:Array Type="{x:Type x:String}">
+                                <x:String>Under</x:String>
+                                <x:String>Exactly</x:String>
+                                <x:String>Over</x:String>
+                            </x:Array>
+                        </BindableLayout.ItemsSource>
+
+                        <VisualElement.Triggers>
+                            <DataTrigger TargetType="FlexLayout"
+                                         Binding="{Binding Value, Converter={Static forms:GetTypeConverter.Instance}}"
+                                         Value="{x:Type sys:DateTime}">
+                                <Setter Property="BindableLayout.ItemsSource">
+                                    <x:Array Type="{x:Type x:String}">
+                                        <x:String>Before</x:String>
+                                        <x:String>Exactly</x:String>
+                                        <x:String>After</x:String>
+                                    </x:Array>
+                                </Setter>
+                            </DataTrigger>
+                        </VisualElement.Triggers>
+                    </FlexLayout>
+
+                    <ContentPresenter HorizontalOptions="FillAndExpand"
+                                      VerticalOptions="Center" />
+                </StackLayout>
+            </ControlTemplate>
+
+            <DataTemplate x:Key="NumberPickerTemplate">
+                <views:NumberPicker Value="{Binding Value, Source={RelativeSource AncestorType={x:Type viewmodels:LiteralViewModel}}}"
+                                    Lower="{Binding Low}"
+                                    Upper="{Binding High}"
+                                    AbsoluteMin="{Binding LowerBound}"
+                                    AbsoluteMax="{Binding UpperBound}"
+                                    Step="{Binding Step, FallbackValue=1}" />
+            </DataTemplate>
+
+            <DataTemplate x:Key="NumberOptionsTemplate">
+                <views:SectionView>
+                    <ContentView ControlTemplate="{StaticResource CompareConstraintTemplate}"
+                                 BindingContext="{Binding Constraints[0]}">
+                        <views:NumberPicker BindingContext="{Binding Source={RelativeSource AncestorType={x:Type viewmodels:FilterViewModel}}}"
+                                            Value="{Binding Value, Source={RelativeSource AncestorType={x:Type movies:Constraint}}, Mode=TwoWay}"
+                                            Lower="{Binding MinValue}"
+                                            Upper="{Binding MaxValue}"
+                                            Step="{Binding Step, FallbackValue=1}" />
+                    </ContentView>
+                </views:SectionView>
+            </DataTemplate>
+
+            <DataTemplate x:Key="NumberOptionsTemplate1">
+                <views:SectionView Title="{Binding Name}">
+                    <StackLayout Orientation="Horizontal">
+                        <StackLayout Orientation="Vertical">
+                            <Label Text="Min" />
+                            <Label Text="Max" />
+                        </StackLayout>
+
+                        <StackLayout Orientation="Vertical">
+                            <Slider Maximum="400"
+                                    Minimum="1"
+                                    FlexLayout.Grow="1" />
+
+                            <FlexLayout Direction="Row">
+                                <views:LabeledContentView Label="Min:"
+                                                          IsVisible="False"
+                                                          LabelPosition="Left"
+                                                          ext:ContentView.EmptyView="{StaticResource NumberPicker}" />
+
+                                <views:LabeledContentView Label="Max:"
+                                                          LabelPosition="Left"
+                                                          ext:ContentView.EmptyView="{StaticResource NumberPicker}" />
+                            </FlexLayout>
+                        </StackLayout>
+                    </StackLayout>
+                </views:SectionView>
+            </DataTemplate>
+
+            <DataTemplate x:Key="ListOptionsTemplate">
+                <views:SectionView Title="Lists">
+                    <StackLayout Orientation="Vertical">
+                        <FlexLayout Direction="Row"
+                                    AlignItems="Center">
+                            <CheckBox />
+                            <Label Text="Only stuff I've seen" />
+                        </FlexLayout>
+
+                        <FlexLayout Direction="Row"
+                                    AlignItems="Center">
+                            <CheckBox x:Name="notseen" />
+                            <Label Text="Only stuff I haven't seen" />
+                        </FlexLayout>
+                    </StackLayout>
+                </views:SectionView>
+            </DataTemplate>
+
+            <DataTemplate x:Key="DateTimePickerTemplate">
+                <StackLayout Orientation="Vertical">
+                    <VisualElement.Resources>
+                        <Style x:Key="MonthPickerStyle"
+                               TargetType="views:NumberPicker">
+                            <Setter Property="Value"
+                                    Value="{Binding Month}" />
+                            <Setter Property="Lower"
+                                    Value="0" />
+                            <Setter Property="Upper"
+                                    Value="12" />
+                        </Style>
+
+                        <Style x:Key="DayPickerStyle"
+                               TargetType="views:NumberPicker">
+                            <Setter Property="Value"
+                                    Value="{Binding Day}" />
+                            <Setter Property="Lower"
+                                    Value="0" />
+                            <Setter Property="Upper"
+                                    Value="{Binding DaysInMonth}" />
+                        </Style>
+                    </VisualElement.Resources>
+
+                    <views:NumberPicker x:Name="picker"
+                                        Lower="{Binding Min.Year, Source={RelativeSource AncestorType={x:Type viewmodels:FilterViewModel}}, Mode=TwoWay}"
+                                        Upper="{Binding Max.Year, Source={RelativeSource AncestorType={x:Type viewmodels:FilterViewModel}}, Mode=TwoWay}"
+                                        Value="{Binding Year}"
+                                        Step="1">
+                        <BindableObject.BindingContext>
+                            <views:DateTimeViewModel />
+                        </BindableObject.BindingContext>
+                    </views:NumberPicker>
+
+                    <DatePicker MinimumDate="{Static sys:DateTime.MinValue}"
+                                Date="{Binding Mode=TwoWay}" />
+                </StackLayout>
+            </DataTemplate>
+
+            <DataTemplate x:Key="DateTimeOptionsTemplate">
+                <views:SectionView>
+                    <ContentView ControlTemplate="{StaticResource CompareConstraintTemplate}"
+                                 BindingContext="{Binding Constraints[0]}">
+                        <StackLayout Orientation="Vertical">
+                            <VisualElement.Resources>
+                                <Style x:Key="MonthPickerStyle"
+                                       TargetType="views:NumberPicker">
+                                    <Setter Property="Value"
+                                            Value="{Binding Month}" />
+                                    <Setter Property="Lower"
+                                            Value="0" />
+                                    <Setter Property="Upper"
+                                            Value="12" />
+                                </Style>
+
+                                <Style x:Key="DayPickerStyle"
+                                       TargetType="views:NumberPicker">
+                                    <Setter Property="Value"
+                                            Value="{Binding Day}" />
+                                    <Setter Property="Lower"
+                                            Value="0" />
+                                    <Setter Property="Upper"
+                                            Value="{Binding DaysInMonth}" />
+                                </Style>
+                            </VisualElement.Resources>
+
+                            <views:NumberPicker x:Name="picker"
+                                                Lower="{Binding MinValue.Year, Source={RelativeSource AncestorType={x:Type viewmodels:FilterViewModel}}, Mode=TwoWay}"
+                                                Upper="{Binding MaxValue.Year, Source={RelativeSource AncestorType={x:Type viewmodels:FilterViewModel}}, Mode=TwoWay}"
+                                                Value="{Binding Year}"
+                                                Step="1">
+                                <BindableObject.BindingContext>
+                                    <views:DateTimeViewModel />
+                                </BindableObject.BindingContext>
+                            </views:NumberPicker>
+
+                            <DatePicker MinimumDate="{Static sys:DateTime.MinValue}"
+                                        Date="{Binding Value, Mode=TwoWay}" />
+                        </StackLayout>
+                    </ContentView>
+                </views:SectionView>
+            </DataTemplate>
+
+            <DataTemplate x:Key="DateTimeOptionsTemplate1">
+                <views:SectionView>
+                    <StackLayout Orientation="Horizontal"
+                                 HorizontalOptions="FillAndExpand">
+                        <FlexLayout Direction="Row">
+                            <Label Text="After: " />
+
+                            <DatePicker Date="{Binding Min.Value}" />
+                        </FlexLayout>
+
+                        <FlexLayout Direction="Row"
+                                    HorizontalOptions="End">
+                            <Label Text="Before: " />
+
+                            <DatePicker Date="{Binding Max.Value}" />
+                        </FlexLayout>
+                    </StackLayout>
+                </views:SectionView>
+            </DataTemplate>
+
+            <DataTemplate x:Key="WatchProviderFilterTemplate">
+                <views:SectionView>
+                    <StackLayout Orientation="Vertical">
+                        <StackLayout Orientation="Vertical"
+                                     BindableLayout.ItemsSource="{Binding Presets}">
+                            <BindableLayout.ItemTemplate>
+                                <DataTemplate>
+                                    <views:LabeledContentView Label="{Binding Text}"
+                                                              LabelPosition="Left">
+                                        <CheckBox IsChecked="{Binding IsSet}" />
+                                    </views:LabeledContentView>
+                                </DataTemplate>
+                            </BindableLayout.ItemTemplate>
+                        </StackLayout>
+
+                        <StackLayout Orientation="Vertical">
+                            <views:LabeledContentView Label="Country:"
+                                                      LabelPosition="Left">
+                                <Picker />
+                            </views:LabeledContentView>
+
+                            <ContentView ControlTemplate="{StaticResource SearchTemplate}">
+                                <CollectionView ItemsSource="{Binding Options}"
+                                                ItemsLayout="HorizontalGrid, 3"
+                                                ItemSizingStrategy="MeasureFirstItem"
+                                                SelectionMode="Multiple"
+                                                HeightRequest="150">
+                                    <ItemsView.ItemTemplate>
+                                        <DataTemplate>
+                                            <Image Source="{Binding Company.LogoPath}"
+                                                   WidthRequest="50"
+                                                   HeightRequest="50">
+                                                <VisualStateManager.VisualStateGroups>
+                                                    <VisualStateGroup>
+                                                        <VisualState Name="Normal">
+                                                            <VisualState.Setters>
+                                                                <Setter Property="Opacity"
+                                                                        Value="0.5" />
+                                                            </VisualState.Setters>
+                                                        </VisualState>
+
+                                                        <VisualState Name="Selected">
+                                                            <VisualState.Setters>
+                                                                <Setter Property="Opacity"
+                                                                        Value="1" />
+                                                            </VisualState.Setters>
+                                                        </VisualState>
+                                                    </VisualStateGroup>
+                                                </VisualStateManager.VisualStateGroups>
+                                            </Image>
+                                        </DataTemplate>
+                                    </ItemsView.ItemTemplate>
+                                </CollectionView>
+                            </ContentView>
+                        </StackLayout>
+                    </StackLayout>
+                </views:SectionView>
+            </DataTemplate>
+
+            <ControlTemplate x:Key="SearchControlTemplate">
+                <StackLayout BindingContext="{TemplateBinding BindingContext}"
+                             Orientation="Vertical">
+                    <SearchBar x:Name="search"
+                               BindingContext="{Binding SearchModel}"
+                               Text="{Binding Query}"
+                               SearchCommand="{Binding SearchCommand}"
+                               SearchCommandParameter="{Binding Text, Source={RelativeSource Self}}" />
+
+                    <ContentPresenter IsVisible="{Binding IsVisible, Source={x:Reference search}}">
+                        <VisualElement.Resources>
+                            <Style TargetType="CollectionView">
+                                <Setter Property="ItemsSource"
+                                        Value="{Binding}" />
+                                <Setter Property="SelectedItems"
+                                        Value="{Binding SelectedOptions}" />
+                            </Style>
+                        </VisualElement.Resources>
+                    </ContentPresenter>
+                </StackLayout>
+            </ControlTemplate>
+
+            <DataTemplate x:Key="DiscreteFilterTemplate">
+                <StackLayout Orientation="Vertical">
+                    <VisualElement.Resources>
+                        <Style TargetType="Layout"
+                               ApplyToDerivedTypes="True">
+                        </Style>
+                    </VisualElement.Resources>
+                    
+                    <StackLayout Orientation="Vertical"
+                                 BindableLayout.ItemsSource="{Binding Filters}"
+                                 BindableLayout.ItemTemplateSelector="{StaticResource FilterTemplateSelector}" />
+
+                    <ContentView ext:ContentView.ItemSource="{Binding Values}"
+                                 ext:ContentView.ContentTemplate="{StaticResource ResultsTemplateSelector}"
+                                 CompressedLayout.IsHeadless="False" />
+                </StackLayout>
+            </DataTemplate>
+
+            <DataTemplate x:Key="LargeDiscreteStringFilterTemplate">
+                <views:SectionView>
+                    <StackLayout Orientation="Vertical">
+                        <FlexLayout Direction="Row"
+                                    BindableLayout.ItemsSource="{Binding SelectedOptions}">
+                            <BindableLayout.ItemTemplate>
+                                <DataTemplate>
+                                    <Frame CornerRadius="10"
+                                           BorderColor="{StaticResource Primary}"
+                                           Padding="2">
+                                        <StackLayout Orientation="Horizontal">
+                                            <Label Text="{Binding}" />
+                                            <Button Text="x"
+                                                    HeightRequest="0"
+                                                    Command="{Binding RemoveConstraint, Source={RelativeSource AncestorType={x:Type viewmodels:FilterViewModel}}, Mode=OneTime}"
+                                                    CommandParameter="{Binding}" />
+                                        </StackLayout>
+                                    </Frame>
+                                </DataTemplate>
+                            </BindableLayout.ItemTemplate>
+                        </FlexLayout>
+
+                        <ContentView ControlTemplate="{StaticResource SearchControlTemplate}"
+                                     CompressedLayout.IsHeadless="False">
+                            <CollectionView HeightRequest="100">
+                                <ItemsView.ItemTemplate>
+                                    <DataTemplate>
+                                        <Label Text="{Binding}">
+                                            <View.GestureRecognizers>
+                                                <TapGestureRecognizer Command="{Binding SelectedCommand, Source={RelativeSource AncestorType={x:Type viewmodels:FilterViewModel}}, Mode=OneTime}"
+                                                                      CommandParameter="{Binding Text, Source={RelativeSource AncestorType={x:Type Label}}}" />
+                                            </View.GestureRecognizers>
+                                        </Label>
+                                    </DataTemplate>
+                                </ItemsView.ItemTemplate>
+                            </CollectionView>
+                        </ContentView>
+                    </StackLayout>
+                </views:SectionView>
+            </DataTemplate>
+
+            <DataTemplate x:Key="ConstraintTemplate">
+                <views:SectionView>
+                    <StackLayout Orientation="Vertical">
+                        <StackLayout Orientation="Vertical"
+                                     BindableLayout.ItemsSource="{Binding Presets}">
+                            <BindableLayout.ItemTemplate>
+                                <DataTemplate x:DataType="viewmodels:Preset">
+                                    <views:LabeledContentView Label="{Binding Text}"
+                                                              LabelPosition="Left">
+                                        <CheckBox IsChecked="{Binding IsActive}" />
+                                    </views:LabeledContentView>
+                                </DataTemplate>
+                            </BindableLayout.ItemTemplate>
+                        </StackLayout>
+
+                        <ContentView ext:ContentView.ItemSource="{Binding Property.Values}"
+                                     ext:ContentView.ContentTemplate="{StaticResource PickerTemplateSelector}"
+                                     HorizontalOptions="FillAndExpand"
+                                     CompressedLayout.IsHeadless="False">
+                            <VisualElement.Triggers>
+                                <DataTrigger TargetType="ContentView"
+                                             Binding="{Binding Comparable}"
+                                             Value="True">
+                                    <Setter Property="ControlTemplate">
+                                        <ControlTemplate>
+                                            <StackLayout BindingContext="{TemplateBinding BindingContext}"
+                                                         Orientation="Horizontal">
+                                                <FlexLayout Direction="Column"
+                                                            forms:Selection.SelectionMode="MandatorySingle"
+                                                            forms:Selection.SelectedIndices="{Binding Comparison, Converter={Static viewmodels:ComparisonConverter.Instance}}"
+                                                            BindableLayout.ItemTemplate="{StaticResource RoundedTextTemplate}">
+                                                    <BindableLayout.ItemsSource>
+                                                        <x:Array Type="{x:Type x:String}">
+                                                            <x:String>Under</x:String>
+                                                            <x:String>Exactly</x:String>
+                                                            <x:String>Over</x:String>
+                                                        </x:Array>
+                                                    </BindableLayout.ItemsSource>
+
+                                                    <VisualElement.Triggers>
+                                                        <DataTrigger TargetType="FlexLayout"
+                                                                     Binding="{Binding Value, Converter={Static forms:GetTypeConverter.Instance}}"
+                                                                     Value="{x:Type sys:DateTime}">
+                                                            <Setter Property="BindableLayout.ItemsSource">
+                                                                <x:Array Type="{x:Type x:String}">
+                                                                    <x:String>Before</x:String>
+                                                                    <x:String>Exactly</x:String>
+                                                                    <x:String>After</x:String>
+                                                                </x:Array>
+                                                            </Setter>
+                                                        </DataTrigger>
+                                                    </VisualElement.Triggers>
+                                                </FlexLayout>
+
+                                                <ContentPresenter />
+                                            </StackLayout>
+                                        </ControlTemplate>
+                                    </Setter>
+                                </DataTrigger>
+                            </VisualElement.Triggers>
+                        </ContentView>
+                    </StackLayout>
+                </views:SectionView>
+            </DataTemplate>
+
+            <forms:TypeTemplateSelector x:Key="FilterTemplateSelector">
+                <forms:TypeTemplateSelector.Templates>
+                    <forms:TypeDataTemplate Type="{x:Type viewmodels:ItemTypeFilterViewModel}"
+                                            Template="{StaticResource ItemTypeOptionsTemplate}" />
+                    <forms:TypeDataTemplate Type="{x:Type viewmodels:SearchFilterViewModel}"
+                                            Template="{StaticResource SearchTemplate}" />
+                    <forms:TypeDataTemplate Type="{x:Type viewmodels:CompareConstraintViewModel}"
+                                            Template="{StaticResource CompareTemplate}" />
+                    <forms:TypeDataTemplate Type="{x:Type viewmodels:DiscreteFilterViewModel}"
+                                            Template="{StaticResource DiscreteFilterTemplate}" />
+
+                    <forms:TypeDataTemplate Type="{x:Type collections:IEnumerable}"
+                                            Template="{StaticResource DiscreteFilterTemplate}" />
+                    <forms:TypeDataTemplate Type="{x:Type sys:IComparable}"
+                                            Template="{StaticResource CompareTemplate}" />
+                </forms:TypeTemplateSelector.Templates>
+            </forms:TypeTemplateSelector>
+
+            <forms:TypeTemplateSelector x:Key="PickerTemplateSelector">
+                <forms:TypeTemplateSelector.Templates>
+                    <forms:TypeDataTemplate Type="{Static viewmodels:CollectionViewModel.NumberPickerType}"
+                                            Template="{StaticResource NumberPickerTemplate}" />
+                    <forms:TypeDataTemplate Type="{Static viewmodels:CollectionViewModel.DateTimePickerType}"
+                                            Template="{StaticResource DateTimePickerTemplate}" />
+
+                    <forms:TypeDataTemplate Type="{x:Type viewmodels:ValueRange}"
+                                            Template="{StaticResource DiscreteFilterTemplate}" />
+                </forms:TypeTemplateSelector.Templates>
+            </forms:TypeTemplateSelector>
+
+            <forms:TypeTemplateSelector x:Key="ResultsTemplateSelector">
+                <forms:TypeTemplateSelector.Templates>
+                    <forms:TypeDataTemplate Type="{Static viewmodels:CollectionViewModel.WatchProviderListType}">
+                        <forms:TypeDataTemplate.Template>
+                            <DataTemplate>
+                                <CollectionView ItemsSource="{Binding}"
+                                                SelectedItems="{Binding SelectedOptions, Source={RelativeSource AncestorType={x:Type viewmodels:DiscreteFilterViewModel}}}"
+                                                ItemsLayout="HorizontalGrid, 3"
+                                                ItemSizingStrategy="MeasureFirstItem"
+                                                SelectionMode="Multiple"
+                                                HeightRequest="150">
+                                    <ItemsView.ItemTemplate>
+                                        <DataTemplate>
+                                            <Image Source="{Binding Company.LogoPath}"
+                                                   WidthRequest="50"
+                                                   HeightRequest="50">
+                                                <VisualStateManager.VisualStateGroups>
+                                                    <VisualStateGroup>
+                                                        <VisualState Name="Normal">
+                                                            <VisualState.Setters>
+                                                                <Setter Property="Opacity"
+                                                                        Value="0.5" />
+                                                            </VisualState.Setters>
+                                                        </VisualState>
+
+                                                        <VisualState Name="Selected">
+                                                            <VisualState.Setters>
+                                                                <Setter Property="Opacity"
+                                                                        Value="1" />
+                                                            </VisualState.Setters>
+                                                        </VisualState>
+                                                    </VisualStateGroup>
+                                                </VisualStateManager.VisualStateGroups>
+                                            </Image>
+                                        </DataTemplate>
+                                    </ItemsView.ItemTemplate>
+                                </CollectionView>
+                            </DataTemplate>
+                        </forms:TypeDataTemplate.Template>
+                    </forms:TypeDataTemplate>
+
+                    <forms:TypeDataTemplate Type="{Static viewmodels:CollectionViewModel.PersonListType}">
+                        <forms:TypeDataTemplate.Template>
+                            <DataTemplate>
+                                <CollectionView ItemsSource="{Binding}"
+                                                ItemsLayout="HorizontalList"
+                                                ItemSizingStrategy="MeasureFirstItem"
+                                                HeightRequest="100">
+                                    <CollectionView.ItemTemplate>
+                                        <DataTemplate>
+                                            <ContentView ext:ContentView.EmptyView="{StaticResource CompressedPersonTemplate}">
+                                                <View.GestureRecognizers>
+                                                    <TapGestureRecognizer Command="{Binding AddValueCommand, Source={RelativeSource AncestorType={x:Type viewmodels:FilterViewModel}}, Mode=OneTime}"
+                                                                          CommandParameter="{Binding}" />
+                                                </View.GestureRecognizers>
+                                            </ContentView>
+                                        </DataTemplate>
+                                    </CollectionView.ItemTemplate>
+                                </CollectionView>
+                            </DataTemplate>
+                        </forms:TypeDataTemplate.Template>
+                    </forms:TypeDataTemplate>
+
+                    <forms:TypeDataTemplate Type="{Static viewmodels:CollectionViewModel.StringListType}">
+                        <forms:TypeDataTemplate.Template>
+                            <DataTemplate>
+                                <ContentView CompressedLayout.IsHeadless="False">
+                                    <VisualElement.Triggers>
+                                        <DataTrigger TargetType="ContentView"
+                                                     Binding="{Binding Filters.Count, Source={RelativeSource AncestorType={x:Type viewmodels:ValueRange}}}"
+                                                     Value="0">
+                                            <Setter Property="Content">
+                                                <FlexLayout BindableLayout.ItemsSource="{Binding}"
+                                                            forms:Selection.SelectedItems="{Binding SelectedOptions, Source={RelativeSource AncestorType={x:Type viewmodels:SetConstraintViewModel}}}"
+                                                            Style="{StaticResource StringSelectorStyle}" />
+                                            </Setter>
+                                        </DataTrigger>
+                                    </VisualElement.Triggers>
+
+                                    <CollectionView ItemsSource="{Binding}"
+                                                    HeightRequest="100">
+                                        <ItemsView.ItemTemplate>
+                                            <DataTemplate>
+                                                <Label Text="{Binding}">
+                                                    <View.GestureRecognizers>
+                                                        <TapGestureRecognizer Command="{Binding AddValueCommand, Source={RelativeSource AncestorType={x:Type viewmodels:FilterViewModel}}, Mode=OneTime}"
+                                                                              CommandParameter="{Binding Text, Source={RelativeSource AncestorType={x:Type Label}}}" />
+                                                    </View.GestureRecognizers>
+                                                </Label>
+                                            </DataTemplate>
+                                        </ItemsView.ItemTemplate>
+                                    </CollectionView>
+                                </ContentView>
+                            </DataTemplate>
+                        </forms:TypeDataTemplate.Template>
+                    </forms:TypeDataTemplate>
+                </forms:TypeTemplateSelector.Templates>
+            </forms:TypeTemplateSelector>
+
+            <Style Class="EditingOnly"
+                   TargetType="VisualElement"
+                   ApplyToDerivedTypes="True"
+                   BasedOn="{StaticResource EditingOnlyStyle}" />
         </VisualElement.Resources>
 
         <!--<VisualElement.Triggers>
@@ -62,7 +853,7 @@
                             <views:InfoPageResources />
                         </ResourceDictionary.MergedDictionaries>
                     </ResourceDictionary>
-                    
+
                     <ControlTemplate x:Key="ListSwipeTemplate">
                         <SwipeView>
                             <SwipeView.RightItems>
@@ -153,7 +944,7 @@
 
                 <forms:Ads.CollectionAds>
                     <forms:AdInfo Frequency="10"
-                                  Template="{StaticResource InlineBannerTemplate}"/>
+                                  Template="{StaticResource InlineBannerTemplate}" />
                 </forms:Ads.CollectionAds>
 
                 <CollectionView.Header>

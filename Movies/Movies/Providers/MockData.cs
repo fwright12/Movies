@@ -29,6 +29,12 @@ namespace Movies
             LogoPath = "https://vignette2.wikia.nocookie.net/logopedia/images/b/b2/NetflixIcon2016.jpg/revision/latest/scale-to-width-down/2000?cb=20160620223003"
         };
 
+        public static WatchProvider NetflixStreaming = new WatchProvider
+        {
+            Company = Netflix,
+            Type = MonetizationType.Subscription
+        };
+
         private static Dictionary<int, Dictionary<string, object>> MovieInfo = new Dictionary<int, Dictionary<string, object>>
         {
             [0] = new Dictionary<string, object>()
@@ -105,11 +111,7 @@ namespace Movies
                 },
                 [nameof(MovieViewModel.WatchProviders)] = new List<WatchProvider>
                 {
-                    new WatchProvider
-                    {
-                        Company = Netflix,
-                        Type = MonetizationType.Subscription
-                    },
+                    NetflixStreaming,
                     new WatchProvider
                     {
                         Company = new Company { Name = "HBO Max" },

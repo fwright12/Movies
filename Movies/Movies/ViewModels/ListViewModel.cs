@@ -7,6 +7,7 @@ using System.ComponentModel;
 using System.Globalization;
 using System.Linq;
 using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using Movies.Models;
@@ -57,6 +58,8 @@ namespace Movies.ViewModels
             }
         }
 
+        public override Task<bool> Allowed(Item item) => Task.FromResult(Selected.HasFlag(item.ItemType));
+
         private bool IsExclusive(object item) => item is string str && (str == Options[3]);// || str == Options[4]);
 
         private void CoerceSelection(object sender, NotifyCollectionChangedEventArgs e)
@@ -99,6 +102,732 @@ namespace Movies.ViewModels
         public ObservableCollection<object> SelectedOptions { get; set; }
     }
 
+    public class BooleanExpression<T> : IBooleanValued<T>
+    {
+        public IList<T> Parts { get; } = new List<T>();
+
+        public bool Evaluate(T value) => Parts.All(part => Evaluate(part));
+    }
+
+    public abstract class SetConstraintViewModel : ConstraintViewModel
+    {
+        public BooleanExpressionViewModel Value { get; } = new BooleanExpressionViewModel();
+
+        public SetConstraintViewModel(ItemPropertyViewModel property) : base(property)
+        {
+
+        }
+    }
+
+    public class SetConstraintViewModel<T> : SetConstraintViewModel
+    {
+        public IList<object> SelectedOptions { get; }
+
+        public ICommand AddValueCommand { get; }
+
+        public SetConstraintViewModel(ItemPropertyViewModel<T> property) : base(property)
+        {
+            AddValueCommand = new Command<T>(AddConstraint);
+
+            var selected = new ObservableCollection<object>();
+            selected.CollectionChanged += SelectedChanged;
+            SelectedOptions = selected;
+
+            if (Value.Expression is INotifyCollectionChanged observable)
+            {
+                observable.CollectionChanged += ConstraintsChanged;
+            }
+        }
+
+        public override bool HasValues() => Value.Expression.Count > 0;
+
+        private void RemoveConstraint(T value)
+        {
+            for (int i = 0; i < Value.Expression.Count; i++)
+            {
+                var constraint = Value.Expression[i];
+
+                if (constraint is LiteralViewModel<T> literal && Equals(GetConstraint(value), literal.Constraint))
+                {
+                    Value.Expression.RemoveAt(i--);
+                    break;
+                }
+            }
+        }
+
+        private void AddConstraint(T value) => Value.Expression.Add(new LiteralViewModel<T>((ItemPropertyViewModel<T>)Property, GetConstraint(value)));
+
+        private Constraint<T> GetConstraint(T value) => new Constraint<T>(Property.Property)
+        {
+            Value = value,
+            Comparison = Operators.Equal
+        };
+
+        private void SelectedChanged(object sender, NotifyCollectionChangedEventArgs e)
+        {
+            var observable = Value.Expression as INotifyCollectionChanged;
+            if (observable != null)
+            {
+                observable.CollectionChanged -= ConstraintsChanged;
+            }
+
+            if (e.OldItems != null)
+            {
+                foreach (var item in e.OldItems.OfType<T>())
+                {
+                    RemoveConstraint(item);
+                }
+            }
+
+            if (e.NewItems != null)
+            {
+                foreach (var item in e.NewItems.OfType<T>())
+                {
+                    AddConstraint(item);
+                }
+            }
+
+            if (observable != null)
+            {
+                observable.CollectionChanged += ConstraintsChanged;
+            }
+        }
+
+        private void ConstraintsChanged(object sender, NotifyCollectionChangedEventArgs e)
+        {
+            var observable = SelectedOptions as INotifyCollectionChanged;
+            if (observable != null)
+            {
+                observable.CollectionChanged -= SelectedChanged;
+            }
+
+            if (e.OldItems != null)
+            {
+                foreach (var item in e.OldItems.OfType<LiteralViewModel<T>>())
+                {
+                    SelectedOptions.Remove(item.Value);
+                }
+            }
+
+            if (e.NewItems != null)
+            {
+                foreach (var item in e.NewItems.OfType<LiteralViewModel<T>>())
+                {
+                    SelectedOptions.Add(item.Value);
+                }
+            }
+
+            if (observable != null)
+            {
+                observable.CollectionChanged += SelectedChanged;
+            }
+        }
+    }
+
+    public class BooleanExpressionViewModel
+    {
+        public IList<ConstraintViewModel> Expression { get; }
+
+        public ICommand AddConstraintCommand { get; }
+        public ICommand RemoveConstraintCommand { get; }
+
+        public BooleanExpressionViewModel()
+        {
+            var expression = new ObservableCollection<ConstraintViewModel>();
+            expression.CollectionChanged += (sender, e) =>
+            {
+                //Constraint = new BooleanExpression<Item>()
+            };
+            Expression = expression;
+
+            RemoveConstraintCommand = new Command<ConstraintViewModel>(RemoveConstraint);
+        }
+
+        public void AddConstraint(ConstraintViewModel constraint) => Expression.Add(constraint);
+
+        public void RemoveConstraint(ConstraintViewModel constraint) => Expression.Remove(constraint);
+    }
+
+    public abstract class ConstraintViewModel : BindableViewModel
+    {
+        public string Name => Property.DisplayName;
+        public ItemPropertyViewModel Property { get; }
+
+        public ConstraintViewModel(ItemPropertyViewModel property)
+        {
+            Property = property;
+        }
+
+        public abstract bool HasValues();
+    }
+
+    public abstract class LiteralViewModel : ConstraintViewModel
+    {
+        public Constraint Constraint
+        {
+            get => _Constraint;
+            set => UpdateValue(ref _Constraint, value);
+        }
+
+        public Operators Comparison
+        {
+            get => _Comparison;
+            set => UpdateValue(ref _Comparison, value);
+        }
+
+        public Constraint Default { get; }
+
+        private Constraint _Constraint;
+        private Operators _Comparison;
+
+        public LiteralViewModel(ItemPropertyViewModel property, Constraint defaultConstraint) : base(property)
+        {
+            Constraint = Default = defaultConstraint;
+        }
+    }
+
+    public class LiteralViewModel<T> : LiteralViewModel
+    {
+        public bool Comparable => Value is IComparable;
+
+        public T Value
+        {
+            get => _Value;
+            set => UpdateValue(ref _Value, value);
+        }
+
+        private T _Value;
+
+        public LiteralViewModel(ItemPropertyViewModel<T> property) : this(property, new Constraint<T>(property.Property)
+        {
+            Value = default,
+            Comparison = Operators.GreaterThan
+        })
+        { }
+
+        public LiteralViewModel(ItemPropertyViewModel<T> property, Constraint<T> constraint) : base(property, constraint)
+        {
+            ConstraintChanged();
+
+            PropertyChanged += (sender, e) =>
+            {
+                if (e.PropertyName == nameof(Constraint))
+                {
+                    ConstraintChanged();
+                }
+                else if (e.PropertyName == nameof(Value) || e.PropertyName == nameof(Comparison))
+                {
+                    ComponentsChanged();
+                }
+            };
+        }
+
+        public override bool HasValues()
+        {
+            if (Property.Values is SteppedValueRange range)
+            {
+                bool isAbsoluteMin = Comparison != Operators.Equal && Equals(Value, range.LowerBound);
+                bool isAbsoluteMax = Comparison != Operators.Equal && Equals(Value, range.UpperBound);
+
+                return !(Equals(Constraint, Default) || isAbsoluteMin || isAbsoluteMax);
+            }
+
+            return true;
+        }
+
+        /*protected override bool TryGetConstraint(object value, out Constraint constraint)
+        {
+            if (value is T t)
+            {
+                constraint = new Constraint<T>(Name)
+                {
+                    Value = t,
+                    Comparison = Operators.Equal
+                };
+                return true;
+            }
+
+            constraint = null;
+            return false;
+        }*/
+
+        //public static implicit operator ConstraintViewModel<T>(Constraint<T> constraint) => new ConstraintViewModel<T>(constraint);
+
+        /*public override void Clear()
+        {
+            base.Clear();
+
+            Constraint = Default;
+            OnPropertyChanged(nameof(Min));
+            OnPropertyChanged(nameof(Max));
+        }*/
+
+        private void ConstraintChanged()
+        {
+            Value = (T)Constraint.Value;
+            Comparison = Constraint.Comparison;
+        }
+
+        private void ComponentsChanged()
+        {
+            Constraint = new Constraint<T>(Constraint.Name)
+            {
+                Value = Value,
+                Comparison = Comparison
+            };
+        }
+
+        private async Task ComponentsChangedDelayed(CancellationToken token)
+        {
+            await Task.Delay(1000, token);
+            ComponentsChanged();
+        }
+    }
+
+    public abstract class CompareConstraintViewModel : FilterViewModel { }
+    public class CompareConstraintViewModel<T> : CompareConstraintViewModel
+    {
+        public Constraint<T> Constraint
+        {
+            get => _Constraint;
+            set => UpdateValue(ref _Constraint, value);
+        }
+
+        public T Value
+        {
+            get => _Value;
+            set => UpdateValue(ref _Value, value);
+        }
+
+        public Operators Comparison
+        {
+            get => _Comparison;
+            set => UpdateValue(ref _Comparison, value);
+        }
+
+        public Constraint<T> Default { get; }
+
+        public T Min { get; }
+        public T Max { get; }
+        public int Step { get; set; } = 1;
+        public object AbsoluteMin { get; set; }
+        public object AbsoluteMax { get; set; }
+
+        private Constraint<T> _Constraint;
+        private T _Value;
+        private Operators _Comparison;
+
+        private CancellationTokenSource Cancel;
+
+        public CompareConstraintViewModel(string name, T min = default, T max = default) : this(name, new Constraint<T>(name)
+        {
+            Value = default,
+            Comparison = Operators.GreaterThan
+        }, min, max)
+        { }
+
+        public CompareConstraintViewModel(string name, Constraint<T> defaultConstraint, T min = default, T max = default)
+        {
+            Name = name;
+            Min = min;
+            Max = max;
+            Constraint = Default = defaultConstraint;
+            ConstraintChanged();
+
+            PropertyChanging += (sender, e) =>
+            {
+                if (e.PropertyName == nameof(Constraint))
+                {
+                    Constraints.Remove(Constraint);
+                }
+            };
+            PropertyChanged += (sender, e) =>
+            {
+                if (e.PropertyName == nameof(Constraint))
+                {
+                    bool isAbsoluteMin = Comparison != Operators.Equal && Equals(Value, AbsoluteMin);
+                    bool isAbsoluteMax = (Comparison != Operators.Equal) && Equals(Value, AbsoluteMax);
+
+                    if (!Equals(Constraint, Default) && !isAbsoluteMin && !isAbsoluteMax)
+                    {
+                        Constraints.Add(Constraint);
+                    }
+                }
+            };
+
+            PropertyChanged += (sender, e) =>
+            {
+                if (e.PropertyName == nameof(Constraint))
+                {
+                    ConstraintChanged();
+                }
+                else if (e.PropertyName == nameof(Value) || e.PropertyName == nameof(Comparison))
+                {
+                    Cancel?.Cancel();
+                    Cancel = new CancellationTokenSource();
+                    _ = ComponentsChangedDelayed(Cancel.Token);
+                }
+            };
+        }
+
+        public override void Clear()
+        {
+            base.Clear();
+
+            Constraint = Default;
+            OnPropertyChanged(nameof(Min));
+            OnPropertyChanged(nameof(Max));
+        }
+
+        private void ConstraintChanged()
+        {
+            Value = Constraint.Value;
+            Comparison = Constraint.Comparison;
+        }
+
+        private void ComponentsChanged()
+        {
+            Constraint = new Constraint<T>(Name)
+            {
+                Value = Value,
+                Comparison = Comparison
+            };
+        }
+
+        private async Task ComponentsChangedDelayed(CancellationToken token)
+        {
+            await Task.Delay(1000, token);
+            ComponentsChanged();
+        }
+    }
+
+    public abstract class ItemPropertyViewModel : BindableViewModel
+    {
+        public string Property { get; set; }
+        public string DisplayName { get; set; }
+        public Type Type { get; protected set; }
+
+        public ValueRange Values { get; }
+
+        public ItemPropertyViewModel(string name, ValueRange values, string displayName = null)
+        {
+            Property = name;
+            DisplayName = displayName ?? Property;
+            Values = values;
+        }
+
+        public abstract ConstraintViewModel GetConstraintViewModel();
+    }
+
+    public class ItemPropertyViewModel<T> : ItemPropertyViewModel
+    {
+        public ItemPropertyViewModel(string name, ValueRange values, string displayName = null) : base(name, values, displayName)
+        {
+            Type = typeof(T);
+        }
+
+        public static implicit operator ConstraintViewModel(ItemPropertyViewModel<T> property) => new LiteralViewModel<T>(property);
+
+        public override ConstraintViewModel GetConstraintViewModel() => default(T) is IComparable ? new LiteralViewModel<T>(this) : (ConstraintViewModel)new SetConstraintViewModel<T>(this);
+    }
+
+    public abstract class ValueRange { }
+    public abstract class ValueRange<T> : ValueRange { }
+
+    public class SteppedValueRange : ValueRange
+    {
+        public object LowerBound { get; set; }
+        public object UpperBound { get; set; }
+    }
+
+    public class SteppedValueRange<TValue, TStep> : SteppedValueRange
+    {
+        public TValue High { get; set; }
+        public TValue Low { get; set; }
+        public TStep Step { get; set; }
+
+        public SteppedValueRange() { }
+        public SteppedValueRange(TValue lowerBound, TValue upperBound)
+        {
+            LowerBound = lowerBound;
+            UpperBound = upperBound;
+        }
+
+        //public abstract TValue Add(TValue value, TStep increment);
+        //public abstract TValue Subtract(TValue value, TStep increment);
+    }
+
+    /*public class DoubleValueRange : SteppedValueRange<double, double>
+    {
+        public override double Add(double value, double increment) => value + increment;
+
+        public override double Subtract(double value, double increment) => value - increment;
+    }
+
+    public class DateTimeValueRange : SteppedValueRange<DateTime, TimeSpan>
+    {
+        public override DateTime Add(DateTime value, TimeSpan increment) => value + increment;
+
+        public override DateTime Subtract(DateTime value, TimeSpan increment) => value - increment;
+    }*/
+
+    public class DiscreteValueRange<T> : ValueRange<T>
+    {
+        public ObservableCollection<T> Values { get; } = new ObservableCollection<T>();
+        public IList<FilterViewModel> Filters { get; } = new ObservableCollection<FilterViewModel>();
+        public Collection<T> Items { get; }
+
+        public ICommand AddValueCommand { get; set; }
+
+        public DiscreteValueRange() : this(new Collection<T>()) { }
+        public DiscreteValueRange(IEnumerable<T> items) : this(new Collection<T>(items)) { }
+        public DiscreteValueRange(Collection<T> items)
+        {
+            Items = items;
+
+            _ = ConstraintsChanged();
+        }
+
+        protected async Task ConstraintsChanged()
+        {
+            Values.Clear();
+
+            await foreach (var result in Items.GetItems(new List<Constraint>(Filters.SelectMany(filter => filter.Constraints))))
+            {
+                Values.Add(result);
+            }
+        }
+    }
+
+    public class EnumFilterViewModel<T> : DiscreteFilterViewModel<string> where T : struct, Enum
+    {
+        public static IEnumerable<T> GetValues(T value) => value.ToString().Split(',').Select(type => Enum.Parse<T>(type.Trim()));
+
+        public EnumFilterViewModel(string name) : base(name)
+        {
+            foreach (var value in Enum.GetNames(typeof(T)))
+            {
+                Results.Add(value);
+            }
+        }
+    }
+
+    public class ComparisonConverter : IValueConverter
+    {
+        public static readonly ComparisonConverter Instance = new ComparisonConverter();
+
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture) => value is Operators comparison && comparison != Operators.NotEqual ? new List<int> { (int)comparison + 1 } : null;
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => (Operators)(((value as IList<int>)?.FirstOrDefault() ?? 0) - 1);
+    }
+
+    public class Collection<T>
+    {
+        private List<T> Items { get; }
+        private Func<List<Constraint>, IAsyncEnumerable<T>> GetItemsFunc;
+
+        public Collection() : this(null) { }
+        public Collection(Func<List<Constraint>, IAsyncEnumerable<T>> getItems) : this(new List<T>(), getItems) { }
+
+        public Collection(IEnumerable<T> items, Func<List<Constraint>, IAsyncEnumerable<T>> getItems = null)
+        {
+            Items = new List<T>(items);
+            GetItemsFunc = getItems;
+        }
+
+        public async IAsyncEnumerable<T> GetItems(List<Constraint> constraints)
+        {
+            if (GetItemsFunc != null && constraints.Count > 0)
+            {
+                await foreach (var item in GetItemsFunc(constraints))
+                {
+                    yield return item;
+                }
+            }
+            else
+            {
+                foreach (var item in Items)
+                {
+                    yield return item;
+                }
+            }
+        }
+    }
+
+    public abstract class DiscreteFilterViewModel : FilterViewModel
+    {
+        public IList<FilterViewModel> Filters { get; }
+        public IList<object> SelectedOptions { get; set; }
+
+        public DiscreteFilterViewModel(string name)
+        {
+            Name = name;
+
+            if (Constraints is INotifyCollectionChanged observable)
+            {
+                observable.CollectionChanged += ConstraintsChanged;
+            }
+
+            var filters = new ObservableCollection<FilterViewModel>();
+            filters.CollectionChanged += (sender, e) =>
+            {
+                if (e.OldItems != null)
+                {
+                    foreach (var item in e.OldItems.OfType<FilterViewModel>())
+                    {
+                        item.ValueChanged -= ConstraintValueChanged;
+                    }
+                }
+
+                if (e.NewItems != null)
+                {
+                    foreach (var item in e.NewItems.OfType<FilterViewModel>())
+                    {
+                        item.ValueChanged += ConstraintValueChanged;
+                    }
+                }
+            };
+            Filters = filters;
+
+            var selected = new ObservableCollection<object>();
+            selected.CollectionChanged += SelectedChanged;
+            selected.CollectionChanged += (sender, e) =>
+            {
+                OnValueChanged();
+            };
+
+            SelectedOptions = selected;
+        }
+
+        protected abstract bool TryGetConstraint(object value, out Constraint constraint);
+        protected abstract Task ConstraintsChanged();
+
+        private void ConstraintValueChanged(object sender, EventArgs e) => ConstraintsChanged();
+
+        private void ConstraintsChanged(object sender, NotifyCollectionChangedEventArgs e)
+        {
+            var observable = SelectedOptions as INotifyCollectionChanged;
+            if (observable != null)
+            {
+                observable.CollectionChanged -= SelectedChanged;
+            }
+
+            if (e.OldItems != null)
+            {
+                foreach (var item in e.OldItems.OfType<Constraint>())
+                {
+                    SelectedOptions.Remove(item.Value);
+                }
+            }
+
+            if (e.NewItems != null)
+            {
+                foreach (var item in e.NewItems.OfType<Constraint>())
+                {
+                    SelectedOptions.Add(item.Value);
+                }
+            }
+
+            if (observable != null)
+            {
+                observable.CollectionChanged += SelectedChanged;
+            }
+        }
+
+        private void SelectedChanged(object sender, NotifyCollectionChangedEventArgs e)
+        {
+            var observable = Constraints as INotifyCollectionChanged;
+            if (observable != null)
+            {
+                observable.CollectionChanged -= ConstraintsChanged;
+            }
+
+            if (e.OldItems != null)
+            {
+                foreach (var item in e.OldItems)
+                {
+                    if (TryGetConstraint(item, out var constraint))
+                    {
+                        Constraints.Remove(constraint);
+                    }
+                }
+            }
+
+            if (e.NewItems != null)
+            {
+                foreach (var item in e.NewItems)
+                {
+                    if (TryGetConstraint(item, out var constraint))
+                    {
+                        Constraints.Add(constraint);
+                    }
+                }
+            }
+
+            if (observable != null)
+            {
+                observable.CollectionChanged += ConstraintsChanged;
+            }
+        }
+    }
+
+    public class DiscreteFilterViewModel<T> : DiscreteFilterViewModel
+    {
+        public ObservableCollection<T> Results { get; } = new ObservableCollection<T>();
+        public Collection<T> Items { get; }
+
+        public ICommand AddValueCommand { get; set; }
+
+        public DiscreteFilterViewModel(string name) : this(name, new Collection<T>()) { }
+        public DiscreteFilterViewModel(string name, Collection<T> items) : base(name)
+        {
+            Items = items;
+            AddValueCommand = new Command<T>(AddConstraint);
+
+            _ = ConstraintsChanged();
+        }
+
+        protected override bool TryGetConstraint(object value, out Constraint constraint)
+        {
+            if (value is T t)
+            {
+                constraint = new Constraint<T>(Name)
+                {
+                    Value = t,
+                    Comparison = Operators.Equal
+                };
+                return true;
+            }
+
+            constraint = null;
+            return false;
+        }
+
+        private void AddConstraint(T value)
+        {
+            if (TryGetConstraint(value, out var constraint))
+            {
+                AddConstraint(constraint);
+            }
+        }
+
+        protected override async Task ConstraintsChanged()
+        {
+            Results.Clear();
+
+            await foreach (var results in Items.GetItems(new List<Constraint>(Filters.SelectMany(filter => filter.Constraints))))
+            {
+                Results.Add(results);
+            }
+        }
+
+        public override async Task<bool> Allowed(Item item)
+        {
+            T value = default;// await MovieService.GetValue<T>(item, Name);
+            return value is IEnumerable<T> items && items.Contains(value);
+        }
+    }
+
     public class SearchFilterViewModel : FilterViewModel
     {
         public string Query
@@ -116,11 +845,16 @@ namespace Movies.ViewModels
 
         public string Placeholder { get; set; }
         public ICommand SearchCommand { get; }
+        public int SearchDelay { get; set; }
+
+        private CancellationTokenSource Cancel;
 
         private string _Query;
 
         public SearchFilterViewModel()
         {
+            Constraints.Add(new Constraint<string>(Name));
+
             SearchCommand = new Command(() => OnValueChanged());
             PropertyChanged += (sender, e) =>
             {
@@ -129,22 +863,249 @@ namespace Movies.ViewModels
                     OnValueChanged();
                 }
             };
+
+            PropertyChanged += (sender, e) =>
+            {
+                if (e.PropertyName == nameof(Query))
+                {
+                    Cancel?.Cancel();
+                    Cancel = new CancellationTokenSource();
+                    _ = SearchOnTextChanged(Cancel.Token);
+                }
+            };
+        }
+
+        private async Task SearchOnTextChanged(CancellationToken cancellationToken)
+        {
+            if (SearchDelay > 0)
+            {
+                await Task.Delay(SearchDelay, cancellationToken);
+            }
+
+            SearchCommand.Execute(Query);
         }
     }
 
-    public abstract class FilterViewModel : INotifyPropertyChanged
+    public abstract class BindableViewModel : INotifyPropertyChanged, INotifyPropertyChanging
     {
+        public event System.ComponentModel.PropertyChangingEventHandler PropertyChanging;
         public event PropertyChangedEventHandler PropertyChanged;
+
+        protected void UpdateValue<T>(ref T property, T value, [System.Runtime.CompilerServices.CallerMemberName] string propertyName = null)
+        {
+            if (!Equals(property, value))
+            {
+                OnPropertyChanging(propertyName);
+                property = value;
+                OnPropertyChanged(propertyName);
+            }
+        }
+
+        protected virtual void OnPropertyChanging([System.Runtime.CompilerServices.CallerMemberName] string property = null)
+        {
+            PropertyChanging?.Invoke(this, new System.ComponentModel.PropertyChangingEventArgs(property));
+        }
+
+        protected virtual void OnPropertyChanged([System.Runtime.CompilerServices.CallerMemberName] string property = null)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(property));
+        }
+    }
+
+    public class Preset : BindableViewModel
+    {
+        public string Text { get; set; }
+        public bool IsActive
+        {
+            get => _IsActive;
+            set
+            {
+                if (value != _IsActive)
+                {
+                    _IsActive = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+        public Constraint Value { get; set; }
+
+        private bool _IsActive;
+    }
+
+    public abstract class Property
+    {
+        public string Name { get; set; }
+        public Type Type { get; set; }
+    }
+
+    public class Property<T> : Property
+    {
+        public Property()
+        {
+            Type = typeof(T);
+        }
+    }
+
+    public class FilterTemplateSelector : TypeTemplateSelector
+    {
+        protected override Type GetType(object item) => item.GetType().GenericTypeArguments.FirstOrDefault() ?? base.GetType(item);
+        //protected override Type GetType(object item) => (item as ItemPropertyViewModel)?.Type ?? base.GetType(item);
+    }
+
+    public class FiltersViewModel : BindableViewModel
+    {
+        public BooleanExpressionViewModel Constraints { get; }
+        public IList<ConstraintViewModel> SelectedConstraints { get; }
+        public IList<Preset> Presets { get; } = new ObservableCollection<Preset>();
+        public IList<ItemPropertyViewModel> Properties { get; } = new ObservableCollection<ItemPropertyViewModel>();
+
+        public ICommand ClearCommand { get; }
+
+        public FiltersViewModel()
+        {
+            ClearCommand = new Command(() => Clear());
+
+            var constraints = new BooleanExpressionViewModel();
+            if (constraints.Expression is INotifyCollectionChanged observable)
+            {
+                observable.CollectionChanged += (sender, e) =>
+                {
+                    var list = (IList<ConstraintViewModel>)sender;
+
+                    foreach (var preset in Presets)
+                    {
+                        //preset.IsActive = list.Count == 1 && list[0].Constraint.Equals(preset.Value);
+                    }
+                };
+            }
+            Constraints = constraints;
+
+            var selected = new ObservableCollection<ConstraintViewModel>();
+            selected.CollectionChanged += (sender, e) =>
+            {
+                if (e.OldItems != null)
+                {
+                    foreach (var item in e.OldItems.OfType<LiteralViewModel>())
+                    {
+                        item.PropertyChanged -= CoerceLiteral;
+                    }
+
+                    foreach (var item in e.OldItems.OfType<SetConstraintViewModel>())
+                    {
+                        if (item.Value.Expression is INotifyPropertyChanged observable)
+                        {
+
+                        }
+                    }
+                }
+
+                if (e.NewItems != null)
+                {
+                    foreach (var item in e.NewItems.OfType<LiteralViewModel>())
+                    {
+                        item.PropertyChanged += CoerceLiteral;
+                    }
+
+                    foreach (var item in e.NewItems.OfType<SetConstraintViewModel>())
+                    {
+                        if (item.Value.Expression is INotifyPropertyChanged observable)
+                        {
+
+                        }
+                    }
+                }
+            };
+            SelectedConstraints = selected;
+
+            ((INotifyCollectionChanged)Properties).CollectionChanged += (sender, e) =>
+            {
+                if (e.NewItems != null)
+                {
+                    foreach (var item in e.NewItems.OfType<ItemPropertyViewModel>())
+                    {
+                        var constraint = item.GetConstraintViewModel();
+
+                        SelectedConstraints.Add(constraint);
+                        Constraints.Expression.Add(constraint);
+                    }
+                }
+
+                //Constraints.Expression[0] = SelectedConstraints[0];
+            };
+        }
+
+        private void CoerceLiteral(object sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName != nameof(LiteralViewModel.Constraint))
+            {
+                return;
+            }
+
+            
+        }
+
+        public virtual void Clear()
+        {
+            //Constraints.Clear();
+        }
+    }
+
+    public class FilterViewModel : BindableViewModel
+    {
         public event EventHandler ValueChanged;
 
+        public string Name { get; set; }
+        public IList<Constraint> Constraints { get; }
+        public IList<Preset> Presets { get; } = new ObservableCollection<Preset>();
+        public IList<ItemPropertyViewModel> Properties { get; } = new ObservableCollection<ItemPropertyViewModel>();
+
+        public ICommand AddConstraintCommand { get; }
+        public ICommand RemoveConstraintCommand { get; }
         public ICommand ItemTappedCommand { get; set; }
+        public ICommand ClearCommand { get; }
+
+        public FilterViewModel()
+        {
+            RemoveConstraintCommand = new Command<Constraint>(RemoveConstraint);
+            ClearCommand = new Command(() => Clear());
+
+            var constraints = new ObservableCollection<Constraint>();
+            constraints.CollectionChanged += (sender, e) =>
+            {
+                var list = (IList<Constraint>)sender;
+
+                foreach (var preset in Presets)
+                {
+                    preset.IsActive = list.Count == 1 && list[0].Equals(preset.Value);
+                }
+            };
+            Constraints = constraints;
+        }
+
+        public static implicit operator FilterViewModel(Constraint filter)
+        {
+            var result = new FilterViewModel { Name = filter.Name };
+            result.Constraints.Add(filter);
+            return result;
+        }
+
+        public void AddConstraint(Constraint constraint) => Constraints.Add(constraint);
+
+        public void RemoveConstraint(Constraint constraint) => Constraints.Remove(constraint);
+
+        public virtual void Clear()
+        {
+            Constraints.Clear();
+        }
+
+        public virtual IEnumerable<Constraint> GetFilters() => Constraints;
+
+        public virtual Task<bool> Allowed(Item item) => Task.FromResult(true);
 
         protected void OnValueChanged()
         {
             ValueChanged?.Invoke(this, new EventArgs());
         }
-
-        protected void OnPropertyChanged(string propertyName) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
 
     public class AsyncList<T> : ObservableCollection<T>

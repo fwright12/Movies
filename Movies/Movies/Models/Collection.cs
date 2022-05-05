@@ -10,6 +10,11 @@ using System.Threading.Tasks;
 
 namespace Movies.Models
 {
+    public interface ISearchable
+    {
+        IAsyncEnumerable<Item> Search(string query);
+    }
+
     public class Collection : Item, IAsyncEnumerable<Item>
     {
         public string Description { get; set; }
@@ -121,6 +126,8 @@ namespace Movies.Models
 
         private SemaphoreSlim ItrSemaphore = new SemaphoreSlim(1, 1);
         public bool Reverse { get; set; } = false;
+
+        public virtual IAsyncEnumerable<Item> GetItems(List<Constraint> filters) => this;
 
         public async IAsyncEnumerator<Item> GetAsyncEnumerator(CancellationToken cancellationToken = default)
         {

@@ -95,6 +95,21 @@ namespace Movies
             return false;
         }
 
+        public static bool TryParseTVShow1(JsonNode json, out Models.TVShow show)
+        {
+            throw new NotImplementedException();
+        }
+
+        public static bool TryParsePerson(JsonNode json, out Models.Person person)
+        {
+            throw new NotImplementedException();
+        }
+
+        public static bool TryParseCompany(JsonNode json, out Models.Company company)
+        {
+            throw new NotImplementedException();
+        }
+
         protected bool TryParseTVShow(JsonNode json, out Models.TVShow show)
         {
             if (json.TryGetValue("id", out int id) && json.TryGetValue("name", out string name) && json.TryGetValue("overview", out string overview) && json.TryGetValue("poster_path", out string poster_path))
@@ -111,6 +126,29 @@ namespace Movies
 
             show = null;
             return false;
+        }
+
+        public static bool TryParse(JsonNode json, out Models.Item item)
+        {
+            item = null;
+            var type = json["media_type"];
+
+            if (type?.TryGetValue<string>() == "movie")
+            {
+                if (TryParseMovie(json, out var movie))
+                {
+                    item = movie;
+                }
+            }
+            else if (type?.TryGetValue<string>() == "tv")
+            {
+                if (TryParseTVShow1(json, out var show))
+                {
+                    item = show;
+                }
+            }
+
+            return item != null;
         }
 
         private abstract class BaseList : Models.List
@@ -672,7 +710,7 @@ namespace Movies
             }
         }
 
-        public delegate bool TryParse<T>(JsonNode json, out T value);
+        //public delegate bool TryParse<T>(JsonNode json, out T value);
 
         //public IAsyncEnumerable<T> FlattenPages<T>(string apiCall, Func<JsonNode, T> parse) => FlattenPages<T>(WebClient, apiCall, parse);
         public static async IAsyncEnumerable<JsonNode> SafeFlattenPages(HttpClient client, string apiCall, string bearer = null)

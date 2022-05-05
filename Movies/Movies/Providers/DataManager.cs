@@ -66,7 +66,13 @@ namespace Movies
     public class ItemInfoEventArgs<TItem, TValue> : EventArgs
     {
         public TItem Item { get; }
+        public string Property { get; }
         public Task<TValue> Value { get; private set; }
+
+        public ItemInfoEventArgs(TItem item, string property) : this(item)
+        {
+            Property = property;
+        }
 
         public ItemInfoEventArgs(TItem item)
         {
@@ -75,6 +81,63 @@ namespace Movies
 
         public void SetValue(Task<TValue> value) => Value = value;
         public void SetValue(TValue value) => SetValue(Task.FromResult(value));
+    }
+
+    public class InfoRequestHandler<TItem>
+    {
+        private EventHandler<ItemInfoEventArgs<TItem, object>> Handler;
+        private Dictionary<TItem, Dictionary<string, Task<object>>> Cache = new Dictionary<TItem, Dictionary<string, Task<object>>>();
+
+        public Task<object> GetSingle(TItem item, string property)
+        {
+            if (Cache.TryGetValue(item, out var properties) && properties.TryGetValue(property, out var value))
+            {
+                return value;
+
+                if (value.IsCompleted && !value.IsCompletedSuccessfully)
+                {
+                    Cache.Remove(item);
+                }
+                else
+                {
+
+                }
+            }
+
+            var args = new ItemInfoEventArgs<TItem, object>(item);
+
+            try
+            {
+                Handler?.Invoke(item, args);
+            }
+            catch (Exception e)
+            {
+#if DEBUG
+                Print.Log(e);
+                //throw e;
+#endif
+                return default;
+            }
+
+            Task<object> result;
+
+            if (args.Value == null)
+            {
+                result = Task.FromResult<object>(default);
+            }
+            else
+            {
+                result = args.Value;
+                //Cache.Add(item, result = args.Value);
+            }
+
+            return result;
+        }
+
+        public void AddHandler(EventHandler<ItemInfoEventArgs<TItem, object>> handler)
+        {
+            Handler += handler;
+        }
     }
 
     public class InfoRequestHandler<TItem, TValue>
@@ -133,8 +196,111 @@ namespace Movies
         }
     }
 
-    public abstract class MediaService<TItem> where TItem : Item
+    public enum Operators
     {
+        Equal = 0,
+        LessThan = -1,
+        GreaterThan = 1,
+        NotEqual = 2
+    }
+
+    public interface IBooleanValued<in T>
+    {
+        bool Evaluate(T value);
+    }
+
+    public abstract class Constraint : IBooleanValued<Item>
+    {
+        public string Name { get; }
+        public object Value { get; set; }
+        public Operators Comparison { get; set; }
+
+        public Constraint(string name)
+        {
+            Name = name;
+        }
+
+        public bool Evaluate(Item value) => IsAllowed((Item)value);
+        public abstract bool IsAllowed(object value);
+
+        public override bool Equals(object obj) => obj is Constraint constraint && constraint.Name == Name && Equals(constraint.Value, Value) && constraint.Comparison == Comparison;
+
+        public override int GetHashCode() => Name?.GetHashCode() ?? base.GetHashCode();
+    }
+
+    public class Constraint<T> : Constraint
+    {
+        new public T Value
+        {
+            get => (T)base.Value;
+            set => base.Value = value;
+        }
+
+        public Constraint(string name) : base(name) { }
+
+        public override bool IsAllowed(object value)
+        {
+            if (!(value is T t))
+            {
+                return false;
+            }
+
+            if (t is IComparable comparable)
+            {
+                int compare = comparable.CompareTo(Value);
+                return Comparison == Operators.NotEqual ? compare != 0 : compare == (int)Comparison;
+            }
+
+            if (Comparison == Operators.LessThan || Comparison == Operators.GreaterThan)
+            {
+                return false;
+            }
+
+            var equals = Equals(value, Value);
+            return Comparison == Operators.Equal ? equals : !equals;
+        }
+    }
+
+    public abstract class DataService<T> where T : Item
+    {
+        public abstract Task<TResult> GetValue<TResult>(T item, string property);
+    }
+
+    public abstract class MediaService<TItem> : DataService<TItem> where TItem : Item
+    {
+        public static readonly string TITLE = "Title";
+        public static readonly string TAGLINE = "Tagline";
+        public static readonly string DESCRIPTION = "Description";
+        public static readonly string CONTENT_RATING = "Content Rating";
+        public static readonly string RUNTIME = "Runtime";
+        public static readonly string OriginalTitle = "Original Title";
+        public static readonly string OriginalLanguage = "Original Language";
+        public static readonly string LANGUAGES = "Languages";
+        public static readonly string GENRES = "Genres";
+
+        public static readonly string POSTER_PATH = "Poster Path";
+        public static readonly string BACKDROP_PATH = "Backdrop Path";
+        public static readonly string TRAILER_PATH = "Trailer Path";
+
+        public static readonly string RATING = "Rating";
+        public static readonly string CREW = "Crew";
+        public static readonly string CAST = "Cast";
+        public static readonly string PRODUCTION_COMPANIES = "Production Companies";
+        public static readonly string PRODUCTION_COUNTRIES = "Production Countries";
+        public static readonly string WATCH_PROVIDERS = "Watch Providers";
+        public static readonly string KEYWORDS = "Keywords";
+        public static readonly string RECOMMENDED = "Recommended";
+
+        public static readonly IReadOnlyCollection<Constraint> Properties = new HashSet<Constraint>
+        {
+            
+        };
+
+        public override Task<TResult> GetValue<TResult>(TItem item, string property)
+        {
+            throw new NotImplementedException();
+        }
+
         public readonly InfoRequestHandler<TItem, string> TaglineRequested = new InfoRequestHandler<TItem, string>();
         public readonly InfoRequestHandler<TItem, string> DescriptionRequested = new InfoRequestHandler<TItem, string>();
         public readonly InfoRequestHandler<TItem, string> ContentRatingRequested = new InfoRequestHandler<TItem, string>();
@@ -160,6 +326,11 @@ namespace Movies
 
     public class MovieService : MediaService<Movie>
     {
+        public static readonly string RELEASE_DATE = "Release Date";
+        public static readonly string BUDGET = "Budget";
+        public static readonly string REVENUE = "Revenue";
+        public static readonly string PARENT_COLLECTION = "Parent Collection";
+
         public readonly InfoRequestHandler<Movie, DateTime?> ReleaseDateRequested = new InfoRequestHandler<Movie, DateTime?>();
 
         public readonly InfoRequestHandler<Movie, long?> BudgetRequested = new InfoRequestHandler<Movie, long?>();
@@ -169,6 +340,10 @@ namespace Movies
 
     public class TVShowService : MediaService<TVShow>
     {
+        public static readonly string FIRST_AIR_DATE = "First Air Date";
+        public static readonly string LAST_AIR_DATE = "Last Air Date";
+        public static readonly string NETWORKS = "Networks";
+
         public readonly InfoRequestHandler<TVShow, DateTime?> FirstAirDateRequested = new InfoRequestHandler<TVShow, DateTime?>();
         public readonly InfoRequestHandler<TVShow, DateTime?> LastAirDateRequested = new InfoRequestHandler<TVShow, DateTime?>();
         public readonly InfoRequestHandler<TVShow, IEnumerable<Company>> NetworksRequested = new InfoRequestHandler<TVShow, IEnumerable<Company>>();
@@ -176,6 +351,11 @@ namespace Movies
 
     public class TVSeasonService
     {
+        public static readonly string YEAR = "Year";
+        public static readonly string AVERAGE_RUNTIME = "Average Runtime";
+        public static readonly string CAST = "Cast";
+        public static readonly string CREW = "Crew";
+
         public readonly InfoRequestHandler<TVSeason, DateTime?> YearRequested = new InfoRequestHandler<TVSeason, DateTime?>();
         public readonly InfoRequestHandler<TVSeason, TimeSpan?> AvgRuntimeRequested = new InfoRequestHandler<TVSeason, TimeSpan?>();
         public readonly InfoRequestHandler<TVSeason, IEnumerable<Credit>> CastRequested = new InfoRequestHandler<TVSeason, IEnumerable<Credit>>();
@@ -184,11 +364,22 @@ namespace Movies
 
     public class TVEpisodeService : MediaService<TVEpisode>
     {
+        public static readonly string AIR_DATE = "Air Date";
+
         public readonly InfoRequestHandler<TVEpisode, DateTime?> AirDateRequested = new InfoRequestHandler<TVEpisode, DateTime?>();
     }
 
     public class PersonService
     {
+        public static readonly string BIRTHDAY = "Birthday";
+        public static readonly string BIRTHPLACE = "Birthplace";
+        public static readonly string DEATHDAY = "Deathday";
+        public static readonly string ALSO_KNOWN_AS = "Also Known As";
+        public static readonly string GENDER = "Gender";
+        public static readonly string BIO = "Bio";
+        public static readonly string PROFILE_PATH = "Profile Path";
+        public static readonly string CREDITS = "Credits";
+
         public readonly InfoRequestHandler<Person, DateTime?> BirthdayRequested = new InfoRequestHandler<Person, DateTime?>();
         public readonly InfoRequestHandler<Person, string> BirthplaceRequested = new InfoRequestHandler<Person, string>();
         public readonly InfoRequestHandler<Person, DateTime?> DeathdayRequested = new InfoRequestHandler<Person, DateTime?>();
@@ -201,6 +392,12 @@ namespace Movies
 
     public class DataManager
     {
+        public InfoRequestHandler<Movie> MovieInfoRequested = new InfoRequestHandler<Movie>();
+        public InfoRequestHandler<TVShow> TVShowInfoRequested = new InfoRequestHandler<TVShow>();
+        public InfoRequestHandler<TVSeason> TVSeasonInfoRequested = new InfoRequestHandler<TVSeason>();
+        public InfoRequestHandler<TVEpisode> TVEpisodeInfoRequested = new InfoRequestHandler<TVEpisode>();
+        public InfoRequestHandler<Person> PersonInfoRequested = new InfoRequestHandler<Person>();
+
         public event EventHandler<SearchEventArgs> Searched;
         public event EventHandler<RatingEventArgs> ItemRated;
 
@@ -244,6 +441,34 @@ namespace Movies
         {
             data.HandleInfoRequests(this);
             DataSources.Add(data);
+        }
+
+        public Task<object> Request<T>(Item item, string property)
+        {
+            if (item is Movie movie)
+            {
+                return MovieInfoRequested.GetSingle(movie, property);
+            }
+            else if (item is TVShow show)
+            {
+                return TVShowInfoRequested.GetSingle(show, property);
+            }
+            else if (item is TVSeason season)
+            {
+                return TVSeasonInfoRequested.GetSingle(season, property);
+            }
+            else if (item is TVEpisode episode)
+            {
+                return TVEpisodeInfoRequested.GetSingle(episode, property);
+            }
+            else if (item is Person person)
+            {
+                return PersonInfoRequested.GetSingle(person, property);
+            }
+            else
+            {
+                return default;
+            }
         }
 
         public IAsyncEnumerable<Item> Search(string query = null, Dictionary<string, object> filters = null, string sortBy = null, bool sortAscending = false)

@@ -46,9 +46,9 @@ namespace System.Linq.Async
             }
         }
 
-        public delegate bool TryParse<TSource, TParsed>(TSource source, out TParsed parsed);
+        public delegate bool TryParseFunc<TSource, TParsed>(TSource source, out TParsed parsed);
 
-        public static async IAsyncEnumerable<TResult> TrySelect<TSource, TResult>(this IAsyncEnumerable<TSource> source, TryParse<TSource, TResult> selector)
+        public static async IAsyncEnumerable<TResult> TrySelect<TSource, TResult>(this IAsyncEnumerable<TSource> source, TryParseFunc<TSource, TResult> selector)
         {
             await foreach (var item in source)
             {
@@ -466,7 +466,7 @@ namespace Movies
             e.Results = results;
         }
 
-        private async IAsyncEnumerable<T> Merge<T>(IEnumerable<IAsyncEnumerable<T>> sources, Func<T, IComparable> property, int order = -1)
+        private static async IAsyncEnumerable<T> Merge<T>(IEnumerable<IAsyncEnumerable<T>> sources, Func<T, IComparable> property, int order = -1)
         {
             var itrs = sources.Select(source => source.GetAsyncEnumerator()).ToList();
             await Task.WhenAll(itrs.Select(itr => itr.MoveNextAsync().AsTask()));

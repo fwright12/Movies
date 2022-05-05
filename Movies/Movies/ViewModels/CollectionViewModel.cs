@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.Globalization;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
@@ -111,6 +112,87 @@ namespace Movies.ViewModels
         public ICommand ToggleSortOrder { get; }
 
         public IList<FilterViewModel> Filters { get; }
+        public FiltersViewModel Filter { get; } = new FiltersViewModel
+        {
+            Properties =
+            {
+                new ItemPropertyViewModel<double>(MovieService.RUNTIME, new SteppedValueRange<double, double>(0, double.PositiveInfinity)
+                {
+                    High = 400,
+                    Step = 1
+                }),
+                new ItemPropertyViewModel<string>(MovieService.GENRES, new DiscreteValueRange<string>(new List<string> { "Action", "Adventure", "Romance", "Comedy", "Thriller", "Mystery", "Sci-Fi", "Horror", "Documentary" })),
+                new ItemPropertyViewModel<DateTime>(MovieService.RELEASE_DATE, new SteppedValueRange<DateTime, TimeSpan>(DateTime.MinValue, DateTime.MaxValue)
+                {
+                    Low = new DateTime(1900, 1, 1),
+                    High = DateTime.Now.AddYears(1),
+                    Step = TimeSpan.FromDays(1)
+                }),
+            }
+        };
+
+        public static readonly Type NumberPickerType = typeof(SteppedValueRange<double, double>);
+        public static readonly Type DateTimePickerType = typeof(SteppedValueRange<DateTime, TimeSpan>);
+
+        public static readonly Type StringListType = typeof(IEnumerable<string>);
+        public static readonly Type WatchProviderListType = typeof(IEnumerable<WatchProvider>);
+        public static readonly Type PersonListType = typeof(IEnumerable<PersonViewModel>);
+
+        public static CompareConstraintViewModel<double> Runtime { get; } = new CompareConstraintViewModel<double>(MovieService.RUNTIME, max: 400)
+        {
+            AbsoluteMin = 0d,
+        };
+        public static CompareConstraintViewModel<DateTime> ReleaseDate { get; } = new CompareConstraintViewModel<DateTime>(MovieService.RELEASE_DATE, new DateTime(1900, 1, 1), DateTime.Now.AddYears(1));
+        public static DiscreteFilterViewModel<string> Genres { get; } = new DiscreteFilterViewModel<string>(MovieService.GENRES, new Collection<string>(new List<string> { "Action", "Adventure", "Romance", "Comedy", "Thriller", "Mystery", "Sci-Fi", "Horror", "Documentary" }));
+        public static DiscreteFilterViewModel<string> Certifications { get; } = new DiscreteFilterViewModel<string>(MovieService.CONTENT_RATING, new Collection<string>(new List<string> { "G", "PG", "PG-13", "R", "NC-17" }));
+        public static DiscreteFilterViewModel<WatchProvider> WatchProviders { get; } = new DiscreteFilterViewModel<WatchProvider>(MovieService.WATCH_PROVIDERS, new Collection<WatchProvider>(new List<WatchProvider> { MockData.NetflixStreaming }))
+        {
+            Presets =
+            {
+                new Preset
+                {
+                    Text = "On my services",
+                    Value = new Constraint<WatchProvider>(MovieService.WATCH_PROVIDERS)
+                    {
+                        Value = MockData.NetflixStreaming,
+                        Comparison = Operators.Equal
+                    }
+                }
+            }
+        };
+        public static EnumFilterViewModel<MonetizationType> Monetization { get; } = new EnumFilterViewModel<MonetizationType>("Monetization Type");
+        public static DiscreteFilterViewModel<PersonViewModel> People { get; } = new DiscreteFilterViewModel<PersonViewModel>("People", new Collection<PersonViewModel>(PeopleAsync))
+        {
+            Filters =
+            {
+                new SearchFilterViewModel { SearchDelay = 1000 }
+            }
+        };
+        public static DiscreteFilterViewModel<string> Keywords { get; } = new DiscreteFilterViewModel<string>(MovieService.KEYWORDS, new Collection<string>(KeywordsAsync))
+        {
+            Filters =
+            {
+                new SearchFilterViewModel { SearchDelay = 1000 }
+            }
+        };
+        public static CompareConstraintViewModel<double> Budget { get; } = new CompareConstraintViewModel<double>(MovieService.BUDGET);
+        public static CompareConstraintViewModel<double> Revenue { get; } = new CompareConstraintViewModel<double>(MovieService.REVENUE);
+
+        private static async IAsyncEnumerable<string> KeywordsAsync(List<Constraint> filters)
+        {
+            foreach (var item in await Task.FromResult(App.AdKeywords))
+            {
+                yield return item;
+            }
+        }
+
+        private static async IAsyncEnumerable<PersonViewModel> PeopleAsync(List<Constraint> filters)
+        {
+            foreach (var item in await Task.FromResult(new List<PersonViewModel> { new PersonViewModel(App.DataManager, MockData.Instance.MatthewM) }))
+            {
+                yield return item;
+            }
+        }
 
         public ICommand UpdateDetails { get; }
         public IList SortOptions { get; set; }
@@ -168,15 +250,41 @@ namespace Movies.ViewModels
                 return new Command<int?>(async count => await Load(count));
             });
 
-            if (allowedTypes.HasValue)
+            if (allowedTypes.HasValue || true)
             {
-                Filters = new List<FilterViewModel>
+                var itemType = new ItemTypeFilterViewModel(allowedTypes ?? ItemType.Movie | ItemType.TVShow);
+                itemType.ValueChanged += (sender, e) =>
+                {
+                    var type = ((ItemTypeFilterViewModel)sender).Selected;
+
+                    if (type.HasFlag(ItemType.Movie))
+                    {
+
+                    }
+                    if (type.HasFlag(ItemType.TVShow))
+                    {
+
+                    }
+                };
+
+                Filters = new ObservableCollection<FilterViewModel>
                 {
                     new SearchFilterViewModel
                     {
                         Placeholder = "Search movies, TV, people, and more..."
                     },
-                    new ItemTypeFilterViewModel(allowedTypes.Value)
+                    itemType,
+                    Keywords,
+                    Runtime,
+                    ReleaseDate,
+                    Genres,
+                    Certifications,
+                    WatchProviders,
+                    Monetization,
+                    People,
+
+                    Budget,
+                    Revenue
                 };
 
                 ToggleSortOrder = new Command(() =>
@@ -249,8 +357,52 @@ namespace Movies.ViewModels
             _ = Load(10);
         }
 
+        private static async IAsyncEnumerable<T> Where<T>(IAsyncEnumerable<T> source, Func<T, bool> predicate)
+        {
+            await foreach (var item in source)
+            {
+                if (predicate(item))
+                {
+                    yield return item;
+                }
+            }
+        }
+
+        private async IAsyncEnumerable<Item> FilterAsync(IEnumerable<Constraint> filters, IAsyncEnumerable<Item> source)
+        {
+            await foreach (var item in source)
+            {
+                if (await Allowed(item, filters))
+                {
+                    yield return item;
+                }
+            }
+        }
+
+        private async Task<bool> Allowed(Item item, IEnumerable<Constraint> filters)
+        {
+            foreach (var filter in filters)
+            {
+                var value = await DataManager.Request<object>(item, filter.Name);
+                if (!filter.IsAllowed(value))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
         private void UpdateFilters(object sender, EventArgs e)
         {
+            if (Item is Collection collection)
+            {
+                var filter = Filters.SelectMany(filter => filter.GetFilters()).ToList();
+                var items = collection.GetItems(filter);
+                UpdateItems(FilterAsync(filter, items));
+                return;
+            }
+
             string query = "";
             Dictionary<string, object> filters = new Dictionary<string, object>();
 
@@ -266,7 +418,7 @@ namespace Movies.ViewModels
                 }
             }
 
-            UpdateItems(DataManager.Search(query, filters, SortBy, SortAscending));
+            //UpdateItems(DataManager.Search(query, filters, SortBy, SortAscending));
         }
 
         public CollectionViewModel(DataManager dataManager, Person person) : this(dataManager, person.Name, PersonViewModel.GetCredits(dataManager.PersonService, person), null, person) { }

@@ -81,23 +81,6 @@
 
     <TabBar Shell.TabBarBackgroundColor="{Binding Parent.BackgroundColor}"
             Shell.TabBarTitleColor="{StaticResource Primary}">
-        <Tab Title="Explore">
-            <Tab.Icon>
-                <FontImageSource Glyph="&#xf273;"
-                                 FontFamily="{StaticResource IoniconsFont}" />
-            </Tab.Icon>
-
-            <ShellContent Title="Movies"
-                          BindingContext="{Binding MovieExplore, Source={Static Application.Current}}"
-                          ContentTemplate="{StaticResource ExploreTemplate}" />
-            <ShellContent Title="TV Shows"
-                          BindingContext="{Binding TVExplore, Source={Static Application.Current}}"
-                          ContentTemplate="{StaticResource ExploreTemplate}" />
-            <ShellContent Title="People"
-                          BindingContext="{Binding PeopleExplore, Source={Static Application.Current}}"
-                          ContentTemplate="{StaticResource ExploreTemplate}" />
-        </Tab>
-
         <ShellContent Title="Find">
             <ShellContent.Icon>
                 <FontImageSource Glyph="{OnPlatform iOS='&#xf4a4;', Android='&#xf2f5;'}"
@@ -116,6 +99,25 @@
                 </DataTemplate>
             </ShellContent.ContentTemplate>
         </ShellContent>
+        
+        <Tab Title="Explore">
+            <Tab.Icon>
+                <FontImageSource Glyph="&#xf273;"
+                                 FontFamily="{StaticResource IoniconsFont}" />
+            </Tab.Icon>
+
+            <ShellContent Title="Movies"
+                          BindingContext="{Binding MovieExplore, Source={Static Application.Current}}"
+                          ContentTemplate="{StaticResource ExploreTemplate}" />
+            <ShellContent Title="TV Shows"
+                          BindingContext="{Binding TVExplore, Source={Static Application.Current}}"
+                          ContentTemplate="{StaticResource ExploreTemplate}" />
+            <ShellContent Title="People"
+                          BindingContext="{Binding PeopleExplore, Source={Static Application.Current}}"
+                          ContentTemplate="{StaticResource ExploreTemplate}" />
+        </Tab>
+
+        
 
         <ShellContent Title="Lists">
             <ShellContent.Icon>

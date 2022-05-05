@@ -1,0 +1,27 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<ContentView xmlns="http://xamarin.com/schemas/2014/forms"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Movies.Views.NumberPicker">
+    <TemplatedView.ControlTemplate>
+        <ControlTemplate>
+            <StackLayout Orientation="Vertical">
+                <Slider Maximum="{TemplateBinding Upper}"
+                        Minimum="{TemplateBinding Lower}"
+                        Value="{TemplateBinding Value}" />
+
+                <FlexLayout Direction="Row"
+                            HorizontalOptions="Center">
+                    <Button Text="-"
+                            Command="{TemplateBinding StepDownCommand}" />
+
+                    <Entry Text="{TemplateBinding Value, Mode=TwoWay}"
+                           Keyboard="Numeric"
+                           WidthRequest="75" />
+
+                    <Button Text="+"
+                            Command="{TemplateBinding StepUpCommand}" />
+                </FlexLayout>
+            </StackLayout>
+        </ControlTemplate>
+    </TemplatedView.ControlTemplate>
+</ContentView>
