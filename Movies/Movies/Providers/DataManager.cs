@@ -209,6 +209,14 @@ namespace Movies
         bool Evaluate(T value);
     }
 
+    public class BooleanExpression<T> : IBooleanValued<T>
+    {
+        public bool Evaluate(T value)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
     public abstract class Constraint : IBooleanValued<Item>
     {
         public string Name { get; }

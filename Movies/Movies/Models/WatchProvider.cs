@@ -11,5 +11,7 @@ namespace Movies.Models
         public Company Company { get; set; }
         public MonetizationType Type { get; set; }
         public double Price { get; set; }
+
+        public override string ToString() => Company?.Name ?? base.ToString();
     }
 }

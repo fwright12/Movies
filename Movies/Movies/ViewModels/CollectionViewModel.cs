@@ -111,72 +111,82 @@ namespace Movies.ViewModels
         public ICommand LoadMoreCommand => LazyLoadMoreCommand?.Value;
         public ICommand ToggleSortOrder { get; }
 
+        public static readonly Type NumberPickerType = typeof(SelectorViewModel<double>);
+        public static readonly Type DateTimePickerType = typeof(SelectorViewModel<DateTime>);
+        public static readonly Type StringListType = typeof(SelectorViewModel<ObservableCollection<object>>);
+        public static readonly Type WatchProviderListType = typeof(SelectorViewModel<WatchProvider>);
+        public static readonly Type PersonListType = typeof(SelectorViewModel<PersonViewModel>);
+
         public IList<FilterViewModel> Filters { get; }
+        private static ItemPropertyViewModel<ObservableCollection<object>> Genres = new ItemPropertyViewModel<ObservableCollection<object>>(MovieService.GENRES, new DiscreteValueRange<string>(new List<string> { "Action", "Adventure", "Romance", "Comedy", "Thriller", "Mystery", "Sci-Fi", "Horror", "Documentary" }));
         public FiltersViewModel Filter { get; } = new FiltersViewModel
         {
-            Properties =
+            Selectors =
             {
+                //new ItemPropertyViewModel<string>("Search", string.Empty),
                 new ItemPropertyViewModel<double>(MovieService.RUNTIME, new SteppedValueRange<double, double>(0, double.PositiveInfinity)
                 {
                     High = 400,
                     Step = 1
                 }),
-                new ItemPropertyViewModel<string>(MovieService.GENRES, new DiscreteValueRange<string>(new List<string> { "Action", "Adventure", "Romance", "Comedy", "Thriller", "Mystery", "Sci-Fi", "Horror", "Documentary" })),
+                new SelectorViewModel<ObservableCollection<object>>(Genres, new LiteralViewModel<ObservableCollection<object>>(new Constraint<ObservableCollection<object>>("Genres")
+                {
+                    Value = new ObservableCollection<object>(),
+                    Comparison = Operators.Equal
+                })),
                 new ItemPropertyViewModel<DateTime>(MovieService.RELEASE_DATE, new SteppedValueRange<DateTime, TimeSpan>(DateTime.MinValue, DateTime.MaxValue)
                 {
                     Low = new DateTime(1900, 1, 1),
                     High = DateTime.Now.AddYears(1),
                     Step = TimeSpan.FromDays(1)
                 }),
-            }
-        };
-
-        public static readonly Type NumberPickerType = typeof(SteppedValueRange<double, double>);
-        public static readonly Type DateTimePickerType = typeof(SteppedValueRange<DateTime, TimeSpan>);
-
-        public static readonly Type StringListType = typeof(IEnumerable<string>);
-        public static readonly Type WatchProviderListType = typeof(IEnumerable<WatchProvider>);
-        public static readonly Type PersonListType = typeof(IEnumerable<PersonViewModel>);
-
-        public static CompareConstraintViewModel<double> Runtime { get; } = new CompareConstraintViewModel<double>(MovieService.RUNTIME, max: 400)
-        {
-            AbsoluteMin = 0d,
-        };
-        public static CompareConstraintViewModel<DateTime> ReleaseDate { get; } = new CompareConstraintViewModel<DateTime>(MovieService.RELEASE_DATE, new DateTime(1900, 1, 1), DateTime.Now.AddYears(1));
-        public static DiscreteFilterViewModel<string> Genres { get; } = new DiscreteFilterViewModel<string>(MovieService.GENRES, new Collection<string>(new List<string> { "Action", "Adventure", "Romance", "Comedy", "Thriller", "Mystery", "Sci-Fi", "Horror", "Documentary" }));
-        public static DiscreteFilterViewModel<string> Certifications { get; } = new DiscreteFilterViewModel<string>(MovieService.CONTENT_RATING, new Collection<string>(new List<string> { "G", "PG", "PG-13", "R", "NC-17" }));
-        public static DiscreteFilterViewModel<WatchProvider> WatchProviders { get; } = new DiscreteFilterViewModel<WatchProvider>(MovieService.WATCH_PROVIDERS, new Collection<WatchProvider>(new List<WatchProvider> { MockData.NetflixStreaming }))
-        {
-            Presets =
-            {
-                new Preset
+                new ItemPropertyViewModel<string>(MovieService.CONTENT_RATING, new DiscreteValueRange<string>(new List<string> { "G", "PG", "PG-13", "R", "NC-17" })),
+                new ItemPropertyViewModel<WatchProvider>(MovieService.WATCH_PROVIDERS, new DiscreteValueRange<WatchProvider>(new List<WatchProvider> { MockData.NetflixStreaming })
                 {
-                    Text = "On my services",
-                    Value = new Constraint<WatchProvider>(MovieService.WATCH_PROVIDERS)
+                    Presets =
                     {
-                        Value = MockData.NetflixStreaming,
-                        Comparison = Operators.Equal
+                        new Preset
+                        {
+                            Text = "On my services",
+                            Value = new Constraint<WatchProvider>(MovieService.WATCH_PROVIDERS)
+                            {
+                                Value = MockData.NetflixStreaming,
+                                Comparison = Operators.Equal
+                            }
+                        }
                     }
-                }
+                }),
+                new ItemPropertyViewModel<MonetizationType>("Monetization Type", new DiscreteValueRange<string>(Enum.GetNames(typeof(MonetizationType)))),
+                new ItemPropertyViewModel<PersonViewModel>("People", new DiscreteValueRange<PersonViewModel>(new Collection<PersonViewModel>(PeopleAsync))
+                {
+                    Filters =
+                    {
+                        new SearchFilterViewModel { SearchDelay = 1000 }
+                    }
+                }),
+                new ItemPropertyViewModel<string>(MovieService.KEYWORDS, new DiscreteValueRange<string>(new Collection<string>(KeywordsAsync))
+                {
+                    Values =
+                    {
+                        "test"
+                    },
+                    Filters =
+                    {
+                        new SearchFilterViewModel { SearchDelay = 1000 }
+                    }
+                }),
+                new ItemPropertyViewModel<double>(MovieService.BUDGET, new SteppedValueRange<double, double>(0, double.PositiveInfinity)
+                {
+                    Step = 100000,
+                    High = 2000000000
+                }),
+                new ItemPropertyViewModel<double>(MovieService.REVENUE, new SteppedValueRange<double, double>(0, double.PositiveInfinity)
+                {
+                    Step = 100000,
+                    High = 2000000000
+                }),
             }
         };
-        public static EnumFilterViewModel<MonetizationType> Monetization { get; } = new EnumFilterViewModel<MonetizationType>("Monetization Type");
-        public static DiscreteFilterViewModel<PersonViewModel> People { get; } = new DiscreteFilterViewModel<PersonViewModel>("People", new Collection<PersonViewModel>(PeopleAsync))
-        {
-            Filters =
-            {
-                new SearchFilterViewModel { SearchDelay = 1000 }
-            }
-        };
-        public static DiscreteFilterViewModel<string> Keywords { get; } = new DiscreteFilterViewModel<string>(MovieService.KEYWORDS, new Collection<string>(KeywordsAsync))
-        {
-            Filters =
-            {
-                new SearchFilterViewModel { SearchDelay = 1000 }
-            }
-        };
-        public static CompareConstraintViewModel<double> Budget { get; } = new CompareConstraintViewModel<double>(MovieService.BUDGET);
-        public static CompareConstraintViewModel<double> Revenue { get; } = new CompareConstraintViewModel<double>(MovieService.REVENUE);
 
         private static async IAsyncEnumerable<string> KeywordsAsync(List<Constraint> filters)
         {
@@ -274,17 +284,6 @@ namespace Movies.ViewModels
                         Placeholder = "Search movies, TV, people, and more..."
                     },
                     itemType,
-                    Keywords,
-                    Runtime,
-                    ReleaseDate,
-                    Genres,
-                    Certifications,
-                    WatchProviders,
-                    Monetization,
-                    People,
-
-                    Budget,
-                    Revenue
                 };
 
                 ToggleSortOrder = new Command(() =>
@@ -397,7 +396,7 @@ namespace Movies.ViewModels
         {
             if (Item is Collection collection)
             {
-                var filter = Filters.SelectMany(filter => filter.GetFilters()).ToList();
+                var filter = Enumerable.Empty<Constraint>().ToList();// Filters.SelectMany(filter => filter.GetFilters()).ToList();
                 var items = collection.GetItems(filter);
                 UpdateItems(FilterAsync(filter, items));
                 return;
