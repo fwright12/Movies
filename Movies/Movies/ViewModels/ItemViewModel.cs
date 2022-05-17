@@ -27,6 +27,7 @@ namespace Movies.ViewModels
         public virtual string PrimaryImagePath => null;
         public ICommand AddToListCommand { get; }
 
+        public static readonly DataService Data = new DataService();
         protected DataManager DataManager;
 
         public ItemViewModel(DataManager dataManager, Item item)
@@ -40,6 +41,7 @@ namespace Movies.ViewModels
             });
         }
 
+        protected T RequestSingle<T>(Property<T> property, [CallerMemberName] string propertyName = null) => GetValue(Data.GetValue(Item, property), propertyName);
         protected TValue RequestSingle<TItem, TValue>(InfoRequestHandler<TItem, TValue> handler, [CallerMemberName] string property = null) where TItem : Item => Item is TItem item ? GetValue(handler.GetSingle(item), property) : default;
 
         public override string ToString() => Item?.ToString() ?? base.ToString();

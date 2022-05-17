@@ -1,5 +1,8 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
 using Movies.Models;
 
@@ -61,6 +64,15 @@ namespace Movies
             item.SetID(key, value);
             return item;
         }
+    }
+
+    public class ItemInfoEventArgs : EventArgs
+    {
+        public object Value;
+        public string Property { get; }
+
+        public void SetValue(Property property, Task<object> value) => Value = value;
+        public void SetValue(Property property, object value) => SetValue(property, Task.FromResult(value));
     }
 
     public class ItemInfoEventArgs<TItem, TValue> : EventArgs
@@ -157,7 +169,7 @@ namespace Movies
                 }
                 else
                 {
-                    
+
                 }
             }
 
@@ -211,40 +223,73 @@ namespace Movies
 
     public class BooleanExpression<T> : IBooleanValued<T>
     {
+        public IList<IBooleanValued<T>> Parts { get; }
+
+        public BooleanExpression() : this(System.Linq.Enumerable.Empty<IBooleanValued<T>>()) { }
+        public BooleanExpression(IEnumerable<IBooleanValued<T>> parts)
+        {
+            Parts = new List<IBooleanValued<T>>(parts);
+        }
+
         public bool Evaluate(T value)
         {
             throw new NotImplementedException();
         }
+
+        public override bool Equals(object obj)
+        {
+            if (!(obj is BooleanExpression<T> expression))
+            {
+                return false;
+            }
+
+            return System.Linq.Enumerable.SequenceEqual(Parts, expression.Parts);
+        }
     }
 
-    public abstract class Constraint : IBooleanValued<Item>
+    public struct Constraint
     {
-        public string Name { get; }
+        public Property Property { get; }
         public object Value { get; set; }
         public Operators Comparison { get; set; }
 
-        public Constraint(string name)
+        public Constraint(Property property)
         {
-            Name = name;
+            Property = property;
+            Value = null;
+            Comparison = Operators.Equal;
+        }
+    }
+
+
+    public abstract class Constraint1 : IBooleanValued<Item>
+    {
+        public Property Property { get; }
+        public object Value { get; set; }
+        public Operators Comparison { get; set; }
+
+        public Constraint1(Property property)
+        {
+            Property = property;
         }
 
         public bool Evaluate(Item value) => IsAllowed((Item)value);
         public abstract bool IsAllowed(object value);
 
-        public override bool Equals(object obj) => obj is Constraint constraint && constraint.Name == Name && Equals(constraint.Value, Value) && constraint.Comparison == Comparison;
+        public override bool Equals(object obj) => obj is Constraint1 constraint && constraint.Property == Property && Equals(constraint.Value, Value) && constraint.Comparison == Comparison;
 
-        public override int GetHashCode() => Name?.GetHashCode() ?? base.GetHashCode();
+        public override int GetHashCode() => Property?.GetHashCode() ?? base.GetHashCode();
     }
 
-    public class Constraint<T> : Constraint
+    public class Constraint1<T> : Constraint1
     {
         new public T Value
         {
-            get => (T)base.Value;
+            get => base.Value == null ? default : (T)base.Value;
             set => base.Value = value;
         }
 
-        public Constraint(string name) : base(name) { }
+        public Constraint1(Property property) : base(property) { }
 
         public override bool IsAllowed(object value)
         {
@@ -269,46 +314,8 @@ namespace Movies
         }
     }
 
-    public abstract class DataService<T> where T : Item
+    public abstract class MediaService<TItem> where TItem : Item
     {
-        public abstract Task<TResult> GetValue<TResult>(T item, string property);
-    }
-
-    public abstract class MediaService<TItem> : DataService<TItem> where TItem : Item
-    {
-        public static readonly string TITLE = "Title";
-        public static readonly string TAGLINE = "Tagline";
-        public static readonly string DESCRIPTION = "Description";
-        public static readonly string CONTENT_RATING = "Content Rating";
-        public static readonly string RUNTIME = "Runtime";
-        public static readonly string OriginalTitle = "Original Title";
-        public static readonly string OriginalLanguage = "Original Language";
-        public static readonly string LANGUAGES = "Languages";
-        public static readonly string GENRES = "Genres";
-
-        public static readonly string POSTER_PATH = "Poster Path";
-        public static readonly string BACKDROP_PATH = "Backdrop Path";
-        public static readonly string TRAILER_PATH = "Trailer Path";
-
-        public static readonly string RATING = "Rating";
-        public static readonly string CREW = "Crew";
-        public static readonly string CAST = "Cast";
-        public static readonly string PRODUCTION_COMPANIES = "Production Companies";
-        public static readonly string PRODUCTION_COUNTRIES = "Production Countries";
-        public static readonly string WATCH_PROVIDERS = "Watch Providers";
-        public static readonly string KEYWORDS = "Keywords";
-        public static readonly string RECOMMENDED = "Recommended";
-
-        public static readonly IReadOnlyCollection<Constraint> Properties = new HashSet<Constraint>
-        {
-            
-        };
-
-        public override Task<TResult> GetValue<TResult>(TItem item, string property)
-        {
-            throw new NotImplementedException();
-        }
-
         public readonly InfoRequestHandler<TItem, string> TaglineRequested = new InfoRequestHandler<TItem, string>();
         public readonly InfoRequestHandler<TItem, string> DescriptionRequested = new InfoRequestHandler<TItem, string>();
         public readonly InfoRequestHandler<TItem, string> ContentRatingRequested = new InfoRequestHandler<TItem, string>();
@@ -334,11 +341,6 @@ namespace Movies
 
     public class MovieService : MediaService<Movie>
     {
-        public static readonly string RELEASE_DATE = "Release Date";
-        public static readonly string BUDGET = "Budget";
-        public static readonly string REVENUE = "Revenue";
-        public static readonly string PARENT_COLLECTION = "Parent Collection";
-
         public readonly InfoRequestHandler<Movie, DateTime?> ReleaseDateRequested = new InfoRequestHandler<Movie, DateTime?>();
 
         public readonly InfoRequestHandler<Movie, long?> BudgetRequested = new InfoRequestHandler<Movie, long?>();
@@ -348,10 +350,6 @@ namespace Movies
 
     public class TVShowService : MediaService<TVShow>
     {
-        public static readonly string FIRST_AIR_DATE = "First Air Date";
-        public static readonly string LAST_AIR_DATE = "Last Air Date";
-        public static readonly string NETWORKS = "Networks";
-
         public readonly InfoRequestHandler<TVShow, DateTime?> FirstAirDateRequested = new InfoRequestHandler<TVShow, DateTime?>();
         public readonly InfoRequestHandler<TVShow, DateTime?> LastAirDateRequested = new InfoRequestHandler<TVShow, DateTime?>();
         public readonly InfoRequestHandler<TVShow, IEnumerable<Company>> NetworksRequested = new InfoRequestHandler<TVShow, IEnumerable<Company>>();
@@ -359,11 +357,6 @@ namespace Movies
 
     public class TVSeasonService
     {
-        public static readonly string YEAR = "Year";
-        public static readonly string AVERAGE_RUNTIME = "Average Runtime";
-        public static readonly string CAST = "Cast";
-        public static readonly string CREW = "Crew";
-
         public readonly InfoRequestHandler<TVSeason, DateTime?> YearRequested = new InfoRequestHandler<TVSeason, DateTime?>();
         public readonly InfoRequestHandler<TVSeason, TimeSpan?> AvgRuntimeRequested = new InfoRequestHandler<TVSeason, TimeSpan?>();
         public readonly InfoRequestHandler<TVSeason, IEnumerable<Credit>> CastRequested = new InfoRequestHandler<TVSeason, IEnumerable<Credit>>();
@@ -372,8 +365,6 @@ namespace Movies
 
     public class TVEpisodeService : MediaService<TVEpisode>
     {
-        public static readonly string AIR_DATE = "Air Date";
-
         public readonly InfoRequestHandler<TVEpisode, DateTime?> AirDateRequested = new InfoRequestHandler<TVEpisode, DateTime?>();
     }
 
@@ -398,14 +389,272 @@ namespace Movies
         public readonly InfoRequestHandler<Person, IEnumerable<Item>> CreditsRequested = new InfoRequestHandler<Person, IEnumerable<Item>>();
     }
 
+    public abstract class Property
+    {
+        public string Name { get; set; }
+        public IEnumerable Values { get; }
+        public Property Parent { get; }
+
+        public Property(string name, IEnumerable values) : this(name)
+        {
+            Values = values;
+        }
+
+        public Property(string name)
+        {
+            Name = name;
+        }
+
+        //public static Property<T> FromEnum<T>(string name) where T : struct, Enum => new Property<T>(name, new DiscreteValueRange<T>();
+
+        public override int GetHashCode() => Name?.GetHashCode() ?? base.GetHashCode();
+
+        public override bool Equals(object obj) => obj is Property property && property.Name == Name;
+
+        public override string ToString() => Name ?? base.ToString();
+    }
+
+    public class Property<T> : Property
+    {
+        public Property(string name) : base(name) { }
+        public Property(string name, IEnumerable values) : base(name, values) { }
+    }
+
+    public class ReflectedProperty : Property
+    {
+        public PropertyInfo Info { get; }
+
+        public ReflectedProperty(PropertyInfo info, IEnumerable values) : this(info.Name, info, values) { }
+        public ReflectedProperty(string name, PropertyInfo info, IEnumerable values) : base(name, values)
+        {
+            Info = info;
+        }
+    }
+
+    public abstract class SteppedValueRange : IEnumerable
+    {
+        public object LowerBound { get; set; }
+        public object UpperBound { get; set; }
+        public object Step { get; set; }
+
+        public abstract IEnumerator GetEnumerator();
+    }
+
+    public class SteppedValueRange<T> : SteppedValueRange<T, T>
+    {
+        public SteppedValueRange(T lowerBound, T upperBound, T step) : base(lowerBound, upperBound, step) { }
+    }
+
+    public class SteppedValueRange<TValue, TStep> : SteppedValueRange
+    {
+        public SteppedValueRange(TValue lowerBound, TValue upperBound, TStep step)
+        {
+            LowerBound = lowerBound;
+            UpperBound = upperBound;
+            Step = step;
+        }
+
+        public override IEnumerator GetEnumerator()
+        {
+            yield break;
+            for (TValue i = (TValue)LowerBound; !Equals(i, UpperBound); )
+            {
+                yield return i;
+            }
+        }
+    }
+
+    public class DiscreteValueRange<T> : IEnumerable<T>
+    {
+        public IEnumerable<T> Values { get; }
+
+        public DiscreteValueRange(IEnumerable<T> values)
+        {
+            Values = values;
+        }
+
+        public IEnumerator<T> GetEnumerator() => Values.GetEnumerator();
+
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
+    }
+
+    public class AsyncDiscreteValueRange<T> : IAsyncEnumerable<T>
+    {
+        public IAsyncEnumerable<T> Values { get; }
+
+        public AsyncDiscreteValueRange(IAsyncEnumerable<T> values)
+        {
+            Values = values;
+        }
+
+        public IAsyncEnumerator<T> GetAsyncEnumerator(CancellationToken cancellationToken = default)
+        {
+            return Values.GetAsyncEnumerator(cancellationToken);
+        }
+    }
+
+    public abstract class PropertyValuePair
+    {
+        public Property Property { get; }
+        public object Value { get; }
+
+        public PropertyValuePair(Property property, object value)
+        {
+            Property = property;
+            Value = value;
+        }
+    }
+
+    public class PropertyValuePair<T> : PropertyValuePair
+    {
+        public PropertyValuePair(Property<T> property, Task<T> value) : base(property, value) { }
+        public PropertyValuePair(Property<T> property, Task<IEnumerable<T>> value) : base(property, value)
+        {
+
+        }
+    }
+
+    public class PropertyEventArgs : EventArgs
+    {
+        public Property Property { get; }
+
+        public PropertyEventArgs(Property property)
+        {
+            Property = property;
+        }
+    }
+
+    public class PropertyDictionary : IReadOnlyCollection<PropertyValuePair>
+    {
+        public event EventHandler<PropertyEventArgs> PropertyAdded;
+
+        public int Count => Properties.Count;
+        public Task<object> this[Property property] => GetSingle<object>(property);
+
+        private Dictionary<Property, IList<object>> Properties = new Dictionary<Property, IList<object>>();
+
+        public bool TryGetValue(Property key, out Task<object> value)
+        {
+            value = GetSingle<object>(key);
+            return true;
+        }
+
+        public Task<IEnumerable<T>> GetMultiple<T>(Property<T> key, string source = null)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<T> GetSingle<T>(Property<T> key, string source = null) => GetSingle<T>((Property)key, source);
+        private Task<T> GetSingle<T>(Property key, string source = null)
+        {
+            if (!Properties.TryGetValue(key, out var values))
+            {
+                AddProperty(key);
+                return GetSingle<T>(key);
+            }
+
+            foreach (var value in values)
+            {
+                if (value is Task<T> task)
+                {
+                    return task;
+                }
+                else if (value is Task task1)
+                {
+                    try
+                    {
+                        return CastTask<T>(task1);
+                    }
+                    catch { }
+                }
+            }
+
+            return Task.FromResult<T>(default);
+        }
+
+        private async Task<T> CastTask<T>(Task task) => (T)(await (dynamic)task);
+
+        public bool AddProperty<T>(Property<T> property) => AddProperty((Property)property);
+        private bool AddProperty(Property property)
+        {
+            if (Properties.ContainsKey(property))
+            {
+                return false;
+            }
+
+            Properties.Add(property, new List<object>());
+            PropertyAdded?.Invoke(this, new PropertyEventArgs(property));
+            return true;
+        }
+
+        public void Add<T>(Property<T> key, Task<T> value)
+        {
+            Add(key, value);
+        }
+
+        public void Add(PropertyValuePair pair)
+        {
+            Add(pair.Property, pair.Value);
+        }
+
+        private void Add(Property property, object value)
+        {
+            if (!Properties.TryGetValue(property, out var values))
+            {
+                Properties.Add(property, values = new List<object>());
+            }
+
+            values.Add(value);
+        }
+
+        public IEnumerator<PropertyValuePair> GetEnumerator()
+        {
+            throw new NotImplementedException();
+        }
+
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
+    }
+
+    public class ItemEventArgs : EventArgs
+    {
+        public PropertyDictionary Properties { get; }
+
+        public ItemEventArgs(PropertyDictionary properties)
+        {
+            Properties = properties;
+        }
+    }
+
+    public class DataService
+    {
+        public event EventHandler<ItemEventArgs> GetItemDetails;
+
+        private Dictionary<ItemType, Dictionary<Item, PropertyDictionary>> Cache = new Dictionary<ItemType, Dictionary<Item, PropertyDictionary>>();
+
+        //public Task<object> GetValue(Item item, Property property) => GetDetails(item).TryGetValue(property, out var value) ? value : Task.FromResult<object>(null);
+
+        public Task<T> GetValue<T>(Item item, Property<T> property) => GetDetails(item).GetSingle(property);
+
+        public PropertyDictionary GetDetails(Item item)
+        {
+            if (!Cache.TryGetValue(item.ItemType, out var items))
+            {
+                Cache.Add(item.ItemType, items = new Dictionary<Item, PropertyDictionary>());
+            }
+
+            if (!items.TryGetValue(item, out var properties))
+            {
+                items.Add(item, properties = new PropertyDictionary());
+                var e = new ItemEventArgs(properties);
+                GetItemDetails?.Invoke(item, e);
+            }
+
+            return properties;
+        }
+    }
+
     public class DataManager
     {
-        public InfoRequestHandler<Movie> MovieInfoRequested = new InfoRequestHandler<Movie>();
-        public InfoRequestHandler<TVShow> TVShowInfoRequested = new InfoRequestHandler<TVShow>();
-        public InfoRequestHandler<TVSeason> TVSeasonInfoRequested = new InfoRequestHandler<TVSeason>();
-        public InfoRequestHandler<TVEpisode> TVEpisodeInfoRequested = new InfoRequestHandler<TVEpisode>();
-        public InfoRequestHandler<Person> PersonInfoRequested = new InfoRequestHandler<Person>();
-
         public event EventHandler<SearchEventArgs> Searched;
         public event EventHandler<RatingEventArgs> ItemRated;
 
@@ -438,7 +687,7 @@ namespace Movies
         public DataManager(params IDataProvider[] dataSources)
         {
             DataSources = new List<IDataProvider>(dataSources);
-            
+
             MovieService = new MovieService();
             TVShowService = new TVShowService();
             TVSeasonService = new TVSeasonService();
@@ -449,34 +698,6 @@ namespace Movies
         {
             data.HandleInfoRequests(this);
             DataSources.Add(data);
-        }
-
-        public Task<object> Request<T>(Item item, string property)
-        {
-            if (item is Movie movie)
-            {
-                return MovieInfoRequested.GetSingle(movie, property);
-            }
-            else if (item is TVShow show)
-            {
-                return TVShowInfoRequested.GetSingle(show, property);
-            }
-            else if (item is TVSeason season)
-            {
-                return TVSeasonInfoRequested.GetSingle(season, property);
-            }
-            else if (item is TVEpisode episode)
-            {
-                return TVEpisodeInfoRequested.GetSingle(episode, property);
-            }
-            else if (item is Person person)
-            {
-                return PersonInfoRequested.GetSingle(person, property);
-            }
-            else
-            {
-                return default;
-            }
         }
 
         public IAsyncEnumerable<Item> Search(string query = null, Dictionary<string, object> filters = null, string sortBy = null, bool sortAscending = false)

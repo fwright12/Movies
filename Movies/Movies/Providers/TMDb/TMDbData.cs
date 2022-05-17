@@ -46,7 +46,18 @@ namespace System.Linq.Async
             }
         }
 
-        public delegate bool TryParseFunc<TSource, TParsed>(TSource source, out TParsed parsed);
+        public delegate bool TryParseFunc<in TSource, TParsed>(TSource source, out TParsed parsed);
+
+        public static IEnumerable<TResult> TrySelect<TSource, TResult>(this IEnumerable<TSource> source, TryParseFunc<TSource, TResult> selector)
+        {
+            foreach (var item in source)
+            {
+                if (selector(item, out var selected))
+                {
+                    yield return selected;
+                }
+            }
+        }
 
         public static async IAsyncEnumerable<TResult> TrySelect<TSource, TResult>(this IAsyncEnumerable<TSource> source, TryParseFunc<TSource, TResult> selector)
         {
@@ -124,6 +135,10 @@ namespace Movies
             ApiKey = apiKey;
 #if !DEBUG || false
             Client = new TMDbClient(apiKey);
+#endif
+#if DEBUG
+            Test(ViewModels.ItemViewModel.Data);
+            return;
 #endif
             //Config = Client.GetConfigAsync();
             WebClient = new HttpClient
@@ -286,23 +301,6 @@ namespace Movies
             }
         }
 
-        public IAsyncEnumerable<Models.Item> GetRecommendedMoviesAsync() => CacheStream(FlattenPages(WebClient, string.Format("4/account/{0}/movie/recommendations?page={{0}}", AccountID), UserAccessToken), json => GetCacheKey<Models.Movie>(json)).TrySelect<JsonNode, Models.Movie>(TryParseMovie);
-        public IAsyncEnumerable<Models.Item> GetTrendingMoviesAsync(TimeWindow timeWindow = TimeWindow.Week) => FlattenPages(page => Client.GetTrendingMoviesAsync(timeWindow, page), GetCacheKey).Select(GetItem);
-        public IAsyncEnumerable<Models.Item> GetPopularMoviesAsync() => FlattenPages(page => Client.GetMoviePopularListAsync(page: page), GetCacheKey).Select(GetItem);
-        public IAsyncEnumerable<Models.Item> GetTopRatedMoviesAsync() => FlattenPages(page => Client.GetMovieTopRatedListAsync(page: page), GetCacheKey).Select(GetItem);
-        public IAsyncEnumerable<Models.Item> GetNowPlayingMoviesAsync() => FlattenPages<SearchMovie>(async page => await Client.GetMovieNowPlayingListAsync(page: page), GetCacheKey).Select(GetItem);
-        public IAsyncEnumerable<Models.Item> GetUpcomingMoviesAsync() => FlattenPages<SearchMovie>(async page => await Client.GetMovieUpcomingListAsync(page: page), GetCacheKey).Select(GetItem);
-
-        public IAsyncEnumerable<Models.Item> GetRecommendedTVShowsAsync() => CacheStream(FlattenPages(WebClient, string.Format("4/account/{0}/tv/recommendations?page={{0}}", AccountID), UserAccessToken), json => GetCacheKey<Models.TVShow>(json)).TrySelect<JsonNode, Models.TVShow>(TryParseTVShow);
-        public IAsyncEnumerable<Models.Item> GetTrendingTVShowsAsync(TimeWindow timeWindow = TimeWindow.Week) => FlattenPages(page => Client.GetTrendingTvAsync(timeWindow, page), GetCacheKey).Select(GetItem);
-        public IAsyncEnumerable<Models.Item> GetPopularTVShowsAsync() => FlattenPages(page => Client.GetTvShowPopularAsync(page), GetCacheKey).Select(GetItem);
-        public IAsyncEnumerable<Models.Item> GetTopRatedTVShowsAsync() => FlattenPages(page => Client.GetTvShowTopRatedAsync(page), GetCacheKey).Select(GetItem);
-        public IAsyncEnumerable<Models.Item> GetTVOnAirAsync() => FlattenPages(page => Client.GetTvShowListAsync(TvShowListType.OnTheAir, page), GetCacheKey).Select(GetItem);
-        public IAsyncEnumerable<Models.Item> GetTVAiringTodayAsync() => FlattenPages(page => Client.GetTvShowListAsync(TvShowListType.AiringToday, page), GetCacheKey).Select(GetItem);
-
-        public IAsyncEnumerable<Models.Item> GetTrendingPeopleAsync(TimeWindow timeWindow = TimeWindow.Week) => FlattenPages(page => Client.GetTrendingPeopleAsync(timeWindow, page), GetCacheKey).Select(GetItem);
-        public IAsyncEnumerable<Models.Item> GetPopularPeopleAsync() => FlattenPages(page => Client.GetPersonListAsync(PersonListType.Popular, page), GetCacheKey).Select(GetItem);
-
         public void HandleInfoRequests(DataManager manager)
         {
             DataManager = manager;
@@ -337,17 +335,17 @@ namespace Movies
                     PosterPath = "harry potter poster"
                 }, "harry potter movies", 8);
                 //yield break;
-                await foreach (var movie in GetTrendingMoviesAsync(TimeWindow.Day))
+                await foreach (var movie in GetTrendingMoviesAsync())
                 {
                     yield return movie;
                 }
 
-                await foreach (var movie in GetTrendingTVShowsAsync(TimeWindow.Day))
+                await foreach (var movie in GetTrendingTVShowsAsync())
                 {
                     yield return movie;
                 }
 
-                await foreach (var movie in GetTrendingPeopleAsync(TimeWindow.Day))
+                await foreach (var movie in GetTrendingPeopleAsync())
                 {
                     yield return movie;
                 }

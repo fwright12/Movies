@@ -111,98 +111,96 @@ namespace Movies.ViewModels
         public ICommand LoadMoreCommand => LazyLoadMoreCommand?.Value;
         public ICommand ToggleSortOrder { get; }
 
-        public static readonly Type NumberPickerType = typeof(SelectorViewModel<double>);
+        //public static readonly Type TimeSpanConstraintType = typeof(Constraint<TimeSpan>);
+
+        public static readonly Type LongPickerType = typeof(SelectorViewModel<long>);
+        public static readonly Type DoublePickerType = typeof(SelectorViewModel<double>);
+        public static readonly Type TimeSpanPickerType = typeof(SelectorViewModel<TimeSpan>);
         public static readonly Type DateTimePickerType = typeof(SelectorViewModel<DateTime>);
-        public static readonly Type StringListType = typeof(SelectorViewModel<ObservableCollection<object>>);
-        public static readonly Type WatchProviderListType = typeof(SelectorViewModel<WatchProvider>);
+        public static readonly Type StringListType = typeof(SelectorViewModel<string>);
+        public static readonly Type WatchProviderListType = typeof(MultiSelectorViewModel<WatchProvider>);
         public static readonly Type PersonListType = typeof(SelectorViewModel<PersonViewModel>);
 
+        public static readonly Property<string> Search = new Property<string>(string.Empty);
+        public static readonly Property<MonetizationType?> MonetizationType = new Property<MonetizationType?>("Monetization Type", GetNames<MonetizationType>());
+        public static readonly Property<PersonViewModel> People = new Property<PersonViewModel>("People", new PeopleSearch());
+
+        public static IEnumerable<T> GetNames<T>() where T : struct, Enum => Enum.GetNames(typeof(T)).Select(name => Enum.Parse<T>(name));
+
+        public class PeopleSearch : Filterable<PersonViewModel>
+        {
+            protected override async IAsyncEnumerable<PersonViewModel> GetItems(List<Constraint> filters)
+            {
+                foreach (var item in await System.Threading.Tasks.Task.FromResult(new List<PersonViewModel> { new PersonViewModel(App.DataManager, MockData.Instance.MatthewM) }))
+                {
+                    yield return item;
+                }
+            }
+        }
+
         public IList<FilterViewModel> Filters { get; }
-        private static ItemPropertyViewModel<ObservableCollection<object>> Genres = new ItemPropertyViewModel<ObservableCollection<object>>(MovieService.GENRES, new DiscreteValueRange<string>(new List<string> { "Action", "Adventure", "Romance", "Comedy", "Thriller", "Mystery", "Sci-Fi", "Horror", "Documentary" }));
         public FiltersViewModel Filter { get; } = new FiltersViewModel
         {
             Selectors =
             {
-                //new ItemPropertyViewModel<string>("Search", string.Empty),
-                new ItemPropertyViewModel<double>(MovieService.RUNTIME, new SteppedValueRange<double, double>(0, double.PositiveInfinity)
+                new SelectorViewModel<TimeSpan>(Media.RUNTIME, Operators.GreaterThan, high: TimeSpan.FromMinutes(180))
                 {
-                    High = 400,
-                    Step = 1
-                }),
-                new SelectorViewModel<ObservableCollection<object>>(Genres, new LiteralViewModel<ObservableCollection<object>>(new Constraint<ObservableCollection<object>>("Genres")
-                {
-                    Value = new ObservableCollection<object>(),
-                    Comparison = Operators.Equal
-                })),
-                new ItemPropertyViewModel<DateTime>(MovieService.RELEASE_DATE, new SteppedValueRange<DateTime, TimeSpan>(DateTime.MinValue, DateTime.MaxValue)
-                {
-                    Low = new DateTime(1900, 1, 1),
-                    High = DateTime.Now.AddYears(1),
-                    Step = TimeSpan.FromDays(1)
-                }),
-                new ItemPropertyViewModel<string>(MovieService.CONTENT_RATING, new DiscreteValueRange<string>(new List<string> { "G", "PG", "PG-13", "R", "NC-17" })),
-                new ItemPropertyViewModel<WatchProvider>(MovieService.WATCH_PROVIDERS, new DiscreteValueRange<WatchProvider>(new List<WatchProvider> { MockData.NetflixStreaming })
+                    Comparable = true,
+                },
+                new MultiSelectorViewModel<string>(Media.GENRES),
+                new SelectorViewModel<DateTime>(Movie.RELEASE_DATE, Operators.GreaterThan, low: new DateTime(1900, 1, 1), high: DateTime.Now.AddYears(1)),
+                new MultiSelectorViewModel<string>(Media.CONTENT_RATING),
+                new MultiSelectorViewModel<WatchProvider>(Media.WATCH_PROVIDERS)
                 {
                     Presets =
                     {
                         new Preset
                         {
                             Text = "On my services",
-                            Value = new Constraint<WatchProvider>(MovieService.WATCH_PROVIDERS)
+                            Value =
                             {
-                                Value = MockData.NetflixStreaming,
-                                Comparison = Operators.Equal
+                                new Constraint(Media.WATCH_PROVIDERS)
+                                {
+                                    Value = MockData.NetflixStreaming,
+                                    Comparison = Operators.Equal
+                                }
                             }
                         }
                     }
-                }),
-                new ItemPropertyViewModel<MonetizationType>("Monetization Type", new DiscreteValueRange<string>(Enum.GetNames(typeof(MonetizationType)))),
-                new ItemPropertyViewModel<PersonViewModel>("People", new DiscreteValueRange<PersonViewModel>(new Collection<PersonViewModel>(PeopleAsync))
+                },
+                new MultiSelectorViewModel<MonetizationType?>(MonetizationType),
+                new SelectorViewModel<PersonViewModel>(People)
                 {
-                    Filters =
+                    IsImmutable = true,
+                    Filter = new FiltersViewModel
                     {
-                        new SearchFilterViewModel { SearchDelay = 1000 }
+                        Selectors =
+                        {
+                            new SelectorViewModel<string>(Search),
+                        }
                     }
-                }),
-                new ItemPropertyViewModel<string>(MovieService.KEYWORDS, new DiscreteValueRange<string>(new Collection<string>(KeywordsAsync))
+                },
+                new SelectorViewModel<string>(Media.KEYWORDS)
                 {
-                    Values =
+                    IsImmutable = true,
+                    Filter = new FiltersViewModel
                     {
-                        "test"
-                    },
-                    Filters =
-                    {
-                        new SearchFilterViewModel { SearchDelay = 1000 }
+                        Selectors =
+                        {
+                            new SelectorViewModel<string>(Search),
+                        }
                     }
-                }),
-                new ItemPropertyViewModel<double>(MovieService.BUDGET, new SteppedValueRange<double, double>(0, double.PositiveInfinity)
+                },
+                new SelectorViewModel<long>(Movie.BUDGET, Operators.GreaterThan, high: 2000000000)
                 {
                     Step = 100000,
-                    High = 2000000000
-                }),
-                new ItemPropertyViewModel<double>(MovieService.REVENUE, new SteppedValueRange<double, double>(0, double.PositiveInfinity)
+                },
+                new SelectorViewModel<long>(Movie.REVENUE, Operators.GreaterThan, high: 2000000000)
                 {
                     Step = 100000,
-                    High = 2000000000
-                }),
+                }
             }
         };
-
-        private static async IAsyncEnumerable<string> KeywordsAsync(List<Constraint> filters)
-        {
-            foreach (var item in await Task.FromResult(App.AdKeywords))
-            {
-                yield return item;
-            }
-        }
-
-        private static async IAsyncEnumerable<PersonViewModel> PeopleAsync(List<Constraint> filters)
-        {
-            foreach (var item in await Task.FromResult(new List<PersonViewModel> { new PersonViewModel(App.DataManager, MockData.Instance.MatthewM) }))
-            {
-                yield return item;
-            }
-        }
 
         public ICommand UpdateDetails { get; }
         public IList SortOptions { get; set; }
@@ -238,7 +236,7 @@ namespace Movies.ViewModels
         private string _Name;
         private bool _Loading;
 
-        private CollectionViewModel(DataManager dataManager, string name, IAsyncEnumerable<Item> items, ItemType? allowedTypes, Item item) : base(dataManager, item)
+        public CollectionViewModel(DataManager dataManager, string name, IAsyncEnumerable<Item> items, ItemType? allowedTypes, Item item) : base(dataManager, item)
         {
             DataManager = dataManager;
             Name = name;
@@ -260,8 +258,17 @@ namespace Movies.ViewModels
                 return new Command<int?>(async count => await Load(count));
             });
 
-            if (allowedTypes.HasValue || true)
+            if (allowedTypes.HasValue)
             {
+                Filter.ValueChanged += UpdateFilters;
+
+                var types = allowedTypes.ToString().Split(',').Select(type => Enum.Parse<ItemType>(type.Trim()));
+                var selector = new MultiSelectorViewModel<ItemType?>(new Property<ItemType?>(nameof(ItemType), types))
+                {
+                    Name = string.Empty
+                };
+                Filter.Selectors.Insert(0, selector);
+
                 var itemType = new ItemTypeFilterViewModel(allowedTypes ?? ItemType.Movie | ItemType.TVShow);
                 itemType.ValueChanged += (sender, e) =>
                 {
@@ -367,7 +374,7 @@ namespace Movies.ViewModels
             }
         }
 
-        private async IAsyncEnumerable<Item> FilterAsync(IEnumerable<Constraint> filters, IAsyncEnumerable<Item> source)
+        private async IAsyncEnumerable<Item> FilterAsync(List<Constraint> filters, IAsyncEnumerable<Item> source)
         {
             await foreach (var item in source)
             {
@@ -380,12 +387,41 @@ namespace Movies.ViewModels
 
         private async Task<bool> Allowed(Item item, IEnumerable<Constraint> filters)
         {
+            var details = Data.GetDetails(item);
+
             foreach (var filter in filters)
             {
-                var value = await DataManager.Request<object>(item, filter.Name);
-                if (!filter.IsAllowed(value))
+                if (filter.Property == null)
                 {
-                    return false;
+                    /*if (!itemType.Value.HasFlag(item.ItemType))
+                    {
+                        return false;
+                    }*/
+
+                    continue;
+                }
+                else if (filter.Property is ReflectedProperty reflected)
+                {
+                    reflected.Info.GetValue(item);
+                }
+                else if (details.TryGetValue(filter.Property, out var task))
+                {
+                    var value = await task;
+
+                    if (value is IComparable comparable)
+                    {
+                        if (comparable.CompareTo(filter.Value) != (int)filter.Comparison)
+                        {
+                            return false;
+                        }
+                    }
+                    else if (filter.Comparison == Operators.Equal)
+                    {
+                        if (!Equals(value, filter.Value))
+                        {
+                            return false;
+                        }
+                    }
                 }
             }
 
@@ -396,9 +432,10 @@ namespace Movies.ViewModels
         {
             if (Item is Collection collection)
             {
-                var filter = Enumerable.Empty<Constraint>().ToList();// Filters.SelectMany(filter => filter.GetFilters()).ToList();
-                var items = collection.GetItems(filter);
-                UpdateItems(FilterAsync(filter, items));
+                var constraints = Enumerable.Empty<Constraint>().ToList();// ((BooleanExpression<Item>)Filter.GetConstraints()).Parts.OfType<Constraint>().ToList();
+                var items = collection.GetItems(constraints);
+                UpdateItems(FilterAsync(constraints, items));
+
                 return;
             }
 

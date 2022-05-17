@@ -2,11 +2,6 @@
 <ResourceDictionary xmlns="http://xamarin.com/schemas/2014/forms"
                     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
                     x:Class="Movies.Defaults">
-    <Style TargetType="ContentView">
-        <Setter Property="CompressedLayout.IsHeadless"
-                Value="True" />
-    </Style>
-
     <Style TargetType="FlexLayout">
         <Setter Property="AlignItems"
                 Value="Center" />

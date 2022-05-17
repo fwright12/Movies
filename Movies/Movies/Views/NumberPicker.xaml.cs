@@ -15,7 +15,7 @@ namespace Movies.Views
         public static readonly BindableProperty ValueProperty = BindableProperty.Create(nameof(Value), typeof(double), typeof(NumberPicker), defaultBindingMode: BindingMode.TwoWay, coerceValue: (bindable, value) =>
         {
             var picker = (NumberPicker)bindable;
-            var coerced = Math.Round((double)value / picker.Step) * picker.Step;
+            var coerced = (double)value;// Math.Round((double)value / picker.Step) * picker.Step;
 
             if (picker.AbsoluteMin.HasValue)
             {
@@ -72,8 +72,11 @@ namespace Movies.Views
 
         public static readonly BindableProperty StepProperty = BindableProperty.Create(nameof(Step), typeof(double), typeof(NumberPicker), 0.1);
 
-        public ICommand StepUpCommand { get; }
+        public static readonly BindableProperty DragStartedCommandProperty = BindableProperty.Create(nameof(DragStartedCommand), typeof(ICommand), typeof(NumberPicker));
 
+        public static readonly BindableProperty DragCompletedCommandProperty = BindableProperty.Create(nameof(DragCompletedCommand), typeof(ICommand), typeof(NumberPicker));
+
+        public ICommand StepUpCommand { get; }
         public ICommand StepDownCommand { get; }
 
         public double Value
@@ -110,6 +113,18 @@ namespace Movies.Views
         {
             get => (double)GetValue(StepProperty);
             set => SetValue(StepProperty, value);
+        }
+
+        public ICommand DragStartedCommand
+        {
+            get => (ICommand)GetValue(DragStartedCommandProperty);
+            set => SetValue(DragStartedCommandProperty, value);
+        }
+
+        public ICommand DragCompletedCommand
+        {
+            get => (ICommand)GetValue(DragCompletedCommandProperty);
+            set => SetValue(DragCompletedCommandProperty, value);
         }
 
         public NumberPicker()

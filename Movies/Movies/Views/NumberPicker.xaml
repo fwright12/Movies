@@ -1,12 +1,43 @@
 ﻿<?xml version="1.0" encoding="UTF-8"?>
 <ContentView xmlns="http://xamarin.com/schemas/2014/forms"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-             x:Class="Movies.Views.NumberPicker">
+             x:Class="Movies.Views.NumberPicker"
+             xmlns:views="clr-namespace:Movies.Views">
+    <VisualElement.Resources>
+        <Style x:Key="NumberPicker"
+               TargetType="BindableObject"
+               ApplyToDerivedTypes="True">
+            <Setter Property="BindingContext"
+                    Value="{Binding Source={RelativeSource AncestorType={x:Type views:NumberPicker}}}" />
+        </Style>
+
+        <Style TargetType="Slider"
+               BasedOn="{StaticResource NumberPicker}">
+            <Setter Property="Maximum"
+                    Value="{Binding Upper}" />
+            <Setter Property="Minimum"
+                    Value="{Binding Lower}" />
+            <Setter Property="views:Extensions.Step"
+                    Value="{Binding Step}" />
+            <Setter Property="Value"
+                    Value="{Binding Value, Mode=OneWayToSource}" />
+        </Style>
+
+        <Style TargetType="Entry"
+               BasedOn="{StaticResource NumberPicker}">
+            <Setter Property="Text"
+                    Value="{Binding Value, Mode=TwoWay}" />
+            <Setter Property="Keyboard"
+                    Value="Numeric" />
+        </Style>
+    </VisualElement.Resources>
+
     <TemplatedView.ControlTemplate>
-        <ControlTemplate>
+        <ControlTemplate x:DataType="views:NumberPicker">
             <StackLayout Orientation="Vertical">
                 <Slider Maximum="{TemplateBinding Upper}"
                         Minimum="{TemplateBinding Lower}"
+                        views:Extensions.Step="{TemplateBinding Step}"
                         Value="{TemplateBinding Value}" />
 
                 <FlexLayout Direction="Row"

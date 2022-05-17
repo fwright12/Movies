@@ -143,7 +143,6 @@ namespace Movies
             MovieExplore = new List<object>()
             {
                 new CollectionViewModel(DataManager, "Trending", MockData.Instance.GetTrending()),
-                new CollectionViewModel(DataManager, "Test", null),
                 new CollectionViewModel(DataManager, "Recommended", MockData.Instance.GetRecommended()),
                 new CollectionViewModel(DataManager, "In Theaters", MockData.Instance.GetInTheaters()),
                 new CollectionViewModel(DataManager, "Upcoming", MockData.Instance.GetUpcoming())
@@ -489,22 +488,41 @@ namespace Movies
             }
         }
 
-        private CollectionViewModel GetPopular() => new CollectionViewModel(DataManager, null, DataManager.Search(), ItemType.Movie | ItemType.TVShow | ItemType.Person | ItemType.Collection)// | ItemType.Company)
+        private CollectionViewModel GetPopular()
         {
-            ListLayout = CollectionViewModel.Layout.Grid,
-            SortOptions = new List<string> { "Popularity", "Release Date", "Revenue", "Original Title", "Vote Average", "Vote Count" },
-            /*Filters =
+#if DEBUG
+            var db = new MockData.DB();
+            var collection = new CollectionViewModel(DataManager, null, db, ItemType.Movie | ItemType.TVShow | ItemType.Person | ItemType.Collection, db)// | ItemType.Company)
             {
-                new StringFilterViewModel
+                ListLayout = CollectionViewModel.Layout.Grid,
+                SortOptions = new List<string> { "Popularity", "Release Date", "Revenue", "Original Title", "Vote Average", "Vote Count" },
+            };
+
+            collection.Filter.Selectors.Insert(0, new SelectorViewModel<string>(CollectionViewModel.Search)
+            {
+                Name = string.Empty
+            });
+
+            return collection;
+#else
+            return new CollectionViewModel(DataManager, null, DataManager.Search(), ItemType.Movie | ItemType.TVShow | ItemType.Person | ItemType.Collection)// | ItemType.Company)
+            {
+                ListLayout = CollectionViewModel.Layout.Grid,
+                SortOptions = new List<string> { "Popularity", "Release Date", "Revenue", "Original Title", "Vote Average", "Vote Count" },
+                /*Filters =
                 {
-                    Options = new List<string> { "Action", "Adventure", "Romance", "Comedy", "Thriller", "Mystery", "Sci-Fi", "Horror", "Documentary" }
-                },
-                new StringFilterViewModel
-                {
-                    Options = new List<string> { "G", "PG", "PG-13", "R", "NC-17" }
-                }
-            }*/
-        };
+                    new StringFilterViewModel
+                    {
+                        Options = new List<string> { "Action", "Adventure", "Romance", "Comedy", "Thriller", "Mystery", "Sci-Fi", "Horror", "Documentary" }
+                    },
+                    new StringFilterViewModel
+                    {
+                        Options = new List<string> { "G", "PG", "PG-13", "R", "NC-17" }
+                    }
+                }*/
+            };
+#endif
+        }
 
         private bool TryGetProvider<T>(string name, out T provider)
         {
@@ -1647,7 +1665,8 @@ namespace Movies.Views
 
         public static readonly BindableProperty StepProperty = BindableProperty.CreateAttached("Step", typeof(double), typeof(Slider), null, defaultValueCreator: bindable =>
         {
-            ((Slider)bindable).ValueChanged += CoerceSliderValue;
+            ((Slider)bindable).DragStarted += (sender, e) => ((Slider)sender).ValueChanged += CoerceSliderValue;
+            ((Slider)bindable).DragCompleted += (sender, e) => ((Slider)sender).ValueChanged -= CoerceSliderValue;
             return 1.0;
         });
 

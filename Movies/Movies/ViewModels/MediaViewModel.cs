@@ -105,9 +105,15 @@ namespace Movies.ViewModels
         protected abstract MediaService<TItem> MediaService { get; }
 
         public string Tagline => RequestSingle(MediaService.TaglineRequested);
+#if DEBUG
+        public string Description => RequestSingle(Media.DESCRIPTION);
+        public string ContentRating => RequestSingle(MediaService.ContentRatingRequested);
+        public TimeSpan? Runtime => RequestSingle(Media.RUNTIME);
+#else
         public string Description => RequestSingle(MediaService.DescriptionRequested);
         public string ContentRating => RequestSingle(MediaService.ContentRatingRequested);
         public TimeSpan? Runtime => RequestSingle(MediaService.RuntimeRequested);
+#endif
         public string OriginalTitle => RequestSingle(MediaService.OriginalTitleRequested);
         public string OriginalLanguage => RequestSingle(MediaService.OriginalLanguageRequested);
         public IEnumerable<string> Languages => RequestSingle(MediaService.LanguagesRequested);

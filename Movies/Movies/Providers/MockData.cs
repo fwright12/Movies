@@ -141,7 +141,23 @@ namespace Movies
             },
             [1] = new Dictionary<string, object>
             {
-                [nameof(MovieViewModel.Description)] = "Also a good movie Also a good movie Also a good movie Also a good movie Also a good movie Also a good movie Also a good movie Also a good movie Also a good movie Also a good movie Also a good movie Also a good movie Also a good movie"
+                [nameof(MovieViewModel.Description)] = "Also a good movie Also a good movie Also a good movie Also a good movie Also a good movie Also a good movie Also a good movie Also a good movie Also a good movie Also a good movie Also a good movie Also a good movie Also a good movie",
+                [nameof(MovieViewModel.Ratings)] = new Rating
+                {
+                    Company = TMDb,
+                    Score = 0.0,
+                    Reviews = new AsyncList<Review>
+                    {
+                        new Review
+                        {
+                            Author = "Author",
+                            Content = "What a good movie"
+                        },
+                        new Review{ },
+                        new Review{ },
+                        new Review{ },
+                    }
+                },
             }
         };
 
@@ -156,6 +172,22 @@ namespace Movies
                 [nameof(TVShowViewModel.ContentRating)] = "TV-14",
                 [nameof(TVShowViewModel.Runtime)] = TimeSpan.FromMinutes(21),
                 [nameof(TVShowViewModel.Genres)] = new List<string> { "Comedy", "Mockumentary" },
+                [nameof(MovieViewModel.Ratings)] = new Rating
+                {
+                    Company = TMDb,
+                    Score = 9.0,
+                    Reviews = new AsyncList<Review>
+                    {
+                        new Review
+                        {
+                            Author = "Author",
+                            Content = "What a good movie"
+                        },
+                        new Review{ },
+                        new Review{ },
+                        new Review{ },
+                    }
+                },
             }
         };
 
@@ -281,6 +313,14 @@ namespace Movies
                 }
 
                 await Task.CompletedTask;
+            }
+        }
+
+        public class DB : Collection
+        {
+            public override IAsyncEnumerable<Item> GetItems(List<Constraint> filters)
+            {
+                return Instance.GetTrending();
             }
         }
 

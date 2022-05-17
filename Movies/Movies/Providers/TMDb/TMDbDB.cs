@@ -9,11 +9,42 @@ using TMDbLib.Objects.People;
 using TMDbLib.Objects.Search;
 using System.Net.Http;
 using System.Text.Json.Nodes;
+using System.Threading.Tasks;
 
 namespace Movies
 {
     public partial class TMDB
     {
+        private static async IAsyncEnumerable<JsonNode> Merge(IEnumerable<IAsyncEnumerable<JsonNode>> sources, string property, Func<JsonNode, IComparable> parse, int order = -1)
+        {
+            var itrs = sources.Select(source => source.GetAsyncEnumerator()).ToList();
+            await Task.WhenAll(itrs.Select(itr => itr.MoveNextAsync().AsTask()));
+            //IComparable[] values = await Task.WhenAll(itrs.Select(itr => byValue(itr.Current)));
+
+            while (itrs.Count > 0)
+            {
+                int index = 0;
+                for (int i = 1; i < itrs.Count; i++)
+                {
+                    //var method = typeof(JsonNode).GetMethod(nameof(JsonNode.GetValue)).MakeGenericMethod(typeof(int));
+
+                    var first = itrs[i].Current[property];
+                    var second = itrs[index].Current[property];
+                    if (first != null && second != null && parse(first).CompareTo(parse(second)) == order)
+                    {
+                        index = i;
+                    }
+                }
+
+                yield return itrs[index].Current;
+
+                if (!await itrs[index].MoveNextAsync())
+                {
+                    itrs.RemoveAt(index);
+                }
+            }
+
+        }
         public class Database : Collection, ISearchable
         {
             private TMDbClient Client;
@@ -40,11 +71,12 @@ namespace Movies
                 IAsyncEnumerable<Item> results = null;
                 DataManager.SearchEventArgs e = new DataManager.SearchEventArgs();
                 string query = null;
-                var itemType = filters.OfType<Constraint<ItemType>>().FirstOrDefault();
+                ItemType? itemType = null;
+                //var itemType = filters.Where(constraint => false).FirstOrDefault();
 
                 if (itemType != null)
                 {
-                    filters.Remove(itemType);
+                    //filters.Remove(itemType);
                 }
 
                 if (!string.IsNullOrEmpty(e.Query))
@@ -58,7 +90,7 @@ namespace Movies
                         if (itemType.Value.HasFlag(ItemType.Company))
                         {
                             endpoint = "search/company";
-                            parse = items => items.TrySelect<JsonNode, Company>(TryParseCompany);
+                            //parse = items => items.Select(TryParseCompany);
                         }
                         else if (itemType.Value == ItemType.Movie)
                         {
@@ -81,63 +113,52 @@ namespace Movies
                 }
                 else
                 {
-                    DiscoverMovieSortBy movieSort = DiscoverMovieSortBy.Undefined;
-                    DiscoverTvShowSortBy tvSort = DiscoverTvShowSortBy.Undefined;
-                    bool personSort = false;
-                    Func<object, IComparable> compare = null;
+                    Func<JsonNode, IComparable> parse = null;
 
                     if (e.SortBy == "Popularity" || e.SortBy == null)
                     {
-                        movieSort = e.SortAscending ? DiscoverMovieSortBy.Popularity : DiscoverMovieSortBy.PopularityDesc;
-                        tvSort = e.SortAscending ? DiscoverTvShowSortBy.Popularity : DiscoverTvShowSortBy.PopularityDesc;
-                        personSort = true;
-                        compare = item => (item as SearchMovieTvBase)?.Popularity ?? (item as PersonResult)?.Popularity;
+                        parse = node => node.GetValue<int>();
                     }
                     else if (e.SortBy == "Release Date")
                     {
-                        movieSort = e.SortAscending ? DiscoverMovieSortBy.ReleaseDate : DiscoverMovieSortBy.ReleaseDateDesc;
-                        tvSort = e.SortAscending ? DiscoverTvShowSortBy.FirstAirDate : DiscoverTvShowSortBy.FirstAirDateDesc;
-                        compare = item => item is SearchMovie movie ? movie.ReleaseDate : ((SearchTv)item).FirstAirDate;
+                        parse = node => node.GetValue<DateTime>();
                     }
                     else if (e.SortBy == "Revenue")
                     {
-                        movieSort = e.SortAscending ? DiscoverMovieSortBy.Revenue : DiscoverMovieSortBy.RevenueDesc;
+                        parse = node => node.GetValue<long>();
                     }
                     else if (e.SortBy == "Original Title")
                     {
-                        movieSort = e.SortAscending ? DiscoverMovieSortBy.OriginalTitle : DiscoverMovieSortBy.OriginalTitleDesc;
+                        parse = node => node.GetValue<string>();
                     }
                     else if (e.SortBy == "Vote Average")
                     {
-                        movieSort = e.SortAscending ? DiscoverMovieSortBy.VoteAverage : DiscoverMovieSortBy.VoteAverageDesc;
-                        tvSort = e.SortAscending ? DiscoverTvShowSortBy.VoteAverage : DiscoverTvShowSortBy.VoteAverageDesc;
-                        compare = item => ((SearchMovieTvBase)item).VoteAverage;
+                        parse = node => node.GetValue<double>();
                     }
                     else if (e.SortBy == "Vote Count")
                     {
-                        movieSort = e.SortAscending ? DiscoverMovieSortBy.VoteCount : DiscoverMovieSortBy.VoteCountDesc;
-                        compare = item => ((SearchMovieTvBase)item).VoteCount;
+                        parse = node => node.GetValue<int>();
                     }
 
                     var filterType = itemType != null;
                     var types = (filterType ? itemType.Value : ItemType.Movie | ItemType.TVShow | ItemType.Person).ToString();
 
-                    var sources = new List<IAsyncEnumerable<object>>();
+                    var sources = new List<IAsyncEnumerable<JsonNode>>();
 
-                    if (!filterType || itemType.Value.HasFlag(ItemType.Movie))
+                    if (GetMovieSortParameter(e.SortBy, e.SortAscending) is string sortMovie && (!filterType || itemType.Value.HasFlag(ItemType.Movie)))
                     {
-                        sources.Add(FlattenPages(WebClient, BuildPagedApiCall("discover/movie", GetDiscoverMovieParameters(filters))).TrySelect<JsonNode, Movie>(TryParseMovie));
+                        sources.Add(FlattenPages(WebClient, BuildPagedApiCall("discover/movie", sortMovie, GetDiscoverMovieParameters(filters))));
                     }
                     if (!filterType || itemType.Value.HasFlag(ItemType.TVShow))
                     {
-                        sources.Add(FlattenPages(WebClient, BuildPagedApiCall("discover/tv", DiscoverTVParameters(filters))).TrySelect<JsonNode, TVShow>(TryParseTVShow1));
+                        sources.Add(FlattenPages(WebClient, BuildPagedApiCall("discover/tv", DiscoverTVParameters(filters))));
                     }
                     if (!filterType || itemType.Value.HasFlag(ItemType.Movie))
                     {
-                        sources.Add(FlattenPages(WebClient, BuildPagedApiCall("person/popular")).TrySelect<JsonNode, Models.Person>(TryParsePerson));
+                        sources.Add(FlattenPages(WebClient, BuildPagedApiCall("person/popular")));
                     }
 
-                    foreach (var type1 in types.Split(","))
+                    /*foreach (var type1 in types.Split(","))
                     {
                         var type = type1.Trim();
 
@@ -160,9 +181,9 @@ namespace Movies
                             sources.Clear();
                             break;
                         }
-                    }
+                    }*/
 
-                    var sorted = sources.Count == 1 ? sources[0] : Merge(sources, compare, e.SortAscending ? -1 : 1);
+                    var sorted = sources.Count == 1 ? sources[0] : Merge(sources, e.SortBy, parse, e.SortAscending ? -1 : 1);
                     results = sorted.TrySelect<object, Item>((object item, out Item result) =>
                     {
                         if (item is SearchMovie movie) result = GetItem(movie);
@@ -184,24 +205,29 @@ namespace Movies
                 }
             }
 
+            private string GetMovieSortParameter(string property, bool ascending)
+            {
+                return string.Format("{0}={1}.{2}", "sort_by", property, ascending ? "asc" : "desc");
+            }
+
             private static readonly Dictionary<string, Dictionary<int, string>> DiscoverMovieParameters = new Dictionary<string, Dictionary<int, string>>
             {
                 ["Certification Country"] = new Dictionary<int, string>
                 {
                     [0] = "certification_country",
                 },
-                [MovieService.CONTENT_RATING] = new Dictionary<int, string>
+                [Media.CONTENT_RATING.Name] = new Dictionary<int, string>
                 {
                     [-1] = "certification.lte",
                     [0] = "certification",
                     [1] = "certification.gte"
                 },
-                ["Primary " + MovieService.RELEASE_DATE] = new Dictionary<int, string>
+                ["Primary " + Movie.RELEASE_DATE.Name] = new Dictionary<int, string>
                 {
                     [-1] = "primary_release_date.lte",
                     [1] = "primary_release_date.gte"
                 },
-                [MovieService.RELEASE_DATE] = new Dictionary<int, string>
+                [Movie.RELEASE_DATE.Name] = new Dictionary<int, string>
                 {
                     [-1] = "release_date.lte",
                     [1] = "release_date.gte"
@@ -220,46 +246,46 @@ namespace Movies
                     [-1] = "vote_average.lte",
                     [1] = "vote_average.gte"
                 },
-                [MovieService.CAST] = new Dictionary<int, string>
+                [Media.CAST.Name] = new Dictionary<int, string>
                 {
                     [0] = "with_cast",
                 },
-                [MovieService.CREW] = new Dictionary<int, string>
+                [Media.CREW.Name] = new Dictionary<int, string>
                 {
                     [0] = "with_crew",
                 },
-                [MovieService.CAST + " + " + MovieService.CREW] = new Dictionary<int, string>
+                [Media.CAST.Name + " + " + Media.CREW.Name] = new Dictionary<int, string>
                 {
                     [0] = "with_people",
                 },
-                [MovieService.PRODUCTION_COMPANIES] = new Dictionary<int, string>
+                [Media.PRODUCTION_COMPANIES.Name] = new Dictionary<int, string>
                 {
                     [-1] = "without_companies",
                     [0] = "with_companies",
                     [1] = "without_companies",
                 },
-                [MovieService.GENRES] = new Dictionary<int, string>
+                [Media.GENRES.Name] = new Dictionary<int, string>
                 {
                     [-1] = "without_genres",
                     [0] = "with_genres",
                     [1] = "without_genres",
                 },
-                [MovieService.KEYWORDS] = new Dictionary<int, string>
+                [Media.KEYWORDS.Name] = new Dictionary<int, string>
                 {
                     [-1] = "without_keywords",
                     [0] = "with_keywords",
                     [1] = "without_keywords",
                 },
-                [MovieService.RUNTIME] = new Dictionary<int, string>
+                [Media.RUNTIME.Name] = new Dictionary<int, string>
                 {
                     [-1] = "with_runtime.lte",
                     [1] = "with_runtime.gte"
                 },
-                [MovieService.OriginalLanguage] = new Dictionary<int, string>
+                [Media.ORIGINAL_LANGUAGE.Name] = new Dictionary<int, string>
                 {
                     [0] = "with_original_language",
                 },
-                [MovieService.WATCH_PROVIDERS] = new Dictionary<int, string>
+                [Media.WATCH_PROVIDERS.Name] = new Dictionary<int, string>
                 {
                     [0] = "with_watch_providers",
                 },
@@ -281,7 +307,7 @@ namespace Movies
                 {
                     var filter = filters[i];
 
-                    if (DiscoverMovieParameters.TryGetValue(filter.Name, out var options) && options.TryGetValue((int)filter.Comparison, out var parameter))
+                    if (DiscoverMovieParameters.TryGetValue(filter.Property.Name, out var options) && options.TryGetValue((int)filter.Comparison, out var parameter))
                     {
                         parameters.Add(string.Format("{0}={1}", parameter, filter.Value));
                         filters.RemoveAt(i--);

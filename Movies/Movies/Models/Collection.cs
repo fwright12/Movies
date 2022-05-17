@@ -15,6 +15,23 @@ namespace Movies.Models
         IAsyncEnumerable<Item> Search(string query);
     }
 
+    public interface IFilterable<T> : IAsyncEnumerable<T>
+    {
+        IAsyncEnumerable<T> GetItems(List<Constraint> filters);
+    }
+
+    public abstract class Filterable<T> : ViewModels.AsyncObservableCollection<T>
+    {
+        public void ApplyFilters(List<Constraint> filters)
+        {
+            Reset(GetItems(filters));
+        }
+
+        protected abstract IAsyncEnumerable<T> GetItems(List<Constraint> filters);
+
+        public IAsyncEnumerator<T> GetAsyncEnumerator(CancellationToken cancellationToken = default) => GetItems(new List<Constraint>()).GetAsyncEnumerator();
+    }
+
     public class Collection : Item, IAsyncEnumerable<Item>
     {
         public string Description { get; set; }
