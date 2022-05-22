@@ -131,10 +131,10 @@ namespace Movies
             TMDB tmdb = new TMDB(TMDB_API_KEY, TMDB_V4_BEARER);
             Trakt trakt = new Trakt(tmdb, TRAKT_CLIENT_ID, TRAKT_CLIENT_SECRET);
 
-            tmdb.Company.LogoPath = ImageSource.FromResource("Movies.Logos.TMDbLogo.png");
-            trakt.Company.LogoPath = ImageSource.FromResource("Movies.Logos.TraktLogo.png");
+            tmdb.Company.LogoPath ??= ImageSource.FromResource("Movies.Logos.TMDbLogo.png");
+            trakt.Company.LogoPath ??= ImageSource.FromResource("Movies.Logos.TraktLogo.png");
 
-#if DEBUG && true
+#if DEBUG && false
             LocalDatabase = new Database(MockData.Instance, MockData.IDKey);
 
             DataManager.AddDataSource(MockData.Instance);
@@ -488,6 +488,11 @@ namespace Movies
             }
         }
 
+        private static string SerializeConstraints(IEnumerable<Constraint> constraints)
+        {
+            return System.Text.Json.JsonSerializer.Serialize(constraints);
+        }
+
         private CollectionViewModel GetPopular()
         {
 #if DEBUG
@@ -502,6 +507,11 @@ namespace Movies
             {
                 Name = string.Empty
             });
+            
+            collection.Filter.ValueChanged += (sender, e) =>
+            {
+                //Print.Log(SerializeConstraints(e.Value));
+            };
 
             return collection;
 #else

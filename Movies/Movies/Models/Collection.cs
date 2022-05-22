@@ -20,7 +20,12 @@ namespace Movies.Models
         IAsyncEnumerable<T> GetItems(List<Constraint> filters);
     }
 
-    public abstract class Filterable<T> : ViewModels.AsyncObservableCollection<T>
+    public interface CanFilter
+    {
+        void ApplyFilters(List<Constraint> filters);
+    }
+
+    public abstract class Filterable<T> : ViewModels.AsyncObservableCollection<T>, CanFilter
     {
         public void ApplyFilters(List<Constraint> filters)
         {

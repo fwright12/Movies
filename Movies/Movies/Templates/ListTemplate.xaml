@@ -114,7 +114,7 @@
                                      x:Name="parent">
                             <Layout.Padding>
                                 <MultiBinding Converter="{Static forms:ThicknessConverter.Instance}"
-                                              ConverterParameter="horizontal, vertical">
+                                              ConverterParameter="horizontal, bottom">
                                     <Binding Source="{StaticResource PagePadding}" />
                                     <Binding Path="CornerRadius"
                                              Source="{RelativeSource AncestorType={x:Type Frame}}"
@@ -194,23 +194,55 @@
                 </forms:TypeTemplateSelector.Templates>
             </forms:TypeTemplateSelector>
 
-            <ControlTemplate x:Key="ConstraintTemplate">
-                <Frame BindingContext="{TemplateBinding BindingContext}"
-                       CornerRadius="10"
-                       BorderColor="{StaticResource Primary}"
-                       Padding="5">
-                    <StackLayout Orientation="Horizontal">
-                        <ContentPresenter />
+            <Style x:Key="ConstraintStyle"
+                   TargetType="Frame">
+                <Setter Property="CornerRadius"
+                        Value="10" />
+                <Setter Property="BorderColor"
+                        Value="{StaticResource Primary}" />
+                <Setter Property="Padding"
+                        Value="5" />
+                <Setter Property="Margin"
+                        Value="3" />
+                <Setter Property="ControlTemplate">
+                    <ControlTemplate>
+                        <StackLayout BindingContext="{TemplateBinding BindingContext}"
+                                     Orientation="Horizontal">
+                            <ContentPresenter />
 
-                        <Label Text="x">
-                            <View.GestureRecognizers>
-                                <TapGestureRecognizer Command="{Binding RemoveConstraintCommand, Source={RelativeSource AncestorType={x:Type viewmodels:BooleanExpressionViewModel}}}"
-                                                      CommandParameter="{Binding}" />
-                            </View.GestureRecognizers>
-                        </Label>
+                            <Label Text="x">
+                                <View.GestureRecognizers>
+                                    <TapGestureRecognizer Command="{Binding RemoveConstraintCommand, Source={RelativeSource AncestorType={x:Type viewmodels:BooleanExpressionViewModel}}}"
+                                                          CommandParameter="{Binding}" />
+                                </View.GestureRecognizers>
+                            </Label>
+                        </StackLayout>
+                    </ControlTemplate>
+                </Setter>
+            </Style>
+
+            <DataTemplate x:Key="ConstraintTemplate">
+                <Frame IsVisible="{Binding IsShowing}"
+                       Style="{StaticResource ConstraintStyle}">
+                    <StackLayout Orientation="Horizontal">
+                        <Label Text="{Binding Constraint.Property.Name, StringFormat='{0}: '}"
+                               IsVisible="{Binding ShowLabel}" />
+
+                        <Label BindingContext="{Binding Comparison}"
+                               Style="{StaticResource NumberComparisonStyle}"
+                               IsVisible="{Binding ShowOperator, Source={RelativeSource AncestorType={x:Type viewmodels:ConstraintViewModel}}}" />
+
+                        <ContentView ext:ContentView.ItemSource="{Binding}"
+                                     ext:ContentView.ContentTemplate="{StaticResource ConstraintTemplateSelector}" />
                     </StackLayout>
                 </Frame>
-            </ControlTemplate>
+            </DataTemplate>
+
+            <DataTemplate x:Key="PresetDisplayTemplate">
+                <Frame Style="{StaticResource ConstraintStyle}">
+                    <Label Text="{Binding Text}" />
+                </Frame>
+            </DataTemplate>
 
             <Style x:Key="NumberComparisonStyle"
                    TargetType="Label">
@@ -279,51 +311,23 @@
                 </Style.Triggers>
             </Style>
 
-            <ControlTemplate x:Key="ComparableConstraintTemplate">
-                <StackLayout BindingContext="{TemplateBinding BindingContext}"
-                             Orientation="Horizontal">
-                    <Label BindingContext="{Binding Comparison}"
-                           Style="{StaticResource NumberComparisonStyle}" />
-
-                    <ContentPresenter />
-                </StackLayout>
-            </ControlTemplate>
-
             <DataTemplate x:Key="TimeSpanConstraintTemplate">
-                <ContentView ControlTemplate="{StaticResource ConstraintTemplate}">
-                    <ContentView ControlTemplate="{StaticResource ComparableConstraintTemplate}">
-                        <Label Text="{Binding Value, Converter={Static movies:HrMinConverter.Instance}}" />
-                    </ContentView>
-                </ContentView>
+                <Label Text="{Binding Value, Converter={Static movies:HrMinConverter.Instance}}" />
             </DataTemplate>
 
             <DataTemplate x:Key="DateTimeConstraintTemplate">
-                <ContentView ControlTemplate="{StaticResource ConstraintTemplate}">
-                    <ContentView ControlTemplate="{StaticResource ComparableConstraintTemplate}">
-                        <Label Text="{Binding Value, StringFormat='{0:MMM d, yyyy}'}" />
-                    </ContentView>
-                </ContentView>
+                <Label Text="{Binding Value, StringFormat='{0:d}'}" />
             </DataTemplate>
 
             <DataTemplate x:Key="MoneyConstraintTemplate">
-                <ContentView ControlTemplate="{StaticResource ConstraintTemplate}">
-                    <ContentView ControlTemplate="{StaticResource ComparableConstraintTemplate}">
-                        <Label Text="{Binding Value, StringFormat='{0:C}'}" />
-                    </ContentView>
-                </ContentView>
+                <Label Text="{Binding Value, Converter={Static viewmodels:BigCurrencyConverter.Instance}}" />
             </DataTemplate>
 
             <DataTemplate x:Key="DefaultConstraintTemplate">
-                <ContentView ControlTemplate="{StaticResource ConstraintTemplate}">
-                    <Label Text="{Binding Value}" />
-                </ContentView>
+                <Label Text="{Binding Value}" />
             </DataTemplate>
 
-            <DataTemplate x:Key="PresetDisplayTemplate">
-                <Label Text="{Binding Text}" />
-            </DataTemplate>
-
-            <viewmodels:ConstraintTemplateSelector x:Key="BooleanTemplateSelector"
+            <viewmodels:ConstraintTemplateSelector x:Key="ConstraintTemplateSelector"
                                                    MoneyValueTemplate="{StaticResource MoneyConstraintTemplate}">
                 <forms:TypeTemplateSelector.Templates>
                     <forms:TypeDataTemplate Type="{x:Type x:TimeSpan}"
@@ -336,6 +340,15 @@
                                             Template="{StaticResource DefaultConstraintTemplate}" />
                 </forms:TypeTemplateSelector.Templates>
             </viewmodels:ConstraintTemplateSelector>
+
+            <forms:TypeTemplateSelector x:Key="BooleanTemplateSelector">
+                <forms:TypeTemplateSelector.Templates>
+                    <forms:TypeDataTemplate Type="{x:Type viewmodels:ConstraintViewModel}"
+                                            Template="{StaticResource ConstraintTemplate}" />
+                    <forms:TypeDataTemplate Type="{x:Type viewmodels:Preset}"
+                                            Template="{StaticResource PresetDisplayTemplate}" />
+                </forms:TypeTemplateSelector.Templates>
+            </forms:TypeTemplateSelector>
 
             <ControlTemplate x:Key="CompareControlTemplate">
                 <StackLayout BindingContext="{TemplateBinding BindingContext}"
@@ -363,6 +376,15 @@
                 </StackLayout>
             </ControlTemplate>
 
+            <x:Int32 x:Key="zero">0</x:Int32>
+
+            <Style x:Key="HideIfNoChildrenStyle"
+                   TargetType="Layout"
+                   ApplyToDerivedTypes="True">
+                <Setter Property="IsVisible"
+                        Value="{Binding Children.Count, Source={RelativeSource Self}, Converter={Static forms:ObjectToFalseConverter.Instance}, ConverterParameter={StaticResource zero}}" />
+            </Style>
+
             <DataTemplate x:Key="SelectorTemplate">
                 <views:SectionView Title="{Binding Name}">
                     <views:SectionView.Header>
@@ -384,7 +406,8 @@
 
                     <StackLayout Orientation="Vertical">
                         <StackLayout Orientation="Vertical"
-                                     BindableLayout.ItemsSource="{Binding Presets}">
+                                     BindableLayout.ItemsSource="{Binding Presets}"
+                                     Style="{StaticResource HideIfNoChildrenStyle}">
                             <BindableLayout.ItemTemplate>
                                 <DataTemplate x:DataType="viewmodels:Preset">
                                     <views:LabeledContentView Label="{Binding Text}"
@@ -397,80 +420,77 @@
 
                         <StackLayout Orientation="Vertical"
                                      BindableLayout.ItemsSource="{Binding Filter.Selectors}"
-                                     BindableLayout.ItemTemplate="{StaticResource SelectorTemplate}" />
+                                     BindableLayout.ItemTemplate="{StaticResource SelectorTemplate}"
+                                     Style="{StaticResource HideIfNoChildrenStyle}" />
 
                         <ContentView ext:ContentView.ItemSource="{Binding}"
                                      ext:ContentView.ContentTemplate="{StaticResource SelectorTemplateSelector}"
-                                     HorizontalOptions="FillAndExpand"
-                                     CompressedLayout.IsHeadless="False">
-                            <VisualElement.Triggers>
-                                <DataTrigger TargetType="ContentView"
-                                             Binding="{Binding Comparable, FallbackValue='False'}"
-                                             Value="True">
-                                    <Setter Property="ControlTemplate"
-                                            Value="{StaticResource CompareControlTemplate}" />
-                                </DataTrigger>
-                            </VisualElement.Triggers>
-                        </ContentView>
+                                     HorizontalOptions="FillAndExpand" />
                     </StackLayout>
                 </views:SectionView>
             </DataTemplate>
 
             <DataTemplate x:Key="NumberPickerTemplate">
-                <views:NumberPicker Value="{Binding Constraint.Value}"
-                                    Lower="{Binding Low, Mode=TwoWay}"
-                                    Upper="{Binding High, Mode=TwoWay}"
-                                    AbsoluteMin="{Binding Property.Values.LowerBound}"
-                                    AbsoluteMax="{Binding Property.Values.UpperBound}"
-                                    Step="{Binding Property.Values.Step, FallbackValue=1}" />
+                <ContentView ControlTemplate="{StaticResource CompareControlTemplate}">
+                    <views:NumberPicker Value="{Binding Constraint.Value}"
+                                        Lower="{Binding Low, Mode=TwoWay}"
+                                        Upper="{Binding High, Mode=TwoWay}"
+                                        AbsoluteMin="{Binding Property.Values.First}"
+                                        AbsoluteMax="{Binding Property.Values.Last}"
+                                        Step="{Binding Step, FallbackValue=1}" />
+                </ContentView>
             </DataTemplate>
 
             <DataTemplate x:Key="TimeSpanPickerTemplate">
-                <views:NumberPicker Value="{Binding Constraint.Value, Converter={Static viewmodels:TimeSpanConverter.Instance}}"
-                                    Lower="{Binding Low, Converter={Static viewmodels:TimeSpanConverter.Instance}, Mode=TwoWay}"
-                                    Upper="{Binding High, Converter={Static viewmodels:TimeSpanConverter.Instance}, Mode=TwoWay}"
-                                    AbsoluteMin="{Binding Property.Values.LowerBound, Converter={Static viewmodels:TimeSpanConverter.Instance}}"
-                                    AbsoluteMax="{Binding Property.Values.UpperBound, Converter={Static viewmodels:TimeSpanConverter.Instance}}"
-                                    Step="{Binding Property.Values.Step, Converter={Static viewmodels:TimeSpanConverter.Instance}, FallbackValue=1}" />
+                <ContentView ControlTemplate="{StaticResource CompareControlTemplate}">
+                    <views:NumberPicker Value="{Binding Constraint.Value, Converter={Static viewmodels:TimeSpanMinutesConverter.Instance}}"
+                                        Lower="{Binding Low, Converter={Static viewmodels:TimeSpanMinutesConverter.Instance}, Mode=TwoWay}"
+                                        Upper="{Binding High, Converter={Static viewmodels:TimeSpanMinutesConverter.Instance}, Mode=TwoWay}"
+                                        AbsoluteMin="{Binding Property.Values.First, Converter={Static viewmodels:TimeSpanMinutesConverter.Instance}}"
+                                        AbsoluteMax="{Binding Property.Values.Last, Converter={Static viewmodels:TimeSpanMinutesConverter.Instance}}"
+                                        Step="{Binding Step, Converter={Static viewmodels:TimeSpanMinutesConverter.Instance}, FallbackValue=1}" />
+                </ContentView>
             </DataTemplate>
 
             <DataTemplate x:Key="DateTimePickerTemplate">
-                <StackLayout Orientation="Vertical">
-                    <VisualElement.Resources>
-                        <Style x:Key="MonthPickerStyle"
-                               TargetType="views:NumberPicker">
-                            <Setter Property="Value"
-                                    Value="{Binding Month}" />
-                            <Setter Property="Lower"
-                                    Value="0" />
-                            <Setter Property="Upper"
-                                    Value="12" />
-                        </Style>
+                <ContentView ControlTemplate="{StaticResource CompareControlTemplate}">
+                    <StackLayout Orientation="Vertical">
+                        <VisualElement.Resources>
+                            <Style x:Key="MonthPickerStyle"
+                                   TargetType="views:NumberPicker">
+                                <Setter Property="Value"
+                                        Value="{Binding Month}" />
+                                <Setter Property="Lower"
+                                        Value="0" />
+                                <Setter Property="Upper"
+                                        Value="12" />
+                            </Style>
 
-                        <Style x:Key="DayPickerStyle"
-                               TargetType="views:NumberPicker">
-                            <Setter Property="Value"
-                                    Value="{Binding Day}" />
-                            <Setter Property="Lower"
-                                    Value="0" />
-                            <Setter Property="Upper"
-                                    Value="{Binding DaysInMonth}" />
-                        </Style>
-                    </VisualElement.Resources>
+                            <Style x:Key="DayPickerStyle"
+                                   TargetType="views:NumberPicker">
+                                <Setter Property="Value"
+                                        Value="{Binding Day}" />
+                                <Setter Property="Lower"
+                                        Value="0" />
+                                <Setter Property="Upper"
+                                        Value="{Binding DaysInMonth}" />
+                            </Style>
+                        </VisualElement.Resources>
 
-                    <views:NumberPicker x:Name="picker"
-                                        Lower="{Binding Min.Year, Source={RelativeSource AncestorType={x:Type viewmodels:FilterViewModel}}, Mode=TwoWay}"
-                                        Upper="{Binding Max.Year, Source={RelativeSource AncestorType={x:Type viewmodels:FilterViewModel}}, Mode=TwoWay}"
-                                        Value="{Binding Year}"
-                                        Step="1">
-                        <BindableObject.BindingContext>
-                            <views:DateTimeViewModel />
-                        </BindableObject.BindingContext>
-                    </views:NumberPicker>
+                        <views:NumberPicker x:Name="picker"
+                                            Lower="{Binding Min.Year, Source={RelativeSource AncestorType={x:Type viewmodels:FilterViewModel}}, Mode=TwoWay}"
+                                            Upper="{Binding Max.Year, Source={RelativeSource AncestorType={x:Type viewmodels:FilterViewModel}}, Mode=TwoWay}"
+                                            Value="{Binding Year}"
+                                            Step="1">
+                            <BindableObject.BindingContext>
+                                <views:DateTimeViewModel />
+                            </BindableObject.BindingContext>
+                        </views:NumberPicker>
 
-                    <DatePicker MinimumDate="{Static sys:DateTime.MinValue}"
-                                Date="{Binding Constraint.Value, Mode=TwoWay}" />
-                </StackLayout>
+                        <DatePicker MinimumDate="{Static sys:DateTime.MinValue}"
+                                    Date="{Binding Constraint.Value, Mode=TwoWay}" />
+                    </StackLayout>
+                </ContentView>
             </DataTemplate>
 
             <DataTemplate x:Key="WatchProviderListTemplate">
@@ -507,8 +527,6 @@
                     </ItemsView.ItemTemplate>
                 </CollectionView>
             </DataTemplate>
-
-            <x:Int32 x:Key="zero">0</x:Int32>
 
             <Style x:Key="SearchResultsStyle"
                    TargetType="CollectionView">

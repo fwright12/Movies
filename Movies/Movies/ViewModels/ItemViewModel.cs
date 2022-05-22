@@ -28,12 +28,17 @@ namespace Movies.ViewModels
         public ICommand AddToListCommand { get; }
 
         public static readonly DataService Data = new DataService();
+        protected PropertyDictionary Properties;
         protected DataManager DataManager;
 
         public ItemViewModel(DataManager dataManager, Item item)
         {
             DataManager = dataManager;
             Item = item;
+            if (Item != null)
+            {
+                Properties = Data.GetDetails(Item);
+            }
 
             AddToListCommand = new Command<IEnumerable<object>>(async lists =>
             {
@@ -41,7 +46,8 @@ namespace Movies.ViewModels
             });
         }
 
-        protected T RequestSingle<T>(Property<T> property, [CallerMemberName] string propertyName = null) => GetValue(Data.GetValue(Item, property), propertyName);
+        protected T RequestSingle<T>(Property<T> property, [CallerMemberName] string propertyName = null) => GetValue(Properties.GetSingle(property), propertyName);
+        protected IEnumerable<T> RequestMultiple<T>(MultiProperty<T> property, [CallerMemberName] string propertyName = null) => GetValue(Properties.GetMultiple(property), propertyName);
         protected TValue RequestSingle<TItem, TValue>(InfoRequestHandler<TItem, TValue> handler, [CallerMemberName] string property = null) where TItem : Item => Item is TItem item ? GetValue(handler.GetSingle(item), property) : default;
 
         public override string ToString() => Item?.ToString() ?? base.ToString();

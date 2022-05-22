@@ -414,10 +414,22 @@ namespace Movies
         public override string ToString() => Name ?? base.ToString();
     }
 
-    public class Property<T> : Property
+    public class ItemProperty : Property
+    {
+        public ItemProperty(string name) : base(name) { }
+        public ItemProperty(string name, IEnumerable values) : base(name, values) { }
+    }
+
+    public class Property<T> : ItemProperty
     {
         public Property(string name) : base(name) { }
         public Property(string name, IEnumerable values) : base(name, values) { }
+    }
+
+    public class MultiProperty<T> : Property<T>
+    {
+        public MultiProperty(string name) : base(name) { }
+        public MultiProperty(string name, IEnumerable values) : base(name, values) { }
     }
 
     public class ReflectedProperty : Property
@@ -433,38 +445,54 @@ namespace Movies
 
     public abstract class SteppedValueRange : IEnumerable
     {
-        public object LowerBound { get; set; }
-        public object UpperBound { get; set; }
+        public object First
+        {
+            get
+            {
+                var itr = GetEnumerator();
+                return itr.MoveNext() ? itr.Current : default;
+            }
+        }
+        public object Last { get; }
         public object Step { get; set; }
+
+        public SteppedValueRange(object last, object step = null)
+        {
+            Last = last;
+            Step = step;
+        }
 
         public abstract IEnumerator GetEnumerator();
     }
 
-    public class SteppedValueRange<T> : SteppedValueRange<T, T>
-    {
-        public SteppedValueRange(T lowerBound, T upperBound, T step) : base(lowerBound, upperBound, step) { }
-    }
-
     public class SteppedValueRange<TValue, TStep> : SteppedValueRange
     {
-        public SteppedValueRange(TValue lowerBound, TValue upperBound, TStep step)
+        private TValue LowerBound;
+
+        public SteppedValueRange(TValue lowerBound, TValue upperBound, TStep step) : base(upperBound, step)
         {
             LowerBound = lowerBound;
-            UpperBound = upperBound;
-            Step = step;
         }
 
         public override IEnumerator GetEnumerator()
         {
-            yield break;
-            for (TValue i = (TValue)LowerBound; !Equals(i, UpperBound); )
+            for (TValue i = LowerBound; !Equals(i, Last); )
             {
                 yield return i;
+
+                try
+                {
+                    i += (dynamic)Step;
+                }
+                catch
+                {
+                    yield break;
+                }
             }
         }
     }
 
-    public class DiscreteValueRange<T> : IEnumerable<T>
+    /*public class DiscreteValueRange<T> : IEnumerable<T>
     {
         public IEnumerable<T> Values { get; }
 
@@ -491,7 +519,7 @@ namespace Movies
         {
             return Values.GetAsyncEnumerator(cancellationToken);
         }
-    }
+    }*/
 
     public abstract class PropertyValuePair
     {
@@ -508,19 +536,17 @@ namespace Movies
     public class PropertyValuePair<T> : PropertyValuePair
     {
         public PropertyValuePair(Property<T> property, Task<T> value) : base(property, value) { }
-        public PropertyValuePair(Property<T> property, Task<IEnumerable<T>> value) : base(property, value)
-        {
-
-        }
+        public PropertyValuePair(MultiProperty<T> property, Task<IEnumerable<T>> value) : base(property, value) { }
     }
 
     public class PropertyEventArgs : EventArgs
     {
-        public Property Property { get; }
+        public IEnumerable<Property> Properties { get; }
 
-        public PropertyEventArgs(Property property)
+        public PropertyEventArgs(params Property[] properties) : this((IEnumerable<Property>)properties) { }
+        public PropertyEventArgs(IEnumerable<Property> properties)
         {
-            Property = property;
+            Properties = properties;
         }
     }
 
@@ -539,9 +565,9 @@ namespace Movies
             return true;
         }
 
-        public Task<IEnumerable<T>> GetMultiple<T>(Property<T> key, string source = null)
+        public async Task<IEnumerable<T>> GetMultiple<T>(MultiProperty<T> key, string source = null)
         {
-            throw new NotImplementedException();
+            return new List<T> { await GetSingle(key, source) };
         }
 
         public Task<T> GetSingle<T>(Property<T> key, string source = null) => GetSingle<T>((Property)key, source);
@@ -587,10 +613,8 @@ namespace Movies
             return true;
         }
 
-        public void Add<T>(Property<T> key, Task<T> value)
-        {
-            Add(key, value);
-        }
+        public void Add<T>(Property<T> key, Task<T> value) => Add(key, value);
+        public void Add<T>(MultiProperty<T> key, Task<IEnumerable<T>> value) => Add(key, value);
 
         public void Add(PropertyValuePair pair)
         {
@@ -612,7 +636,7 @@ namespace Movies
             throw new NotImplementedException();
         }
 
-        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
+        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
     }
 
     public class ItemEventArgs : EventArgs
@@ -629,22 +653,15 @@ namespace Movies
     {
         public event EventHandler<ItemEventArgs> GetItemDetails;
 
-        private Dictionary<ItemType, Dictionary<Item, PropertyDictionary>> Cache = new Dictionary<ItemType, Dictionary<Item, PropertyDictionary>>();
+        private Dictionary<Item, PropertyDictionary> Cache = new Dictionary<Item, PropertyDictionary>();
 
         //public Task<object> GetValue(Item item, Property property) => GetDetails(item).TryGetValue(property, out var value) ? value : Task.FromResult<object>(null);
 
-        public Task<T> GetValue<T>(Item item, Property<T> property) => GetDetails(item).GetSingle(property);
-
         public PropertyDictionary GetDetails(Item item)
         {
-            if (!Cache.TryGetValue(item.ItemType, out var items))
+            if (!Cache.TryGetValue(item, out var properties))
             {
-                Cache.Add(item.ItemType, items = new Dictionary<Item, PropertyDictionary>());
-            }
-
-            if (!items.TryGetValue(item, out var properties))
-            {
-                items.Add(item, properties = new PropertyDictionary());
+                Cache.Add(item, properties = new PropertyDictionary());
                 var e = new ItemEventArgs(properties);
                 GetItemDetails?.Invoke(item, e);
             }

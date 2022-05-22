@@ -143,10 +143,7 @@ namespace Movies.ViewModels
         {
             Selectors =
             {
-                new SelectorViewModel<TimeSpan>(Media.RUNTIME, Operators.GreaterThan, high: TimeSpan.FromMinutes(180))
-                {
-                    Comparable = true,
-                },
+                new SelectorViewModel<TimeSpan>(Media.RUNTIME, Operators.GreaterThan, high: TimeSpan.FromMinutes(180)),
                 new MultiSelectorViewModel<string>(Media.GENRES),
                 new SelectorViewModel<DateTime>(Movie.RELEASE_DATE, Operators.GreaterThan, low: new DateTime(1900, 1, 1), high: DateTime.Now.AddYears(1)),
                 new MultiSelectorViewModel<string>(Media.CONTENT_RATING),
@@ -193,11 +190,11 @@ namespace Movies.ViewModels
                 },
                 new SelectorViewModel<long>(Movie.BUDGET, Operators.GreaterThan, high: 2000000000)
                 {
-                    Step = 100000,
+                    Step = Math.Pow(10, 6),
                 },
                 new SelectorViewModel<long>(Movie.REVENUE, Operators.GreaterThan, high: 2000000000)
                 {
-                    Step = 100000,
+                    Step = Math.Pow(10, 6),
                 }
             }
         };
@@ -247,7 +244,7 @@ namespace Movies.ViewModels
             {
                 ItemList.AddLazy(lazy);
             }*/
-
+            
             Items = new ObservableCollection<object>();
             ((INotifyCollectionChanged)Items).CollectionChanged += (sender, e) => OnPropertyChanged(nameof(Count));
             //var itr = !(items is LazyCollection<Item>) && items != null ? items.GetAsyncEnumerator() : ItemList.GetAsyncEnumerator();
@@ -260,7 +257,7 @@ namespace Movies.ViewModels
 
             if (allowedTypes.HasValue)
             {
-                Filter.ValueChanged += UpdateFilters;
+                //Filter.ValueChanged += UpdateFilters;
 
                 var types = allowedTypes.ToString().Split(',').Select(type => Enum.Parse<ItemType>(type.Trim()));
                 var selector = new MultiSelectorViewModel<ItemType?>(new Property<ItemType?>(nameof(ItemType), types))
@@ -268,6 +265,12 @@ namespace Movies.ViewModels
                     Name = string.Empty
                 };
                 Filter.Selectors.Insert(0, selector);
+
+                if (Filter.Selectors.OfType<MultiSelectorViewModel<WatchProvider>>().First().Property.Values is IList watchProviders)
+                {
+                    watchProviders.Clear();
+                    watchProviders.Add(MockData.NetflixStreaming);
+                }
 
                 var itemType = new ItemTypeFilterViewModel(allowedTypes ?? ItemType.Movie | ItemType.TVShow);
                 itemType.ValueChanged += (sender, e) =>

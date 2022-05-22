@@ -14,7 +14,7 @@ namespace Movies.Models
 
         public static readonly Property<DateTime> FIRST_AIR_DATE = new Property<DateTime>("First Air Date");
         public static readonly Property<DateTime> LAST_AIR_DATE = new Property<DateTime>("Last Air Date");
-        public static readonly Property<IEnumerable<Company>> NETWORKS = new Property<IEnumerable<Company>>("Networks");
+        public static readonly MultiProperty<Company> NETWORKS = new MultiProperty<Company>("Networks");
     }
 
     public class TVSeason : Collection
@@ -31,8 +31,6 @@ namespace Movies.Models
 
         public static readonly Property<DateTime> YEAR = new Property<DateTime>("Year");
         public static readonly Property<TimeSpan> AVERAGE_RUNTIME = new Property<TimeSpan>("Average Runtime");
-        public static readonly Property<IEnumerable<Credit>> CAST = new Property<IEnumerable<Credit>>("Cast");
-        public static readonly Property<IEnumerable<Credit>> CREW = new Property<IEnumerable<Credit>>("Crew");
     }
 
     public class TVEpisode : Media
