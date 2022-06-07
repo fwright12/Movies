@@ -133,6 +133,8 @@ namespace Movies
         public TMDB(string apiKey, string bearer)
         {
             ApiKey = apiKey;
+            Auth = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", bearer);
+
 #if !DEBUG || false
             Client = new TMDbClient(apiKey);
 #endif
@@ -146,7 +148,7 @@ namespace Movies
                 BaseAddress = new Uri("https://api.themoviedb.org/"),
                 DefaultRequestHeaders =
                 {
-                    Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", bearer)
+                    Authorization = Auth
                 }
             };
 

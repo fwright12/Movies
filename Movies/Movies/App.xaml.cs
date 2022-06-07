@@ -488,10 +488,66 @@ namespace Movies
             }
         }
 
+        private static List<Constraint> DeserializeConstraints(string json, FiltersViewModel filter)
+        {
+            var constraints = new List<Constraint>();
+
+            foreach (var constraint in System.Text.Json.Nodes.JsonNode.Parse(json).AsArray())
+            {
+                if (!constraint.TryGetValue("property", out string name) || !constraint.TryGetValue("comparison", out int comparison) || !(constraint["value"] is System.Text.Json.Nodes.JsonNode valueNode))
+                {
+                    continue;
+                }
+
+                var property = filter.Selectors.FirstOrDefault(selector => selector.Property.Name == name)?.Property;
+                var type = property.GetType().GenericTypeArguments[0];
+                object value = null;
+
+                if (PrimitiveJsonTypes.Contains(type))
+                {
+                    var method = typeof(System.Text.Json.Nodes.JsonNode).GetMethod(nameof(System.Text.Json.Nodes.JsonNode.GetValue));
+                    method = method.MakeGenericMethod(type);
+
+                    try
+                    {
+                        value = method.Invoke(valueNode, null);
+                    }
+                    catch { }
+                }
+                else if (property.Values != null)
+                {
+                    var valueStr = valueNode.TryGetValue<string>();
+                    value = property.Values.OfType<object>().FirstOrDefault(value => value.ToString() == valueStr);
+                }
+
+                if (property != null && value != null)
+                {
+                    constraints.Add(new Constraint(property)
+                    {
+                        Comparison = (Operators)comparison,
+                        Value = value
+                    });
+                }
+            }
+
+            return constraints;
+        }
+
         private static string SerializeConstraints(IEnumerable<Constraint> constraints)
         {
             return System.Text.Json.JsonSerializer.Serialize(constraints);
         }
+
+        private static readonly Type[] PrimitiveJsonTypes = new Type[]
+        {
+            typeof(int),
+            typeof(long),
+            typeof(double),
+            typeof(bool),
+            typeof(string),
+        };
+
+        private static readonly string POPULAR_FILTERS = "PopularFilters";
 
         private CollectionViewModel GetPopular()
         {
@@ -503,14 +559,56 @@ namespace Movies
                 SortOptions = new List<string> { "Popularity", "Release Date", "Revenue", "Original Title", "Vote Average", "Vote Count" },
             };
 
-            collection.Filter.Selectors.Insert(0, new SelectorViewModel<string>(CollectionViewModel.Search)
+            return collection;
+
+            collection.Filter.Selectors.Insert(0, new SelectorViewModel<string>(CollectionViewModel.SearchProperty)
             {
                 Name = string.Empty
             });
-            
+
+            if (Properties.TryGetValue(POPULAR_FILTERS, out var value) && value is string filters)
+            {
+                var json = System.Text.Json.Nodes.JsonNode.Parse(filters);
+
+                if (json["constraints"] is System.Text.Json.Nodes.JsonArray constraints)
+                {
+                    //var temp = DeserializeConstraints(constraints.ToJsonString(), collection.Filter);
+                    //collection.Filter.AddConstraints(temp);
+                }
+
+                if (json["presets"] is System.Text.Json.Nodes.JsonArray presets)
+                {
+                    foreach (var text in presets.Select(preset => preset.AsValue().TryGetValue<string>()))
+                    {
+                        foreach (var preset in collection.Filter.Presets.Where(preset => preset.Text == text))
+                        {
+                            preset.IsActive = true;
+                        }
+                    }
+                }
+            }
+
             collection.Filter.ValueChanged += (sender, e) =>
             {
-                //Print.Log(SerializeConstraints(e.Value));
+                try
+                {
+                    var json = System.Text.Json.JsonSerializer.Serialize(new
+                    {
+                        presets = collection.Filter.Presets.Where(preset => preset.IsActive).Select(preset => preset.Text),
+                        constraints = e.Value.Select(constraint => new
+                        {
+                            property = constraint.Property.Name,
+                            comparison = constraint.Comparison,
+                            value = PrimitiveJsonTypes.Contains(constraint.Value?.GetType()) ? constraint.Value : constraint.Value?.ToString()
+                        })
+                    });
+
+                    Print.Log(json);
+
+                    Properties[POPULAR_FILTERS] = json;
+                    _ = SavePropertiesAsync();
+                }
+                catch { }
             };
 
             return collection;
@@ -1647,28 +1745,28 @@ namespace Movies.Views
             }
 
             return (bindable as Layout<View>)?.Children.Count ?? value;
-        },defaultValueCreator: bindable =>
-        {
-            if (bindable is ContentView)
-            {
-                bindable.PropertyChanged += (sender, e) =>
-                {
-                    if (e.PropertyName == ContentView.ContentProperty.PropertyName)
-                    {
-                        ((Layout)sender).SetChildCount(0);
-                    }
-                };
-            }
-            else if (bindable is Layout<View> layout && layout.Children is INotifyCollectionChanged observable)
-            {
-                observable.CollectionChanged += (sender, e) =>
-                {
-                    layout.SetChildCount(0);
-                };
-            }
+        }, defaultValueCreator: bindable =>
+         {
+             if (bindable is ContentView)
+             {
+                 bindable.PropertyChanged += (sender, e) =>
+                 {
+                     if (e.PropertyName == ContentView.ContentProperty.PropertyName)
+                     {
+                         ((Layout)sender).SetChildCount(0);
+                     }
+                 };
+             }
+             else if (bindable is Layout<View> layout && layout.Children is INotifyCollectionChanged observable)
+             {
+                 observable.CollectionChanged += (sender, e) =>
+                 {
+                     layout.SetChildCount(0);
+                 };
+             }
 
-            return 0;
-        });
+             return 0;
+         });
 
         public static int GetChildCount(this Layout bindable) => (int)bindable.GetValue(ChildCountProperty);
         public static void SetChildCount(this Layout bindable, int value) => bindable.SetValue(ChildCountProperty, value);

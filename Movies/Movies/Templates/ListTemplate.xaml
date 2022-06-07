@@ -6,14 +6,16 @@
                  xmlns:ext="clr-namespace:Xamarin.Forms.Extensions;assembly=Xamarin.Forms.Extensions"
                  xmlns:forms="clr-namespace:Xamarin.Forms;assembly=Xamarin.Forms.Extensions"
                  xmlns:movies="clr-namespace:Movies"
+                 xmlns:converters="clr-namespace:Movies.Converters"
                  xmlns:views="clr-namespace:Movies.Views"
+                 xmlns:templates="clr-namespace:Movies.Templates"
                  xmlns:viewmodels="clr-namespace:Movies.ViewModels"
                  xmlns:models="clr-namespace:Movies.Models"
                  x:Class="Movies.ListTemplate">
     <forms:DrawerView x:Name="root"
                       BackgroundColor="{Binding BackgroundColor, Source={RelativeSource AncestorType={x:Type Page}}}"
                       BindingContext="{TemplateBinding BindingContext}"
-                      Drawer="{Binding Filter}">
+                      Drawer="{Binding Source}">
         <forms:DrawerView.SnapPoints>
             <forms:SnapPoint Value="50" />
         </forms:DrawerView.SnapPoints>
@@ -75,8 +77,8 @@
                                             <FlexLayout Direction="Row"
                                                         Wrap="Wrap"
                                                         HorizontalOptions="FillAndExpand"
-                                                        BindingContext="{TemplateBinding BindingContext.Constraints}"
-                                                        BindableLayout.ItemsSource="{Binding Expression}"
+                                                        BindingContext="{TemplateBinding BindingContext.Builder, Converter={Static viewmodels:CollectionViewModel.TreeToListConverter}}"
+                                                        BindableLayout.ItemsSource="{Binding}"
                                                         BindableLayout.ItemTemplateSelector="{StaticResource BooleanTemplateSelector}"
                                                         BindableLayout.EmptyView="No filters" />
                                         </ControlTemplate>
@@ -109,7 +111,7 @@
 
                         <StackLayout Orientation="Vertical"
                                      Spacing="10"
-                                     BindableLayout.ItemsSource="{Binding Selectors}"
+                                     BindableLayout.ItemsSource="{Binding Editor.Editors}"
                                      BindableLayout.ItemTemplate="{StaticResource SelectorTemplate}"
                                      x:Name="parent">
                             <Layout.Padding>
@@ -128,12 +130,19 @@
         </forms:DrawerView.DrawerTemplate>
 
         <VisualElement.Resources>
-            <DataTemplate x:Key="RoundedTextTemplate">
-                <Frame Padding="10, 8"
-                       Margin="2, 0"
-                       BorderColor="{Binding TextColor, Source={x:Reference Option}}"
-                       Style="{StaticResource RoundedFrameStyle}">
-                    <VisualStateManager.VisualStateGroups>
+            <Style x:Key="SelectableTextStyle"
+                   TargetType="Frame"
+                   BasedOn="{StaticResource RoundedFrameStyle}">
+                <Setter Property="Padding"
+                        Value="10, 8" />
+                <Setter Property="Margin"
+                        Value="2, 0" />
+                <Setter Property="BorderColor"
+                        Value="Black" />
+                <!--<Setter Property="BorderColor"
+                        Value="{Binding TextColor, Source={x:Reference Option}}" />-->
+                <Setter Property="VisualStateManager.VisualStateGroups">
+                    <VisualStateGroupList>
                         <VisualStateGroup Name="CommonStates">
                             <VisualState Name="{Static VisualStateManager+CommonStates.Normal}" />
                             <VisualState Name="{Static VisualStateManager+CommonStates.Selected}">
@@ -143,19 +152,44 @@
                                     <Setter Property="BorderColor"
                                             Value="{Binding BackgroundColor, Source={RelativeSource Self}}" />
 
-                                    <Setter TargetName="Option"
+                                    <!--<Setter TargetName="Option"
                                             Property="Label.TextColor"
-                                            Value="{StaticResource DarkPrimaryText}" />
+                                            Value="{StaticResource DarkPrimaryText}" />-->
                                 </VisualState.Setters>
                             </VisualState>
                         </VisualStateGroup>
-                    </VisualStateManager.VisualStateGroups>
+                    </VisualStateGroupList>
+                </Setter>
+            </Style>
 
+            <DataTemplate x:Key="RoundedTextTemplate">
+                <Frame Style="{StaticResource SelectableTextStyle}">
                     <Label x:Name="Option"
                            Text="{Binding}" />
                 </Frame>
             </DataTemplate>
 
+            <DataTemplate x:Key="ConstraintDataTemplate">
+                <Frame>
+                    <Label Text="{Binding RHS}" />
+                </Frame>
+            </DataTemplate>
+
+            <DataTemplate x:Key="BooleanExpressionTemplate">
+                <Frame>
+                    <Label Text="{Binding Value.RHS}" />
+                </Frame>
+            </DataTemplate>
+
+            <forms:TypeTemplateSelector x:Key="OptionTemplateSelector">
+                <forms:TypeTemplateSelector.Templates>
+                    <forms:TypeDataTemplate Type="{Static viewmodels:CollectionViewModel.OperatorPredicateType}"
+                                            Template="{StaticResource ConstraintDataTemplate}" />
+                    <forms:TypeDataTemplate Type="{Static viewmodels:CollectionViewModel.PredicateTreeType}"
+                                            Template="{StaticResource BooleanExpressionTemplate}" />
+                </forms:TypeTemplateSelector.Templates>
+            </forms:TypeTemplateSelector>
+            
             <Style x:Key="StringSelectorStyle"
                    TargetType="FlexLayout">
                 <Setter Property="Wrap"
@@ -166,8 +200,8 @@
                         Value="{Binding SelectedOptions}" />
                 <Setter Property="BindableLayout.ItemsSource"
                         Value="{Binding Options}" />
-                <Setter Property="BindableLayout.ItemTemplate"
-                        Value="{StaticResource RoundedTextTemplate}" />
+                <Setter Property="BindableLayout.ItemTemplateSelector"
+                        Value="{StaticResource OptionTemplateSelector}" />
             </Style>
 
             <DataTemplate x:Key="SearchTemplate">
@@ -222,17 +256,16 @@
             </Style>
 
             <DataTemplate x:Key="ConstraintTemplate">
-                <Frame IsVisible="{Binding IsShowing}"
-                       Style="{StaticResource ConstraintStyle}">
+                <Frame Style="{StaticResource ConstraintStyle}">
                     <StackLayout Orientation="Horizontal">
-                        <Label Text="{Binding Constraint.Property.Name, StringFormat='{0}: '}"
-                               IsVisible="{Binding ShowLabel}" />
+                        <Label Text="{Binding LHS, StringFormat='{0}: '}"
+                               IsVisible="False" />
 
-                        <Label BindingContext="{Binding Comparison}"
-                               Style="{StaticResource NumberComparisonStyle}"
-                               IsVisible="{Binding ShowOperator, Source={RelativeSource AncestorType={x:Type viewmodels:ConstraintViewModel}}}" />
+                        <Label BindingContext="{Binding Operator}"
+                               IsVisible="False"
+                               Style="{StaticResource NumberComparisonStyle}" />
 
-                        <ContentView ext:ContentView.ItemSource="{Binding}"
+                        <ContentView ext:ContentView.ItemSource="{Binding RHS}"
                                      ext:ContentView.ContentTemplate="{StaticResource ConstraintTemplateSelector}" />
                     </StackLayout>
                 </Frame>
@@ -312,7 +345,7 @@
             </Style>
 
             <DataTemplate x:Key="TimeSpanConstraintTemplate">
-                <Label Text="{Binding Value, Converter={Static movies:HrMinConverter.Instance}}" />
+                <Label Text="{Binding Converter={Static movies:HrMinConverter.Instance}}" />
             </DataTemplate>
 
             <DataTemplate x:Key="DateTimeConstraintTemplate">
@@ -320,15 +353,15 @@
             </DataTemplate>
 
             <DataTemplate x:Key="MoneyConstraintTemplate">
-                <Label Text="{Binding Value, Converter={Static viewmodels:BigCurrencyConverter.Instance}}" />
+                <Label Text="{Binding Value, Converter={Static converters:BigCurrencyConverter.Instance}}" />
             </DataTemplate>
 
             <DataTemplate x:Key="DefaultConstraintTemplate">
-                <Label Text="{Binding Value}" />
+                <Label Text="{Binding}" />
             </DataTemplate>
 
-            <viewmodels:ConstraintTemplateSelector x:Key="ConstraintTemplateSelector"
-                                                   MoneyValueTemplate="{StaticResource MoneyConstraintTemplate}">
+            <templates:ConstraintTemplateSelector x:Key="ConstraintTemplateSelector"
+                                                  MoneyValueTemplate="{StaticResource MoneyConstraintTemplate}">
                 <forms:TypeTemplateSelector.Templates>
                     <forms:TypeDataTemplate Type="{x:Type x:TimeSpan}"
                                             Template="{StaticResource TimeSpanConstraintTemplate}" />
@@ -339,11 +372,11 @@
                     <forms:TypeDataTemplate Type="{x:Type x:Object}"
                                             Template="{StaticResource DefaultConstraintTemplate}" />
                 </forms:TypeTemplateSelector.Templates>
-            </viewmodels:ConstraintTemplateSelector>
+            </templates:ConstraintTemplateSelector>
 
             <forms:TypeTemplateSelector x:Key="BooleanTemplateSelector">
                 <forms:TypeTemplateSelector.Templates>
-                    <forms:TypeDataTemplate Type="{x:Type viewmodels:ConstraintViewModel}"
+                    <forms:TypeDataTemplate Type="{Static viewmodels:CollectionViewModel.OperatorPredicateType}"
                                             Template="{StaticResource ConstraintTemplate}" />
                     <forms:TypeDataTemplate Type="{x:Type viewmodels:Preset}"
                                             Template="{StaticResource PresetDisplayTemplate}" />
@@ -355,7 +388,7 @@
                              Orientation="Horizontal">
                     <FlexLayout Direction="Column"
                                 forms:Selection.SelectionMode="MandatorySingle"
-                                forms:Selection.SelectedIndices="{Binding Constraint.Comparison, Converter={Static viewmodels:ComparisonConverter.Instance}}"
+                                forms:Selection.SelectedIndices="{Binding Selected.Operator, Converter={Static converters:ComparisonConverter.Instance}}"
                                 BindableLayout.ItemTemplate="{StaticResource RoundedTextTemplate}">
                         <VisualElement.Resources>
                             <Style TargetType="Label"
@@ -430,6 +463,16 @@
                 </views:SectionView>
             </DataTemplate>
 
+            <Style x:Key="RuntimePickerStyle"
+                   TargetType="views:NumberPicker">
+                <Setter Property="Lower"
+                        Value="0" />
+                <Setter Property="Upper"
+                        Value="180" />
+                <Setter Property="Step"
+                        Value="1" />
+            </Style>
+
             <DataTemplate x:Key="NumberPickerTemplate">
                 <ContentView ControlTemplate="{StaticResource CompareControlTemplate}">
                     <views:NumberPicker Value="{Binding Constraint.Value}"
@@ -443,12 +486,10 @@
 
             <DataTemplate x:Key="TimeSpanPickerTemplate">
                 <ContentView ControlTemplate="{StaticResource CompareControlTemplate}">
-                    <views:NumberPicker Value="{Binding Constraint.Value, Converter={Static viewmodels:TimeSpanMinutesConverter.Instance}}"
-                                        Lower="{Binding Low, Converter={Static viewmodels:TimeSpanMinutesConverter.Instance}, Mode=TwoWay}"
-                                        Upper="{Binding High, Converter={Static viewmodels:TimeSpanMinutesConverter.Instance}, Mode=TwoWay}"
-                                        AbsoluteMin="{Binding Property.Values.First, Converter={Static viewmodels:TimeSpanMinutesConverter.Instance}}"
-                                        AbsoluteMax="{Binding Property.Values.Last, Converter={Static viewmodels:TimeSpanMinutesConverter.Instance}}"
-                                        Step="{Binding Step, Converter={Static viewmodels:TimeSpanMinutesConverter.Instance}, FallbackValue=1}" />
+                    <views:NumberPicker Value="{Binding Selected.RHS, Converter={Static converters:TimeSpanMinutesConverter.Instance}}"
+                                        AbsoluteMin="{Binding Values.First, Converter={Static converters:TimeSpanMinutesConverter.Instance}}"
+                                        AbsoluteMax="{Binding Values.Last, Converter={Static converters:TimeSpanMinutesConverter.Instance}}"
+                                        Style="{StaticResource RuntimePickerStyle}" />
                 </ContentView>
             </DataTemplate>
 
@@ -494,7 +535,7 @@
             </DataTemplate>
 
             <DataTemplate x:Key="WatchProviderListTemplate">
-                <CollectionView ItemsSource="{Binding Property.Values}"
+                <CollectionView ItemsSource="{Binding Options}"
                                 SelectedItems="{Binding Values}"
                                 ItemsLayout="HorizontalGrid, 3"
                                 ItemSizingStrategy="MeasureFirstItem"
@@ -502,7 +543,7 @@
                                 HeightRequest="150">
                     <ItemsView.ItemTemplate>
                         <DataTemplate>
-                            <Image Source="{Binding Company.LogoPath}"
+                            <Image Source="{Binding Value.Company.LogoPath}"
                                    WidthRequest="50"
                                    HeightRequest="50">
                                 <VisualStateManager.VisualStateGroups>
@@ -539,7 +580,7 @@
             </Style>
 
             <DataTemplate x:Key="PersonListTemplate">
-                <CollectionView ItemsSource="{Binding Property.Values}"
+                <CollectionView ItemsSource="{Binding Options}"
                                 ItemTemplate="{StaticResource CompressedPersonTemplate}"
                                 ItemsLayout="HorizontalList"
                                 ItemSizingStrategy="MeasureFirstItem"
@@ -548,15 +589,51 @@
             </DataTemplate>
 
             <DataTemplate x:Key="StringSearchTemplate">
-                <CollectionView ItemsSource="{Binding Property.Values}"
+                <CollectionView ItemsSource="{Binding Options}"
                                 SelectedItem="{Binding Constraint.Value}"
                                 Style="{StaticResource SearchResultsStyle}" />
             </DataTemplate>
 
             <DataTemplate x:Key="StringFiniteTemplate">
+                <FlexLayout BindableLayout.ItemsSource="{Binding Template, Converter={Static viewmodels:TemplateToOptionsConverter.Instance}}"
+                            forms:Selection.SelectedItems="{Binding Selected.Children}"
+                            forms:Selection.SelectionChangedCommand="{Binding CreateNewCommand, Source={RelativeSource AncestorType={x:Type viewmodels:FiltersViewModel}}}"
+                            forms:Selection.SelectionChangedCommandParameter="{Binding}"
+                            Style="{StaticResource StringSelectorStyle}">
+
+                    <VisualElement.Resources>
+                        <Style TargetType="Frame">
+                            <Setter Property="Style"
+                                    Value="{StaticResource SelectableTextStyle}" />
+                        </Style>
+
+                        <Style TargetType="Label">
+                            <Style.Triggers>
+                                <DataTrigger TargetType="Label"
+                                             Binding="{Binding Mode=OneTime}"
+                                             Value="{x:Type models:Movie}">
+                                    <Setter Property="Text"
+                                            Value="Movie" />
+                                </DataTrigger>
+
+                                <DataTrigger TargetType="Label"
+                                             Binding="{Binding Mode=OneTime}"
+                                             Value="{x:Type models:TVShow}">
+                                    <Setter Property="Text"
+                                            Value="TV Show" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </VisualElement.Resources>
+                </FlexLayout>
+            </DataTemplate>
+
+            <DataTemplate x:Key="TypeTemplate">
                 <FlexLayout BindableLayout.ItemsSource="{Binding Property.Values}"
                             forms:Selection.SelectedItems="{Binding Values}"
-                            Style="{StaticResource StringSelectorStyle}" />
+                            Style="{StaticResource StringSelectorStyle}">
+
+                </FlexLayout>
             </DataTemplate>
 
             <DataTemplate x:Key="StringInfiniteTemplate">
@@ -568,22 +645,24 @@
 
             <forms:TypeTemplateSelector x:Key="ValueTemplateSelector">
                 <forms:TypeTemplateSelector.Templates>
-                    <forms:TypeDataTemplate Type="{Static viewmodels:CollectionViewModel.LongPickerType}"
+                    <forms:TypeDataTemplate Type="{x:Type x:Int64}"
                                             Template="{StaticResource NumberPickerTemplate}" />
-                    <forms:TypeDataTemplate Type="{Static viewmodels:CollectionViewModel.DoublePickerType}"
+                    <forms:TypeDataTemplate Type="{x:Type x:Double}"
                                             Template="{StaticResource NumberPickerTemplate}" />
-                    <forms:TypeDataTemplate Type="{Static viewmodels:CollectionViewModel.TimeSpanPickerType}"
+                    <forms:TypeDataTemplate Type="{x:Type x:TimeSpan}"
                                             Template="{StaticResource TimeSpanPickerTemplate}" />
-                    <forms:TypeDataTemplate Type="{Static viewmodels:CollectionViewModel.DateTimePickerType}"
+                    <forms:TypeDataTemplate Type="{x:Type sys:DateTime}"
                                             Template="{StaticResource DateTimePickerTemplate}" />
-                    <forms:TypeDataTemplate Type="{Static viewmodels:CollectionViewModel.WatchProviderListType}"
+                    <forms:TypeDataTemplate Type="{x:Type models:WatchProvider}"
                                             Template="{StaticResource WatchProviderListTemplate}" />
-                    <forms:TypeDataTemplate Type="{Static viewmodels:CollectionViewModel.PersonListType}"
+                    <forms:TypeDataTemplate Type="{x:Type viewmodels:PersonViewModel}"
                                             Template="{StaticResource PersonListTemplate}" />
+                    <forms:TypeDataTemplate Type="{x:Type sys:Type}"
+                                            Template="{StaticResource TypeTemplate}" />
 
                     <forms:TypeDataTemplate Type="{x:Type viewmodels:MultiSelectorViewModel}"
                                             Template="{StaticResource StringFiniteTemplate}" />
-                    <forms:TypeDataTemplate Type="{x:Type viewmodels:SelectorViewModel}"
+                    <forms:TypeDataTemplate Type="{x:Type x:Object}"
                                             Template="{StaticResource StringSearchTemplate}" />
                 </forms:TypeTemplateSelector.Templates>
             </forms:TypeTemplateSelector>
@@ -595,9 +674,11 @@
                 </forms:TypeTemplateSelector.Templates>
             </forms:TypeTemplateSelector>
 
-            <viewmodels:SelectorTemplateSelector x:Key="SelectorTemplateSelector"
-                                                 FiniteValuesTemplate="{StaticResource ValueTemplateSelector}"
-                                                 InfiniteValuesTemplate="{StaticResource InfiniteValueTemplateSelector}" />
+            <templates:SelectorTemplateSelector x:Key="SelectorTemplateSelector"
+                                                FiniteValuesTemplate="{StaticResource ValueTemplateSelector}"
+                                                InfiniteValuesTemplate="{StaticResource InfiniteValueTemplateSelector}"
+                                                SmallValuesTemplate="{StaticResource StringFiniteTemplate}"
+                                                LargeValuesTemplate="{StaticResource StringSearchTemplate}" />
 
             <Style Class="EditingOnly"
                    TargetType="VisualElement"

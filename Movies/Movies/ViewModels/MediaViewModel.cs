@@ -105,29 +105,29 @@ namespace Movies.ViewModels
         protected abstract MediaService<TItem> MediaService { get; }
 
 #if DEBUG
-        public string Tagline => RequestSingle(MediaService.TaglineRequested);
-        public string Description => RequestSingle(Media.DESCRIPTION);
-        public string ContentRating => RequestSingle(MediaService.ContentRatingRequested);
-        public TimeSpan? Runtime => RequestSingle(Media.RUNTIME);
-        public string OriginalTitle => RequestSingle(MediaService.OriginalTitleRequested);
-        public string OriginalLanguage => RequestSingle(MediaService.OriginalLanguageRequested);
-        public IEnumerable<string> Languages => RequestSingle(MediaService.LanguagesRequested);
-        public IEnumerable<string> Genres => RequestSingle(MediaService.GenresRequested);
+        public string Tagline => RequestValue(Media.TAGLINE);
+        public string Description => RequestValue(Media.DESCRIPTION);
+        public string ContentRating => RequestValue(Movie.CONTENT_RATING);
+        public TimeSpan? Runtime => RequestValue(Media.RUNTIME);
+        public string OriginalTitle => RequestValue(Media.ORIGINAL_TITLE);
+        public string OriginalLanguage => RequestValue(Media.ORIGINAL_LANGUAGE);
+        public IEnumerable<string> Languages => RequestValue(Media.LANGUAGES);
+        public IEnumerable<string> Genres => RequestValue(Movie.GENRES);
 
-        public override string PrimaryImagePath => RequestSingle(MediaService.TrailerPathRequested);
-        public string PosterPath => RequestSingle(Media.POSTER_PATH);
-        public string BackdropPath => RequestSingle(MediaService.BackdropPathRequested);
-        public string TrailerPath => RequestSingle(MediaService.TrailerPathRequested);
+        public override string PrimaryImagePath => RequestValue(Media.TRAILER_PATH);
+        public string PosterPath => RequestValue(Media.POSTER_PATH);
+        public string BackdropPath => RequestValue(Media.BACKDROP_PATH);
+        public string TrailerPath => RequestValue(Media.TRAILER_PATH);
         //public override string PrimaryImagePath => TrailerPath;
 
-        public IEnumerable<Rating> Ratings => RequestSingle(MediaService.RatingRequested) is Rating rating ? new List<Rating> { rating } : null;
-        public List<Group<Credit>> Cast => GetCrew(RequestSingle(MediaService.CastRequested));
-        public List<Group<Credit>> Crew => GetCrew(RequestSingle(MediaService.CrewRequested));
-        public IEnumerable<Company> ProductionCompanies => RequestSingle(MediaService.ProductionCompaniesRequested);
-        public IEnumerable<string> ProductionCountries => RequestSingle(MediaService.ProductionCountriesRequested);
-        public List<Group<WatchProvider>> WatchProviders => Providers(RequestSingle(MediaService.WatchProvidersRequested));
-        public IEnumerable<string> Keywords => RequestMultiple(Media.KEYWORDS);
-        public CollectionViewModel Recommended => _Recommended ??= (RequestSingle(MediaService.RecommendedRequested) is IAsyncEnumerable<Item> items ? ForceLoad(new CollectionViewModel(DataManager, "Recommended", items)) : null);
+        public IEnumerable<Rating> Ratings => GetValue(Properties.GetMultiple(Media.RATING), nameof(Ratings));
+        public List<Group<Credit>> Cast => GetCrew(RequestValue(Media.CAST));
+        public List<Group<Credit>> Crew => GetCrew(RequestValue(Media.CREW));
+        public IEnumerable<Company> ProductionCompanies => RequestValue(Media.PRODUCTION_COMPANIES);
+        public IEnumerable<string> ProductionCountries => RequestValue(Media.PRODUCTION_COUNTRIES);
+        public List<Group<WatchProvider>> WatchProviders => Providers(RequestValue(Movie.WATCH_PROVIDERS));
+        public IEnumerable<string> Keywords => RequestValue(Movie.KEYWORDS);
+        public CollectionViewModel Recommended => _Recommended ??= (RequestValue(Media.RECOMMENDED) is IAsyncEnumerable<Item> items ? ForceLoad(new CollectionViewModel(DataManager, "Recommended", items)) : null);
 #else
         public string Tagline => RequestSingle(MediaService.TaglineRequested);
         public string Description => RequestSingle(MediaService.DescriptionRequested);

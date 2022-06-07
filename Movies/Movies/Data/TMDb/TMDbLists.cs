@@ -12,6 +12,66 @@ namespace Movies
 {
     public static class JsonExtensions
     {
+        public interface ICache
+        {
+            Task<JsonResponse> TryGetValueAsync(string url);
+            Task AddAsync(string url, JsonResponse response);
+        }
+
+        public class JsonResponse
+        {
+            public string Json { get; }
+            public DateTime Timestamp { get; }
+
+            public JsonResponse(string json)
+            {
+                Json = json;
+                Timestamp = DateTime.Now;
+            }
+
+            public static async Task<JsonResponse> Create(Func<Task<HttpResponseMessage>> request)
+            {
+                var response = await request();
+
+                if (response?.IsSuccessStatusCode == true)
+                {
+                    return new JsonResponse(await response.Content.ReadAsStringAsync());
+                }
+
+                return null;
+            }
+        }
+
+        public static Task<JsonResponse> TryGetCachedAsync(this HttpClient client, string url, ICache cache) => TryGetCachedAsync(client, new HttpRequestMessage(HttpMethod.Get, url), cache);
+        public static async Task<JsonResponse> TryGetCachedAsync(this HttpClient client, HttpRequestMessage request, ICache cache)
+        {
+            var url = request.RequestUri.ToString();
+            var response = await cache.TryGetValueAsync(url);
+
+            if (response != null)
+            {
+                return response;
+            }
+
+            response = new JsonResponse(await TryGetContentAsync(client, request));
+            await cache.AddAsync(url, response);
+
+            return response;
+        }
+
+        public static Task<string> TryGetContentAsync(this HttpClient client, string url) => TryGetContentAsync(client, new HttpRequestMessage(HttpMethod.Get, url));
+        public static async Task<string> TryGetContentAsync(this HttpClient client, HttpRequestMessage request)
+        {
+            var response = await TrySendAsync(client, request);
+
+            if (response?.IsSuccessStatusCode == true)
+            {
+                return await response.Content.ReadAsStringAsync();
+            }
+
+            return null;
+        }
+
         public static Task<HttpResponseMessage> TryGetAsync(this HttpClient client, string url) => TrySendAsync(client, url);
         public static Task<HttpResponseMessage> TryPostAsync(this HttpClient client, string url, string content) => TrySendAsync(client, url, content, HttpMethod.Post);
 
@@ -50,15 +110,13 @@ namespace Movies
         public static T TryGetValue<T>(this JsonNode node) => TryGetValue<T>(node, out var value) ? value : default;
         public static bool TryGetValue<T>(this JsonNode node, string property, out T value)
         {
-            node = node[property];
-
-            if (node == null)
+            if ((node as JsonObject)?[property] is JsonNode temp)
             {
-                value = default;
-                return false;
+                return temp.TryGetValue(out value);
             }
 
-            return node.TryGetValue(out value);
+            value = default;
+            return false;
         }
         public static bool TryGetValue<T>(this JsonNode node, out T value)
         {

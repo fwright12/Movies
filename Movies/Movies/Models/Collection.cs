@@ -15,9 +15,14 @@ namespace Movies.Models
         IAsyncEnumerable<Item> Search(string query);
     }
 
-    public interface IFilterable<T> : IAsyncEnumerable<T>
+    public interface IFilterable<T> : IEnumerable<T>
     {
-        IAsyncEnumerable<T> GetItems(List<Constraint> filters);
+        IEnumerable<T> GetItems(List<Constraint> filters);
+    }
+
+    public interface IAsyncFilterable<T> : IAsyncEnumerable<T>
+    {
+        IAsyncEnumerable<T> GetItems(List<Constraint> filters, CancellationToken cancellationToken = default);
     }
 
     public interface CanFilter
@@ -25,7 +30,58 @@ namespace Movies.Models
         void ApplyFilters(List<Constraint> filters);
     }
 
-    public abstract class Filterable<T> : ViewModels.AsyncObservableCollection<T>, CanFilter
+    public class ValueList<T> : Filterable<T>
+    {
+        public IDictionary<ItemType, IEnumerable<T>> Values { get; } = new Dictionary<ItemType, IEnumerable<T>>();
+
+        public override void ApplyFilters(List<Constraint> filters)
+        {
+            ItemType type = ItemType.All;
+
+            for (int i = 0; i < filters.Count; i++)
+            {
+                var filter = filters[i];
+
+                if (filter.Property == null)// ViewModels.CollectionViewModel.ItemTypeProperty)
+                {
+                    if (filter.Value is ItemType temp)
+                    {
+                        type |= temp;
+                    }
+
+                    filters.RemoveAt(i--);
+                }
+            }
+
+            UpdateValues(Values.Where(kvp => type.HasFlag(kvp.Key)).SelectMany(kvp => kvp.Value));
+        }
+    }
+
+    public abstract class Filterable<T> : List<T>, CanFilter, INotifyCollectionChanged
+    {
+        public event NotifyCollectionChangedEventHandler CollectionChanged;
+
+        public abstract void ApplyFilters(List<Constraint> filters);
+
+        protected void UpdateValues(IEnumerable<T> values)
+        {
+            var newValues = values.ToList();
+
+            if (Count != newValues.Count || !newValues.Any(value => !Contains(value)))
+            {
+                return;
+            }
+
+            var e = new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Replace, newValues, new List<T>(this));
+
+            Clear();
+            AddRange(values);
+
+            CollectionChanged?.Invoke(this, e);
+        }
+    }
+
+    public abstract class AsyncFilterable<T> : ViewModels.AsyncObservableCollection<T>, CanFilter
     {
         public void ApplyFilters(List<Constraint> filters)
         {

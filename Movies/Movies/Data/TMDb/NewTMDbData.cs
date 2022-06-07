@@ -1,5 +1,6 @@
 ﻿using Movies.Models;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Async;
@@ -8,6 +9,7 @@ using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Movies
@@ -98,7 +100,8 @@ namespace Movies
 
         private string[] LanguageRegionParameters => new string[] { LanguageParameter, RegionParameter };
 
-        public async IAsyncEnumerable<T> FlattenPages<T>(string apiCall, System.Linq.Async.Enumerable.TryParseFunc<JsonNode, T> parse, params string[] parameters) where T : Item
+        public IAsyncEnumerable<T> FlattenPages<T>(string apiCall, System.Linq.Async.Enumerable.TryParseFunc<JsonNode, T> parse, params string[] parameters) where T : Item => FlattenPages(apiCall, parse, (IEnumerable<string>)parameters);
+        public async IAsyncEnumerable<T> FlattenPages<T>(string apiCall, System.Linq.Async.Enumerable.TryParseFunc<JsonNode, T> parse, IEnumerable<string> parameters) where T : Item
         {
             await foreach (var json in Helpers.FlattenPages(WebClient, BuildApiCall(apiCall, parameters.Append(PageParameter)), "results", json => json["total_pages"].TryGetValue<int>()))
             {
@@ -148,6 +151,85 @@ namespace Movies
         public IAsyncEnumerable<Models.Item> GetTrendingPeopleAsync(TimeWindow timeWindow = TimeWindow.Week) => FlattenPages(page => Client.GetTrendingPeopleAsync(timeWindow, page), GetCacheKey).Select(GetItem);
         public IAsyncEnumerable<Models.Item> GetPopularPeopleAsync() => FlattenPages(page => Client.GetPersonListAsync(PersonListType.Popular, page), GetCacheKey).Select(GetItem);
 #endif
+
+        public static JsonExtensions.ICache ResponseCache;
+
+        //public Task<JsonNode> GetCertifications() => GetPropertyValues("certification/{0}/list", "certifications");
+        //public Task<JsonNode> GetGenres() => GetPropertyValues("genre/{0}/list", "genres", LanguageParameter);
+        //public Task<JsonNode> GetWatchProviders() => GetPropertyValues("watch/providers/{0}", "results", LanguageParameter, RegionParameter);
+        //public Task<JsonNode> GetWatchProviderRegions() => GetPropertyValues("watch/providers/regions", "results", LanguageParameter);
+
+        private class TMDbRequest
+        {
+            public HttpMethod Method { get; }
+            public string Endpoint { get; }
+
+            public bool AuthenticationRequired { get; set; }
+            public bool HasLanguageParameter { get; set; }
+            public bool HasRegionParameter { get; set; }
+            public bool HasAdultParameter { get; set; }
+
+            public TMDbRequest(string endpoint) : this(endpoint, HttpMethod.Get) { }
+            public TMDbRequest(string endpoint, HttpMethod method)
+            {
+                Method = method;
+                Endpoint = endpoint;
+            }
+
+            public static implicit operator TMDbRequest(string url) => new TMDbRequest(url);
+
+            public HttpRequestMessage GetMessage(string language, string region, bool adult, AuthenticationHeaderValue auth)
+            {
+                var parameters = new List<string>();
+
+                if (HasLanguageParameter) parameters.Add(language);
+                if (HasRegionParameter) parameters.Add(region);
+                if (HasAdultParameter) parameters.Add(adult.ToString());
+
+                var message = new HttpRequestMessage(Method, BuildApiCall(Endpoint, parameters));
+
+                if (AuthenticationRequired)
+                {
+                    message.Headers.Authorization = auth;
+                }
+
+                return message;
+            }
+        }
+
+        private static readonly TMDbRequest MOVIE_GENRE_VALUES = new TMDbRequest("genre/movie/list")
+        {
+            HasLanguageParameter = true,
+        };
+
+        private AuthenticationHeaderValue Auth { get; }
+
+        private HttpRequestMessage GetMessage(TMDbRequest request) => request.GetMessage(LanguageParameter, RegionParameter, false, Auth);
+
+        private Task InitValues() => Task.WhenAll(new Task[]
+        {
+            SetValues(Movie.GENRES, BuildApiCall("genre/movie/list", LanguageParameter), new JsonPropertyParser<string>("genre")),
+            SetValues(Movie.GENRES, MOVIE_GENRE_VALUES, new JsonPropertyParser<string>("genre"))
+            //GetValues(Media.GENRES, new ApiCall(BuildApiCall("genre/{0}/list", LanguageParameter), "genres", new Parser<string>(Media.GENRES)))
+        });
+
+        private async Task SetValues<T>(Property<T> property, TMDbRequest request, IJsonParser<T> parser)
+        {
+            if (property.Values is ICollection<T> list)
+            {
+                //var apiCall = new ApiCall<IEnumerable<T>>(endpoint, new JsonArrayParser<T>(parser));
+                
+                var response = await WebClient.TryGetCachedAsync(GetMessage(request), ResponseCache);
+
+                if (JsonParser.TryParse(response.Json, new JsonArrayParser<T>(parser), out var values))
+                {
+                    foreach (var value in values)
+                    {
+                        list.Add(value);
+                    }
+                }
+            }
+        }
 
         public IAsyncEnumerable<Review> GetMovieReviews(int id) => GetReviews($"movie/{id}/reviews");
         public IAsyncEnumerable<Review> GetReviews(TVShow show) => TryGetID(show, out var id) ? GetReviews($"tv/{id}/reviews") : null;
@@ -272,19 +354,6 @@ namespace Movies
             throw new NotImplementedException();
         }
 
-        private class WatchProviderConverter : JsonConverter<WatchProvider>
-        {
-            public override WatchProvider Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
-            {
-                return new WatchProvider();
-            }
-
-            public override void Write(Utf8JsonWriter writer, WatchProvider value, JsonSerializerOptions options)
-            {
-                writer.WriteStringValue(value.ToString());
-            }
-        }
-
         public static WatchProvider ParseWatchProvider(JsonNode json)
         {
             throw new NotImplementedException();
@@ -301,123 +370,126 @@ namespace Movies
         }
 
         private static readonly Parser<string> TITLE_PARSER = Media.TITLE;
-        private static readonly Parser RUNTIME_PARSER = new Parser<TimeSpan>(Media.RUNTIME, json => TimeSpan.FromMinutes(json.GetValue<int>()));
+        //private static readonly Parser RUNTIME_PARSER = new Parser<TimeSpan>(Media.RUNTIME, json => TimeSpan.FromMinutes(json.GetValue<int>()));
         private static readonly Parser<string> ORIGINAL_TITLE_PARSER = Media.ORIGINAL_LANGUAGE;
 
-        private static readonly Dictionary<string, Parser> CREDITS_PARSERS = new Dictionary<string, Parser>
+        private static readonly List<Parser> CREDITS_PARSERS = new List<Parser>
         {
-            ["cast"] = new Parser<Credit>(Media.CAST, ParseCredit),
-            ["crew"] = new Parser<Credit>(Media.CREW, ParseCredit)
+            Parser.Create(Media.CAST, "cast", ParseCredit),
+            Parser.Create(Media.CREW, "crew", ParseCredit)
         };
-        private static readonly Parser<string> CONTENT_RATING_PARSER = Media.CONTENT_RATING;
-        private static readonly Parser KEYWORDS_PARSER = new SubPropertyParser<string>(Media.KEYWORDS, "name");
 
-        private static IDictionary<string, Parser> MEDIA_PROPERTIES = new Dictionary<string, Parser>
+        private static List<Parser> MEDIA_PROPERTIES = new List<Parser>
         {
-            ["tagline"] = new Parser<string>(Media.TAGLINE),
-            ["overview"] = new Parser<string>(Media.DESCRIPTION),
+            //new Parser<string>(Media.TAGLINE, "tagline"),
+            //new Parser<string>(Media.DESCRIPTION, "overview"),
             //new Parser<string>(Media.CONTENT_RATING, "release_dates"),
-            ["original_language"] = new Parser<string>(Media.ORIGINAL_LANGUAGE),
-            ["spoken_languages"] = new SubPropertyParser<string>(Media.LANGUAGES, "name"),
-            ["genres"] = new SubPropertyParser<string>(Media.GENRES, "name"),
-            ["poster_path"] = new Parser<string>(Media.POSTER_PATH),
-            ["backdrop_path"] = new Parser<string>(Media.BACKDROP_PATH),
-            ["production_companies"] = new Parser<Company>(Media.PRODUCTION_COMPANIES),
-            ["production_countries"] = new SubPropertyParser<string>(Media.PRODUCTION_COUNTRIES, "name"),
+            //new Parser<string>(Media.ORIGINAL_LANGUAGE, "original_language"),
+            //["spoken_languages"] = new SubPropertyParser<string>(Media.LANGUAGES, "name"),
+            Parser.Create(Media.POSTER_PATH, "poster_path", path => BuildImageURL(path.TryGetValue<string>(), POSTER_SIZE)),
+            //new Parser<string>(Media.BACKDROP_PATH, "backdrop_path", path => BuildImageURL(path.TryGetValue<string>())),
+            //new Parser<Company>(Media.PRODUCTION_COMPANIES, "production_companies"),
+            //["production_countries"] = new SubPropertyParser<string>(Media.PRODUCTION_COUNTRIES, "name"),
             //new Parser<Rating>(Media.RATING, ParseRating),
         };
 
-        private static readonly Dictionary<string, Dictionary<string, Parser>> MEDIA_APPENDED_PROPERTIES = new Dictionary<string, Dictionary<string, Parser>>
+        private static readonly Dictionary<string, List<Parser>> MEDIA_APPENDED_PROPERTIES = new Dictionary<string, List<Parser>>
         {
-            ["recommendations"] = new Dictionary<string, Parser>
+            ["recommendations"] = new List<Parser>
             {
-                ["recommendations"] = new Parser<IAsyncEnumerable<Item>>(Media.RECOMMENDED)
+                //["recommendations"] = new Parser<IAsyncEnumerable<Item>>(Media.RECOMMENDED)
             },
             //["reviews"] = new Dictionary<string, Parser>(),
-            [BuildApiCall("videos", LANGUAGE_PLACEHOLDER)] = new Dictionary<string, Parser>
+            [BuildApiCall("videos", LANGUAGE_PLACEHOLDER)] = new List<Parser>
             {
-                ["results"] = new Parser<string>(Media.TRAILER_PATH)
+                //["results"] = new Parser<string>(Media.TRAILER_PATH)
             },
-            ["watch/providers"] = new Dictionary<string, Parser>
-            {
-                //["results"] = new Parser<WatchProvider>(Media.WATCH_PROVIDERS, ParseWatchProvider)
-            }
         };
 
         private static readonly string DETAILS_ENDPOINT = string.Empty;
         private static readonly string LANGUAGE_PLACEHOLDER = "{0}";
 
-        private static readonly Dictionary<string, Dictionary<string, Parser>> MOVIE_PROPERTIES = new Dictionary<string, Dictionary<string, Parser>>(MEDIA_APPENDED_PROPERTIES)
+        private static readonly Dictionary<string, List<Parser>> MOVIE_PROPERTIES = new Dictionary<string, List<Parser>>(MEDIA_APPENDED_PROPERTIES)
         {
-            [DETAILS_ENDPOINT] = new Dictionary<string, Parser>(MEDIA_PROPERTIES)
+            [DETAILS_ENDPOINT] = new List<Parser>(MEDIA_PROPERTIES)
             {
-                ["title"] = TITLE_PARSER,
-                ["runtime"] = RUNTIME_PARSER,
-                ["original_title"] = ORIGINAL_TITLE_PARSER,
-                ["release_date"] = new Parser<DateTime>(Movie.RELEASE_DATE),
-                ["budget"] = new Parser<long>(Movie.BUDGET),
-                ["revenue"] = new Parser<long>(Movie.REVENUE),
+                //["title"] = TITLE_PARSER,
+                //Parser.Create(Movie.GENRES, "genres", "name"),
+                //["runtime"] = RUNTIME_PARSER,
+                //["original_title"] = ORIGINAL_TITLE_PARSER,
+                //["release_date"] = new Parser<DateTime>(Movie.RELEASE_DATE),
+                //["budget"] = new Parser<long>(Movie.BUDGET),
+                //["revenue"] = new Parser<long>(Movie.REVENUE),
                 //["belongs_to_collection"] = new Parser<Collection>(Movie.PARENT_COLLECTION, TryParseCollection),
             },
-            ["release_dates"] = new Dictionary<string, Parser>
+            ["release_dates"] = new List<Parser>
             {
-                ["results"] = CONTENT_RATING_PARSER
+                //["results"] = CONTENT_RATING_PARSER
             },
             [BuildApiCall("credits", LANGUAGE_PLACEHOLDER)] = CREDITS_PARSERS,
-            ["keywords"] = new Dictionary<string, Parser>
+            ["keywords"] = new List<Parser>
             {
-                ["keywords"] = KEYWORDS_PARSER
+                //["keywords"] = new SubPropertyParser<string>(Movie.KEYWORDS, "name")
+            },
+            ["watch/providers"] = new List<Parser>
+            {
+                //["results"] = new Parser<WatchProvider>(Media.WATCH_PROVIDERS, ParseWatchProvider)
             }
         };
 
-        private static readonly Dictionary<string, Dictionary<string, Parser>> TVSHOW_PROPERTIES = new Dictionary<string, Dictionary<string, Parser>>(MEDIA_APPENDED_PROPERTIES)
+        private static readonly Dictionary<string, List<Parser>> TVSHOW_PROPERTIES = new Dictionary<string, List<Parser>>(MEDIA_APPENDED_PROPERTIES)
         {
-            [DETAILS_ENDPOINT] = new Dictionary<string, Parser>(MEDIA_PROPERTIES)
+            [DETAILS_ENDPOINT] = new List<Parser>(MEDIA_PROPERTIES)
             {
-                ["name"] = TITLE_PARSER,
-                ["episode_run_time"] = RUNTIME_PARSER,
-                ["original_name"] = ORIGINAL_TITLE_PARSER,
-                ["first_air_date"] = new Parser<DateTime>(TVShow.FIRST_AIR_DATE),
-                ["last_air_date"] = new Parser<DateTime>(TVShow.LAST_AIR_DATE),
+                //["name"] = TITLE_PARSER,
+                //["episode_run_time"] = RUNTIME_PARSER,
+                //["original_name"] = ORIGINAL_TITLE_PARSER,
+                //["first_air_date"] = new Parser<DateTime>(TVShow.FIRST_AIR_DATE),
+                //["last_air_date"] = new Parser<DateTime>(TVShow.LAST_AIR_DATE),
+                //["genres"] = new SubPropertyParser<string>(TVShow.GENRES, "name"),
                 //["networks"] = new Parser<Company>(TVShow.NETWORKS, ParseCompany),
             },
-            [BuildApiCall("content_ratings", LANGUAGE_PLACEHOLDER)] = new Dictionary<string, Parser>
+            [BuildApiCall("content_ratings", LANGUAGE_PLACEHOLDER)] = new List<Parser>
             {
-                ["results"] = CONTENT_RATING_PARSER
+                //["results"] = CONTENT_RATING_PARSER
             },
             [BuildApiCall("aggregate_credits", LANGUAGE_PLACEHOLDER)] = CREDITS_PARSERS,
-            ["keywords"] = new Dictionary<string, Parser>
+            ["keywords"] = new List<Parser>
             {
-                ["results"] = KEYWORDS_PARSER
+                //["results"] = new SubPropertyParser<string>(TVShow.KEYWORDS, "name")
+            },
+            ["watch/providers"] = new List<Parser>
+            {
+                //["results"] = new Parser<WatchProvider>(Media.WATCH_PROVIDERS, ParseWatchProvider)
             }
         };
 
-        private static readonly Dictionary<string, Dictionary<string, Parser>> TVSEASON_PROPERTIES = new Dictionary<string, Dictionary<string, Parser>>
+        private static readonly Dictionary<string, List<Parser>> TVSEASON_PROPERTIES = new Dictionary<string, List<Parser>>
         {
-            [DETAILS_ENDPOINT] = new Dictionary<string, Parser>
+            [DETAILS_ENDPOINT] = new List<Parser>
             {
-                ["air_date"] = new Parser<DateTime>(TVSeason.YEAR),
-                ["release_date"] = new Parser<TimeSpan>(TVSeason.AVERAGE_RUNTIME),
+                //["air_date"] = new Parser<DateTime>(TVSeason.YEAR),
+                //["release_date"] = new Parser<TimeSpan>(TVSeason.AVERAGE_RUNTIME),
             }
         };
 
-        private static readonly Dictionary<string, Dictionary<string, Parser>> TVEPISODE_PROPERTIES = new Dictionary<string, Dictionary<string, Parser>>
+        private static readonly Dictionary<string, List<Parser>> TVEPISODE_PROPERTIES = new Dictionary<string, List<Parser>>
         {
-            [DETAILS_ENDPOINT] = new Dictionary<string, Parser>
+            [DETAILS_ENDPOINT] = new List<Parser>
             {
-                ["air_date"] = new Parser<DateTime>(TVEpisode.AIR_DATE),
+                //["air_date"] = new Parser<DateTime>(TVEpisode.AIR_DATE),
             }
         };
 
-        private static readonly Dictionary<string, Dictionary<string, Parser>> PERSON_PROPERTIES = new Dictionary<string, Dictionary<string, Parser>>
+        private static readonly Dictionary<string, List<Parser>> PERSON_PROPERTIES = new Dictionary<string, List<Parser>>
         {
-            [DETAILS_ENDPOINT] = new Dictionary<string, Parser>
+            [DETAILS_ENDPOINT] = new List<Parser>
             {
 
             }
         };
 
-        private static readonly Dictionary<ItemType, (string BaseURL, Dictionary<string, Dictionary<string, Parser>> Properties)> ITEM_PROPERTIES = new Dictionary<ItemType, (string baseURL, Dictionary<string, Dictionary<string, Parser>>)>
+        private static readonly Dictionary<ItemType, (string BaseURL, Dictionary<string, List<Parser>> Properties)> ITEM_PROPERTIES = new Dictionary<ItemType, (string BaseURL, Dictionary<string, List<Parser>> Properties)>
         {
             [ItemType.Movie] = ("movie", MOVIE_PROPERTIES),
             [ItemType.TVShow] = ("tv", TVSHOW_PROPERTIES),
@@ -435,14 +507,15 @@ namespace Movies
 
             var dict = Data.GetDetails(item);
 
-            foreach (var property in json.AsObject())
+            foreach (var parsers in properties.Properties.Values)
             {
-                foreach (var a in properties.Properties.Values)
+                foreach (var parser in parsers)
                 {
-                    if (a.TryGetValue(property.Key, out var parser))
+                    if (parser is IJsonParser<PropertyValuePair> pvp && pvp.TryGetValue(json, out var pair))
                     {
-                        dict.Add(parser.GetPair(Task.FromResult(property.Value)));
-                        break;
+                        dict.Add(pair);
+                        //dict.Add(parser.GetPair(Task.FromResult(property.Value)));
+                        //break;
                     }
                 }
             }
@@ -479,7 +552,7 @@ namespace Movies
             }
             else if (item is Media)
             {
-                appended.Add(new ApiCall("reviews", "title", new Parser<Rating>(Media.RATING, json => ParseRating(json, Company, GetMovieReviews(id)))));
+                //appended.Add(new ApiCall("reviews", "title", new Parser<Rating>(Media.RATING, json => ParseRating(json, Company, GetMovieReviews(id)))));
             }
 
             ApiCall details = null;
@@ -511,138 +584,6 @@ namespace Movies
             return true;
         }
 
-        private class ApiCall
-        {
-            public string Endpoint { get; }
-            public IDictionary<string, Parser> Parsers { get; }
-
-            public ApiCall(string endpoint)
-            {
-                Endpoint = endpoint;
-            }
-
-            public ApiCall(string endpoint, string jsonProperty, Parser parser) : this(endpoint, new Dictionary<string, Parser>
-            {
-                [jsonProperty] = parser
-            })
-            { }
-
-            public ApiCall(string endpoint, IEnumerable<KeyValuePair<string, Parser>> parsers) : this(endpoint)
-            {
-                Parsers = new Dictionary<string, Parser>(parsers);
-            }
-        }
-
-        private abstract class Parser
-        {
-            public Property Property { get; }
-
-            public Parser(Property property)
-            {
-                Property = property;
-            }
-
-            public abstract PropertyValuePair GetPair(Task<JsonNode> node);
-        }
-
-        private class ParserWrapper : Parser
-        {
-            private Parser Parser;
-            private string JsonProperty;
-
-            public ParserWrapper(Parser parser, string jsonProperty) : base(parser.Property)
-            {
-                Parser = parser;
-                JsonProperty = jsonProperty;
-            }
-
-            public override PropertyValuePair GetPair(Task<JsonNode> node) => Parser.GetPair(GetPropertyAsync(node, JsonProperty));
-
-            private static async Task<JsonNode> GetPropertyAsync(Task<JsonNode> json, string property) => (await json)[property];
-        }
-
-        private class SubPropertyParser<T> : Parser
-        {
-            private string SubProperty;
-
-            public SubPropertyParser(MultiProperty<T> property, string subProperty) : base(property)
-            {
-                SubProperty = subProperty;
-            }
-
-            public override PropertyValuePair GetPair(Task<JsonNode> node) => new PropertyValuePair<T>((MultiProperty<T>)Property, GetValues(node));
-
-            private async Task<IEnumerable<T>> GetValues(Task<JsonNode> node)
-            {
-                var json = await node;
-                var values = new List<T>();
-
-                foreach (var item in json.AsArray())
-                {
-                    if (item.TryGetValue(SubProperty, out T value))
-                    {
-                        values.Add(value);
-                    }
-                }
-
-                return values;
-            }
-        }
-
-        private class Parser<T> : Parser
-        {
-            private Func<JsonNode, T> ParseSingle;
-            private Func<JsonNode, IEnumerable<T>> ParseMultiple;
-
-            public static implicit operator Parser<T>(Property<T> property) => new Parser<T>(property);
-
-            public Parser(Property<T> property) : this(property, null) { }
-
-            public Parser(MultiProperty<T> property, Func<JsonNode, IEnumerable<T>> parse) : this(property)
-            {
-                ParseMultiple = parse;
-            }
-
-            public Parser(Property<T> property, Func<JsonNode, T> parse) : base(property)
-            {
-                ParseSingle = parse;
-            }
-
-            public override PropertyValuePair GetPair(Task<JsonNode> json) => Property is MultiProperty<T> multi ? new PropertyValuePair<T>(multi, GetMultiple(json)) : new PropertyValuePair<T>((Property<T>)Property, GetSingle(json));
-
-            private async Task<IEnumerable<T>> GetMultiple(Task<JsonNode> node)
-            {
-                var json = await node;
-
-                if (ParseMultiple != null)
-                {
-                    return ParseMultiple(json);
-                }
-                else if (json is JsonArray array)
-                {
-                    return array.Select(GetSingle);
-                }
-                else
-                {
-                    return new List<T> { GetSingle(json) };
-                }
-            }
-
-            private async Task<T> GetSingle(Task<JsonNode> json) => GetSingle(await json);
-
-            private T GetSingle(JsonNode json)
-            {
-                if (ParseSingle != null)
-                {
-                    return ParseSingle(json);
-                }
-                else
-                {
-                    return json.TryGetValue<T>();
-                }
-            }
-        }
-
         private class ItemProperties
         {
             private Dictionary<Property, ApiCall> ApiCalls;
@@ -656,7 +597,7 @@ namespace Movies
                 {
                     foreach (var parser in apiCall.Parsers)
                     {
-                        ApiCalls[parser.Value.Property] = apiCall;
+                        ApiCalls[parser.Property] = apiCall;
                     }
                 }
             }
@@ -687,22 +628,20 @@ namespace Movies
                     {
                         response ??= ApiCall(call.Endpoint);
 
-                        foreach (var kvp in call.Parsers)
+                        foreach (var parser in call.Parsers)
                         {
-                            dict.Add(kvp.Value.GetPair(GetValue(response, kvp.Key)));
+                            dict.Add(parser.GetPair(response));
                         }
                     }
                 }
             }
-
-            private async Task<JsonNode> GetValue(Task<JsonNode> json, string property) => (await json)[property];
 
             public static ApiCall AppendToResponse(ApiCall details, IEnumerable<ApiCall> appended)
             {
                 string basePath = null;
                 var appendedPaths = new List<string>();
                 var parameters = new Dictionary<string, string>();
-                var parsers = new Dictionary<string, Parser>();
+                var parsers = new List<Parser>();
 
                 foreach (var call in appended.Prepend(details))
                 {
@@ -733,11 +672,11 @@ namespace Movies
                     else
                     {
                         appendedPaths.Add(path);
-                        var parser = call.Parsers.FirstOrDefault();
 
-                        if (parser.Value != null)
+                        foreach (var parser in call.Parsers)
                         {
-                            parsers.Add(path, new ParserWrapper(parser.Value, parser.Key));
+                            //parsers.Add(path, new ParserWrapper(parser.Value, parser.Key));
+                            
                         }
                     }
 

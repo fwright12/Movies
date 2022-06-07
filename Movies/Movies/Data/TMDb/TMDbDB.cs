@@ -147,11 +147,13 @@ namespace Movies
 
                     if (GetMovieSortParameter(e.SortBy, e.SortAscending) is string sortMovie && (!filterType || itemType.Value.HasFlag(ItemType.Movie)))
                     {
-                        sources.Add(FlattenPages(WebClient, BuildPagedApiCall("discover/movie", sortMovie, GetDiscoverMovieParameters(filters))));
+                        var endpoint = TMDB.BuildApiCall("discover/movie", GetDiscoverParameters(filters, DiscoverMovieParameters).Prepend(sortMovie).Prepend(PageParameter));
+                        sources.Add(FlattenPages(WebClient, endpoint));
                     }
                     if (!filterType || itemType.Value.HasFlag(ItemType.TVShow))
                     {
-                        sources.Add(FlattenPages(WebClient, BuildPagedApiCall("discover/tv", DiscoverTVParameters(filters))));
+                        var endpoint = TMDB.BuildApiCall("discover/tv", GetDiscoverParameters(filters, DiscoverTVParameters).Prepend(string.Empty).Prepend(PageParameter));
+                        sources.Add(FlattenPages(WebClient, endpoint));
                     }
                     if (!filterType || itemType.Value.HasFlag(ItemType.Movie))
                     {
@@ -210,29 +212,34 @@ namespace Movies
                 return string.Format("{0}={1}.{2}", "sort_by", property, ascending ? "asc" : "desc");
             }
 
-            private static readonly Dictionary<string, Dictionary<int, string>> DiscoverMovieParameters = new Dictionary<string, Dictionary<int, string>>
+            private static readonly Dictionary<Property, Dictionary<Operators, string>> DiscoverTVParameters = new Dictionary<Property, Dictionary<Operators, string>>
             {
-                ["Certification Country"] = new Dictionary<int, string>
+
+            };
+
+            private static readonly Dictionary<Property, Dictionary<Operators, string>> DiscoverMovieParameters = new Dictionary<Property, Dictionary<Operators, string>>
+            {
+                /*["Certification Country"] = new Dictionary<int, string>
                 {
                     [0] = "certification_country",
-                },
-                [Media.CONTENT_RATING.Name] = new Dictionary<int, string>
+                },*/
+                [Movie.CONTENT_RATING] = new Dictionary<Operators, string>
                 {
-                    [-1] = "certification.lte",
-                    [0] = "certification",
-                    [1] = "certification.gte"
+                    [Operators.LessThan] = "certification.lte",
+                    [Operators.Equal] = "certification",
+                    [Operators.GreaterThan] = "certification.gte"
                 },
-                ["Primary " + Movie.RELEASE_DATE.Name] = new Dictionary<int, string>
+                /*["Primary " + Movie.RELEASE_DATE.Name] = new Dictionary<int, string>
                 {
                     [-1] = "primary_release_date.lte",
                     [1] = "primary_release_date.gte"
-                },
-                [Movie.RELEASE_DATE.Name] = new Dictionary<int, string>
+                },*/
+                [Movie.RELEASE_DATE] = new Dictionary<Operators, string>
                 {
-                    [-1] = "release_date.lte",
-                    [1] = "release_date.gte"
+                    [Operators.LessThan] = "release_date.lte",
+                    [Operators.GreaterThan] = "release_date.gte"
                 },
-                ["Release Type"] = new Dictionary<int, string>
+                /*["Release Type"] = new Dictionary<int, string>
                 {
                     [0] = "with_release_type"
                 },
@@ -245,61 +252,58 @@ namespace Movies
                 {
                     [-1] = "vote_average.lte",
                     [1] = "vote_average.gte"
-                },
-                [Media.CAST.Name] = new Dictionary<int, string>
+                },*/
+                [Media.CAST] = new Dictionary<Operators, string>
                 {
-                    [0] = "with_cast",
+                    [Operators.Equal] = "with_cast",
                 },
-                [Media.CREW.Name] = new Dictionary<int, string>
+                [Media.CREW] = new Dictionary<Operators, string>
                 {
-                    [0] = "with_crew",
+                    [Operators.Equal] = "with_crew",
                 },
-                [Media.CAST.Name + " + " + Media.CREW.Name] = new Dictionary<int, string>
+                /*[Media.CAST.Name + " + " + Media.CREW.Name] = new Dictionary<int, string>
                 {
                     [0] = "with_people",
-                },
-                [Media.PRODUCTION_COMPANIES.Name] = new Dictionary<int, string>
+                },*/
+                [Media.PRODUCTION_COMPANIES] = new Dictionary<Operators, string>
                 {
-                    [-1] = "without_companies",
-                    [0] = "with_companies",
-                    [1] = "without_companies",
+                    [Operators.Equal] = "with_companies",
+                    [Operators.NotEqual] = "without_companies",
                 },
-                [Media.GENRES.Name] = new Dictionary<int, string>
+                [Movie.GENRES] = new Dictionary<Operators, string>
                 {
-                    [-1] = "without_genres",
-                    [0] = "with_genres",
-                    [1] = "without_genres",
+                    [Operators.Equal] = "with_genres",
+                    [Operators.NotEqual] = "without_genres",
                 },
-                [Media.KEYWORDS.Name] = new Dictionary<int, string>
+                [Movie.KEYWORDS] = new Dictionary<Operators, string>
                 {
-                    [-1] = "without_keywords",
-                    [0] = "with_keywords",
-                    [1] = "without_keywords",
+                    [Operators.Equal] = "with_keywords",
+                    [Operators.NotEqual] = "without_keywords",
                 },
-                [Media.RUNTIME.Name] = new Dictionary<int, string>
+                [Media.RUNTIME] = new Dictionary<Operators, string>
                 {
-                    [-1] = "with_runtime.lte",
-                    [1] = "with_runtime.gte"
+                    [Operators.LessThan] = "with_runtime.lte",
+                    [Operators.GreaterThan] = "with_runtime.gte"
                 },
-                [Media.ORIGINAL_LANGUAGE.Name] = new Dictionary<int, string>
+                [Media.ORIGINAL_LANGUAGE] = new Dictionary<Operators, string>
                 {
-                    [0] = "with_original_language",
+                    [Operators.Equal] = "with_original_language",
                 },
-                [Media.WATCH_PROVIDERS.Name] = new Dictionary<int, string>
+                [Movie.WATCH_PROVIDERS] = new Dictionary<Operators, string>
                 {
-                    [0] = "with_watch_providers",
+                    [Operators.Equal] = "with_watch_providers",
                 },
-                ["Watch Region"] = new Dictionary<int, string>
+                /*["Watch Region"] = new Dictionary<int, string>
                 {
                     [0] = "watch_region",
-                },
-                [nameof(MonetizationType)] = new Dictionary<int, string>
+                },*/
+                [ViewModels.CollectionViewModel.MonetizationType] = new Dictionary<Operators, string>
                 {
-                    [0] = "with_watch_monetization_types",
+                    [Operators.Equal] = "with_watch_monetization_types",
                 },
             };
 
-            private string GetDiscoverMovieParameters(List<Constraint> filters)
+            private List<string> GetDiscoverParameters(List<Constraint> filters, IDictionary<Property, Dictionary<Operators, string>> endpoints)
             {
                 var parameters = new List<string>();
 
@@ -307,19 +311,27 @@ namespace Movies
                 {
                     var filter = filters[i];
 
-                    if (DiscoverMovieParameters.TryGetValue(filter.Property.Name, out var options) && options.TryGetValue((int)filter.Comparison, out var parameter))
+                    if (endpoints.TryGetValue(filter.Property, out var options))
                     {
-                        parameters.Add(string.Format("{0}={1}", parameter, filter.Value));
+                        if (options.TryGetValue(filter.Comparison, out var parameter))
+                        {
+                            parameters.Add($"{parameter}={filter.Value}");
+                        }
+                        else if (filter.Comparison == Operators.Equal && options.TryGetValue(Operators.LessThan, out var lte) && options.TryGetValue(Operators.GreaterThan, out var gte))
+                        {
+                            parameters.Add($"{lte}={filter.Value}");
+                            parameters.Add($"{gte}={filter.Value}");
+                        }
+                        else
+                        {
+                            continue;
+                        }
+
                         filters.RemoveAt(i--);
                     }
                 }
 
-                return string.Join('&', parameters);
-            }
-
-            private string DiscoverTVParameters(List<Constraint> filters)
-            {
-                return string.Empty;
+                return parameters;
             }
 
             public IAsyncEnumerable<Item> Search(string query)

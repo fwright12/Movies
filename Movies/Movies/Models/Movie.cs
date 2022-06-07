@@ -1,5 +1,5 @@
-﻿using Movies.ViewModels;
-using System;
+﻿using System;
+using System.Collections.Generic;
 
 namespace Movies.Models
 {
@@ -7,9 +7,25 @@ namespace Movies.Models
     {
         public Movie(string title, int? year = null) : base(title, year) { }
 
-        public static readonly Property<DateTime> RELEASE_DATE = new Property<DateTime>("Release Date", new SteppedValueRange<DateTime, TimeSpan>(DateTime.MinValue, DateTime.MaxValue, TimeSpan.FromDays(1)));
-        public static readonly Property<long> BUDGET = new Property<long>("Budget", new SteppedValueRange<long, long>(0, long.MaxValue, 1));
-        public static readonly Property<long> REVENUE = new Property<long>("Revenue", new SteppedValueRange<long, long>(0, long.MaxValue, 1));
+        public static readonly Property<DateTime> RELEASE_DATE = new Property<DateTime>("Release Date", new SteppedValueRange
+        {
+            Step = TimeSpan.FromDays(1)
+        });
+        public static readonly Property<long> BUDGET = new Property<long>("Budget", new SteppedValueRange
+        {
+            First = (long)0,
+            Step = 1
+        });
+        public static readonly Property<long> REVENUE = new Property<long>("Revenue", new SteppedValueRange
+        {
+            First = (long)0,
+            Step = 1
+        });
         public static readonly Property<Collection> PARENT_COLLECTION = new Property<Collection>("Parent Collection");
+
+        public static readonly Property<string> CONTENT_RATING = new Property<string>("Content Rating", new List<string> { "G", "PG", "PG-13", "R", "NC-17" });
+        public static readonly MultiProperty<string> GENRES = new MultiProperty<string>("Genres", new List<string> { "Action", "Adventure", "Romance", "Comedy", "Thriller", "Mystery", "Sci-Fi", "Horror", "Documentary" });
+        public static readonly MultiProperty<WatchProvider> WATCH_PROVIDERS = new MultiProperty<WatchProvider>("Watch Providers", new List<WatchProvider> { MockData.NetflixStreaming });
+        public static readonly MultiProperty<string> KEYWORDS = new MultiProperty<string>("Keywords", new KeywordsSearch());
     }
 }

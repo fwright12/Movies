@@ -46,8 +46,8 @@ namespace Movies.ViewModels
             });
         }
 
-        protected T RequestSingle<T>(Property<T> property, [CallerMemberName] string propertyName = null) => GetValue(Properties.GetSingle(property), propertyName);
-        protected IEnumerable<T> RequestMultiple<T>(MultiProperty<T> property, [CallerMemberName] string propertyName = null) => GetValue(Properties.GetMultiple(property), propertyName);
+        protected T RequestValue<T>(Property<T> property, [CallerMemberName] string propertyName = null) => GetValue(Properties.GetSingle(property), propertyName);
+        protected IEnumerable<T> RequestValue<T>(MultiProperty<T> property, [CallerMemberName] string propertyName = null) => GetValue(Properties.GetMultiple(property), propertyName);
         protected TValue RequestSingle<TItem, TValue>(InfoRequestHandler<TItem, TValue> handler, [CallerMemberName] string property = null) where TItem : Item => Item is TItem item ? GetValue(handler.GetSingle(item), property) : default;
 
         public override string ToString() => Item?.ToString() ?? base.ToString();
