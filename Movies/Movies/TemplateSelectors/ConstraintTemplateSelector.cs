@@ -5,13 +5,42 @@ using Xamarin.Forms;
 
 namespace Movies.Templates
 {
-    public class ConstraintTemplateSelector : TypeTemplateSelector
+    public class ConstraintTemplateSelector : DataTemplateSelector
     {
         public DataTemplate ComparableTemplate { get; set; }
         public DataTemplate MoneyValueTemplate { get; set; }
 
+        public DataTemplate FullExpressionTemplate { get; set; }
+        public DataTemplate OperatorAndValueTemplate { get; set; }
+        public DataTemplate ValueOnlyTemplate { get; set; }
+
         protected override DataTemplate OnSelectTemplate(object item, BindableObject container)
         {
+            if (item is OperatorPredicateBuilder<Item> builder)
+            {
+                var property = builder.LHS as Property;
+
+                if (property == Movie.BUDGET || property == Movie.REVENUE)
+                {
+                    return MoneyValueTemplate;
+                }
+                else if (builder is PropertyPredicateBuilder<Item>)
+                {
+                    if (builder.RHS is IComparable && !(builder.RHS is string))
+                    {
+                        return OperatorAndValueTemplate;
+                    }
+                    else
+                    {
+                        return ValueOnlyTemplate;
+                    }
+                }
+                else
+                {
+                    return FullExpressionTemplate;
+                }
+            }
+
             /*var constraint = (ConstraintViewModel)item;
             var property = constraint.Constraint.Property;
             var value = constraint.Constraint.Value;
@@ -32,7 +61,7 @@ namespace Movies.Templates
                 return MoneyValueTemplate;
             }*/
 
-            return base.OnSelectTemplate(item, container);
+            return TypeTemplateSelector.ObjectTemplate;
         }
 
         //protected override Type GetType(object item) => (item as ConstraintViewModel)?.Constraint.Value?.GetType() ?? base.GetType(item);

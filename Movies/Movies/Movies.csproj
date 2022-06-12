@@ -46,6 +46,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Update="Resources\PredicateEditorResources.xaml.cs">
+      <DependentUpon>PredicateEditorResources.xaml</DependentUpon>
+    </Compile>
     <Compile Update="Views\CollectionItemView.xaml.cs">
       <DependentUpon>CollectionItemView.xaml</DependentUpon>
     </Compile>

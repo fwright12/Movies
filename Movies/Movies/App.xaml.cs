@@ -488,7 +488,7 @@ namespace Movies
             }
         }
 
-        private static List<Constraint> DeserializeConstraints(string json, FiltersViewModel filter)
+        private static List<Constraint> DeserializeConstraints(string json, FilterListViewModel<Item> filter)
         {
             var constraints = new List<Constraint>();
 
@@ -499,7 +499,7 @@ namespace Movies
                     continue;
                 }
 
-                var property = filter.Selectors.FirstOrDefault(selector => selector.Property.Name == name)?.Property;
+                var property = (Property)null;// filter.Selectors.FirstOrDefault(selector => selector.Property.Name == name)?.Property;
                 var type = property.GetType().GenericTypeArguments[0];
                 object value = null;
 
@@ -561,10 +561,10 @@ namespace Movies
 
             return collection;
 
-            collection.Filter.Selectors.Insert(0, new SelectorViewModel<string>(CollectionViewModel.SearchProperty)
+            /*collection.Filter.Selectors.Insert(0, new SelectorViewModel<string>(CollectionViewModel.SearchProperty)
             {
                 Name = string.Empty
-            });
+            });*/
 
             if (Properties.TryGetValue(POPULAR_FILTERS, out var value) && value is string filters)
             {
@@ -580,27 +580,27 @@ namespace Movies
                 {
                     foreach (var text in presets.Select(preset => preset.AsValue().TryGetValue<string>()))
                     {
-                        foreach (var preset in collection.Filter.Presets.Where(preset => preset.Text == text))
+                        /*foreach (var preset in collection.Filter.Presets.Where(preset => preset.Text == text))
                         {
                             preset.IsActive = true;
-                        }
+                        }*/
                     }
                 }
             }
 
-            collection.Filter.ValueChanged += (sender, e) =>
+            collection.Source.Editor.PredicateChanged += (sender, e) =>
             {
                 try
                 {
                     var json = System.Text.Json.JsonSerializer.Serialize(new
                     {
-                        presets = collection.Filter.Presets.Where(preset => preset.IsActive).Select(preset => preset.Text),
+                        /*presets = collection.Filter.Presets.Where(preset => preset.IsActive).Select(preset => preset.Text),
                         constraints = e.Value.Select(constraint => new
                         {
                             property = constraint.Property.Name,
                             comparison = constraint.Comparison,
                             value = PrimitiveJsonTypes.Contains(constraint.Value?.GetType()) ? constraint.Value : constraint.Value?.ToString()
-                        })
+                        })*/
                     });
 
                     Print.Log(json);

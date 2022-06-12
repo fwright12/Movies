@@ -168,6 +168,7 @@ namespace Movies
             public bool HasLanguageParameter { get; set; }
             public bool HasRegionParameter { get; set; }
             public bool HasAdultParameter { get; set; }
+            public bool SupportsAppendToResponse { get; set; }
 
             public TMDbRequest(string endpoint) : this(endpoint, HttpMethod.Get) { }
             public TMDbRequest(string endpoint, HttpMethod method)
@@ -178,15 +179,21 @@ namespace Movies
 
             public static implicit operator TMDbRequest(string url) => new TMDbRequest(url);
 
-            public HttpRequestMessage GetMessage(string language, string region, bool adult, AuthenticationHeaderValue auth)
+
+            public string GetURL(string language, string region, bool adult)
             {
                 var parameters = new List<string>();
 
-                if (HasLanguageParameter) parameters.Add(language);
-                if (HasRegionParameter) parameters.Add(region);
-                if (HasAdultParameter) parameters.Add(adult.ToString());
+                if (HasLanguageParameter) parameters.Add($"language={language}");
+                if (HasRegionParameter) parameters.Add($"region={region}");
+                if (HasAdultParameter) parameters.Add($"adult={adult}");
 
-                var message = new HttpRequestMessage(Method, BuildApiCall(Endpoint, parameters));
+                return BuildApiCall(Endpoint, parameters);
+            }
+
+            public HttpRequestMessage GetMessage(string language, string region, bool adult, AuthenticationHeaderValue auth)
+            {
+                var message = new HttpRequestMessage(Method, GetURL(language, region, adult));
 
                 if (AuthenticationRequired)
                 {
@@ -197,14 +204,16 @@ namespace Movies
             }
         }
 
+        private string GetURL(TMDbRequest request) => request.GetURL(LANGUAGE, REGION, Adult);
+        private HttpRequestMessage GetMessage(TMDbRequest request) => request.GetMessage(LANGUAGE, REGION, Adult, Auth);
+
         private static readonly TMDbRequest MOVIE_GENRE_VALUES = new TMDbRequest("genre/movie/list")
         {
             HasLanguageParameter = true,
         };
 
         private AuthenticationHeaderValue Auth { get; }
-
-        private HttpRequestMessage GetMessage(TMDbRequest request) => request.GetMessage(LanguageParameter, RegionParameter, false, Auth);
+        public bool Adult { get; set; }
 
         private Task InitValues() => Task.WhenAll(new Task[]
         {
@@ -218,7 +227,7 @@ namespace Movies
             if (property.Values is ICollection<T> list)
             {
                 //var apiCall = new ApiCall<IEnumerable<T>>(endpoint, new JsonArrayParser<T>(parser));
-                
+
                 var response = await WebClient.TryGetCachedAsync(GetMessage(request), ResponseCache);
 
                 if (JsonParser.TryParse(response.Json, new JsonArrayParser<T>(parser), out var values))
@@ -382,7 +391,7 @@ namespace Movies
         private static List<Parser> MEDIA_PROPERTIES = new List<Parser>
         {
             //new Parser<string>(Media.TAGLINE, "tagline"),
-            //new Parser<string>(Media.DESCRIPTION, "overview"),
+            Parser.Create(Media.DESCRIPTION, "overview"),
             //new Parser<string>(Media.CONTENT_RATING, "release_dates"),
             //new Parser<string>(Media.ORIGINAL_LANGUAGE, "original_language"),
             //["spoken_languages"] = new SubPropertyParser<string>(Media.LANGUAGES, "name"),
@@ -393,7 +402,7 @@ namespace Movies
             //new Parser<Rating>(Media.RATING, ParseRating),
         };
 
-        private static readonly Dictionary<string, List<Parser>> MEDIA_APPENDED_PROPERTIES = new Dictionary<string, List<Parser>>
+        private static readonly Dictionary<TMDbRequest, List<Parser>> MEDIA_APPENDED_PROPERTIES = new Dictionary<TMDbRequest, List<Parser>>
         {
             ["recommendations"] = new List<Parser>
             {
@@ -409,9 +418,13 @@ namespace Movies
         private static readonly string DETAILS_ENDPOINT = string.Empty;
         private static readonly string LANGUAGE_PLACEHOLDER = "{0}";
 
-        private static readonly Dictionary<string, List<Parser>> MOVIE_PROPERTIES = new Dictionary<string, List<Parser>>(MEDIA_APPENDED_PROPERTIES)
+        private static readonly Dictionary<TMDbRequest, List<Parser>> MOVIE_PROPERTIES = new Dictionary<TMDbRequest, List<Parser>>(MEDIA_APPENDED_PROPERTIES)
         {
-            [DETAILS_ENDPOINT] = new List<Parser>(MEDIA_PROPERTIES)
+            [new TMDbRequest("movie/{0}")
+            {
+                SupportsAppendToResponse = true,
+                HasLanguageParameter = true,
+            }] = new List<Parser>(MEDIA_PROPERTIES)
             {
                 //["title"] = TITLE_PARSER,
                 //Parser.Create(Movie.GENRES, "genres", "name"),
@@ -437,7 +450,7 @@ namespace Movies
             }
         };
 
-        private static readonly Dictionary<string, List<Parser>> TVSHOW_PROPERTIES = new Dictionary<string, List<Parser>>(MEDIA_APPENDED_PROPERTIES)
+        private static readonly Dictionary<TMDbRequest, List<Parser>> TVSHOW_PROPERTIES = new Dictionary<TMDbRequest, List<Parser>>(MEDIA_APPENDED_PROPERTIES)
         {
             [DETAILS_ENDPOINT] = new List<Parser>(MEDIA_PROPERTIES)
             {
@@ -464,7 +477,7 @@ namespace Movies
             }
         };
 
-        private static readonly Dictionary<string, List<Parser>> TVSEASON_PROPERTIES = new Dictionary<string, List<Parser>>
+        private static readonly Dictionary<TMDbRequest, List<Parser>> TVSEASON_PROPERTIES = new Dictionary<TMDbRequest, List<Parser>>
         {
             [DETAILS_ENDPOINT] = new List<Parser>
             {
@@ -473,7 +486,7 @@ namespace Movies
             }
         };
 
-        private static readonly Dictionary<string, List<Parser>> TVEPISODE_PROPERTIES = new Dictionary<string, List<Parser>>
+        private static readonly Dictionary<TMDbRequest, List<Parser>> TVEPISODE_PROPERTIES = new Dictionary<TMDbRequest, List<Parser>>
         {
             [DETAILS_ENDPOINT] = new List<Parser>
             {
@@ -481,7 +494,7 @@ namespace Movies
             }
         };
 
-        private static readonly Dictionary<string, List<Parser>> PERSON_PROPERTIES = new Dictionary<string, List<Parser>>
+        private static readonly Dictionary<TMDbRequest, List<Parser>> PERSON_PROPERTIES = new Dictionary<TMDbRequest, List<Parser>>
         {
             [DETAILS_ENDPOINT] = new List<Parser>
             {
@@ -489,7 +502,9 @@ namespace Movies
             }
         };
 
-        private static readonly Dictionary<ItemType, (string BaseURL, Dictionary<string, List<Parser>> Properties)> ITEM_PROPERTIES = new Dictionary<ItemType, (string BaseURL, Dictionary<string, List<Parser>> Properties)>
+        private static readonly ItemProperties MovieProperties = new ItemProperties(MOVIE_PROPERTIES);
+
+        private static readonly Dictionary<ItemType, (string BaseURL, Dictionary<TMDbRequest, List<Parser>> Properties)> ITEM_PROPERTIES = new Dictionary<ItemType, (string BaseURL, Dictionary<TMDbRequest, List<Parser>> Properties)>
         {
             [ItemType.Movie] = ("movie", MOVIE_PROPERTIES),
             [ItemType.TVShow] = ("tv", TVSHOW_PROPERTIES),
@@ -498,16 +513,21 @@ namespace Movies
             [ItemType.Person] = ("person", PERSON_PROPERTIES),
         };
 
+        private static readonly Dictionary<ItemType, ItemProperties> ITEM_PROPERTIES1 = new Dictionary<ItemType, ItemProperties>
+        {
+            [ItemType.Movie] = MovieProperties
+        };
+
         private void CacheItem(Item item, JsonNode json)
         {
-            if (!ITEM_PROPERTIES.TryGetValue(item.ItemType, out var properties))
+            if (!ITEM_PROPERTIES1.TryGetValue(item.ItemType, out var properties))
             {
                 return;
             }
 
             var dict = Data.GetDetails(item);
 
-            foreach (var parsers in properties.Properties.Values)
+            foreach (var parsers in properties.Info.Values)
             {
                 foreach (var parser in parsers)
                 {
@@ -530,7 +550,13 @@ namespace Movies
             manager.GetItemDetails += (sender, e) =>
             {
                 var item = (Item)sender;
-                TryGetDetails(item, e.Properties, out _);
+
+                if (ITEM_PROPERTIES1.TryGetValue(item.ItemType, out var properties))
+                {
+                    properties.HandleRequests(item, e.Properties, this);
+                }
+
+                //TryGetDetails(item, e.Properties, out _);
             };
         }
 
@@ -543,6 +569,7 @@ namespace Movies
                 return false;
             }
 
+            var parameters = new List<object> { id };
             List<string> urlSegments = new List<string> { detailsProperties.BaseURL, id.ToString() };
             List<ApiCall> appended = new List<ApiCall>();
 
@@ -555,38 +582,42 @@ namespace Movies
                 //appended.Add(new ApiCall("reviews", "title", new Parser<Rating>(Media.RATING, json => ParseRating(json, Company, GetMovieReviews(id)))));
             }
 
-            ApiCall details = null;
-            var detailsURL = string.Join('/', urlSegments);
-
-            int Index(string placeholder) => int.Parse(placeholder.Substring(1, placeholder.Length - 2));
-            var placeholderArgs = new object[3];
-            placeholderArgs[Index(LANGUAGE_PLACEHOLDER)] = LanguageParameter;
-
-            foreach (var property in detailsProperties.Properties)
-            {
-                var endpoint = detailsURL + "/" + string.Format(property.Key, placeholderArgs);
-                var call = new ApiCall(endpoint.Trim('/'), property.Value);
-
-                if (string.IsNullOrEmpty(property.Key))
-                {
-                    details = call;
-                }
-                else
-                {
-                    appended.Add(call);
-                }
-            }
-
-            var appendedDetails = ItemProperties.AppendToResponse(details, appended);
-            properties = new ItemProperties(appendedDetails);
+            properties = new ItemProperties(null, null);
 
             dict.PropertyAdded += properties.ValueRequested;
             return true;
         }
 
+
         private class ItemProperties
         {
+            public IReadOnlyDictionary<TMDbRequest, List<Parser>> Info { get; }
+
+            private readonly Dictionary<Property, TMDbRequest> PropertyLookup = new Dictionary<Property, TMDbRequest>();
+            private List<TMDbRequest> SupportsAppendToResponse = new List<TMDbRequest>();
             private Dictionary<Property, ApiCall> ApiCalls;
+
+            public ItemProperties(Dictionary<TMDbRequest, List<Parser>> info)
+            {
+                var test = new Dictionary<TMDbRequest, List<Parser>>();
+
+                foreach (var kvp in info)
+                {
+                    if (kvp.Key.SupportsAppendToResponse)
+                    {
+                        SupportsAppendToResponse.Add(kvp.Key);
+                    }
+
+                    foreach (var parser in kvp.Value)
+                    {
+                        PropertyLookup[parser.Property] = kvp.Key;
+                    }
+
+                    test.Add(kvp);
+                }
+
+                Info = test;
+            }
 
             public ItemProperties(ApiCall details, params ApiCall[] appended) : this(details, (IEnumerable<ApiCall>)appended) { }
             public ItemProperties(ApiCall details, IEnumerable<ApiCall> appended)
@@ -618,6 +649,120 @@ namespace Movies
                 AddValues(properties, e.Properties);
             }
 
+            public void HandleRequests(Item item, PropertyDictionary properties, TMDB tmdb)
+            {
+                if (!tmdb.TryGetID(item, out var id))
+                {
+                    return;
+                }
+
+                var parameters = new List<object> { id };
+
+                if (item is TVEpisode episode)
+                {
+
+                }
+                else if (item is TVSeason season)
+                {
+
+                }
+
+                var handler = new RequestHandler
+                {
+                    Context = this,
+                    TMDB = tmdb,
+                    Parameters = parameters.ToArray(),
+                };
+
+                properties.PropertyAdded += handler.PropertyRequested;
+            }
+
+            private class RequestHandler
+            {
+                public ItemProperties Context { get; set; }
+                public TMDB TMDB { get; set; }
+                public object[] Parameters { get; set; }
+
+                private async Task<JsonNode> ApiCall(TMDbRequest request, IEnumerable<TMDbRequest> appended)
+                {
+                    var endpoints = appended.Prepend(request).Select(request => string.Format(TMDB.GetURL(request), Parameters));
+                    var endpoint = AppendToResponse(endpoints.FirstOrDefault(), endpoints.Skip(1));
+
+#if DEBUG
+                    return JsonNode.Parse(await Task.FromResult(INTERSTELLAR_RESPONSE));
+#else
+                    var response = await TMDB.WebClient.GetAsync(endpoint);
+                    return JsonNode.Parse(await response.Content.ReadAsStringAsync());
+#endif
+                }
+
+                //public void PropertyRequested(object sender, PropertyEventArgs e) => PropertyRequested((PropertyDictionary)sender, e.Properties);
+                public void PropertyRequested(object sender, PropertyEventArgs e) => PropertyRequested((PropertyDictionary)sender, Context.Info.Values.SelectMany(parsers => parsers).Select(parser => parser.Property));
+                public void PropertyRequested(PropertyDictionary dict, IEnumerable<Property> properties)
+                {
+                    var requests = new List<TMDbRequest>();
+
+                    foreach (var property in properties)
+                    {
+                        if (Context.PropertyLookup.TryGetValue(property, out var request))
+                        {
+                            requests.Add(request);
+                        }
+                    }
+
+                    var batched = new List<List<TMDbRequest>>(Context.SupportsAppendToResponse.Select(atr => new List<TMDbRequest>()));
+                    var parsers = new List<List<IEnumerable<Parser>>>(Context.SupportsAppendToResponse.Select(atr => new List<IEnumerable<Parser>>()));
+
+                    for (int i = 0; i < requests.Count; i++)
+                    {
+                        var request = requests[i];
+
+                        if (Context.Info.TryGetValue(request, out var parsers1) && parsers1.Count > 0)
+                        {
+                            int index = Context.SupportsAppendToResponse.FindIndex(atr => request.Endpoint.StartsWith(atr.Endpoint));
+
+                            if (index == -1)
+                            {
+                                index = batched.Count;
+                                batched.Add(new List<TMDbRequest>());
+                                parsers.Add(new List<IEnumerable<Parser>>());
+                            }
+
+                            if (!batched[index].Contains(request))
+                            {
+                                var atr = index < Context.SupportsAppendToResponse.Count ? Context.SupportsAppendToResponse[index] : request;
+
+                                if (request == atr)
+                                {
+                                    batched[index].Insert(0, request);
+                                    parsers[index].Add(parsers1);
+                                }
+                                else
+                                {
+                                    batched[index].Add(request);
+                                    parsers[index].Add(parsers1.Select(parser => parser));
+
+                                    if (batched.Count == 2 && !batched[index].Contains(atr))
+                                    {
+                                        requests.Add(atr);
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    for (int i = 0; i < batched.Count; i++)
+                    {
+                        var response = ApiCall(batched[i].FirstOrDefault(), batched[i].Skip(1));
+
+                        foreach (var parser in parsers[i].SelectMany(x => x))
+                        {
+                            dict.Add(parser.GetPair(response));
+                        }
+                    }
+                }
+            }
+
             public void AddValues(PropertyDictionary dict, IEnumerable<Property> properties)
             {
                 Task<JsonNode> response = null;
@@ -634,6 +779,44 @@ namespace Movies
                         }
                     }
                 }
+            }
+
+            public static string AppendToResponse(string basePath, IEnumerable<string> endpoints)
+            {
+                var appendedPaths = new List<string>();
+                var parameters = new Dictionary<string, string>();
+                var parsers = new List<Parser>();
+
+                foreach (var endpoint in endpoints)
+                {
+                    //var uri = new Uri(call.Endpoint, UriKind.RelativeOrAbsolute);
+                    var parts = endpoint.Split('?');
+                    var path = parts.ElementAtOrDefault(0) ?? string.Empty;
+                    var query = parts.ElementAtOrDefault(1) ?? string.Empty;
+
+                    if (!path.StartsWith(basePath))
+                    {
+                        continue;
+                    }
+
+                    path = path.Replace(basePath, string.Empty).TrimStart('/');
+
+                    foreach (var parameter in query.Split('&'))
+                    {
+                        var temp = parameter.Split('=');
+
+                        if (temp.Length == 2)
+                        {
+                            parameters[temp[0]] = temp[1];
+                        }
+                    }
+                }
+
+                var parameterList = parameters
+                    .Select(kvp => string.Join('=', kvp.Key, kvp.Value))
+                    .Append($"append_to_response={string.Join(',', appendedPaths)}");
+
+                return BuildApiCall(basePath, parameterList);
             }
 
             public static ApiCall AppendToResponse(ApiCall details, IEnumerable<ApiCall> appended)
@@ -676,7 +859,6 @@ namespace Movies
                         foreach (var parser in call.Parsers)
                         {
                             //parsers.Add(path, new ParserWrapper(parser.Value, parser.Key));
-                            
                         }
                     }
 

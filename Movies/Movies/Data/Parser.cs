@@ -122,6 +122,21 @@ namespace Movies
         public abstract PropertyValuePair GetPair(Task<JsonNode> node);
     }
 
+    public class ParserWrapper : Parser
+    {
+        public Parser Parser { get; set; }
+        public IJsonParser<JsonNode> JsonParser { get; set; }
+
+        public ParserWrapper(Parser parser) : base(parser.Property)
+        {
+            Parser = parser;
+        }
+
+        public override PropertyValuePair GetPair(Task<JsonNode> node) => Parser.GetPair(Unwrap(node));
+
+        private async Task<JsonNode> Unwrap(Task<JsonNode> json) => JsonParser.TryGetValue(await json, out var unwrapped) ? unwrapped : await json;
+    }
+
     public class Parser<T> : Parser, IJsonParser<PropertyValuePair>
     {
         public IJsonParser<T> JsonParser { get; }
@@ -145,7 +160,7 @@ namespace Movies
             }
 
             value = null;
-            return true;
+            return false;
         }
 
         private async Task<T> Parse(Task<JsonNode> json) => JsonParser.TryGetValue(await json, out var value) ? value : default;

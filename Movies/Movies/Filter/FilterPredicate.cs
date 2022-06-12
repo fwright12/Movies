@@ -1,0 +1,110 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Movies.ViewModels
+{
+    public abstract class FilterPredicate<T>
+    {
+        public static readonly FilterPredicate<T> TAUTOLOGY = new Tautology();
+        public static readonly FilterPredicate<T> CONTRADICTION = new Tautology();
+
+        private class Tautology : FilterPredicate<T>
+        {
+            public override bool Evaluate(T item) => true;
+        }
+
+        //public static bool operator true(FilterPredicate<T> predicate) => predicate.Evaluate
+        //public static bool operator false(FilterPredicate<T> predicate) => x == Green || x == Yellow;
+
+        public static BooleanExp<T> operator &(FilterPredicate<T> first, FilterPredicate<T> second) => new BooleanExp<T>
+        {
+            Predicates =
+            {
+                //first,
+                //second
+            }
+        };
+
+        public abstract bool Evaluate(T item);
+    }
+
+    public class ExpressionPredicate<T> : FilterPredicate<T>
+    {
+        private IEnumerable<object> Predicates { get; }
+
+        public ExpressionPredicate() : this(Enumerable.Empty<object>()) { }
+        public ExpressionPredicate(params object[] predicates) : this((IEnumerable<object>)predicates) { }
+        public ExpressionPredicate(IEnumerable<object> predicates)
+        {
+            Predicates = predicates;
+        }
+
+        public override bool Evaluate(T item) => Predicates.OfType<FilterPredicate<T>>().All(predicate => predicate.Evaluate(item));
+    }
+
+    public class OperatorPredicate<T> : FilterPredicate<T>
+    {
+        public object LHS { get; set; }
+        public Operators Operator { get; set; }
+        public object RHS { get; set; }
+
+        public override bool Evaluate(T item)
+        {
+            if (Operator == Operators.LessThan || Operator == Operators.GreaterThan)
+            {
+                int compare;
+
+                if (LHS is IComparable lhs)
+                {
+                    compare = lhs.CompareTo(RHS);
+                }
+                else if (RHS is IComparable rhs)
+                {
+                    compare = rhs.CompareTo(LHS) * -1;
+                }
+                else
+                {
+                    return true;
+                }
+
+                return compare == (int)Operator;
+            }
+            else
+            {
+                var equal = Equals(LHS, RHS);
+
+                if (Operator == Operators.NotEqual)
+                {
+                    equal = !equal;
+                }
+
+                return equal;
+            }
+        }
+    }
+
+    public class BooleanExp<T> : FilterPredicate<T>
+    {
+        public IList<FilterPredicate<T>> Predicates { get; } = new List<FilterPredicate<T>>();
+
+        public override bool Evaluate(T item) => true;// Predicates.All(predicate => predicate.Evaluate(item));
+
+        public static BooleanExp<T> operator &(BooleanExp<T> expression, FilterPredicate<T> predicate)
+        {
+            expression.Predicates.Add(predicate);
+            return expression;
+        }
+    }
+
+    public class SearchPredicate<T> : FilterPredicate<T>
+    {
+        public string QUery { get; set; }
+        public FilterPredicate<T> Filters { get; set; }
+
+        public override bool Evaluate(T item)
+        {
+            throw new NotImplementedException();
+        }
+    }
+}

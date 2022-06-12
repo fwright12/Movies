@@ -316,9 +316,9 @@ namespace Movies
             }
         }
 
-        public class DB : Collection
+        public class DB : Collection, IAsyncFilterable<Item>
         {
-            public override IAsyncEnumerable<Item> GetItems(List<Constraint> filters)
+            public IAsyncEnumerable<Item> GetItems(List<Constraint> filters, CancellationToken cancellationToken = default)
             {
                 return Instance.GetTrending();
             }

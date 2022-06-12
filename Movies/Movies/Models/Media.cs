@@ -1,6 +1,7 @@
 ﻿using Movies.ViewModels;
 using System.Collections.Generic;
 using System;
+using System.Threading;
 
 namespace Movies.Models
 {
@@ -39,11 +40,17 @@ namespace Movies.Models
         public static readonly MultiProperty<Company> PRODUCTION_COMPANIES = new MultiProperty<Company>("Production Companies");
         public static readonly MultiProperty<string> PRODUCTION_COUNTRIES = new MultiProperty<string>("Production Countries");
         public static readonly Property<IAsyncEnumerable<Item>> RECOMMENDED = new Property<IAsyncEnumerable<Item>>("Recommended");
+        public static readonly MultiProperty<string> KEYWORDS = new MultiProperty<string>("Keywords", new FilterListViewModel<string>(new KeywordsSearch())
+        { 
+            Editor = new SearchPredicateBuilder<string>()
+        });
 
         public class KeywordsSearch : AsyncFilterable<string>
         {
-            protected override async IAsyncEnumerable<string> GetItems(List<Constraint> filters)
+            public override async IAsyncEnumerable<string> GetItems(List<Constraint> filters, CancellationToken cancellationToken = default)
             {
+                await System.Threading.Tasks.Task.CompletedTask;
+
                 foreach (var item in await System.Threading.Tasks.Task.FromResult(App.AdKeywords))
                 {
                     yield return item;

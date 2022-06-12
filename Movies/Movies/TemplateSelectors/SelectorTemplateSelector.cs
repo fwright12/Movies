@@ -15,9 +15,9 @@ namespace Movies.Templates
         public DataTemplate LargeValuesTemplate { get; set; }
         public DataTemplate SmallValuesTemplate { get; set; }
 
-        public DataTemplate FullExpressionTemplate { get; set; }
-        public DataTemplate OperatorAndValueTemplate { get; set; }
-        public DataTemplate ValueOnlyTemplate { get; set; }
+        public DataTemplate SearchTemplate { get; set; }
+        public DataTemplate TypeTemplate { get; set; }
+        public DataTemplate MultiEditorTemplate { get; set; }
 
         private static readonly HashSet<Property> SmallValues = new HashSet<Property>
         {
@@ -30,11 +30,22 @@ namespace Movies.Templates
 
         protected override DataTemplate OnSelectTemplate(object item, BindableObject container)
         {
-            var selector = (PredicateEditor<Item>)item;
+            var selector = (Editor<Item>)item;
+
+            if (selector is MultiEditor<Item>)
+            {
+                return MultiEditorTemplate;
+            }
+
             //var property = selector.Property;
             //var operatorPredicate = selector.Value as OperatorPredicateBuilder<Item> ?? (selector.Value as ExpressionPredicateBuilder<Item>).Children.OfType<ObservableNode<IPredicateBuilder<Item>>>().FirstOrDefault()?.Value as OperatorPredicateBuilder<Item>;
-            var property = (selector.Template as PropertyTemplate<Item>).Property;
+            var property = (selector as OperatorEditor<Item>)?.LHSOptions.OfType<object>().FirstOrDefault() as Property;
             //var property = operatorPredicate?.LHS as Property;
+
+            if (property == CollectionViewModel.SearchProperty)
+            {
+                return SearchTemplate;
+            }
 
             if (property?.Type == typeof(Type) || SmallValues.Contains(property))
             {

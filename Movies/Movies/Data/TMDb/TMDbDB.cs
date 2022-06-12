@@ -10,6 +10,7 @@ using TMDbLib.Objects.Search;
 using System.Net.Http;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
+using System.Threading;
 
 namespace Movies
 {
@@ -45,7 +46,7 @@ namespace Movies
             }
 
         }
-        public class Database : Collection, ISearchable
+        public class Database : Collection, IAsyncFilterable<Item>, ISearchable
         {
             private TMDbClient Client;
             private HttpClient WebClient;
@@ -66,7 +67,7 @@ namespace Movies
                 return string.Format(endpoint + "?" + string.Join('&', p));
             }
 
-            public override async IAsyncEnumerable<Item> GetItems(List<Constraint> filters)
+            public async IAsyncEnumerable<Item> GetItems(List<Constraint> filters, CancellationToken cancellationToken = default)
             {
                 IAsyncEnumerable<Item> results = null;
                 DataManager.SearchEventArgs e = new DataManager.SearchEventArgs();

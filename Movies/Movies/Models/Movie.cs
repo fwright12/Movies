@@ -26,6 +26,5 @@ namespace Movies.Models
         public static readonly Property<string> CONTENT_RATING = new Property<string>("Content Rating", new List<string> { "G", "PG", "PG-13", "R", "NC-17" });
         public static readonly MultiProperty<string> GENRES = new MultiProperty<string>("Genres", new List<string> { "Action", "Adventure", "Romance", "Comedy", "Thriller", "Mystery", "Sci-Fi", "Horror", "Documentary" });
         public static readonly MultiProperty<WatchProvider> WATCH_PROVIDERS = new MultiProperty<WatchProvider>("Watch Providers", new List<WatchProvider> { MockData.NetflixStreaming });
-        public static readonly MultiProperty<string> KEYWORDS = new MultiProperty<string>("Keywords", new KeywordsSearch());
     }
 }

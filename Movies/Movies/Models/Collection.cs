@@ -25,71 +25,9 @@ namespace Movies.Models
         IAsyncEnumerable<T> GetItems(List<Constraint> filters, CancellationToken cancellationToken = default);
     }
 
-    public interface CanFilter
+    public abstract class AsyncFilterable<T> : IAsyncFilterable<T>
     {
-        void ApplyFilters(List<Constraint> filters);
-    }
-
-    public class ValueList<T> : Filterable<T>
-    {
-        public IDictionary<ItemType, IEnumerable<T>> Values { get; } = new Dictionary<ItemType, IEnumerable<T>>();
-
-        public override void ApplyFilters(List<Constraint> filters)
-        {
-            ItemType type = ItemType.All;
-
-            for (int i = 0; i < filters.Count; i++)
-            {
-                var filter = filters[i];
-
-                if (filter.Property == null)// ViewModels.CollectionViewModel.ItemTypeProperty)
-                {
-                    if (filter.Value is ItemType temp)
-                    {
-                        type |= temp;
-                    }
-
-                    filters.RemoveAt(i--);
-                }
-            }
-
-            UpdateValues(Values.Where(kvp => type.HasFlag(kvp.Key)).SelectMany(kvp => kvp.Value));
-        }
-    }
-
-    public abstract class Filterable<T> : List<T>, CanFilter, INotifyCollectionChanged
-    {
-        public event NotifyCollectionChangedEventHandler CollectionChanged;
-
-        public abstract void ApplyFilters(List<Constraint> filters);
-
-        protected void UpdateValues(IEnumerable<T> values)
-        {
-            var newValues = values.ToList();
-
-            if (Count != newValues.Count || !newValues.Any(value => !Contains(value)))
-            {
-                return;
-            }
-
-            var e = new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Replace, newValues, new List<T>(this));
-
-            Clear();
-            AddRange(values);
-
-            CollectionChanged?.Invoke(this, e);
-        }
-    }
-
-    public abstract class AsyncFilterable<T> : ViewModels.AsyncObservableCollection<T>, CanFilter
-    {
-        public void ApplyFilters(List<Constraint> filters)
-        {
-            Reset(GetItems(filters));
-        }
-
-        protected abstract IAsyncEnumerable<T> GetItems(List<Constraint> filters);
-
+        public abstract IAsyncEnumerable<T> GetItems(List<Constraint> filters, CancellationToken cancellationToken = default);
         public IAsyncEnumerator<T> GetAsyncEnumerator(CancellationToken cancellationToken = default) => GetItems(new List<Constraint>()).GetAsyncEnumerator();
     }
 
@@ -204,8 +142,6 @@ namespace Movies.Models
 
         private SemaphoreSlim ItrSemaphore = new SemaphoreSlim(1, 1);
         public bool Reverse { get; set; } = false;
-
-        public virtual IAsyncEnumerable<Item> GetItems(List<Constraint> filters) => this;
 
         public async IAsyncEnumerator<Item> GetAsyncEnumerator(CancellationToken cancellationToken = default)
         {
