@@ -12,6 +12,7 @@ using TMDbLib.Objects.Reviews;
 using TMDbLib.Objects.Search;
 using TMDbLib.Objects.Trending;
 using TMDbLib.Objects.TvShows;
+using System.Net.Http;
 
 namespace Movies
 {
@@ -337,9 +338,61 @@ namespace Movies
         }
     }
 
-    public partial class TMDB
+    public class HttpClient : System.Net.Http.HttpClient
     {
-        private static readonly string TRENDING_MOVIES_RESPONSE = @"{
+        new public Task<HttpResponseMessage> GetAsync(string requestUri) => SendAsync(new HttpRequestMessage(HttpMethod.Get, requestUri), new CancellationToken());
+        new public Task<HttpResponseMessage> SendAsync(HttpRequestMessage request) => SendAsync(request, new CancellationToken());
+
+        public override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            var endpoint = request.RequestUri.ToString();
+            string content;
+
+            if (endpoint.StartsWith("trending/movie") || endpoint.StartsWith("discover/movie"))
+            {
+                content = TRENDING_MOVIES_RESPONSE;
+            }
+            else if (endpoint.StartsWith("trending/tv") || endpoint.StartsWith("discover/tv"))
+            {
+                content = TRENDING_TV_RESPONSE;
+            }
+            else if (endpoint.StartsWith("trending/person"))
+            {
+                content = TRENDING_PEOPLE_RESPONSE;
+            }
+            else if (endpoint.StartsWith("movie"))
+            {
+                content = INTERSTELLAR_RESPONSE;
+            }
+            else if (endpoint.StartsWith("tv"))
+            {
+                if (endpoint.Contains("episode"))
+                {
+                    content = THE_OFFICE_SEASON_3_EPISODE_20_RESPONSE;
+                }
+                else if (endpoint.Contains("season"))
+                {
+                    content = THE_OFFICE_SEASON_3_RESPONSE;
+                }
+                else
+                {
+                    content = THE_OFFICE_RESPONSE;
+                }
+            }
+            else
+            {
+                content = null;
+            }
+
+            Print.Log("web request: " + endpoint);
+            //await Task.Delay(5000);
+            return await Task.FromResult(new HttpResponseMessage
+            {
+                Content = new StringContent(content)
+            });
+        }
+
+        public static readonly string TRENDING_MOVIES_RESPONSE = @"{
   ""page"": 1,
   ""results"": [
     {
@@ -766,7 +819,7 @@ namespace Movies
   ""total_pages"": 1000,
   ""total_results"": 20000
 }";
-        private static readonly string INTERSTELLAR_RESPONSE = @"{
+        public static readonly string INTERSTELLAR_RESPONSE = @"{
   ""adult"": false,
   ""backdrop_path"": ""/pbrkL804c8yAv3zBZR4QPEafpAR.jpg"",
   ""belongs_to_collection"": null,
@@ -13725,7 +13778,7 @@ namespace Movies
   }
 }";
 
-        private static readonly string TRENDING_TV_RESPONSE = @"{
+        public static readonly string TRENDING_TV_RESPONSE = @"{
   ""page"": 1,
   ""results"": [
     {
@@ -14158,7 +14211,7 @@ namespace Movies
   ""total_pages"": 1000,
   ""total_results"": 20000
 }";
-        private static readonly string THE_OFFICE_RESPONSE = @"{
+        public static readonly string THE_OFFICE_RESPONSE = @"{
   ""adult"": false,
   ""backdrop_path"": ""/vNpuAxGTl9HsUbHqam3E9CzqCvX.jpg"",
   ""created_by"": [
@@ -26115,7 +26168,7 @@ namespace Movies
     }
   }
 }";
-        private static readonly string THE_OFFICE_SEASON_3_RESPONSE = @"{
+        public static readonly string THE_OFFICE_SEASON_3_RESPONSE = @"{
   ""_id"": ""5257307a760ee3776a33ff24"",
   ""air_date"": ""2006-09-21"",
   ""episodes"": [
@@ -33452,7 +33505,7 @@ namespace Movies
     ]
   }
 }";
-        private static readonly string THE_OFFICE_SEASON_3_EPISODE_20_RESPONSE = @"{
+        public static readonly string THE_OFFICE_SEASON_3_EPISODE_20_RESPONSE = @"{
   ""air_date"": ""2007-04-26"",
   ""crew"": [
     {
@@ -33988,7 +34041,7 @@ namespace Movies
   }
 }";
 
-        private static readonly string TRENDING_PEOPLE_RESPONSE = @"{
+        public static readonly string TRENDING_PEOPLE_RESPONSE = @"{
   ""page"": 1,
   ""results"": [
     {
@@ -35426,7 +35479,7 @@ namespace Movies
   ""total_pages"": 1000,
   ""total_results"": 20000
 }";
-        private static readonly string JESSICA_CHASTAIN_RESPONSE = @"{
+        public static readonly string JESSICA_CHASTAIN_RESPONSE = @"{
   ""adult"": false,
   ""also_known_as"": [
     ""Jessica Howard"",

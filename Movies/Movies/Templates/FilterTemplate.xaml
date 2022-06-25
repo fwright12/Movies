@@ -1,10 +1,167 @@
 ﻿<?xml version="1.0" encoding="UTF-8"?>
 <DataTemplate xmlns="http://xamarin.com/schemas/2014/forms"
               xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-              xmlns:ext="clr-namespace:Xamarin.Forms.Extensions;assembly=Xamarin.Forms.Extensions"
-              xmlns:forms="clr-namespace:Xamarin.Forms;assembly=Xamarin.Forms.Extensions"
-              xmlns:views="clr-namespace:Movies.Views"
+              xmlns:movies="clr-namespace:Movies"
               xmlns:viewmodels="clr-namespace:Movies.ViewModels"
+              xmlns:views="clr-namespace:Movies.Views"
+              xmlns:forms="clr-namespace:Xamarin.Forms;assembly=Xamarin.Forms.Extensions"
               x:Class="Movies.Views.FilterTemplate">
-    
+    <StackLayout Orientation="Vertical"
+                 BackgroundColor="{AppThemeBinding Light={StaticResource LightSecondaryBackground}, Dark={StaticResource DarkSecondaryBackground}}">
+        <VisualElement.Resources>
+            <ResourceDictionary>
+                <ResourceDictionary.MergedDictionaries>
+                    <movies:PredicateEditorResources />
+                </ResourceDictionary.MergedDictionaries>
+
+                <Style x:Key="FilterExpressionStyle"
+                       TargetType="Layout">
+                    <Setter Property="BindingContext"
+                            Value="{TemplateBinding BindingContext.Predicate}" />
+                    <Setter Property="BindableLayout.ItemsSource"
+                            Value="{Binding Root, Converter={Static viewmodels:CollectionViewModel.TreeToListConverter}}" />
+                    <Setter Property="BindableLayout.ItemTemplateSelector"
+                            Value="{StaticResource NodeSelector}" />
+                    <Setter Property="BindableLayout.EmptyView"
+                            Value="No filters" />
+                </Style>
+
+                <ControlTemplate x:Key="CompactFiltersTemplate">
+                    <StackLayout Orientation="Horizontal">
+                        <ContentPresenter />
+
+                        <ScrollView Orientation="Horizontal"
+                                    VerticalOptions="Center">
+                            <StackLayout Orientation="Horizontal"
+                                         Style="{StaticResource FilterExpressionStyle}" />
+                        </ScrollView>
+                    </StackLayout>
+                </ControlTemplate>
+
+                <ControlTemplate x:Key="FullFiltersTemplate">
+                    <StackLayout Orientation="Vertical">
+                        <StackLayout Orientation="Horizontal">
+                            <ContentPresenter HorizontalOptions="StartAndExpand" />
+
+                            <Button Text="Done"
+                                    Command="{Binding Toggle, Source={RelativeSource AncestorType={x:Type forms:DrawerView}}}"
+                                    HorizontalOptions="End" />
+                        </StackLayout>
+
+                        <FlexLayout Direction="Row"
+                                    Wrap="Wrap"
+                                    HorizontalOptions="FillAndExpand"
+                                    Style="{StaticResource FilterExpressionStyle}" />
+                    </StackLayout>
+                </ControlTemplate>
+            </ResourceDictionary>
+        </VisualElement.Resources>
+
+        <VisualStateManager.VisualStateGroups>
+            <VisualStateGroup>
+                <VisualState Name="{Static forms:DrawerView+VisualStates.Closed}">
+                    <VisualState.Setters>
+                        <Setter TargetName="scroll"
+                                Property="ScrollView.Orientation"
+                                Value="Vertical" />
+                        <Setter Property="HeightRequest"
+                                Value="100" />
+                        <Setter TargetName="filters"
+                                Property="ContentView.ControlTemplate"
+                                Value="{StaticResource CompactFiltersTemplate}" />
+                        <Setter TargetName="filters"
+                                Property="ContentView.IsVisible"
+                                Value="{Binding Predicate.Predicate, Converter={Static forms:ObjectToFalseConverter.Instance}, ConverterParameter={Static movies:FilterPredicate.TAUTOLOGY}}" />
+
+                        <!--<MultiBinding>
+                                            <MultiBinding.Converter>
+                                                <views:ArithmeticConverter Operation="Add" />
+                                            </MultiBinding.Converter>
+
+                                            <Binding Path="Y"
+                                                     Source="{x:Reference minheight}" />
+                                            <Binding Path="Child.Height">
+                                                <Binding.Source>
+                                                    <views:ChildViewModel Layout="{x:Reference minheight}"
+                                                                          Index="0" />
+                                                </Binding.Source>
+                                            </Binding>
+                                        </MultiBinding>
+                                    </Setter>-->
+                    </VisualState.Setters>
+                </VisualState>
+
+                <VisualState Name="{Static forms:DrawerView+VisualStates.Open}">
+                    <VisualState.Setters>
+                        <Setter TargetName="scroll"
+                                Property="ScrollView.Orientation"
+                                Value="Vertical" />
+                        <Setter Property="HeightRequest"
+                                Value="500" />
+                        
+                        <Setter TargetName="filters"
+                                Property="ContentView.ControlTemplate"
+                                Value="{StaticResource FullFiltersTemplate}" />
+                        <Setter TargetName="filters"
+                                Property="ContentView.IsVisible"
+                                Value="True" />
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+        </VisualStateManager.VisualStateGroups>
+
+        <Layout.Padding>
+            <MultiBinding Converter="{Static forms:ThicknessConverter.Instance}"
+                          ConverterParameter="horizontal">
+                <Binding Source="{StaticResource PagePadding}" />
+                <Binding Path="CornerRadius"
+                         Source="{RelativeSource AncestorType={x:Type Frame}}"
+                         FallbackValue="{StaticResource PagePadding}" />
+            </MultiBinding>
+        </Layout.Padding>
+
+        <ContentView x:Name="filters">
+            <VisualElement.Resources>
+                <Style TargetType="Frame">
+                    <Setter Property="CornerRadius"
+                            Value="10" />
+                    <Setter Property="BorderColor"
+                            Value="{StaticResource Primary}" />
+                    <Setter Property="Padding"
+                            Value="5" />
+                    <Setter Property="Margin"
+                            Value="2" />
+                    <Setter Property="ControlTemplate">
+                        <ControlTemplate>
+                            <StackLayout BindingContext="{TemplateBinding BindingContext}"
+                                         Orientation="Horizontal">
+                                <ContentPresenter />
+
+                                <Label Text="x">
+                                    <View.GestureRecognizers>
+                                        <TapGestureRecognizer Command="{Binding RemoveSelfCommand}"
+                                                              CommandParameter="{Binding}" />
+                                    </View.GestureRecognizers>
+                                </Label>
+                            </StackLayout>
+                        </ControlTemplate>
+                    </Setter>
+                </Style>
+            </VisualElement.Resources>
+
+            <Button Text="Clear"
+                    TextColor="Red"
+                    Command="{Binding Predicate.ClearCommand}"
+                    Grid.Column="1"
+                    VerticalOptions="Start" />
+        </ContentView>
+
+        <ScrollView x:Name="scroll"
+                    views:Extensions.Content="{Binding Converter={Static viewmodels:ObjectToViewConverter.Instance}, ConverterParameter={StaticResource PredicateTemplateSelector}}"
+                    BindingContext="{Binding Predicate}">
+            <VisualElement.Behaviors>
+                <viewmodels:ScrollLockBehavior />
+            </VisualElement.Behaviors>
+        </ScrollView>
+    </StackLayout>
 </DataTemplate>

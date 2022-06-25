@@ -77,6 +77,25 @@ namespace System.Linq.Async
                 yield return selector(item);
             }
         }
+
+        public static async IAsyncEnumerable<TResult> Select<TSource, TResult>(this IAsyncEnumerable<TSource> source, Func<TSource, Task<TResult>> selector)
+        {
+            await foreach (var item in source)
+            {
+                yield return await selector(item);
+            }
+        }
+
+        public static async IAsyncEnumerable<TSource> Where<TSource>(this IAsyncEnumerable<TSource> source, Func<TSource, bool> predicate)
+        {
+            await foreach (var item in source)
+            {
+                if (predicate(item))
+                {
+                    yield return item;
+                }
+            }
+        }
     }
 }
 
@@ -84,8 +103,12 @@ namespace Movies
 {
     public partial class TMDB : IDataProvider, IAccount, IAssignID<int>
     {
-        public static readonly string LANGUAGE = System.Globalization.CultureInfo.CurrentCulture.TwoLetterISOLanguageName;
-        public static readonly string REGION = System.Globalization.RegionInfo.CurrentRegion.TwoLetterISORegionName;
+        public static readonly string LANGUAGE, ISO_639_1 = System.Globalization.CultureInfo.CurrentCulture.TwoLetterISOLanguageName;
+        public static readonly string REGION, ISO_3166_1 = System.Globalization.RegionInfo.CurrentRegion.TwoLetterISORegionName;
+        public static readonly Models.Company TMDb = new Models.Company
+        {
+            Name = "TMDb"
+        };
 
         public static readonly ID<int>.Key IDKey = new ID<int>.Key();
         public static readonly ID<int> ID = IDKey.ID;
@@ -96,10 +119,7 @@ namespace Movies
         private static readonly string STREAMING_LOGO_SIZE = "/w45";
         private static readonly string LOGO_SIZE = "/w300";
 
-        public Models.Company Company { get; } = new Models.Company
-        {
-            Name = "TMDb"
-        };
+        public Models.Company Company { get; } = TMDb;
         public string Name => Company.Name;
         public string Username { get; private set; }
 
@@ -128,20 +148,25 @@ namespace Movies
         private static readonly string SECURE_BASE_IMAGE_URL = "https://image.tmdb.org/t/p";
 #endif
         private DataManager DataManager;
-        private HttpClient WebClient;
+        public static HttpClient WebClient { get; private set; }
 
         public TMDB(string apiKey, string bearer)
         {
             ApiKey = apiKey;
             Auth = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", bearer);
 
+            RatingParser.TMDb = this;
+
 #if !DEBUG || false
             Client = new TMDbClient(apiKey);
 #endif
 #if DEBUG
             Test(ViewModels.ItemViewModel.Data);
-            return;
-#endif
+            WebClient = new HttpClient
+            {
+                BaseAddress = new Uri("https://mockTMDb")
+            };
+#else
             //Config = Client.GetConfigAsync();
             WebClient = new HttpClient
             {
@@ -151,6 +176,7 @@ namespace Movies
                     Authorization = Auth
                 }
             };
+#endif
 
             LazyAllLists = new Lazy<Task<List<Models.List>>>(() => GetAllLists());
         }
@@ -258,15 +284,16 @@ namespace Movies
 
         private static string BuildImageURL(object path) => BuildImageURL(path?.ToString());
         private static string BuildImageURL(string path, string size = "/original") => path == null ? null : (SECURE_BASE_IMAGE_URL + size + path);
-        private static string BuildVideoURL(Video video)
+        private static string BuildVideoURL(Video video) => BuildVideoURL(video.Site, video.Key);
+        private static string BuildVideoURL(string site, string key)
         {
-            if (video?.Site == "YouTube")
+            if (site == "YouTube")
             {
-                return "https://www.youtube.com/embed/" + video.Key;
+                return "https://www.youtube.com/embed/" + key;
             }
-            else if (video?.Site == "Vimeo")
+            else if (site == "Vimeo")
             {
-                return "https://player.vimeo.com/video/" + video.Key;
+                return "https://player.vimeo.com/video/" + key;
             }
 
             return null;

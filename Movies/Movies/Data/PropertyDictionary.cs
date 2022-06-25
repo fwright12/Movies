@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -40,21 +41,18 @@ namespace Movies
         public event EventHandler<PropertyEventArgs> PropertyAdded;
 
         public int Count => Properties.Count;
-        public Task<object> this[Property property] => GetSingle<object>(property);
+        public ICollection<Property> Keys => Properties.Keys;
+        public Task<object> this[Property property] => TryGetSingle(property, out Task<object> result) ? result : throw new KeyNotFoundException();
 
         private Dictionary<Property, IList<object>> Properties = new Dictionary<Property, IList<object>>();
 
-        public bool TryGetValue(Property key, out Task<object> value)
-        {
-            value = GetSingle<object>(key);
-            return true;
-        }
+        public bool TryGetValue(Property key, out Task<object> value) => TryGetSingle(key, out value);
 
-        public Task<IEnumerable<T>> GetMultiple<T>(Property<T> key, string source = null) => GetMultiple<T>((Property)key, source);
+        public Task<IEnumerable<T>> GetMultiple<T>(Property<T> key, string source = null) => TryGetMultiple(key, out Task<IEnumerable<T>> result, source) ? result : Task.FromResult(Enumerable.Empty<T>());
 
-        public Task<T> GetSingle<T>(Property<T> key, string source = null) => GetSingle<T>((Property)key, source);
+        public Task<T> GetSingle<T>(Property<T> key, string source = null) => TryGetSingle(key, out Task<T> result, source) ? result : Task.FromResult<T>(default);
 
-        private Task<IEnumerable<T>> GetMultiple<T>(Property key, string source = null)
+        private bool TryGetMultiple<T>(Property key, out Task<IEnumerable<T>> result, string source = null)
         {
             var values = AddProperty(key);
 
@@ -62,15 +60,22 @@ namespace Movies
             {
                 if (TryCastTask<IEnumerable<T>>(value, out var multiple))
                 {
-                    return multiple;
+                    result = multiple;
                 }
                 else if (TryCastTask<T>(value, out var single))
                 {
-                    return FlattenTasks(single);
+                    result = FlattenTasks(single);
                 }
+                else
+                {
+                    continue;
+                }
+
+                return true;
             }
 
-            return Task.FromResult<IEnumerable<T>>(new List<T>());
+            result = null;
+            return false;
         }
 
         private Task<IEnumerable<T>> FlattenTasks<T>(params Task<T>[] tasks) => FlattenTasks((IEnumerable<Task<T>>)tasks);
@@ -86,19 +91,21 @@ namespace Movies
             return values;
         }
 
-        private Task<T> GetSingle<T>(Property key, string source = null)
+        private bool TryGetSingle<T>(Property key, out Task<T> result, string source = null)
         {
             var values = AddProperty(key);
 
             foreach (var value in values)
             {
-                if (TryCastTask<T>(value, out var result))
+                if (TryCastTask<T>(value, out var temp))
                 {
-                    return result;
+                    result = temp;
+                    return true;
                 }
             }
 
-            return Task.FromResult<T>(default);
+            result = null;
+            return false;
         }
 
         private bool TryCastTask<T>(object untyped, out Task<T> typed)

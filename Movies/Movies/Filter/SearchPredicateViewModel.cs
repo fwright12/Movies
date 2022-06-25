@@ -6,42 +6,29 @@ using Xamarin.Forms;
 
 namespace Movies.ViewModels
 {
-    public class SearchPredicateBuilder<T> : BindableViewModel, IPredicateBuilder<T>
+    public class SearchPredicateBuilder : BindableViewModel, IPredicateBuilder
     {
         public event EventHandler PredicateChanged;
 
-        public FilterPredicate<T> Predicate { get; private set; }
+        public FilterPredicate Predicate { get; private set; }
 
         public string Query
         {
             get => _Query;
-            set
-            {
-                if (UpdateValue(ref _Query, value))
-                {
-                    Predicate = new OperatorPredicate<T>
-                    {
-                        LHS = CollectionViewModel.SearchProperty,
-                        Operator = Operators.Equal,
-                        RHS = Query
-                    };
-
-                    PredicateChanged?.Invoke(this, EventArgs.Empty);
-                }
-            }
+            set => UpdateValue(ref _Query, value);
         }
 
         private string _Query;
 
         public string Placeholder { get; set; }
         public ICommand SearchCommand { get; }
-        public int SearchDelay { get; set; }
+        public int SearchDelay { get; set; } = 1000;
 
         private CancellationTokenSource Cancel;
 
         public SearchPredicateBuilder()
         {
-            //Constraints.Add(new Constraint<string>(Name));
+            SearchCommand = new Command(BuildPredicate);
 
             PropertyChanged += (sender, e) =>
             {
@@ -54,10 +41,24 @@ namespace Movies.ViewModels
             };
         }
 
+        public void BuildPredicate()
+        {
+            Predicate = new SearchPredicate
+            {
+                Query = Query
+            };
+
+            PredicateChanged?.Invoke(this, EventArgs.Empty);
+        }
+
         private async Task SearchOnTextChanged(CancellationToken cancellationToken)
         {
-            await Task.Delay(SearchDelay, cancellationToken);
-            SearchCommand.Execute(Query);
+            if (!string.IsNullOrEmpty(Query))
+            {
+                await Task.Delay(SearchDelay, cancellationToken);
+            }
+
+            BuildPredicate();
         }
     }
 }

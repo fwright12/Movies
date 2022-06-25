@@ -1,0 +1,202 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ResourceDictionary xmlns="http://xamarin.com/schemas/2014/forms"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+                    xmlns:movies="clr-namespace:Movies"
+                    xmlns:converters="clr-namespace:Movies.Converters"
+                    xmlns:templates="clr-namespace:Movies.Templates"
+                    xmlns:viewmodels="clr-namespace:Movies.ViewModels"
+                    xmlns:models="clr-namespace:Movies.Models"
+                    xmlns:sys="clr-namespace:System;assembly=mscorlib"
+                    xmlns:ext="clr-namespace:Xamarin.Forms.Extensions;assembly=Xamarin.Forms.Extensions"
+                    xmlns:forms="clr-namespace:Xamarin.Forms;assembly=Xamarin.Forms.Extensions"
+                    x:Class="Movies.FilterPredicateResources">
+    <Style x:Key="DefaultComparisonStyle"
+           TargetType="Label">
+        <Style.Triggers>
+            <DataTrigger TargetType="Label"
+                         Binding="{Binding}"
+                         Value="{Static movies:Operators.LessThan}">
+                <Setter Property="Text"
+                        Value="Under" />
+            </DataTrigger>
+
+            <DataTrigger TargetType="Label"
+                         Binding="{Binding}"
+                         Value="{Static movies:Operators.Equal}">
+                <Setter Property="Text"
+                        Value="Exactly" />
+            </DataTrigger>
+
+            <DataTrigger TargetType="Label"
+                         Binding="{Binding}"
+                         Value="{Static movies:Operators.GreaterThan}">
+                <Setter Property="Text"
+                        Value="Over" />
+            </DataTrigger>
+        </Style.Triggers>
+    </Style>
+
+    <Style x:Key="DateTimeComparisonStyle"
+           TargetType="Label">
+        <Style.Triggers>
+            <DataTrigger TargetType="Label"
+                         Binding="{Binding}"
+                         Value="{Static movies:Operators.LessThan}">
+                <Setter Property="Text"
+                        Value="Before" />
+            </DataTrigger>
+
+            <DataTrigger TargetType="Label"
+                         Binding="{Binding}"
+                         Value="{Static movies:Operators.Equal}">
+                <Setter Property="Text"
+                        Value="Exactly" />
+            </DataTrigger>
+
+            <DataTrigger TargetType="Label"
+                         Binding="{Binding}"
+                         Value="{Static movies:Operators.GreaterThan}">
+                <Setter Property="Text"
+                        Value="After" />
+            </DataTrigger>
+        </Style.Triggers>
+    </Style>
+
+    <DataTemplate x:Key="TimeSpanTemplate">
+        <Label Text="{Binding Converter={Static movies:HrMinConverter.Instance}}" />
+    </DataTemplate>
+
+    <DataTemplate x:Key="DateTimeTemplate">
+        <Label Text="{Binding StringFormat='{0:d}'}" />
+    </DataTemplate>
+
+    <DataTemplate x:Key="TypeTemplate">
+        <Label>
+            <VisualElement.Triggers>
+                <DataTrigger TargetType="Label"
+                             Binding="{Binding}"
+                             Value="{x:Type models:Movie}">
+                    <Setter Property="Text"
+                            Value="Movies" />
+                </DataTrigger>
+
+                <DataTrigger TargetType="Label"
+                             Binding="{Binding}"
+                             Value="{x:Type models:TVShow}">
+                    <Setter Property="Text"
+                            Value="Shows" />
+                </DataTrigger>
+            </VisualElement.Triggers>
+        </Label>
+    </DataTemplate>
+
+    <DataTemplate x:Key="PresetDisplayTemplate">
+        <Frame>
+            <Label Text="{Binding Text}" />
+        </Frame>
+    </DataTemplate>
+
+    <DataTemplate x:Key="DefaultPredicateRHSTemplate">
+        <Label Text="{Binding}" />
+    </DataTemplate>
+
+    <forms:TypeTemplateSelector x:Key="PredicateRHSTemplateSelector">
+        <forms:TypeTemplateSelector.Templates>
+            <forms:TypeDataTemplate Type="{x:Type x:TimeSpan}"
+                                    Template="{StaticResource TimeSpanTemplate}" />
+            <forms:TypeDataTemplate Type="{x:Type sys:DateTime}"
+                                    Template="{StaticResource DateTimeTemplate}" />
+            <forms:TypeDataTemplate Type="{x:Type sys:Type}"
+                                    Template="{StaticResource TypeTemplate}" />
+            <forms:TypeDataTemplate Type="{x:Type viewmodels:Preset}"
+                                    Template="{StaticResource PresetDisplayTemplate}" />
+            <forms:TypeDataTemplate Type="{x:Type x:Object}"
+                                    Template="{StaticResource DefaultPredicateRHSTemplate}" />
+        </forms:TypeTemplateSelector.Templates>
+    </forms:TypeTemplateSelector>
+
+    <Style TargetType="ContentView"
+           Class="PredicateClass"
+           ApplyToDerivedTypes="True">
+        <Setter Property="ext:ContentView.ItemSource"
+                Value="{Binding Value.RHS}" />
+        <Setter Property="ext:ContentView.ContentTemplate"
+                Value="{StaticResource PredicateRHSTemplateSelector}" />
+    </Style>
+
+    <ControlTemplate x:Key="PredicateOperatorRHSControlTemplate">
+        <StackLayout BindingContext="{TemplateBinding BindingContext}"
+                     Orientation="Horizontal">
+            <Label BindingContext="{Binding Value.Operator}"
+                   Style="{StaticResource DefaultComparisonStyle}">
+                <VisualElement.Triggers>
+                    <DataTrigger TargetType="Label"
+                                 Binding="{Binding Parent.BindingContext.Value.LHS.Type, Source={RelativeSource Self}, Mode=OneTime}"
+                                 Value="{x:Type sys:DateTime}">
+                        <Setter Property="Style"
+                                Value="{StaticResource DateTimeComparisonStyle}" />
+                    </DataTrigger>
+                </VisualElement.Triggers>
+            </Label>
+
+            <ContentPresenter />
+        </StackLayout>
+    </ControlTemplate>
+
+    <ControlTemplate x:Key="PredicateFullControlTemplate">
+        <StackLayout BindingContext="{TemplateBinding BindingContext}"
+                     Orientation="Horizontal">
+            <Label Text="{Binding Value.LHS, StringFormat='{0}: '}" />
+
+            <ContentView ControlTemplate="{StaticResource PredicateOperatorRHSControlTemplate}">
+                <ContentPresenter CompressedLayout.IsHeadless="True" />
+            </ContentView>
+        </StackLayout>
+    </ControlTemplate>
+
+    <DataTemplate x:Key="PredicateRHSOnlyTemplate">
+        <Frame StyleClass="PredicateClass" />
+    </DataTemplate>
+
+    <DataTemplate x:Key="PredicateOperatorRHSTemplate">
+        <Frame>
+            <ContentView ControlTemplate="{StaticResource PredicateOperatorRHSControlTemplate}"
+                         StyleClass="PredicateClass"
+                         CompressedLayout.IsHeadless="True" />
+        </Frame>
+    </DataTemplate>
+
+    <DataTemplate x:Key="PredicateFullTemplate">
+        <Frame>
+            <ContentView ControlTemplate="{StaticResource PredicateFullControlTemplate}"
+                         StyleClass="PredicateClass"
+                         CompressedLayout.IsHeadless="True" />
+        </Frame>
+    </DataTemplate>
+
+    <DataTemplate x:Key="MoneyPredicateTemplate">
+        <Frame>
+            <ContentView ControlTemplate="{StaticResource PredicateFullControlTemplate}"
+                         CompressedLayout.IsHeadless="True">
+                <Label Text="{Binding Value.RHS, Converter={Static converters:BigCurrencyConverter.Instance}}" />
+            </ContentView>
+        </Frame>
+    </DataTemplate>
+
+    <templates:PredicateTemplateSelector x:Key="PredicateTemplateSelector"
+                                         ValueOnlyTemplate="{StaticResource PredicateRHSOnlyTemplate}"
+                                         OperatorAndValueTemplate="{StaticResource PredicateOperatorRHSTemplate}"
+                                         FullExpressionTemplate="{StaticResource PredicateFullTemplate}"
+                                         MoneyValueTemplate="{StaticResource MoneyPredicateTemplate}" />
+
+    <DataTemplate x:Key="INodeTemplate">
+        <Frame>
+            <Label Text="{Binding Children[0].Value.RHS}" />
+        </Frame>
+    </DataTemplate>
+
+    <viewmodels:TreeNodeTemplateSelector x:TypeArguments="x:Object"
+                                         x:Key="NodeSelector"
+                                         INodeTemplate="{StaticResource INodeTemplate}"
+                                         LeafNodeTemplate="{StaticResource PredicateTemplateSelector}" />
+</ResourceDictionary>

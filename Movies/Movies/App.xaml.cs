@@ -6,6 +6,7 @@ using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Globalization;
 using System.Linq;
+using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using Movies.Models;
@@ -488,54 +489,110 @@ namespace Movies
             }
         }
 
-        private static List<Constraint> DeserializeConstraints(string json, FilterListViewModel<Item> filter)
+        private static bool TryDeserializeConstraints(JsonNode json, out FilterPredicate predicate)
         {
-            var constraints = new List<Constraint>();
-
-            foreach (var constraint in System.Text.Json.Nodes.JsonNode.Parse(json).AsArray())
+            if (json is JsonArray array)
             {
-                if (!constraint.TryGetValue("property", out string name) || !constraint.TryGetValue("comparison", out int comparison) || !(constraint["value"] is System.Text.Json.Nodes.JsonNode valueNode))
+                var expression = new BooleanExpression();
+                predicate = expression;
+
+                foreach (var item in array)
                 {
-                    continue;
-                }
-
-                var property = (Property)null;// filter.Selectors.FirstOrDefault(selector => selector.Property.Name == name)?.Property;
-                var type = property.GetType().GenericTypeArguments[0];
-                object value = null;
-
-                if (PrimitiveJsonTypes.Contains(type))
-                {
-                    var method = typeof(System.Text.Json.Nodes.JsonNode).GetMethod(nameof(System.Text.Json.Nodes.JsonNode.GetValue));
-                    method = method.MakeGenericMethod(type);
-
-                    try
+                    if (TryDeserializeConstraints(item, out var predicate1))
                     {
-                        value = method.Invoke(valueNode, null);
+                        expression.Predicates.Add(predicate1);
                     }
-                    catch { }
-                }
-                else if (property.Values != null)
-                {
-                    var valueStr = valueNode.TryGetValue<string>();
-                    value = property.Values.OfType<object>().FirstOrDefault(value => value.ToString() == valueStr);
                 }
 
-                if (property != null && value != null)
+                return true;
+            }
+            else if (json["lhs"] is JsonNode lhs && json.TryGetValue("operate", out int op) && (json["rhs"] is JsonNode rhsNode))
+            {
+                var types = new Type[]
                 {
-                    constraints.Add(new Constraint(property)
+                    typeof(Media),
+                    typeof(Movie),
+                    typeof(TVShow),
+                };
+                
+                var properties = new List<Property>();
+
+                foreach (var type in types)
+                {
+                    foreach (var field in type.GetFields())//System.Reflection.BindingFlags.Static))
                     {
-                        Comparison = (Operators)comparison,
-                        Value = value
-                    });
+                        var value = field.GetValue(null);
+
+                        if (value is Property temp && temp.Name == lhs.ToString())
+                        {
+                            properties.Add(temp);
+                        }
+                    }
+
+                    /*foreach (var property in type.GetProperties())
+                    {
+                        Print.Log(property);
+                        list.Add(new ReflectedProperty(property));
+                    }*/
+                }
+
+                object rhs = null;
+
+                foreach (var property in properties)
+                {
+                    if (PrimitiveJsonTypes.Contains(property.Type))
+                    {
+                        var method = typeof(JsonNode).GetMethod(nameof(JsonNode.GetValue));
+                        method = method.MakeGenericMethod(property.Type);
+
+                        try
+                        {
+                            rhs = method.Invoke(rhsNode, null);
+                        }
+                        catch { }
+                    }
+                    else if (property.Values != null)
+                    {
+                        var valueStr = rhsNode.TryGetValue<string>();
+                        rhs = property.Values.OfType<object>().FirstOrDefault(value => value.ToString() == valueStr);
+                    }
+
+                    if (rhs != null)
+                    {
+                        predicate = new OperatorPredicate
+                        {
+                            LHS = property,
+                            Operator = (Operators)op,
+                            RHS = rhs
+                        };
+                        return true;
+                    }
                 }
             }
 
-            return constraints;
+            predicate = FilterPredicate.TAUTOLOGY;
+            return false;
         }
 
-        private static string SerializeConstraints(IEnumerable<Constraint> constraints)
+        private static object SerializeFilters(FilterPredicate predicate)
         {
-            return System.Text.Json.JsonSerializer.Serialize(constraints);
+            if (predicate is OperatorPredicate op)
+            {
+                return new
+                {
+                    lhs = (op.LHS as Property)?.ToString() ?? op.LHS,
+                    operate = op.Operator,
+                    rhs = op.RHS
+                };
+            }
+            else if (predicate is BooleanExpression expression)
+            {
+                return expression.Predicates.Select(part => SerializeFilters(part));
+            }
+            else
+            {
+                return predicate;
+            }
         }
 
         private static readonly Type[] PrimitiveJsonTypes = new Type[]
@@ -545,6 +602,7 @@ namespace Movies
             typeof(double),
             typeof(bool),
             typeof(string),
+            typeof(DateTime)
         };
 
         private static readonly string POPULAR_FILTERS = "PopularFilters";
@@ -552,44 +610,54 @@ namespace Movies
         private CollectionViewModel GetPopular()
         {
 #if DEBUG
-            var db = new MockData.DB();
+            var db = new TMDB.Database();
             var collection = new CollectionViewModel(DataManager, null, db, ItemType.Movie | ItemType.TVShow | ItemType.Person | ItemType.Collection, db)// | ItemType.Company)
             {
-                ListLayout = CollectionViewModel.Layout.Grid,
+                ListLayout = ListLayouts.Grid,
                 SortOptions = new List<string> { "Popularity", "Release Date", "Revenue", "Original Title", "Vote Average", "Vote Count" },
             };
 
-            return collection;
-
-            /*collection.Filter.Selectors.Insert(0, new SelectorViewModel<string>(CollectionViewModel.SearchProperty)
+            if (collection.Source.Predicate is ExpressionBuilder builder && builder.Editor is MultiEditor editor)
             {
-                Name = string.Empty
-            });*/
+                var search = new Editor<SearchPredicateBuilder>();
+                search.AddNew();
+                editor.Editors.Insert(0, search);
 
-            if (Properties.TryGetValue(POPULAR_FILTERS, out var value) && value is string filters)
-            {
-                var json = System.Text.Json.Nodes.JsonNode.Parse(filters);
-
-                if (json["constraints"] is System.Text.Json.Nodes.JsonArray constraints)
+                if (Properties.TryGetValue(POPULAR_FILTERS, out var value) && value is string filters)
                 {
-                    //var temp = DeserializeConstraints(constraints.ToJsonString(), collection.Filter);
-                    //collection.Filter.AddConstraints(temp);
-                }
-
-                if (json["presets"] is System.Text.Json.Nodes.JsonArray presets)
-                {
-                    foreach (var text in presets.Select(preset => preset.AsValue().TryGetValue<string>()))
+                    try
                     {
-                        /*foreach (var preset in collection.Filter.Presets.Where(preset => preset.Text == text))
+                        var json = JsonNode.Parse(filters);
+
+                        if (TryDeserializeConstraints(json, out var temp))
                         {
-                            preset.IsActive = true;
-                        }*/
+                            var expression = temp as BooleanExpression ?? new BooleanExpression { Predicates = { temp } };
+
+                            foreach (var predicate in expression.Predicates)
+                            {
+                                //builder.Add(predicate);
+                            }
+                        }
                     }
+                    catch { }
+
+                    /*if (json["presets"] is System.Text.Json.Nodes.JsonArray presets)
+                    {
+                        foreach (var text in presets.Select(preset => preset.AsValue().TryGetValue<string>()))
+                        {
+                            foreach (var preset in collection.Filter.Presets.Where(preset => preset.Text == text))
+                            {
+                                preset.IsActive = true;
+                            }
+                        }
+                    }*/
                 }
             }
 
-            collection.Source.Editor.PredicateChanged += (sender, e) =>
+            collection.Source.Predicate.PredicateChanged += (sender, e) =>
             {
+                var builder = (IPredicateBuilder)sender;
+
                 try
                 {
                     var json = System.Text.Json.JsonSerializer.Serialize(new
@@ -602,10 +670,11 @@ namespace Movies
                             value = PrimitiveJsonTypes.Contains(constraint.Value?.GetType()) ? constraint.Value : constraint.Value?.ToString()
                         })*/
                     });
+                    json = System.Text.Json.JsonSerializer.Serialize(SerializeFilters(builder.Predicate));
 
                     Print.Log(json);
 
-                    Properties[POPULAR_FILTERS] = json;
+                    //Properties[POPULAR_FILTERS] = json;
                     _ = SavePropertiesAsync();
                 }
                 catch { }
@@ -1737,6 +1806,26 @@ namespace Movies.Views
 
     public static class Extensions
     {
+        public static readonly BindableProperty YearProperty = BindableProperty.CreateAttached(nameof(DateTime.Year), typeof(int), typeof(DatePicker), null, propertyChanged: (bindable, oldValue, newValue) =>
+        {
+            var picker = (DatePicker)bindable;
+            picker.Date = new DateTime((int)newValue, picker.Date.Month, picker.Date.Day);
+        });
+
+        public static int GetYear(this DatePicker bindable) => (int)bindable.GetValue(YearProperty);
+        public static void SetYear(this DatePicker bindable, int value) => bindable.SetValue(YearProperty, value);
+
+        public static readonly BindableProperty ContentProperty = BindableProperty.CreateAttached("Content", typeof(View), typeof(ScrollView), null, propertyChanged: (bindable, oldValue, newValue) =>
+        {
+            var scrollView = (ScrollView)bindable;
+            var content = (View)newValue;
+            
+            scrollView.Content = content;
+        });
+
+        public static View GetContent(this ScrollView bindable) => (View)bindable.GetValue(ContentProperty);
+        public static void SetContent(this ScrollView bindable, object value) => bindable.SetValue(ContentProperty, value);
+
         public static readonly BindableProperty ChildCountProperty = BindableProperty.CreateAttached("ChildCount", typeof(int), typeof(Layout), 0, coerceValue: (bindable, value) =>
         {
             if (bindable is ContentView contentView)

@@ -6,7 +6,7 @@ using Xamarin.Forms;
 
 namespace Movies.ViewModels
 {
-    public class PropertyPredicateBuilder<T> : OperatorPredicateBuilder<T>
+    public class PropertyPredicateBuilder : OperatorPredicateBuilder
     {
         public Property Property => LHS as Property;
         public bool IsValid
@@ -50,19 +50,19 @@ namespace Movies.ViewModels
         {
             if (e.PropertyName == nameof(LHS) || e.PropertyName == nameof(Operator) || e.PropertyName == nameof(RHS))
             {
-                IsValid = Predicate != FilterPredicate<T>.TAUTOLOGY;// && Predicate != FilterPredicate<T>.CONTRADICTION;
+                IsValid = Predicate != FilterPredicate.TAUTOLOGY;// && Predicate != FilterPredicate<T>.CONTRADICTION;
             }
         }
 
-        public override FilterPredicate<T> BuildPredicate()
+        public override FilterPredicate BuildPredicate()
         {
             if (Property?.Values is SteppedValueRange range)
             {
                 if (RHS is IComparable comparable)
                 {
-                    if (Operator != Operators.Equal && (int)Operator == comparable.CompareTo(range.First))
+                    if (Operator != Operators.Equal && (int)Operator == comparable.CompareTo(range.First) * -1)
                     {
-                        return FilterPredicate<T>.CONTRADICTION;
+                        return FilterPredicate.CONTRADICTION;
                     }
                     else
                     {
@@ -71,13 +71,13 @@ namespace Movies.ViewModels
 
                         if (min || max)
                         {
-                            return FilterPredicate<T>.TAUTOLOGY;
+                            return FilterPredicate.TAUTOLOGY;
                         }
                     }
                 }
                 else
                 {
-                    return FilterPredicate<T>.CONTRADICTION;
+                    return FilterPredicate.CONTRADICTION;
                 }
 
                 //bool isAbsoluteMin = Operator != Operators.Equal && Equals(RHS, range.First);
@@ -90,7 +90,7 @@ namespace Movies.ViewModels
             {
                 if (!Property.Values.OfType<object>().Contains(RHS))
                 {
-                    return FilterPredicate<T>.CONTRADICTION;
+                    return FilterPredicate.CONTRADICTION;
                 }
             }
 

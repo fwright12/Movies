@@ -10,7 +10,7 @@ namespace Movies
     {
         public string Name { get; set; }
         public IEnumerable Values { get; }
-        public Property Parent { get; }
+        public Property Parent { get; set; }
         public Type Type { get; }
 
         public Property(string name, Type type, IEnumerable values) : this(name, type)

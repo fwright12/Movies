@@ -2,22 +2,30 @@
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Movies.ViewModels
+namespace Movies
 {
-    public abstract class FilterPredicate<T>
+    public enum Operators
     {
-        public static readonly FilterPredicate<T> TAUTOLOGY = new Tautology();
-        public static readonly FilterPredicate<T> CONTRADICTION = new Tautology();
+        Equal = 0,
+        LessThan = -1,
+        GreaterThan = 1,
+        NotEqual = 2
+    }
 
-        private class Tautology : FilterPredicate<T>
+    public abstract class FilterPredicate
+    {
+        public static readonly FilterPredicate TAUTOLOGY = new Tautology();
+        public static readonly FilterPredicate CONTRADICTION = new Tautology();
+
+        private class Tautology : FilterPredicate
         {
-            public override bool Evaluate(T item) => true;
+            public override bool Evaluate(object item) => true;
         }
 
         //public static bool operator true(FilterPredicate<T> predicate) => predicate.Evaluate
         //public static bool operator false(FilterPredicate<T> predicate) => x == Green || x == Yellow;
 
-        public static BooleanExp<T> operator &(FilterPredicate<T> first, FilterPredicate<T> second) => new BooleanExp<T>
+        public static BooleanExpression operator &(FilterPredicate first, FilterPredicate second) => new BooleanExpression
         {
             Predicates =
             {
@@ -26,10 +34,10 @@ namespace Movies.ViewModels
             }
         };
 
-        public abstract bool Evaluate(T item);
+        public virtual bool Evaluate(object item) => true;
     }
 
-    public class ExpressionPredicate<T> : FilterPredicate<T>
+    public class ExpressionPredicate : FilterPredicate
     {
         private IEnumerable<object> Predicates { get; }
 
@@ -40,16 +48,16 @@ namespace Movies.ViewModels
             Predicates = predicates;
         }
 
-        public override bool Evaluate(T item) => Predicates.OfType<FilterPredicate<T>>().All(predicate => predicate.Evaluate(item));
+        //public override bool Evaluate(T item) => Predicates.OfType<FilterPredicate<T>>().All(predicate => predicate.Evaluate(item));
     }
 
-    public class OperatorPredicate<T> : FilterPredicate<T>
+    public class OperatorPredicate : FilterPredicate
     {
         public object LHS { get; set; }
         public Operators Operator { get; set; }
         public object RHS { get; set; }
 
-        public override bool Evaluate(T item)
+        public override bool Evaluate(object item)
         {
             if (Operator == Operators.LessThan || Operator == Operators.GreaterThan)
             {
@@ -84,27 +92,21 @@ namespace Movies.ViewModels
         }
     }
 
-    public class BooleanExp<T> : FilterPredicate<T>
+    public class BooleanExpression : FilterPredicate
     {
-        public IList<FilterPredicate<T>> Predicates { get; } = new List<FilterPredicate<T>>();
+        public IList<FilterPredicate> Predicates { get; } = new List<FilterPredicate>();
 
-        public override bool Evaluate(T item) => true;// Predicates.All(predicate => predicate.Evaluate(item));
+        //public override bool Evaluate(T item) => true;// Predicates.All(predicate => predicate.Evaluate(item));
 
-        public static BooleanExp<T> operator &(BooleanExp<T> expression, FilterPredicate<T> predicate)
+        public static BooleanExpression operator &(BooleanExpression expression, FilterPredicate predicate)
         {
             expression.Predicates.Add(predicate);
             return expression;
         }
     }
 
-    public class SearchPredicate<T> : FilterPredicate<T>
+    public class SearchPredicate : FilterPredicate
     {
-        public string QUery { get; set; }
-        public FilterPredicate<T> Filters { get; set; }
-
-        public override bool Evaluate(T item)
-        {
-            throw new NotImplementedException();
-        }
+        public string Query { get; set; }
     }
 }

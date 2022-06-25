@@ -42,7 +42,19 @@ namespace Movies
             {
                 try
                 {
-                    Current += (dynamic)Range.Step * Direction;
+                    if (Current == null)
+                    {
+                        Reset();
+                    }
+                    else if (Direction == -1)
+                    {
+                        Current = (dynamic)Current - (dynamic)Range.Step;
+                    }
+                    else
+                    {
+                        Current = (dynamic)Current + (dynamic)Range.Step;
+                    }
+
                     return true;
                 }
                 catch

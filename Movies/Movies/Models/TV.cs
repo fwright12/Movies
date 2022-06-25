@@ -34,6 +34,8 @@ namespace Movies.Models
 
         public static readonly Property<DateTime> YEAR = new Property<DateTime>("Year");
         public static readonly Property<TimeSpan> AVERAGE_RUNTIME = new Property<TimeSpan>("Average Runtime");
+        public static readonly MultiProperty<Credit> CAST = new MultiProperty<Credit>("Cast");
+        public static readonly MultiProperty<Credit> CREW = new MultiProperty<Credit>("Crew");
     }
 
     public class TVEpisode : Media

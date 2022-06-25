@@ -46,6 +46,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Update="Resources\FilterPredicateResources.xaml.cs">
+      <SubType>Code</SubType>
+      <DependentUpon>FilterPredicateResources.xaml</DependentUpon>
+    </Compile>
     <Compile Update="Resources\PredicateEditorResources.xaml.cs">
       <DependentUpon>PredicateEditorResources.xaml</DependentUpon>
     </Compile>
@@ -62,6 +66,10 @@
       <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
     </EmbeddedResource>
     <EmbeddedResource Update="Resources\Defaults.xaml">
+      <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
+    </EmbeddedResource>
+    <EmbeddedResource Update="Resources\FilterPredicateResources.xaml">
+      <SubType>Designer</SubType>
       <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
     </EmbeddedResource>
     <EmbeddedResource Update="Templates\DetailedCollectionTemplate.xaml">
@@ -86,6 +94,9 @@
       <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
     </EmbeddedResource>
     <EmbeddedResource Update="Templates\QuickActionsTemplate.xaml">
+      <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
+    </EmbeddedResource>
+    <EmbeddedResource Update="Views\DeluxeDatePicker.xaml">
       <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
     </EmbeddedResource>
     <EmbeddedResource Update="Views\EditView.xaml">

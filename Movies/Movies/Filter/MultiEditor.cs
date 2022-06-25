@@ -8,9 +8,9 @@ using System.Linq;
 
 namespace Movies.ViewModels
 {
-    public class MultiEditor<T> : Editor<T>, IEnumerable<Editor<T>>
+    public class MultiEditor : Editor, IEnumerable<Editor>
     {
-        public IList<Editor<T>> Editors { get; } = new ObservableCollection<Editor<T>>();
+        public IList<Editor> Editors { get; } = new ObservableCollection<Editor>();
         //public IList<ObservableGroup<Property, PredicateEditor<T>>> Editors { get; } = new ObservableCollection<ObservableGroup<Property, PredicateEditor<T>>>();
 
         //private Dictionary<Property, ObservableGroup<Property, ExpressionBuilder<T>>> Lookup = new Dictionary<Property, ObservableGroup<Property, ExpressionBuilder<T>>>();
@@ -19,12 +19,12 @@ namespace Movies.ViewModels
         {
             PropertyChanged += SelectedChanged;
 
-            var editors = new ObservableCollection<Editor<T>>();
+            var editors = new ObservableCollection<Editor>();
             editors.CollectionChanged += EditorsChanged;
             Editors = editors;
         }
 
-        public void Add(Editor<T> editor)
+        public void Add(Editor editor)
         {
             Editors.Add(editor);
         }
@@ -33,7 +33,7 @@ namespace Movies.ViewModels
         {
             if (e.OldItems != null)
             {
-                foreach (var item in e.OldItems.OfType<Editor<T>>())
+                foreach (var item in e.OldItems.OfType<Editor>())
                 {
                     item.PropertyChange -= SubEditorSelectedChanged;
                 }
@@ -41,7 +41,7 @@ namespace Movies.ViewModels
 
             if (e.NewItems != null)
             {
-                foreach (var item in e.NewItems.OfType<Editor<T>>())
+                foreach (var item in e.NewItems.OfType<Editor>())
                 {
                     SubEditorSelectedChanged(item, null, item.Selected);
                     item.PropertyChange += SubEditorSelectedChanged;
@@ -56,26 +56,26 @@ namespace Movies.ViewModels
                 return;
             }
 
-            SubEditorSelectedChanged((Editor<T>)sender, e.OldValue as ObservableNode<object>, e.NewValue as ObservableNode<object>);
+            SubEditorSelectedChanged((Editor)sender, e.OldValue as ObservableNode<object>, e.NewValue as ObservableNode<object>);
         }
 
-        private void SubEditorSelectedChanged(Editor<T> editor, ObservableNode<object> oldValue, ObservableNode<object> newValue)
+        private void SubEditorSelectedChanged(Editor editor, ObservableNode<object> oldValue, ObservableNode<object> newValue)
         {
-            if (oldValue?.Value is IPredicateBuilder<T> oldBuilder)
+            if (oldValue?.Value is IPredicateBuilder oldBuilder)
             {
                 oldBuilder.PredicateChanged -= SubPredicateChanged;
             }
 
-            if (newValue?.Value is IPredicateBuilder<T> newBuilder)
+            if (newValue?.Value is IPredicateBuilder newBuilder)
             {
                 SubPredicateChanged(newBuilder);
                 newBuilder.PredicateChanged += SubPredicateChanged;
             }
         }
 
-        private void SubPredicateChanged(object sender, EventArgs e) => SubPredicateChanged((IPredicateBuilder<T>)sender);
+        private void SubPredicateChanged(object sender, EventArgs e) => SubPredicateChanged((IPredicateBuilder)sender);
 
-        private void SubPredicateChanged(IPredicateBuilder<T> builder)
+        private void SubPredicateChanged(IPredicateBuilder builder)
         {
             if (Selected?.Value != builder)
             {
@@ -94,14 +94,35 @@ namespace Movies.ViewModels
                 return;
             }
 
-            //PropertyChanged -= SubPredicateChanged;
+            PropertyChanged -= SubPredicateChanged;
 
+            SelectedChanged(Selected);
 
-
-            //PropertyChanged += SubPredicateChanged;
+            PropertyChanged += SubPredicateChanged;
         }
 
-        public IEnumerator<Editor<T>> GetEnumerator() => Editors.GetEnumerator();
+        private bool SelectedChanged(ObservableNode<object> selected)
+        {
+            foreach (var editor in Editors)
+            {
+                if (editor is MultiEditor multiEditor)
+                {
+                    if (multiEditor.SelectedChanged(selected))
+                    {
+                        return true;
+                    }
+                }
+                else if (selected.Value is OperatorPredicateBuilder builder && editor is OperatorEditor op && op.LHSOptions.OfType<object>().Contains(builder.LHS) && op.RHSOptions.OfType<object>().Contains(builder.RHS))
+                {
+                    editor.Selected = selected;
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        public IEnumerator<Editor> GetEnumerator() => Editors.GetEnumerator();
 
         IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
     }

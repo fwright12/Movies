@@ -1,6 +1,14 @@
-﻿namespace Movies.ViewModels
+﻿using System.Windows.Input;
+using Xamarin.Forms;
+
+namespace Movies.ViewModels
 {
-    public class Editor<T> : BindableViewModel
+    public class Editor<TPredicate> : Editor where TPredicate : IPredicateBuilder, new()
+    {
+        public override IPredicateBuilder CreateNew() => new TPredicate();
+    }
+
+    public class Editor : BindableViewModel
     {
         public ObservableNode<object> Selected
         {
@@ -8,13 +16,32 @@
             set => UpdateValue(ref _Selected, value);
         }
 
-        private ObservableNode<object> _Selected;
+        public ICommand AddNewCommand { get; }
+        public ICommand SelectCommand { get; }
+        public ICommand ResetCommand { get; }
 
-        public void AddNew()
+        private ObservableNode<object> _Selected;
+        
+        public Editor()
         {
-            Selected = new ObservableNode<object>(CreateNew());
+            AddNewCommand = new Command(AddNew);
+            SelectCommand = new Command<ObservableNode<object>>(Select);
+            ResetCommand = new Command(Reset);
         }
 
-        public virtual IPredicateBuilder<T> CreateNew() => new OperatorPredicateBuilder<T>();
+        public void AddNew() => Select(new ObservableNode<object>(CreateNew()));
+
+        public void Select(ObservableNode<object> node)
+        {
+            Selected = node;
+        }
+
+        public void Reset()
+        {
+            Selected.Remove();
+            AddNew();
+        }
+
+        public virtual IPredicateBuilder CreateNew() => new OperatorPredicateBuilder();
     }
 }

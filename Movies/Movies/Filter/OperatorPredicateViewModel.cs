@@ -3,15 +3,15 @@ using System.ComponentModel;
 
 namespace Movies.ViewModels
 {
-    public class OperatorPredicateBuilder<T> : BindableViewModel, IPredicateBuilder<T>
+    public class OperatorPredicateBuilder : BindableViewModel, IPredicateBuilder
     {
         public event EventHandler PredicateChanged;
-        public FilterPredicate<T> Predicate { get; protected set; }
+        public FilterPredicate Predicate { get; protected set; }
 
-        public object RHS
+        public object LHS
         {
-            get => _RHS;
-            set => UpdateValue(ref _RHS, value);
+            get => _LHS;
+            set => UpdateValue(ref _LHS, value);
         }
 
         public Operators Operator
@@ -20,15 +20,15 @@ namespace Movies.ViewModels
             set => UpdateValue(ref _Operator, value);
         }
 
-        public object LHS
+        public object RHS
         {
-            get => _LHS;
-            set => UpdateValue(ref _LHS, value);
+            get => _RHS;
+            set => UpdateValue(ref _RHS, value);
         }
 
-        private object _RHS;
-        private Operators _Operator;
         private object _LHS;
+        private Operators _Operator;
+        private object _RHS;
 
         public OperatorPredicateBuilder()
         {
@@ -47,10 +47,16 @@ namespace Movies.ViewModels
         protected virtual void OnPredicateChanged()
         {
             Predicate = BuildPredicate();
+
+            if (LHS == null || RHS == null)
+            {
+                Predicate = null;
+            }
+
             PredicateChanged?.Invoke(this, EventArgs.Empty);
         }
 
-        public virtual FilterPredicate<T> BuildPredicate() => new OperatorPredicate<T>
+        public virtual FilterPredicate BuildPredicate() => new OperatorPredicate
         {
             LHS = LHS,
             Operator = Operator,

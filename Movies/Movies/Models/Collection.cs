@@ -17,18 +17,18 @@ namespace Movies.Models
 
     public interface IFilterable<T> : IEnumerable<T>
     {
-        IEnumerable<T> GetItems(List<Constraint> filters);
+        IEnumerable<T> GetItems(FilterPredicate predicate);
     }
 
     public interface IAsyncFilterable<T> : IAsyncEnumerable<T>
     {
-        IAsyncEnumerable<T> GetItems(List<Constraint> filters, CancellationToken cancellationToken = default);
+        IAsyncEnumerable<T> GetItems(FilterPredicate predicate, CancellationToken cancellationToken = default);
     }
 
     public abstract class AsyncFilterable<T> : IAsyncFilterable<T>
     {
-        public abstract IAsyncEnumerable<T> GetItems(List<Constraint> filters, CancellationToken cancellationToken = default);
-        public IAsyncEnumerator<T> GetAsyncEnumerator(CancellationToken cancellationToken = default) => GetItems(new List<Constraint>()).GetAsyncEnumerator();
+        public abstract IAsyncEnumerable<T> GetItems(FilterPredicate predicate, CancellationToken cancellationToken = default);
+        public IAsyncEnumerator<T> GetAsyncEnumerator(CancellationToken cancellationToken = default) => GetItems(FilterPredicate.TAUTOLOGY).GetAsyncEnumerator();
     }
 
     public class Collection : Item, IAsyncEnumerable<Item>
@@ -38,6 +38,7 @@ namespace Movies.Models
         public int? Count { get; set; }
         public IAsyncEnumerable<Item> Items { protected get; set; }
         public bool IsFullyLoaded { get; private set; }
+        public Property SortBy { get; set; }
 
         private LinkedList<Item> Cached;
         private ICollection<LinkedListNode<Item>> Removed;

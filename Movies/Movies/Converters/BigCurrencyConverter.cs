@@ -11,6 +11,7 @@ namespace Movies.Converters
     {
         public static readonly BigCurrencyConverter Instance = new BigCurrencyConverter();
 
+        private static readonly int PlacesAfterDecimal = 3;
         private static readonly (double Value, string Postfix)[] Formats = new (double, string)[]
         {
             (Math.Pow(10, 9), "B"),
@@ -19,18 +20,19 @@ namespace Movies.Converters
 
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
-            if (!(value is double currency))
+            if (!(value is IConvertible convertible))
             {
                 return value;
             }
 
+            var currency = convertible.ToDouble(null);
             var str = Math.Round(currency).ToString();
             var trailingZeros = str.Length - str.TrimEnd('0').Length;
             int decimals = 0;
 
             var format = Formats.FirstOrDefault(format => currency >= format.Value);
 
-            if (trailingZeros < Math.Log10(format.Value) - 3)
+            if (trailingZeros < Math.Log10(format.Value) - PlacesAfterDecimal)
             {
                 format = default;
             }

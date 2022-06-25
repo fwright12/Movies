@@ -42,14 +42,19 @@ namespace Movies.Models
         public static readonly Property<IAsyncEnumerable<Item>> RECOMMENDED = new Property<IAsyncEnumerable<Item>>("Recommended");
         public static readonly MultiProperty<string> KEYWORDS = new MultiProperty<string>("Keywords", new FilterListViewModel<string>(new KeywordsSearch())
         { 
-            Editor = new SearchPredicateBuilder<string>()
+            Predicate = new SearchPredicateBuilder()
         });
 
         public class KeywordsSearch : AsyncFilterable<string>
         {
-            public override async IAsyncEnumerable<string> GetItems(List<Constraint> filters, CancellationToken cancellationToken = default)
+            public override async IAsyncEnumerable<string> GetItems(FilterPredicate predicate, CancellationToken cancellationToken = default)
             {
                 await System.Threading.Tasks.Task.CompletedTask;
+
+                if (!(predicate is SearchPredicate search) || string.IsNullOrEmpty(search.Query))
+                {
+                    yield break;
+                }
 
                 foreach (var item in await System.Threading.Tasks.Task.FromResult(App.AdKeywords))
                 {

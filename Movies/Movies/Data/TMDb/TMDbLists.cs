@@ -184,7 +184,7 @@ namespace Movies
                 }
                 else if (type?.TryGetValue<string>() == "tv")
                 {
-                    if (IDSystem.TryParseTVShow(json, out var show))
+                    if (TMDB.TryParseTVShow(json, out var show))
                     {
                         item = show;
                     }

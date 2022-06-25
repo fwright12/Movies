@@ -6,7 +6,7 @@
         <Setter Property="AlignItems"
                 Value="Center" />
     </Style>
-    
+
     <Style TargetType="ScrollView"
            ApplyToDerivedTypes="True">
         <Setter Property="HorizontalScrollBarVisibility"

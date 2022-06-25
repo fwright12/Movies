@@ -16,123 +16,215 @@ namespace Movies
 {
     public static class Helpers
     {
-        public static async IAsyncEnumerable<JsonNode> FlattenPages(HttpClient client, string apiCall, string resultsProperty, Func<JsonNode, int> getTotalPages, AuthenticationHeaderValue auth = null)
+        public class PagedRequest
         {
-            for (int page = 1; ; page++)
+            public string Endpoint { get; set; }
+            public IJsonParser<int> ParseTotalPages { get; set; }
+
+            public virtual HttpRequestMessage GetRequest(int page, params string[] parameters) => new HttpRequestMessage(HttpMethod.Get, TMDB.BuildApiCall(Endpoint, parameters.Prepend(page.ToString())));
+
+            public virtual int? GetTotalPages() => null;
+            public virtual async Task<int?> GetTotalPages(HttpResponseMessage response) => ParseTotalPages?.TryGetValue(JsonNode.Parse(await response.Content.ReadAsStringAsync()), out var result) == true ? result : (int?)null;
+        }
+
+        public static IEnumerable<int> LazyRange(int start, int step = 1)
+        {
+            while (true)
             {
-                var request = new HttpRequestMessage(HttpMethod.Get, string.Format(apiCall, page));
-                if (auth != null)
+                yield return (start += step) - step;
+            }
+        }
+
+        public static async IAsyncEnumerable<HttpResponseMessage> GetAsync(this HttpClient client, PagedRequest request, IEnumerable<int> pages, CancellationToken cancellationToken = default, params string[] parameters)
+        {
+            int? totalPages = null;
+            var pageItr = pages.GetEnumerator();
+            int page;
+
+            do
+            {
+                if (!pageItr.MoveNext())
                 {
-                    request.Headers.Authorization = auth;
+                    break;
                 }
-                var response = await client.SendAsync(request);
+
+                if (pageItr.Current < 0)
+                {
+                    if (totalPages.HasValue)
+                    {
+                        page = totalPages.Value + pageItr.Current;
+                    }
+                    else
+                    {
+                        // Cause a query of page 0 so we can get total pages
+                        page = 0;
+                    }
+                }
+                else
+                {
+                    page = pageItr.Current;
+                }
+
+                var pageRequest = request.GetRequest(page, parameters);
+                var response = await client.SendAsync(pageRequest, cancellationToken);
 
                 if (!response.IsSuccessStatusCode)
                 {
                     throw new HttpRequestException(response.ReasonPhrase);
                 }
 
-                var parsed = JsonNode.Parse(await response.Content.ReadAsStringAsync());
-                var results = parsed[resultsProperty]?.AsArray();
-                //var totalPages = parsed["total_pages"]?.GetValue<int>();
+                totalPages = await request.GetTotalPages(response);
 
-                if (results == null)// || !parsed.TryGetValue("total_pages", out int totalPages))
+                if (page == pageItr.Current || page == totalPages + pageItr.Current)
                 {
-                    break;
+                    yield return response;
                 }
+            }
+            while (page >= 0 && page < totalPages);
+        }
 
-                foreach (var result in results)
-                {
-                    yield return result;
-                }
+        public static async IAsyncEnumerable<T> FlattenPages<T>(IAsyncEnumerable<HttpResponseMessage> pages, IJsonParser<IEnumerable<T>> parse, bool reverse = false)
+        {
+            await foreach (var page in pages)
+            {
+                var json = JsonNode.Parse(await page.Content.ReadAsStringAsync());
 
-                if (page >= getTotalPages(parsed))
+                if (parse.TryGetValue(json, out var items))
                 {
-                    break;
+                    if (reverse)
+                    {
+                        items = items.Reverse();
+                    }
+
+                    foreach (var item in items)
+                    {
+                        yield return item;
+                    }
                 }
             }
         }
     }
 
+    public class PagedTMDbRequest : Helpers.PagedRequest
+    {
+        public TMDbRequest Request { get; }
+
+        public PagedTMDbRequest(TMDbRequest request)
+        {
+            Request = request;
+        }
+
+        public static implicit operator PagedTMDbRequest(TMDbRequest request) => new PagedTMDbRequest(request);
+
+        public override HttpRequestMessage GetRequest(int page, params string[] parameters) => new HttpRequestMessage(HttpMethod.Get, Request.GetURL(null, null, false, parameters.Prepend($"page={page}").ToArray()));
+    }
+
     public partial class TMDB
     {
-#if DEBUG
-        private static class Helpers
+        public static string BuildApiCall(string endpoint, params string[] parameters) => BuildApiCall(endpoint, (IEnumerable<string>)parameters);
+        public static string BuildApiCall(string endpoint, IEnumerable<string> parameters) => endpoint + "?" + string.Join('&', parameters);
+
+        public static async Task<IEnumerable<T>> Request<T>(TMDbRequest request, IJsonParser<IEnumerable<JsonNode>> parseItems, IJsonParser<T> parse = null, params string[] parameters)
         {
-            public static async IAsyncEnumerable<JsonNode> FlattenPages(HttpClient client, string apiCall, string resultsProperty, Func<JsonNode, int> getTotalPages, AuthenticationHeaderValue auth = null)
+            string url = request.GetURL(null, null, false, parameters);
+            return await Request(await WebClient.TryGetAsync(url), parseItems, parse);
+        }
+
+        public static IAsyncEnumerable<T> Request<T>(PagedTMDbRequest request, System.Linq.Async.Enumerable.TryParseFunc<JsonNode, T> parse = null, bool reverse = false, params string[] parameters) => Request(request, Helpers.LazyRange(1, 1), parse, reverse, parameters);
+        public static async IAsyncEnumerable<T> Request<T>(PagedTMDbRequest request, IEnumerable<int> pages, System.Linq.Async.Enumerable.TryParseFunc<JsonNode, T> parse = null, bool reverse = false, params string[] parameters)
+        {
+            var items = WebClient.GetAsync(request, pages, default, parameters);
+            var jsonParser = parse == null ? new JsonNodeParser<T>() : new JsonNodeParser<T>(parse);
+
+            await foreach (var response in items)
             {
-                string response;
-
-                if (apiCall.StartsWith("trending/movie"))
-                {
-                    response = TRENDING_MOVIES_RESPONSE;
-                }
-                else if (apiCall.StartsWith("trending/tv"))
-                {
-                    response = TRENDING_TV_RESPONSE;
-                }
-                else if (apiCall.StartsWith("trending/person"))
-                {
-                    response = TRENDING_PEOPLE_RESPONSE;
-                }
-                else
-                {
-                    yield break;
-                }
-
-                await Task.CompletedTask;
-
-                foreach (var item in JsonNode.Parse(response)["results"].AsArray())
+                foreach (var item in await Request(response, PageParser, jsonParser))
                 {
                     yield return item;
                 }
             }
         }
-#endif
 
-        private static string BuildApiCall(string endpoint, params string[] parameters) => BuildApiCall(endpoint, (IEnumerable<string>)parameters);
-        private static string BuildApiCall(string endpoint, IEnumerable<string> parameters) => endpoint + "?" + string.Join('&', parameters);
-
-        private static readonly string PageParameter = "page={0}";
-        private string AdultParameter => string.Format("adult={0}", false);
-        private string LanguageParameter => string.Format("language={0}", LANGUAGE);
-        private string RegionParameter => string.Format("region={0}", REGION);
-
-        private string[] LanguageRegionParameters => new string[] { LanguageParameter, RegionParameter };
-
-        public IAsyncEnumerable<T> FlattenPages<T>(string apiCall, System.Linq.Async.Enumerable.TryParseFunc<JsonNode, T> parse, params string[] parameters) where T : Item => FlattenPages(apiCall, parse, (IEnumerable<string>)parameters);
-        public async IAsyncEnumerable<T> FlattenPages<T>(string apiCall, System.Linq.Async.Enumerable.TryParseFunc<JsonNode, T> parse, IEnumerable<string> parameters) where T : Item
+        public static async Task<IEnumerable<T>> Request<T>(HttpResponseMessage response, IJsonParser<IEnumerable<JsonNode>> parseItems, IJsonParser<T> parse = null)
         {
-            await foreach (var json in Helpers.FlattenPages(WebClient, BuildApiCall(apiCall, parameters.Append(PageParameter)), "results", json => json["total_pages"].TryGetValue<int>()))
+            var json = JsonNode.Parse(await response.Content.ReadAsStringAsync());
+            return ParseCollection(json, parseItems, parse);
+        }
+
+        public static IEnumerable<T> ParseCollection<T>(JsonNode json, IJsonParser<IEnumerable<JsonNode>> parseItems, IJsonParser<T> parse = null)
+        {
+            if (parseItems.TryGetValue(json, out var items))
             {
-                if (parse(json, out var item))
+                return ParseCollection(items, parse);
+            }
+            else
+            {
+                return System.Linq.Enumerable.Empty<T>();
+            }
+        }
+
+        private static readonly IJsonParser<IEnumerable<JsonNode>> PageParser = new JsonPropertyParser<IEnumerable<JsonNode>>("results");
+
+        public static IEnumerable<T> ParseCollection<T>(IEnumerable<JsonNode> items, IJsonParser<T> parse = null, params Parser[] parsers)
+        {
+            foreach (var item in items)
+            {
+                if (parse.TryGetValue(item, out var parsed))
                 {
-                    CacheItem(item, json);
-                    yield return item;
+                    if (parsed is Item temp)
+                    {
+                        CacheItem(temp, item, parsers);
+                    }
+
+                    if (NotAdult(item))
+                    {
+                        yield return parsed;
+                    }
                 }
             }
         }
 
-        public IAsyncEnumerable<JsonNode> FlattenPages(string apiCall, params string[] parameters) => Helpers.FlattenPages(WebClient, BuildApiCall(apiCall, parameters.Append(PageParameter)), "results", json => json["total_pages"].TryGetValue<int>());
+        public static IAsyncEnumerable<T> FlattenPages<T>(PagedTMDbRequest request, System.Linq.Async.Enumerable.TryParseFunc<JsonNode, T> parse = null, params string[] parameters) => Request(request, parse, false, parameters);// FlattenPages(request, Helpers.LazyRange(0, 1), parse, false, parameters);
+        public static async IAsyncEnumerable<T> FlattenPages<T>(PagedTMDbRequest request, IEnumerable<int> pages, System.Linq.Async.Enumerable.TryParseFunc<JsonNode, T> parse = null, bool reverse = false, params string[] parameters)
+        {
+            var items = WebClient.GetAsync(request, pages, default, parameters);
+            var parser = new JsonPropertyParser<IEnumerable<JsonNode>>("results", new JsonArrayParser<JsonNode>());
+
+            await foreach (var json in Helpers.FlattenPages(items, parser, reverse))
+            {
+                if (parse(json, out var parsed))
+                {
+                    if (parsed is Item item)
+                    {
+                        CacheItem(item, json);
+                    }
+
+                    yield return parsed;
+                }
+            }
+        }
+
+        private static bool NotAdult(JsonNode json) => !json.TryGetValue("adult", out bool adult) || !adult;
 
 #if DEBUG
-        public IAsyncEnumerable<Item> GetRecommendedMoviesAsync() => FlattenPages(string.Format("4/account/{0}/movie/recommendations", AccountID)).TrySelect<JsonNode, Movie>(TryParseMovie);
-        public IAsyncEnumerable<Item> GetTrendingAsync<T>(string mediaType, System.Linq.Async.Enumerable.TryParseFunc<JsonNode, T> parse, string timeWindow = "week") where T : Item => FlattenPages<T>($"trending/{mediaType}/{timeWindow}", parse);
+        public IAsyncEnumerable<Item> GetTrendingAsync<T>(string mediaType, System.Linq.Async.Enumerable.TryParseFunc<JsonNode, T> parse, string timeWindow = "week") where T : Item => FlattenPages(new PagedTMDbRequest($"trending/{mediaType}/{timeWindow}"), parse);
+
+        public IAsyncEnumerable<Item> GetRecommendedMoviesAsync() => FlattenPages<Movie>(new PagedTMDbRequest($"4/account/{AccountID}/movie/recommendations"), TryParseMovie);
         public IAsyncEnumerable<Item> GetTrendingMoviesAsync(string timeWindow = "week") => GetTrendingAsync<Movie>("movie", TryParseMovie, timeWindow);
-        public IAsyncEnumerable<Item> GetPopularMoviesAsync() => FlattenPages<Movie>("movie/popular", TryParseMovie, LanguageRegionParameters);
-        public IAsyncEnumerable<Item> GetTopRatedMoviesAsync() => FlattenPages<Movie>("movie/top_rated", TryParseMovie, LanguageRegionParameters);
-        public IAsyncEnumerable<Item> GetNowPlayingMoviesAsync() => FlattenPages<Movie>("movie/now_playing", TryParseMovie, LanguageRegionParameters);
-        public IAsyncEnumerable<Item> GetUpcomingMoviesAsync() => FlattenPages<Movie>("movie/upcoming", TryParseMovie, LanguageRegionParameters);
+        public IAsyncEnumerable<Item> GetPopularMoviesAsync() => FlattenPages<Movie>(API.MOVIES.GET_POPULAR, TryParseMovie);
+        public IAsyncEnumerable<Item> GetTopRatedMoviesAsync() => FlattenPages<Movie>(API.MOVIES.GET_TOP_RATED, TryParseMovie);
+        public IAsyncEnumerable<Item> GetNowPlayingMoviesAsync() => FlattenPages<Movie>(API.MOVIES.GET_NOW_PLAYING, TryParseMovie);
+        public IAsyncEnumerable<Item> GetUpcomingMoviesAsync() => FlattenPages<Movie>(API.MOVIES.GET_UPCOMING, TryParseMovie);
 
-        public IAsyncEnumerable<Item> GetRecommendedTVShowsAsync() => FlattenPages(string.Format("4/account/{0}/tv/recommendations", AccountID)).TrySelect<JsonNode, TVShow>(TryParseTVShow);
-        public IAsyncEnumerable<Item> GetTrendingTVShowsAsync(string timeWindow = "week") => GetTrendingAsync<TVShow>("tv", TryParseTVShow2, timeWindow);
-        public IAsyncEnumerable<Item> GetPopularTVShowsAsync() => FlattenPages("tv/popular", LanguageParameter).TrySelect<JsonNode, TVShow>(TryParseTVShow);
-        public IAsyncEnumerable<Item> GetTopRatedTVShowsAsync() => FlattenPages("tv/top_rated", LanguageParameter).TrySelect<JsonNode, TVShow>(TryParseTVShow);
-        public IAsyncEnumerable<Item> GetTVOnAirAsync() => FlattenPages("tv/on_the_air", LanguageParameter).TrySelect<JsonNode, TVShow>(TryParseTVShow);
-        public IAsyncEnumerable<Item> GetTVAiringTodayAsync() => FlattenPages("tv/airing_today", LanguageParameter).TrySelect<JsonNode, TVShow>(TryParseTVShow);
+        public IAsyncEnumerable<Item> GetRecommendedTVShowsAsync() => FlattenPages<TVShow>(new PagedTMDbRequest($"4/account/{AccountID}/tv/recommendations"), TryParseTVShow);
+        public IAsyncEnumerable<Item> GetTrendingTVShowsAsync(string timeWindow = "week") => GetTrendingAsync<TVShow>("tv", TryParseTVShow, timeWindow);
+        public IAsyncEnumerable<Item> GetPopularTVShowsAsync() => FlattenPages<TVShow>(API.TV.GET_POPULAR, TryParseTVShow);
+        public IAsyncEnumerable<Item> GetTopRatedTVShowsAsync() => FlattenPages<TVShow>(API.TV.GET_TOP_RATED, TryParseTVShow);
+        public IAsyncEnumerable<Item> GetTVOnAirAsync() => FlattenPages<TVShow>(API.TV.GET_TV_ON_THE_AIR, TryParseTVShow);
+        public IAsyncEnumerable<Item> GetTVAiringTodayAsync() => FlattenPages<TVShow>(API.TV.GET_TV_AIRING_TODAY, TryParseTVShow);
 
         public IAsyncEnumerable<Item> GetTrendingPeopleAsync(string timeWindow = "week") => GetTrendingAsync<Person>("person", TryParsePerson, timeWindow);
-        public IAsyncEnumerable<Item> GetPopularPeopleAsync() => FlattenPages("person/popular", LanguageParameter).TrySelect<JsonNode, Person>(TryParsePerson);
+        //public IAsyncEnumerable<Item> GetPopularPeopleAsync() => FlattenPages("person/popular", LanguageParameter).TrySelect<JsonNode, Person>(TryParsePerson);
 #else
         public IAsyncEnumerable<Models.Item> GetRecommendedMoviesAsync() => CacheStream(FlattenPages(WebClient, string.Format("4/account/{0}/movie/recommendations?page={{0}}", AccountID), UserAccessToken), json => GetCacheKey<Models.Movie>(json)).TrySelect<JsonNode, Models.Movie>(TryParseMovie);
         public IAsyncEnumerable<Models.Item> GetTrendingMoviesAsync(TimeWindow timeWindow = TimeWindow.Week) => FlattenPages(page => Client.GetTrendingMoviesAsync(timeWindow, page), GetCacheKey).Select(GetItem);
@@ -159,66 +251,14 @@ namespace Movies
         //public Task<JsonNode> GetWatchProviders() => GetPropertyValues("watch/providers/{0}", "results", LanguageParameter, RegionParameter);
         //public Task<JsonNode> GetWatchProviderRegions() => GetPropertyValues("watch/providers/regions", "results", LanguageParameter);
 
-        private class TMDbRequest
-        {
-            public HttpMethod Method { get; }
-            public string Endpoint { get; }
-
-            public bool AuthenticationRequired { get; set; }
-            public bool HasLanguageParameter { get; set; }
-            public bool HasRegionParameter { get; set; }
-            public bool HasAdultParameter { get; set; }
-            public bool SupportsAppendToResponse { get; set; }
-
-            public TMDbRequest(string endpoint) : this(endpoint, HttpMethod.Get) { }
-            public TMDbRequest(string endpoint, HttpMethod method)
-            {
-                Method = method;
-                Endpoint = endpoint;
-            }
-
-            public static implicit operator TMDbRequest(string url) => new TMDbRequest(url);
-
-
-            public string GetURL(string language, string region, bool adult)
-            {
-                var parameters = new List<string>();
-
-                if (HasLanguageParameter) parameters.Add($"language={language}");
-                if (HasRegionParameter) parameters.Add($"region={region}");
-                if (HasAdultParameter) parameters.Add($"adult={adult}");
-
-                return BuildApiCall(Endpoint, parameters);
-            }
-
-            public HttpRequestMessage GetMessage(string language, string region, bool adult, AuthenticationHeaderValue auth)
-            {
-                var message = new HttpRequestMessage(Method, GetURL(language, region, adult));
-
-                if (AuthenticationRequired)
-                {
-                    message.Headers.Authorization = auth;
-                }
-
-                return message;
-            }
-        }
-
-        private string GetURL(TMDbRequest request) => request.GetURL(LANGUAGE, REGION, Adult);
-        private HttpRequestMessage GetMessage(TMDbRequest request) => request.GetMessage(LANGUAGE, REGION, Adult, Auth);
-
-        private static readonly TMDbRequest MOVIE_GENRE_VALUES = new TMDbRequest("genre/movie/list")
-        {
-            HasLanguageParameter = true,
-        };
+        public static string GetURL(TMDbRequest request, params string[] parameters) => request.GetURL(null, null, false, parameters);
+        public HttpRequestMessage GetMessage(TMDbRequest request) => request.GetMessage(Auth, LANGUAGE, REGION);
 
         private AuthenticationHeaderValue Auth { get; }
-        public bool Adult { get; set; }
 
         private Task InitValues() => Task.WhenAll(new Task[]
         {
-            SetValues(Movie.GENRES, BuildApiCall("genre/movie/list", LanguageParameter), new JsonPropertyParser<string>("genre")),
-            SetValues(Movie.GENRES, MOVIE_GENRE_VALUES, new JsonPropertyParser<string>("genre"))
+            SetValues(Movie.GENRES, API.GENRES.GET_MOVIE_LIST, new JsonPropertyParser<string>("genre"))
             //GetValues(Media.GENRES, new ApiCall(BuildApiCall("genre/{0}/list", LanguageParameter), "genres", new Parser<string>(Media.GENRES)))
         });
 
@@ -240,308 +280,39 @@ namespace Movies
             }
         }
 
-        public IAsyncEnumerable<Review> GetMovieReviews(int id) => GetReviews($"movie/{id}/reviews");
-        public IAsyncEnumerable<Review> GetReviews(TVShow show) => TryGetID(show, out var id) ? GetReviews($"tv/{id}/reviews") : null;
-        private IAsyncEnumerable<Review> GetReviews(string endpoint) => FlattenPages(endpoint).Select(ParseReview);
-
-        public static bool TryParseMovie(JsonNode json, out Movie movie)
+        private static void CacheItem(Item item, JsonNode json, params Parser[] parsers)
         {
-            if (json.TryGetValue("id", out int id) && json.TryGetValue("title", out string title) && json.TryGetValue("release_date", out string releaseDate))
+            IEnumerable<Parser> temp = parsers;
+
+            if (parsers.Length == 0)
             {
-                movie = new Movie(title, DateTime.TryParse(releaseDate, out var year) ? (int?)year.Year : null).WithID(IDKey, id);
-                return true;
-            }
-
-            movie = null;
-            return false;
-        }
-
-        public static bool TryParseTVShow1(JsonNode json, out TVShow show)
-        {
-            throw new NotImplementedException();
-        }
-
-        public static bool TryParsePerson(JsonNode json, out Person person)
-        {
-            if (json.TryGetValue("name", out string name))
-            {
-                person = new Person(name);
-
-                if (json.TryGetValue("id", out int id))
+                if (!ITEM_PROPERTIES.TryGetValue(item.ItemType, out var properties))
                 {
-                    person.SetID(IDKey, id);
+                    return;
                 }
 
-                return true;
+                temp = properties.Info.Values.SelectMany(parsers => parsers);
             }
 
-            person = null;
-            return false;
+            CacheItem(item, json, temp);
         }
 
-        protected bool TryParseTVShow2(JsonNode json, out TVShow show)
+        private static void CacheItem(Item item, JsonNode json, IEnumerable<Parser> parsers)
         {
-            if (json.TryGetValue("id", out int id) && json.TryGetValue("name", out string name) && json.TryGetValue("overview", out string overview) && json.TryGetValue("poster_path", out string posterPath))
-            {
-                show = new TVShow(name)
-                {
-                    Description = overview,
-                    PosterPath = BuildImageURL(posterPath, POSTER_SIZE)
-                }.WithID(IDKey, id);
-
-                return true;
-            }
-
-            show = null;
-            return false;
-        }
-
-        protected bool TryParseTVShow(JsonNode json, out TVShow show)
-        {
-            if (json.TryGetValue("id", out int id) && json.TryGetValue("name", out string name) && json.TryGetValue("overview", out string overview) && json.TryGetValue("poster_path", out string poster_path))
-            {
-                show = GetItem(new TMDbLib.Objects.Search.SearchTv
-                {
-                    Id = id,
-                    Name = name,
-                    Overview = overview,
-                    PosterPath = poster_path
-                });
-                return true;
-            }
-
-            show = null;
-            return false;
-        }
-
-        public static bool TryParse(JsonNode json, out Item item)
-        {
-            item = null;
-            var type = json["media_type"];
-
-            if (type?.TryGetValue<string>() == "movie")
-            {
-                if (TryParseMovie(json, out var movie))
-                {
-                    item = movie;
-                }
-            }
-            else if (type?.TryGetValue<string>() == "tv")
-            {
-                if (TryParseTVShow1(json, out var show))
-                {
-                    item = show;
-                }
-            }
-
-            return item != null;
-        }
-
-        public static Rating ParseRating(JsonNode json, Company company, IAsyncEnumerable<Review> reviews = null) => new Rating
-        {
-            Company = company,
-            Score = json["vote_average"]?.TryGetValue<double>(),
-            TotalVotes = json["vote_count"]?.TryGetValue<double>() ?? 0,
-            Reviews = reviews
-        };
-
-        public static Review ParseReview(JsonNode json) => new Review
-        {
-            Author = json["author"]?.TryGetValue<string>(),
-            Content = json["content"]?.TryGetValue<string>(),
-        };
-
-        public static Credit ParseCredit(JsonNode json) => new Credit
-        {
-            Person = TryParsePerson(json, out var person) ? person : null,
-            Role = json["character"]?.TryGetValue<string>() ?? json["job"]?.TryGetValue<string>(),
-            Department = json["department"]?.TryGetValue<string>(),
-        };
-
-        public static Company ParseCompany(JsonNode json)
-        {
-            throw new NotImplementedException();
-        }
-
-        public static WatchProvider ParseWatchProvider(JsonNode json)
-        {
-            throw new NotImplementedException();
-        }
-
-        public static Collection TryParseCollection(JsonNode json)
-        {
-            throw new NotImplementedException();
-        }
-
-        public static IEnumerable<T> TryParseArray<T>(JsonNode json, Func<JsonNode, T> parse)
-        {
-            throw new NotImplementedException();
-        }
-
-        private static readonly Parser<string> TITLE_PARSER = Media.TITLE;
-        //private static readonly Parser RUNTIME_PARSER = new Parser<TimeSpan>(Media.RUNTIME, json => TimeSpan.FromMinutes(json.GetValue<int>()));
-        private static readonly Parser<string> ORIGINAL_TITLE_PARSER = Media.ORIGINAL_LANGUAGE;
-
-        private static readonly List<Parser> CREDITS_PARSERS = new List<Parser>
-        {
-            Parser.Create(Media.CAST, "cast", ParseCredit),
-            Parser.Create(Media.CREW, "crew", ParseCredit)
-        };
-
-        private static List<Parser> MEDIA_PROPERTIES = new List<Parser>
-        {
-            //new Parser<string>(Media.TAGLINE, "tagline"),
-            Parser.Create(Media.DESCRIPTION, "overview"),
-            //new Parser<string>(Media.CONTENT_RATING, "release_dates"),
-            //new Parser<string>(Media.ORIGINAL_LANGUAGE, "original_language"),
-            //["spoken_languages"] = new SubPropertyParser<string>(Media.LANGUAGES, "name"),
-            Parser.Create(Media.POSTER_PATH, "poster_path", path => BuildImageURL(path.TryGetValue<string>(), POSTER_SIZE)),
-            //new Parser<string>(Media.BACKDROP_PATH, "backdrop_path", path => BuildImageURL(path.TryGetValue<string>())),
-            //new Parser<Company>(Media.PRODUCTION_COMPANIES, "production_companies"),
-            //["production_countries"] = new SubPropertyParser<string>(Media.PRODUCTION_COUNTRIES, "name"),
-            //new Parser<Rating>(Media.RATING, ParseRating),
-        };
-
-        private static readonly Dictionary<TMDbRequest, List<Parser>> MEDIA_APPENDED_PROPERTIES = new Dictionary<TMDbRequest, List<Parser>>
-        {
-            ["recommendations"] = new List<Parser>
-            {
-                //["recommendations"] = new Parser<IAsyncEnumerable<Item>>(Media.RECOMMENDED)
-            },
-            //["reviews"] = new Dictionary<string, Parser>(),
-            [BuildApiCall("videos", LANGUAGE_PLACEHOLDER)] = new List<Parser>
-            {
-                //["results"] = new Parser<string>(Media.TRAILER_PATH)
-            },
-        };
-
-        private static readonly string DETAILS_ENDPOINT = string.Empty;
-        private static readonly string LANGUAGE_PLACEHOLDER = "{0}";
-
-        private static readonly Dictionary<TMDbRequest, List<Parser>> MOVIE_PROPERTIES = new Dictionary<TMDbRequest, List<Parser>>(MEDIA_APPENDED_PROPERTIES)
-        {
-            [new TMDbRequest("movie/{0}")
-            {
-                SupportsAppendToResponse = true,
-                HasLanguageParameter = true,
-            }] = new List<Parser>(MEDIA_PROPERTIES)
-            {
-                //["title"] = TITLE_PARSER,
-                //Parser.Create(Movie.GENRES, "genres", "name"),
-                //["runtime"] = RUNTIME_PARSER,
-                //["original_title"] = ORIGINAL_TITLE_PARSER,
-                //["release_date"] = new Parser<DateTime>(Movie.RELEASE_DATE),
-                //["budget"] = new Parser<long>(Movie.BUDGET),
-                //["revenue"] = new Parser<long>(Movie.REVENUE),
-                //["belongs_to_collection"] = new Parser<Collection>(Movie.PARENT_COLLECTION, TryParseCollection),
-            },
-            ["release_dates"] = new List<Parser>
-            {
-                //["results"] = CONTENT_RATING_PARSER
-            },
-            [BuildApiCall("credits", LANGUAGE_PLACEHOLDER)] = CREDITS_PARSERS,
-            ["keywords"] = new List<Parser>
-            {
-                //["keywords"] = new SubPropertyParser<string>(Movie.KEYWORDS, "name")
-            },
-            ["watch/providers"] = new List<Parser>
-            {
-                //["results"] = new Parser<WatchProvider>(Media.WATCH_PROVIDERS, ParseWatchProvider)
-            }
-        };
-
-        private static readonly Dictionary<TMDbRequest, List<Parser>> TVSHOW_PROPERTIES = new Dictionary<TMDbRequest, List<Parser>>(MEDIA_APPENDED_PROPERTIES)
-        {
-            [DETAILS_ENDPOINT] = new List<Parser>(MEDIA_PROPERTIES)
-            {
-                //["name"] = TITLE_PARSER,
-                //["episode_run_time"] = RUNTIME_PARSER,
-                //["original_name"] = ORIGINAL_TITLE_PARSER,
-                //["first_air_date"] = new Parser<DateTime>(TVShow.FIRST_AIR_DATE),
-                //["last_air_date"] = new Parser<DateTime>(TVShow.LAST_AIR_DATE),
-                //["genres"] = new SubPropertyParser<string>(TVShow.GENRES, "name"),
-                //["networks"] = new Parser<Company>(TVShow.NETWORKS, ParseCompany),
-            },
-            [BuildApiCall("content_ratings", LANGUAGE_PLACEHOLDER)] = new List<Parser>
-            {
-                //["results"] = CONTENT_RATING_PARSER
-            },
-            [BuildApiCall("aggregate_credits", LANGUAGE_PLACEHOLDER)] = CREDITS_PARSERS,
-            ["keywords"] = new List<Parser>
-            {
-                //["results"] = new SubPropertyParser<string>(TVShow.KEYWORDS, "name")
-            },
-            ["watch/providers"] = new List<Parser>
-            {
-                //["results"] = new Parser<WatchProvider>(Media.WATCH_PROVIDERS, ParseWatchProvider)
-            }
-        };
-
-        private static readonly Dictionary<TMDbRequest, List<Parser>> TVSEASON_PROPERTIES = new Dictionary<TMDbRequest, List<Parser>>
-        {
-            [DETAILS_ENDPOINT] = new List<Parser>
-            {
-                //["air_date"] = new Parser<DateTime>(TVSeason.YEAR),
-                //["release_date"] = new Parser<TimeSpan>(TVSeason.AVERAGE_RUNTIME),
-            }
-        };
-
-        private static readonly Dictionary<TMDbRequest, List<Parser>> TVEPISODE_PROPERTIES = new Dictionary<TMDbRequest, List<Parser>>
-        {
-            [DETAILS_ENDPOINT] = new List<Parser>
-            {
-                //["air_date"] = new Parser<DateTime>(TVEpisode.AIR_DATE),
-            }
-        };
-
-        private static readonly Dictionary<TMDbRequest, List<Parser>> PERSON_PROPERTIES = new Dictionary<TMDbRequest, List<Parser>>
-        {
-            [DETAILS_ENDPOINT] = new List<Parser>
-            {
-
-            }
-        };
-
-        private static readonly ItemProperties MovieProperties = new ItemProperties(MOVIE_PROPERTIES);
-
-        private static readonly Dictionary<ItemType, (string BaseURL, Dictionary<TMDbRequest, List<Parser>> Properties)> ITEM_PROPERTIES = new Dictionary<ItemType, (string BaseURL, Dictionary<TMDbRequest, List<Parser>> Properties)>
-        {
-            [ItemType.Movie] = ("movie", MOVIE_PROPERTIES),
-            [ItemType.TVShow] = ("tv", TVSHOW_PROPERTIES),
-            [ItemType.TVSeason] = ("tv", TVSEASON_PROPERTIES),
-            [ItemType.TVEpisode] = ("tv", TVEPISODE_PROPERTIES),
-            [ItemType.Person] = ("person", PERSON_PROPERTIES),
-        };
-
-        private static readonly Dictionary<ItemType, ItemProperties> ITEM_PROPERTIES1 = new Dictionary<ItemType, ItemProperties>
-        {
-            [ItemType.Movie] = MovieProperties
-        };
-
-        private void CacheItem(Item item, JsonNode json)
-        {
-            if (!ITEM_PROPERTIES1.TryGetValue(item.ItemType, out var properties))
-            {
-                return;
-            }
-
             var dict = Data.GetDetails(item);
 
-            foreach (var parsers in properties.Info.Values)
+            foreach (var parser in parsers)
             {
-                foreach (var parser in parsers)
+                if (parser is IJsonParser<PropertyValuePair> pvp && pvp.TryGetValue(json, out var pair))
                 {
-                    if (parser is IJsonParser<PropertyValuePair> pvp && pvp.TryGetValue(json, out var pair))
-                    {
-                        dict.Add(pair);
-                        //dict.Add(parser.GetPair(Task.FromResult(property.Value)));
-                        //break;
-                    }
+                    dict.Add(pair);
+                    //dict.Add(parser.GetPair(Task.FromResult(property.Value)));
+                    //break;
                 }
             }
         }
 
-        private DataService Data;
+        private static DataService Data;
 
         public void Test(DataService manager)
         {
@@ -551,334 +322,16 @@ namespace Movies
             {
                 var item = (Item)sender;
 
-                if (ITEM_PROPERTIES1.TryGetValue(item.ItemType, out var properties))
+                if (ITEM_PROPERTIES.TryGetValue(item.ItemType, out var properties))
                 {
                     properties.HandleRequests(item, e.Properties, this);
                 }
-
-                //TryGetDetails(item, e.Properties, out _);
             };
         }
 
-        private bool TryGetDetails(Item item, PropertyDictionary dict, out ItemProperties properties)
+        public static async Task<Item> GetItemJson(ItemType type, int id)
         {
-            properties = null;
-
-            if (!TryGetID(item, out var id) || !ITEM_PROPERTIES.TryGetValue(item.ItemType, out var detailsProperties))
-            {
-                return false;
-            }
-
-            var parameters = new List<object> { id };
-            List<string> urlSegments = new List<string> { detailsProperties.BaseURL, id.ToString() };
-            List<ApiCall> appended = new List<ApiCall>();
-
-            if (item is Person)
-            {
-                return false;
-            }
-            else if (item is Media)
-            {
-                //appended.Add(new ApiCall("reviews", "title", new Parser<Rating>(Media.RATING, json => ParseRating(json, Company, GetMovieReviews(id)))));
-            }
-
-            properties = new ItemProperties(null, null);
-
-            dict.PropertyAdded += properties.ValueRequested;
-            return true;
-        }
-
-
-        private class ItemProperties
-        {
-            public IReadOnlyDictionary<TMDbRequest, List<Parser>> Info { get; }
-
-            private readonly Dictionary<Property, TMDbRequest> PropertyLookup = new Dictionary<Property, TMDbRequest>();
-            private List<TMDbRequest> SupportsAppendToResponse = new List<TMDbRequest>();
-            private Dictionary<Property, ApiCall> ApiCalls;
-
-            public ItemProperties(Dictionary<TMDbRequest, List<Parser>> info)
-            {
-                var test = new Dictionary<TMDbRequest, List<Parser>>();
-
-                foreach (var kvp in info)
-                {
-                    if (kvp.Key.SupportsAppendToResponse)
-                    {
-                        SupportsAppendToResponse.Add(kvp.Key);
-                    }
-
-                    foreach (var parser in kvp.Value)
-                    {
-                        PropertyLookup[parser.Property] = kvp.Key;
-                    }
-
-                    test.Add(kvp);
-                }
-
-                Info = test;
-            }
-
-            public ItemProperties(ApiCall details, params ApiCall[] appended) : this(details, (IEnumerable<ApiCall>)appended) { }
-            public ItemProperties(ApiCall details, IEnumerable<ApiCall> appended)
-            {
-                ApiCalls = new Dictionary<Property, ApiCall>();
-
-                foreach (var apiCall in appended.Prepend(details))
-                {
-                    foreach (var parser in apiCall.Parsers)
-                    {
-                        ApiCalls[parser.Property] = apiCall;
-                    }
-                }
-            }
-
-            private async Task<JsonNode> ApiCall(string endpoint)
-            {
-#if DEBUG
-                return JsonNode.Parse(await Task.FromResult(INTERSTELLAR_RESPONSE));
-#else
-                var response = await new TMDB(null, null).WebClient.GetAsync(endpoint);
-                return JsonNode.Parse(await response.Content.ReadAsStringAsync());
-#endif
-            }
-
-            public void ValueRequested(object sender, PropertyEventArgs e)
-            {
-                var properties = (PropertyDictionary)sender;
-                AddValues(properties, e.Properties);
-            }
-
-            public void HandleRequests(Item item, PropertyDictionary properties, TMDB tmdb)
-            {
-                if (!tmdb.TryGetID(item, out var id))
-                {
-                    return;
-                }
-
-                var parameters = new List<object> { id };
-
-                if (item is TVEpisode episode)
-                {
-
-                }
-                else if (item is TVSeason season)
-                {
-
-                }
-
-                var handler = new RequestHandler
-                {
-                    Context = this,
-                    TMDB = tmdb,
-                    Parameters = parameters.ToArray(),
-                };
-
-                properties.PropertyAdded += handler.PropertyRequested;
-            }
-
-            private class RequestHandler
-            {
-                public ItemProperties Context { get; set; }
-                public TMDB TMDB { get; set; }
-                public object[] Parameters { get; set; }
-
-                private async Task<JsonNode> ApiCall(TMDbRequest request, IEnumerable<TMDbRequest> appended)
-                {
-                    var endpoints = appended.Prepend(request).Select(request => string.Format(TMDB.GetURL(request), Parameters));
-                    var endpoint = AppendToResponse(endpoints.FirstOrDefault(), endpoints.Skip(1));
-
-#if DEBUG
-                    return JsonNode.Parse(await Task.FromResult(INTERSTELLAR_RESPONSE));
-#else
-                    var response = await TMDB.WebClient.GetAsync(endpoint);
-                    return JsonNode.Parse(await response.Content.ReadAsStringAsync());
-#endif
-                }
-
-                //public void PropertyRequested(object sender, PropertyEventArgs e) => PropertyRequested((PropertyDictionary)sender, e.Properties);
-                public void PropertyRequested(object sender, PropertyEventArgs e) => PropertyRequested((PropertyDictionary)sender, Context.Info.Values.SelectMany(parsers => parsers).Select(parser => parser.Property));
-                public void PropertyRequested(PropertyDictionary dict, IEnumerable<Property> properties)
-                {
-                    var requests = new List<TMDbRequest>();
-
-                    foreach (var property in properties)
-                    {
-                        if (Context.PropertyLookup.TryGetValue(property, out var request))
-                        {
-                            requests.Add(request);
-                        }
-                    }
-
-                    var batched = new List<List<TMDbRequest>>(Context.SupportsAppendToResponse.Select(atr => new List<TMDbRequest>()));
-                    var parsers = new List<List<IEnumerable<Parser>>>(Context.SupportsAppendToResponse.Select(atr => new List<IEnumerable<Parser>>()));
-
-                    for (int i = 0; i < requests.Count; i++)
-                    {
-                        var request = requests[i];
-
-                        if (Context.Info.TryGetValue(request, out var parsers1) && parsers1.Count > 0)
-                        {
-                            int index = Context.SupportsAppendToResponse.FindIndex(atr => request.Endpoint.StartsWith(atr.Endpoint));
-
-                            if (index == -1)
-                            {
-                                index = batched.Count;
-                                batched.Add(new List<TMDbRequest>());
-                                parsers.Add(new List<IEnumerable<Parser>>());
-                            }
-
-                            if (!batched[index].Contains(request))
-                            {
-                                var atr = index < Context.SupportsAppendToResponse.Count ? Context.SupportsAppendToResponse[index] : request;
-
-                                if (request == atr)
-                                {
-                                    batched[index].Insert(0, request);
-                                    parsers[index].Add(parsers1);
-                                }
-                                else
-                                {
-                                    batched[index].Add(request);
-                                    parsers[index].Add(parsers1.Select(parser => parser));
-
-                                    if (batched.Count == 2 && !batched[index].Contains(atr))
-                                    {
-                                        requests.Add(atr);
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    for (int i = 0; i < batched.Count; i++)
-                    {
-                        var response = ApiCall(batched[i].FirstOrDefault(), batched[i].Skip(1));
-
-                        foreach (var parser in parsers[i].SelectMany(x => x))
-                        {
-                            dict.Add(parser.GetPair(response));
-                        }
-                    }
-                }
-            }
-
-            public void AddValues(PropertyDictionary dict, IEnumerable<Property> properties)
-            {
-                Task<JsonNode> response = null;
-
-                foreach (var property in properties)
-                {
-                    if (ApiCalls.TryGetValue(property, out var call))
-                    {
-                        response ??= ApiCall(call.Endpoint);
-
-                        foreach (var parser in call.Parsers)
-                        {
-                            dict.Add(parser.GetPair(response));
-                        }
-                    }
-                }
-            }
-
-            public static string AppendToResponse(string basePath, IEnumerable<string> endpoints)
-            {
-                var appendedPaths = new List<string>();
-                var parameters = new Dictionary<string, string>();
-                var parsers = new List<Parser>();
-
-                foreach (var endpoint in endpoints)
-                {
-                    //var uri = new Uri(call.Endpoint, UriKind.RelativeOrAbsolute);
-                    var parts = endpoint.Split('?');
-                    var path = parts.ElementAtOrDefault(0) ?? string.Empty;
-                    var query = parts.ElementAtOrDefault(1) ?? string.Empty;
-
-                    if (!path.StartsWith(basePath))
-                    {
-                        continue;
-                    }
-
-                    path = path.Replace(basePath, string.Empty).TrimStart('/');
-
-                    foreach (var parameter in query.Split('&'))
-                    {
-                        var temp = parameter.Split('=');
-
-                        if (temp.Length == 2)
-                        {
-                            parameters[temp[0]] = temp[1];
-                        }
-                    }
-                }
-
-                var parameterList = parameters
-                    .Select(kvp => string.Join('=', kvp.Key, kvp.Value))
-                    .Append($"append_to_response={string.Join(',', appendedPaths)}");
-
-                return BuildApiCall(basePath, parameterList);
-            }
-
-            public static ApiCall AppendToResponse(ApiCall details, IEnumerable<ApiCall> appended)
-            {
-                string basePath = null;
-                var appendedPaths = new List<string>();
-                var parameters = new Dictionary<string, string>();
-                var parsers = new List<Parser>();
-
-                foreach (var call in appended.Prepend(details))
-                {
-                    //var uri = new Uri(call.Endpoint, UriKind.RelativeOrAbsolute);
-                    var parts = call.Endpoint.Split('?');
-                    var path = parts.ElementAtOrDefault(0) ?? string.Empty;
-                    var query = parts.ElementAtOrDefault(1) ?? string.Empty;
-
-                    if (call == details)
-                    {
-                        basePath = path;
-                    }
-
-                    if (!path.StartsWith(basePath))
-                    {
-                        continue;
-                    }
-
-                    path = path.Replace(basePath, string.Empty).TrimStart('/');
-
-                    if (string.IsNullOrEmpty(path))
-                    {
-                        foreach (var parser in call.Parsers)
-                        {
-                            parsers.Add(parser);
-                        }
-                    }
-                    else
-                    {
-                        appendedPaths.Add(path);
-
-                        foreach (var parser in call.Parsers)
-                        {
-                            //parsers.Add(path, new ParserWrapper(parser.Value, parser.Key));
-                        }
-                    }
-
-                    foreach (var parameter in query.Split('&'))
-                    {
-                        var temp = parameter.Split('=');
-
-                        if (temp.Length == 2)
-                        {
-                            parameters[temp[0]] = temp[1];
-                        }
-                    }
-                }
-
-                var parameterList = parameters
-                    .Select(kvp => string.Join('=', kvp.Key, kvp.Value))
-                    .Append($"append_to_response={string.Join(',', appendedPaths)}");
-
-                return new ApiCall(BuildApiCall(basePath, parameterList), parsers);
-            }
+            return null;
         }
     }
 }

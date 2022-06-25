@@ -2429,7 +2429,7 @@ application_config:
 
 	.type	.L.autostr.6, @object
 .L.autostr.6:
-	.asciz	"e3ebc14e-c945-4de8-89ec-e2edfbc50b06"
+	.asciz	"967c8d58-5bbd-43a6-8401-a7f9048a39ee"
 	.size	.L.autostr.6, 37
 
 	.type	.L.autostr.7, @object

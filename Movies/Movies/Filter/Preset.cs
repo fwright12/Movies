@@ -19,7 +19,7 @@ namespace Movies.ViewModels
                 }
             }
         }
-        public IList<Constraint> Value { get; set; } = new List<Constraint>();
+        public FilterPredicate Value { get; set; }
 
         private bool _IsActive;
     }

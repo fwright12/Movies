@@ -1,16 +1,11 @@
 ﻿<?xml version="1.0" encoding="UTF-8"?>
 <ControlTemplate xmlns="http://xamarin.com/schemas/2014/forms"
                  xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-                 xmlns:sys="clr-namespace:System;assembly=mscorlib"
-                 xmlns:collections="clr-namespace:System.Collections;assembly=mscorlib"
+                 xmlns:movies="clr-namespace:Movies"
+                 xmlns:viewmodels="clr-namespace:Movies.ViewModels"
+                 xmlns:views="clr-namespace:Movies.Views"
                  xmlns:ext="clr-namespace:Xamarin.Forms.Extensions;assembly=Xamarin.Forms.Extensions"
                  xmlns:forms="clr-namespace:Xamarin.Forms;assembly=Xamarin.Forms.Extensions"
-                 xmlns:movies="clr-namespace:Movies"
-                 xmlns:converters="clr-namespace:Movies.Converters"
-                 xmlns:views="clr-namespace:Movies.Views"
-                 xmlns:templates="clr-namespace:Movies.Templates"
-                 xmlns:viewmodels="clr-namespace:Movies.ViewModels"
-                 xmlns:models="clr-namespace:Movies.Models"
                  x:Class="Movies.ListTemplate">
     <forms:DrawerView x:Name="root"
                       BackgroundColor="{Binding BackgroundColor, Source={RelativeSource AncestorType={x:Type Page}}}"
@@ -18,155 +13,19 @@
                       Drawer="{Binding Source}">
         <VisualElement.Resources>
             <ResourceDictionary>
-                <ResourceDictionary.MergedDictionaries>
-                    <movies:PredicateEditorResources />
-                </ResourceDictionary.MergedDictionaries>
-
                 <Style Class="EditingOnly"
                        TargetType="VisualElement"
                        ApplyToDerivedTypes="True"
                        BasedOn="{StaticResource EditingOnlyStyle}" />
             </ResourceDictionary>
         </VisualElement.Resources>
-        
+
         <forms:DrawerView.SnapPoints>
             <forms:SnapPoint Value="50" />
         </forms:DrawerView.SnapPoints>
 
         <forms:DrawerView.DrawerTemplate>
-            <DataTemplate>
-                <StackLayout Orientation="Vertical"
-                             BackgroundColor="{AppThemeBinding Light={StaticResource LightSecondaryBackground}, Dark={StaticResource DarkSecondaryBackground}}">
-                    <VisualStateManager.VisualStateGroups>
-                        <VisualStateGroup>
-                            <VisualState Name="{Static forms:DrawerView+VisualStates.Closed}">
-                                <VisualState.Setters>
-                                    <Setter TargetName="scroll"
-                                            Property="ScrollView.Orientation"
-                                            Value="Vertical" />
-                                    <Setter Property="HeightRequest"
-                                            Value="100" />
-                                    <Setter TargetName="filters"
-                                            Property="ContentView.ControlTemplate">
-                                        <ControlTemplate>
-                                            <ScrollView Orientation="Horizontal">
-                                                <StackLayout Orientation="Horizontal"
-                                                             BindingContext="{TemplateBinding BindingContext.Constraints}"
-                                                             BindableLayout.ItemsSource="{Binding Expression}"
-                                                             BindableLayout.ItemTemplateSelector="{StaticResource BooleanTemplateSelector}"
-                                                             BindableLayout.EmptyView="No filters" />
-                                            </ScrollView>
-                                        </ControlTemplate>
-                                    </Setter>
-
-                                    <!--<MultiBinding>
-                                            <MultiBinding.Converter>
-                                                <views:ArithmeticConverter Operation="Add" />
-                                            </MultiBinding.Converter>
-
-                                            <Binding Path="Y"
-                                                     Source="{x:Reference minheight}" />
-                                            <Binding Path="Child.Height">
-                                                <Binding.Source>
-                                                    <views:ChildViewModel Layout="{x:Reference minheight}"
-                                                                          Index="0" />
-                                                </Binding.Source>
-                                            </Binding>
-                                        </MultiBinding>
-                                    </Setter>-->
-                                </VisualState.Setters>
-                            </VisualState>
-
-                            <VisualState Name="{Static forms:DrawerView+VisualStates.Open}">
-                                <VisualState.Setters>
-                                    <Setter TargetName="scroll"
-                                            Property="ScrollView.Orientation"
-                                            Value="Vertical" />
-                                    <Setter Property="HeightRequest"
-                                            Value="500" />
-                                    <Setter TargetName="filters"
-                                            Property="ContentView.ControlTemplate">
-                                        <ControlTemplate>
-                                            <FlexLayout Direction="Row"
-                                                        Wrap="Wrap"
-                                                        HorizontalOptions="FillAndExpand"
-                                                        BindingContext="{TemplateBinding BindingContext.Editor}"
-                                                        BindableLayout.ItemsSource="{Binding Root, Converter={Static viewmodels:CollectionViewModel.TreeToListConverter}}"
-                                                        BindableLayout.ItemTemplateSelector="{StaticResource ConstraintTemplateSelector}"
-                                                        BindableLayout.EmptyView="No filters" />
-                                        </ControlTemplate>
-                                    </Setter>
-                                </VisualState.Setters>
-                            </VisualState>
-                        </VisualStateGroup>
-                    </VisualStateManager.VisualStateGroups>
-
-                    <Grid ColumnDefinitions="*,Auto,Auto"
-                          RowDefinitions="Auto">
-                        <ContentView x:Name="filters"
-                                     Grid.Column="0">
-                            <VisualElement.Resources>
-                                <Style TargetType="Frame">
-                                    <Setter Property="CornerRadius"
-                                            Value="10" />
-                                    <Setter Property="BorderColor"
-                                            Value="{StaticResource Primary}" />
-                                    <Setter Property="Padding"
-                                            Value="5" />
-                                    <Setter Property="Margin"
-                                            Value="3" />
-                                    <Setter Property="ControlTemplate">
-                                        <ControlTemplate>
-                                            <StackLayout BindingContext="{TemplateBinding BindingContext}"
-                                                         Orientation="Horizontal">
-                                                <ContentPresenter />
-
-                                                <Label Text="x">
-                                                    <View.GestureRecognizers>
-                                                        <TapGestureRecognizer CommandParameter="{Binding}" />
-                                                    </View.GestureRecognizers>
-                                                </Label>
-                                            </StackLayout>
-                                        </ControlTemplate>
-                                    </Setter>
-                                </Style>
-                            </VisualElement.Resources>
-                        </ContentView>
-
-                        <Button Text="clear"
-                                Command="{Binding ClearCommand}"
-                                Grid.Column="1"
-                                VerticalOptions="Start" />
-
-                        <Button Text="filter"
-                                Command="{Binding Toggle, Source={RelativeSource AncestorType={x:Type forms:DrawerView}}}"
-                                Grid.Column="2"
-                                VerticalOptions="Start" />
-                    </Grid>
-
-                    <ScrollView x:Name="scroll">
-                        <VisualElement.Behaviors>
-                            <viewmodels:ScrollLockBehavior />
-                        </VisualElement.Behaviors>
-
-                        <StackLayout Orientation="Vertical"
-                                     Spacing="10"
-                                     BindableLayout.ItemsSource="{Binding Editor.Editor.Editors}"
-                                     BindableLayout.ItemTemplate="{StaticResource SelectorTemplate}"
-                                     x:Name="parent">
-                            <Layout.Padding>
-                                <MultiBinding Converter="{Static forms:ThicknessConverter.Instance}"
-                                              ConverterParameter="horizontal, bottom">
-                                    <Binding Source="{StaticResource PagePadding}" />
-                                    <Binding Path="CornerRadius"
-                                             Source="{RelativeSource AncestorType={x:Type Frame}}"
-                                             FallbackValue="{StaticResource PagePadding}" />
-                                </MultiBinding>
-                            </Layout.Padding>
-                        </StackLayout>
-                    </ScrollView>
-                </StackLayout>
-            </DataTemplate>
+            <views:FilterTemplate />
         </forms:DrawerView.DrawerTemplate>
 
         <!--<VisualElement.Triggers>
@@ -448,9 +307,6 @@
 
                             <StackLayout x:Name="liststates"
                                          Orientation="Horizontal"
-                                         forms:Selection.SelectionMode="Single"
-                                         forms:Selection.SelectedItems="{Binding ListLayout, Mode=TwoWay, Converter={Static viewmodels:SingleItemListConverter.Instance}}"
-                                         x:DataType="{x:Null}"
                                          Spacing="0"
                                          Grid.Column="1">
                                 <VisualElement.Resources>
@@ -460,29 +316,45 @@
                                                 Value="{StaticResource IoniconsFont}" />
                                         <Setter Property="FontSize"
                                                 Value="Title" />
-                                        <Setter Property="VisualStateManager.VisualStateGroups">
-                                            <VisualStateGroupList>
-                                                <VisualStateGroup>
-                                                    <VisualState Name="{Static VisualStateManager+CommonStates.Normal}" />
-                                                    <VisualState Name="{Static VisualStateManager+CommonStates.Selected}">
-                                                        <VisualState.Setters>
-                                                            <Setter Property="BackgroundColor"
-                                                                    Value="{StaticResource Primary}" />
-
-                                                            <Setter Property="TextColor"
-                                                                    Value="{StaticResource DarkPrimaryText}" />
-                                                        </VisualState.Setters>
-                                                    </VisualState>
-                                                </VisualStateGroup>
-                                            </VisualStateGroupList>
-                                        </Setter>
                                     </Style>
                                 </VisualElement.Resources>
 
-                                <Button BindingContext="List"
-                                        Text="{OnPlatform iOS='&#xf453;', Android='&#xf391;'}" />
-                                <Button BindingContext="Grid"
-                                        Text="&#xf13f;" />
+                                <Button BindingContext="{Binding Source={RelativeSource AncestorType={x:Type forms:DrawerView}}}"
+                                        Command="{Binding Toggle}"
+                                        IsVisible="{Binding Drawer, Converter={Static forms:FalseIfNullConverter.Instance}}"/>
+
+                                <Button Command="{Binding ToggleListLayoutCommand}">
+                                    <VisualStateManager.VisualStateGroups>
+                                        <VisualStateGroup Name="CommonStates">
+                                            <VisualState Name="Normal" />
+                                        </VisualStateGroup>
+
+                                        <VisualStateGroup>
+                                            <VisualState Name="List">
+                                                <VisualState.StateTriggers>
+                                                    <CompareStateTrigger Property="{Binding ListLayout}"
+                                                                         Value="{Static viewmodels:ListLayouts.List}" />
+                                                </VisualState.StateTriggers>
+
+                                                <VisualState.Setters>
+                                                    <Setter Property="Text"
+                                                            Value="&#xf13f;" />
+                                                </VisualState.Setters>
+                                            </VisualState>
+
+                                            <VisualState Name="Grid">
+                                                <VisualState.StateTriggers>
+                                                    <StateTrigger IsActive="True" />
+                                                </VisualState.StateTriggers>
+
+                                                <VisualState.Setters>
+                                                    <Setter Property="Text"
+                                                            Value="{OnPlatform iOS='&#xf453;', Android='&#xf391;'}" />
+                                                </VisualState.Setters>
+                                            </VisualState>
+                                        </VisualStateGroup>
+                                    </VisualStateManager.VisualStateGroups>
+                                </Button>
                             </StackLayout>
                         </Grid>
                     </StackLayout>

@@ -23,7 +23,7 @@ namespace Movies.ViewModels
         public AsyncListViewModel(IAsyncEnumerable<T> source)
         {
             var items = new ObservableCollection<T>();
-            items.CollectionChanged += CollectionChanged;
+            items.CollectionChanged += (sender, e) => CollectionChanged?.Invoke(this, e);
             Items = items;
 
             Source = source;

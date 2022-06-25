@@ -34,7 +34,7 @@ namespace Movies.ViewModels
         {
             //List.Description = Bio;
             //OnPropertyChanged(nameof(Item));
-            ListLayout = Layout.Grid;
+            ListLayout = ListLayouts.Grid;
 
             DescriptionLabel = "Bio";
             ListLabel = "Credits";

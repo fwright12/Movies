@@ -11,9 +11,62 @@ using Xamarin.Forms;
 
 namespace Movies.ViewModels
 {
+    public class ObjectToViewConverter : IValueConverter
+    {
+        public static readonly ObjectToViewConverter Instance = new ObjectToViewConverter();
+
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (value != null && parameter is DataTemplateSelector selector)
+            {
+                return selector.SelectTemplate(value, null).CreateContent();
+            }
+
+            return value;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+
+    public class ReverseListConverter : IValueConverter
+    {
+        public static readonly ReverseListConverter Instance = new ReverseListConverter();
+
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture) => (value is IEnumerable items) ? items.OfType<object>().Reverse() : value;
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => Convert(value, targetType, parameter, culture);
+    }
+
+    public class DoubleToLongConverter : IValueConverter
+    {
+        public static readonly DoubleToLongConverter Instance = new DoubleToLongConverter();
+
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture) => value is long l ? (double)l : value;
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => value is double d ? (long)d : value;
+    }
+
+    public class TreeNodeTemplateSelector<T> : DataTemplateSelector
+    {
+        public DataTemplate INodeTemplate { get; set; }
+        public DataTemplate LeafNodeTemplate { get; set; }
+
+        protected override DataTemplate OnSelectTemplate(object item, BindableObject container)
+        {
+            var node = (ObservableNode<T>)item;
+            var template = node.Children.Count == 0 ? LeafNodeTemplate : INodeTemplate;
+
+            return (template as DataTemplateSelector)?.SelectTemplate(node.Value, container) ?? template;
+        }
+    }
+
     public class TreeToListConverter<T> : IValueConverter
     {
-        public object Convert(object value, Type targetType, object parameter, CultureInfo culture) => new FlatTreeViewModel<T>((ObservableNode<T>)value).Items;
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture) => new FlatTreeViewModel<T>((ObservableNode<T>)value).Leaves;
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
         {
@@ -25,18 +78,18 @@ namespace Movies.ViewModels
     {
         public ObservableNode<T> Root { get; }
 
-        public IList<T> Items { get; }
+        public IList<ObservableNode<T>> Leaves { get; }
 
         public FlatTreeViewModel(ObservableNode<T> root)
         {
             Root = root;
             if (root.Children.Count == 0)
             {
-                Items = new ObservableCollection<T>();
+                Leaves = new ObservableCollection<ObservableNode<T>>();
             }
             else
             {
-                Items = new ObservableCollection<T>(Flatten(root));
+                Leaves = new ObservableCollection<ObservableNode<T>>(Flatten(root));
             }
 
             Root.SubtreeChanged += (sender, e) =>
@@ -47,7 +100,7 @@ namespace Movies.ViewModels
                     {
                         foreach (var value in Flatten(item))
                         {
-                            Items.Remove(value);
+                            Leaves.Remove(value);
                         }
                     }
                 }
@@ -58,18 +111,18 @@ namespace Movies.ViewModels
                     {
                         foreach (var value in Flatten(item))
                         {
-                            Items.Add(value);
+                            Leaves.Add(value);
                         }
                     }
                 }
             };
         }
 
-        public static IEnumerable<T> Flatten(ObservableNode<T> root)
+        public static IEnumerable<ObservableNode<T>> Flatten(ObservableNode<T> root)
         {
             if (root.Children.Count == 0)
             {
-                yield return root.Value;
+                yield return root;
             }
             else
             {
@@ -84,37 +137,33 @@ namespace Movies.ViewModels
         }
     }
 
-    public class OperatorEditor<T> : Editor<T>
+    public class OperatorEditor : Editor
     {
         public IEnumerable LHSOptions { get; set; } = new ObservableCollection<object>();
         public IEnumerable<Operators> OperatorOptions { get; set; } = new ObservableCollection<Operators>();
         public IEnumerable RHSOptions { get; set; } = new ObservableCollection<object>();
 
-        public override IPredicateBuilder<T> CreateNew() => new PropertyPredicateBuilder<T>
+        public object DefaultLHS { get; set; }
+        public Operators DefaultOperator { get; set; } = Operators.Equal;
+        public object DefaultRHS { get; set; }
+
+        public override IPredicateBuilder CreateNew() => new PropertyPredicateBuilder
         {
-            LHS = LHSOptions?.OfType<object>().FirstOrDefault(),
-            Operator = OperatorOptions?.FirstOrDefault() ?? Operators.Equal,
-            //RHS = RHSOptions?.OfType<object>().FirstOrDefault(),
+            LHS = DefaultLHS,
+            Operator = DefaultOperator,
+            RHS = DefaultRHS
         };
     }
 
-    public class ItemPropertyEditors : List<Editor<Item>>, IFilterable<Editor<Item>>
-    {
-        public IEnumerable<Editor<Item>> GetItems(List<Constraint> filters)
-        {
-            throw new NotImplementedException();
-        }
-    }
-
-    public class PropertyEditorFilter<T> : MultiEditor<T>
+    public class PropertyEditorFilter : MultiEditor
     {
         public IEnumerable<Type> Types { get; }
-        public List<Editor<T>> Defaults { get; set; } = new List<Editor<T>>();
+        public List<Editor> Defaults { get; set; } = new List<Editor>();
 
-        public FilterListViewModel<Editor<T>> Filter { get; }
+        public FilterListViewModel<Editor> Filter { get; }
         private Dictionary<Type, HashSet<Property>> Properties = new Dictionary<Type, HashSet<Property>>();
 
-        public PropertyEditorFilter(params Type[] types)
+        public PropertyEditorFilter(Editor editor, params Type[] types)
         {
             Types = types;
 
@@ -142,20 +191,20 @@ namespace Movies.ViewModels
             }
 
             //var typeEditor = new Editor<T>(new PropertyTemplate<T>(new Property<Type>("Types", types)));
-            var typeEditor = new OperatorEditor<T>
+            var typeEditor = new OperatorEditor
             {
-                LHSOptions = types
+                RHSOptions = types
             };
 
-            var editors = new MultiEditor<T>();
+            /*var editors = new MultiEditor<T>();
             Filter = new FilterListViewModel<Editor<T>>(Defaults)
             {
-                Items = editors.Editors
-            };
+                //Items = editors.Editors
+            };*/
             //_ = editorFilter.LoadMore(int.MaxValue);
 
             Add(typeEditor);
-            Add(editors);
+            Add(editor);
         }
 
         /*public void Add(PredicateTemplate<T> template)
@@ -173,9 +222,9 @@ namespace Movies.ViewModels
             editor.CreateNew();
         }*/
 
-        public FilterPredicate<Editor<T>> GetPredicate(FilterPredicate<T> predicate)
+        public FilterPredicate GetPredicate(FilterPredicate predicate)
         {
-            return new BooleanExp<Editor<T>>();
+            return new BooleanExpression();
         }
     }
 
@@ -185,20 +234,48 @@ namespace Movies.ViewModels
 
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
-            var template = (OperatorEditor<Item>)value;
-            //var editor = (Editor<Item>)value;
-            //var template = editor.Template as PropertyTemplate<Item>;
-            return template?.RHSOptions.OfType<object>().Select(value =>
+            if (value is OperatorEditor template)
             {
-                var builder = template.CreateNew();
+                //var editor = (Editor<Item>)value;
+                //var template = editor.Template as PropertyTemplate<Item>;
 
-                if (builder is OperatorPredicateBuilder<Item> temp)
+                var result = new List<ObservableNode<object>>();
+
+                foreach (var option in template.RHSOptions)
                 {
-                    temp.RHS = value;
-                }
+                    var builder = template.CreateNew();
 
-                return new ObservableNode<object>(builder);
-            });
+                    if (builder is OperatorPredicateBuilder temp)
+                    {
+                        temp.RHS = option;
+                    }
+
+                    var node = new ObservableNode<object>(builder);
+                    int index = result.FindIndex(node => (node.Value as OperatorPredicateBuilder)?.RHS == option);
+
+                    if (index == -1)
+                    {
+                        result.Add(node);
+                    }
+                    else
+                    {
+                        continue;
+                        var expression = new ObservableNode<object>("OR");
+
+                        foreach (var child in FlatTreeViewModel<object>.Flatten(result[index]))
+                        {
+                            expression.Children.Add(child);
+                        }
+                        expression.Children.Add(node);
+
+                        result[index] = expression;
+                    }
+                };
+
+                return result;
+            }
+
+            return value;
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
@@ -207,35 +284,35 @@ namespace Movies.ViewModels
         }
     }
 
-    public interface IPredicateBuilder<T>
+    public interface IPredicateBuilder
     {
         public event EventHandler PredicateChanged;
-        public FilterPredicate<T> Predicate { get; }
+        public FilterPredicate Predicate { get; }
     }
 
     public class FilterListViewModel<T> : AsyncListViewModel<T>
     {
-        public IPredicateBuilder<T> Editor
+        public IPredicateBuilder Predicate
         {
-            get => _Editor;
+            get => _Predicate;
             set
             {
-                if (_Editor != null)
+                if (_Predicate != null)
                 {
-                    _Editor.PredicateChanged -= PredicateChanged;
+                    _Predicate.PredicateChanged -= PredicateChanged;
                 }
 
-                _Editor = value;
+                _Predicate = value;
 
-                if (_Editor != null)
+                if (_Predicate != null)
                 {
-                    _Editor.PredicateChanged += PredicateChanged;
+                    _Predicate.PredicateChanged += PredicateChanged;
                 }
             }
         }
 
         private FilterList<T> Source;
-        private IPredicateBuilder<T> _Editor;
+        private IPredicateBuilder _Predicate;
 
         public FilterListViewModel(IAsyncEnumerable<T> source) : this(new FilterList<T>(source)) { }
         public FilterListViewModel(IEnumerable<T> source) : this(new FilterList<T>(Convert(source))) { }
@@ -254,17 +331,17 @@ namespace Movies.ViewModels
             Source = source;
         }
 
-        public void Filter(FilterPredicate<T> filter)
+        public void Filter(FilterPredicate filter)
         {
             Source.Filter = filter;
             Refresh();
         }
 
-        private void PredicateChanged(object sender, EventArgs e) => Filter(Editor.Predicate);
+        private void PredicateChanged(object sender, EventArgs e) => Filter(Predicate.Predicate);
 
         private class FilterList<T> : IAsyncEnumerable<T>
         {
-            public FilterPredicate<T> Filter { get; set; }
+            public FilterPredicate Filter { get; set; }
 
             public IAsyncEnumerable<T> Items { get; }
 
@@ -278,7 +355,7 @@ namespace Movies.ViewModels
                 //Items = items;
             }
 
-            public IAsyncEnumerator<T> GetAsyncEnumerator(CancellationToken cancellationToken = default) => ((Items as IAsyncFilterable<T>)?.GetItems(new List<Constraint>(), cancellationToken) ?? Items).GetAsyncEnumerator(cancellationToken);
+            public IAsyncEnumerator<T> GetAsyncEnumerator(CancellationToken cancellationToken = default) => ((Items as IAsyncFilterable<T>)?.GetItems(Filter ?? FilterPredicate.TAUTOLOGY, cancellationToken) ?? Items).GetAsyncEnumerator(cancellationToken);
         }
     }
 }

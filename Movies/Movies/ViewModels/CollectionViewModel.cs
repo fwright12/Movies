@@ -19,13 +19,13 @@ namespace Movies.ViewModels
 
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture) => new List<object> { value.ToString() };
 
-        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => value is IList list && list.Count > 0 && Enum.TryParse(typeof(CollectionViewModel.Layout), list[0].ToString(), out var result) ? result : value;
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => value is IList list && list.Count > 0 && Enum.TryParse(typeof(ListLayouts), list[0].ToString(), out var result) ? result : value;
     }
+
+    public enum ListLayouts { Grid, List }
 
     public class CollectionViewModel : ItemViewModel
     {
-        public enum Layout { Grid, List }
-
         public override string Name
         {
             get => base.Name ?? _Name;
@@ -49,7 +49,7 @@ namespace Movies.ViewModels
         public virtual string DescriptionLabel { get; set; } = "Description";
         public virtual string Description => List?.Description;
         public virtual bool Editable => false;
-        public Layout ListLayout
+        public ListLayouts ListLayout
         {
             get => _ListLayout;
             set
@@ -61,7 +61,7 @@ namespace Movies.ViewModels
                 }
             }
         }
-        private Layout _ListLayout;
+        private ListLayouts _ListLayout;
 
         public Collection List => (Collection)Item;
         public int? Count
@@ -110,6 +110,7 @@ namespace Movies.ViewModels
         public IEnumerable Items { get; }
         public ICommand LoadMoreCommand => LazyLoadMoreCommand?.Value;
         public ICommand ToggleSortOrder { get; }
+        public ICommand ToggleListLayoutCommand { get; }
 
         //public static readonly Type TimeSpanConstraintType = typeof(Constraint<TimeSpan>);
 
@@ -128,14 +129,14 @@ namespace Movies.ViewModels
         public static readonly Property<MonetizationType?> MonetizationType = new Property<MonetizationType?>("Monetization Type", GetNames<MonetizationType>());
         public static readonly Property<PersonViewModel> People = new Property<PersonViewModel>("People", new FilterListViewModel<PersonViewModel>(new PeopleSearch())
         {
-            Editor = new SearchPredicateBuilder<PersonViewModel>()
+            Predicate = new SearchPredicateBuilder()
         });
 
         public static IEnumerable<T> GetNames<T>() where T : struct, Enum => Enum.GetNames(typeof(T)).Select(name => Enum.Parse<T>(name));
 
         public class PeopleSearch : AsyncFilterable<PersonViewModel>
         {
-            public override async IAsyncEnumerable<PersonViewModel> GetItems(List<Constraint> filters, CancellationToken cancellationToken = default)
+            public override async IAsyncEnumerable<PersonViewModel> GetItems(FilterPredicate predicate, CancellationToken cancellationToken = default)
             {
                 await System.Threading.Tasks.Task.CompletedTask;
 
@@ -148,7 +149,7 @@ namespace Movies.ViewModels
 
         public IList<FilterViewModel> Filters { get; }
 
-        public FilterListViewModel<Item> Source { get; }
+        public FilterListViewModel<object> Source { get; }
 
         public ICommand UpdateDetails { get; }
         public IList SortOptions { get; set; }
@@ -186,22 +187,27 @@ namespace Movies.ViewModels
 
         public static readonly TreeToListConverter<object> TreeToListConverter = new TreeToListConverter<object>();
 
-        public static readonly Type FilterListType = typeof(FilterListViewModel<Item>);
-        public static readonly Type OperatorPredicateType = typeof(OperatorPredicateBuilder<Item>);
+        public static readonly int NextYear = DateTime.Now.AddYears(1).Year;
+        public static readonly Type FilterListType = typeof(FilterListViewModel<object>);
         public static readonly Type PredicateTreeType = typeof(ObservableNode<object>);
 
+        public static readonly Predicate<object> EqualsZeroPredicate = value => value is int i && i == 0;
         public static readonly Predicate<object> GreaterThanOnePredicate = value => value is int i && i > 1;
 
-        private OperatorEditor<Item> GetComparableEditor(Property property) => GetEditor(property, Operators.GreaterThan, Operators.Equal, Operators.LessThan);
-        private OperatorEditor<Item> GetEqualityEditor(Property property) => GetEditor(property, Operators.Equal);
+        private OperatorEditor GetComparableEditor(params Property[] properties) => GetComparableEditor(properties.FirstOrDefault()?.Values.OfType<object>().FirstOrDefault(), properties);
+        private OperatorEditor GetComparableEditor(object defaultValue, params Property[] properties) => GetEditor(properties, defaultValue, Operators.GreaterThan, Operators.Equal, Operators.LessThan);
+        private OperatorEditor GetEqualityEditor(params Property[] properties) => GetEditor(properties, null, Operators.Equal);
 
-        private OperatorEditor<Item> GetEditor(Property property, params Operators[] operators)
+        private OperatorEditor GetEditor(IEnumerable<Property> properties, object defaultValue, params Operators[] operators)
         {
-            var editor = new OperatorEditor<Item>
+            var editor = new OperatorEditor
             {
-                LHSOptions = new List<object> { property },
+                LHSOptions = new ObservableCollection<object>(properties),
                 OperatorOptions = operators.ToList<Operators>(),
-                RHSOptions = property.Values
+                RHSOptions = !properties.Skip(1).Any() ? properties.FirstOrDefault()?.Values : properties.SelectMany(property => property.Values.OfType<object>()),
+                DefaultLHS = properties.FirstOrDefault(),
+                DefaultOperator = operators?.FirstOrDefault() ?? Operators.Equal,
+                DefaultRHS = defaultValue
             };
 
             editor.AddNew();
@@ -209,11 +215,35 @@ namespace Movies.ViewModels
             return editor;
         }
 
+        public class ItemWrapper : IAsyncFilterable<object>
+        {
+            private IAsyncEnumerable<Item> Items;
+            private CollectionViewModel Collection;
+
+            public ItemWrapper(IAsyncEnumerable<Item> items, CollectionViewModel collection)
+            {
+                Items = items;
+                Collection = collection;
+            }
+
+            public IAsyncEnumerator<object> GetAsyncEnumerator(CancellationToken cancellationToken = default) => GetItems(FilterPredicate.TAUTOLOGY, cancellationToken).GetAsyncEnumerator();
+
+            public async IAsyncEnumerable<object> GetItems(FilterPredicate predicate, CancellationToken cancellationToken = default)
+            {
+                var filtered = (Items as IAsyncFilterable<Item>)?.GetItems(predicate) ?? Items;
+
+                await foreach (var item in filtered)
+                {
+                    yield return Collection.Map(item);
+                }
+            }
+        }
+
         public CollectionViewModel(DataManager dataManager, string name, IAsyncEnumerable<Item> items, ItemType? allowedTypes, Item item) : base(dataManager, item)
         {
             DataManager = dataManager;
             Name = name;
-            ListLayout = Layout.List;
+            ListLayout = ListLayouts.List;
 
             /*ItemList = new ObservableSet<Item>();
             if (items is LazyCollection<Item> lazy)
@@ -229,6 +259,7 @@ namespace Movies.ViewModels
                 UpdateItems(items);
                 return new Command<int?>(async count => await Load(count));
             });
+            ToggleListLayoutCommand = new Command(() => ListLayout = ListLayout == ListLayouts.Grid ? ListLayouts.List : ListLayouts.Grid);
 
             if (allowedTypes.HasValue)
             {
@@ -253,32 +284,32 @@ namespace Movies.ViewModels
                     typeof(Movie),
                     typeof(TVShow)
                 };
-                var editor = new MultiEditor<Item>//(types)
+                var editor = new MultiEditor//(types)
                 {
+                    GetComparableEditor(new DateTime(1900, 1, 1), Movie.RELEASE_DATE),
                     GetComparableEditor(Media.RUNTIME),
-                    GetEqualityEditor(Movie.GENRES),
-                    //GetEqualityEditor(TVShow.GENRES),
-                    GetComparableEditor(Movie.RELEASE_DATE),
-                    GetEqualityEditor(Movie.CONTENT_RATING),
-                    //GetEqualityEditor(TVShow.CONTENT_RATING),
-                    GetEqualityEditor(Movie.WATCH_PROVIDERS),
+                    GetEqualityEditor(Movie.CONTENT_RATING, TVShow.CONTENT_RATING),
+                    GetEqualityEditor(Movie.GENRES, TVShow.GENRES),
+                    GetEqualityEditor(Movie.WATCH_PROVIDERS, TVShow.WATCH_PROVIDERS),
                     GetEqualityEditor(MonetizationType),
-                    GetEqualityEditor(Media.KEYWORDS),
                     GetEqualityEditor(People),
-                    GetComparableEditor(Movie.BUDGET),
-                    GetComparableEditor(Movie.REVENUE),
+                    //GetComparableEditor(Movie.BUDGET),
+                    //GetComparableEditor(Movie.REVENUE),
+                    GetEqualityEditor(Media.KEYWORDS),
                 };
+                editor = new PropertyEditorFilter(editor, types);
 
-                Source = new FilterListViewModel<Item>(items)
+                var wrapper = new ItemWrapper(items, this);
+                Source = new FilterListViewModel<object>(wrapper)
                 {
-                    Editor = new ExpressionBuilder<Item>
+                    Predicate = new ExpressionBuilder
                     {
                         Editor = editor
                     },
                 };
                 //editor.Filter.Filter(new ExpressionPredicate<Editor<Item>>());
 
-                Source.Editor.PredicateChanged += (sender, e) =>
+                Source.Predicate.PredicateChanged += (sender, e) =>
                 {
                     //editorFilter.Filter(editors.GetPredicate(Source.Editor.Predicate));
                 };
@@ -420,60 +451,6 @@ namespace Movies.ViewModels
                     yield return item;
                 }
             }
-        }
-
-        private async IAsyncEnumerable<Item> FilterAsync(List<Constraint> filters, IAsyncEnumerable<Item> source)
-        {
-            await foreach (var item in source)
-            {
-                if (await Allowed(item, filters))
-                {
-                    yield return item;
-                }
-            }
-        }
-
-        private async Task<bool> Allowed(Item item, IEnumerable<Constraint> filters)
-        {
-            var details = Data.GetDetails(item);
-
-            foreach (var filter in filters)
-            {
-                if (filter.Property == null)
-                {
-                    /*if (!itemType.Value.HasFlag(item.ItemType))
-                    {
-                        return false;
-                    }*/
-
-                    continue;
-                }
-                else if (filter.Property is ReflectedProperty reflected)
-                {
-                    reflected.Info.GetValue(item);
-                }
-                else if (details.TryGetValue(filter.Property, out var task))
-                {
-                    var value = await task;
-
-                    if (value is IComparable comparable)
-                    {
-                        if (comparable.CompareTo(filter.Value) != (int)filter.Comparison)
-                        {
-                            return false;
-                        }
-                    }
-                    else if (filter.Comparison == Operators.Equal)
-                    {
-                        if (!Equals(value, filter.Value))
-                        {
-                            return false;
-                        }
-                    }
-                }
-            }
-
-            return true;
         }
 
         private void UpdateFilters(object sender, EventArgs e)

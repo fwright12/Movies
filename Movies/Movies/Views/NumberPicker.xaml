@@ -37,11 +37,10 @@
             <StackLayout Orientation="Vertical">
                 <Slider Maximum="{TemplateBinding Upper}"
                         Minimum="{TemplateBinding Lower}"
-                        views:Extensions.Step="{TemplateBinding Step}"
                         Value="{TemplateBinding Value}" />
 
                 <FlexLayout Direction="Row"
-                            HorizontalOptions="Center">
+                            JustifyContent="Center">
                     <Button Text="-"
                             Command="{TemplateBinding StepDownCommand}" />
 

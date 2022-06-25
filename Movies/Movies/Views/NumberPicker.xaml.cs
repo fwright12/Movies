@@ -15,8 +15,8 @@ namespace Movies.Views
         public static readonly BindableProperty ValueProperty = BindableProperty.Create(nameof(Value), typeof(double), typeof(NumberPicker), defaultBindingMode: BindingMode.TwoWay, coerceValue: (bindable, value) =>
         {
             var picker = (NumberPicker)bindable;
-            var coerced = (double)value;// Math.Round((double)value / picker.Step) * picker.Step;
-
+            var coerced = Math.Round((double)value / picker.Step) * picker.Step;
+            
             if (picker.AbsoluteMin.HasValue)
             {
                 coerced = Math.Max(picker.AbsoluteMin.Value, coerced);
@@ -42,7 +42,7 @@ namespace Movies.Views
         {
             var result = (double)value;
             var constraint = ((NumberPicker)bindable).Upper;
-
+            
             return result >= constraint ? constraint - 1 : result;
         });
 

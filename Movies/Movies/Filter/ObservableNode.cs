@@ -5,6 +5,8 @@ using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.Linq;
 using System.Text;
+using System.Windows.Input;
+using Xamarin.Forms;
 
 namespace Movies.ViewModels
 {
@@ -42,12 +44,26 @@ namespace Movies.ViewModels
         public ObservableNode<T> Parent { get; private set; }
         public ObservableList<ObservableNode<T>> Children { get; }
 
+        public ICommand AddCommand { get; }
+        public ICommand AddNodeCommand { get; }
+        public ICommand ClearCommand { get; }
+        public ICommand RemoveCommand { get; }
+        public ICommand RemoveSelfCommand { get; }
+        public ICommand RemoveNodeCommand { get; }
+
         public ObservableNode(T value)
         {
+            Value = value;
+
             Children = new ObservableList<ObservableNode<T>>();
             Children.CollectionChanged += AssignParent;
 
-            Value = value;
+            AddCommand = new Command<T>(Add);
+            AddNodeCommand = new Command<ObservableNode<T>>(Add);
+            ClearCommand = new Command(Clear);
+            RemoveCommand = new Command<T>(value => Remove(value));
+            RemoveSelfCommand = new Command(() => Remove());
+            RemoveNodeCommand = new Command<ObservableNode<T>>(node => Remove(node));
         }
 
         public void Add(ObservableNode<T> subtree)
@@ -55,11 +71,15 @@ namespace Movies.ViewModels
             Children.Add(subtree);
         }
 
-        public void Add(T value)
+        public void Add(T value) => Add(new ObservableNode<T>(value));
+
+        public void Clear()
         {
-            Children.Add(new ObservableNode<T>(value));
+            Children.Clear();
         }
 
+        public bool Remove() => Parent?.Remove(this) ?? false;
+        public bool Remove(ObservableNode<T> node) => Remove(node.Value);
         public bool Remove(T value)
         {
             for (int i = 0; i < Children.Count; i++)
