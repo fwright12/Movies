@@ -86,6 +86,20 @@
                     <Setter Property="Text"
                             Value="Shows" />
                 </DataTrigger>
+
+                <DataTrigger TargetType="Label"
+                             Binding="{Binding}"
+                             Value="{x:Type models:Person}">
+                    <Setter Property="Text"
+                            Value="People" />
+                </DataTrigger>
+
+                <DataTrigger TargetType="Label"
+                             Binding="{Binding}"
+                             Value="{x:Type models:Collection}">
+                    <Setter Property="Text"
+                            Value="Collections" />
+                </DataTrigger>
             </VisualElement.Triggers>
         </Label>
     </DataTemplate>

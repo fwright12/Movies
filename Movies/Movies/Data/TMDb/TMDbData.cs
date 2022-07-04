@@ -70,7 +70,7 @@ namespace System.Linq.Async
             }
         }
 
-        public static async IAsyncEnumerable<TResult> Select<TSource, TResult>(this IAsyncEnumerable<TSource> source, Func<TSource, TResult> selector)
+        public static async IAsyncEnumerable<TResult> SelectAsync<TSource, TResult>(this IAsyncEnumerable<TSource> source, Func<TSource, TResult> selector)
         {
             await foreach (var item in source)
             {
@@ -78,7 +78,7 @@ namespace System.Linq.Async
             }
         }
 
-        public static async IAsyncEnumerable<TResult> Select<TSource, TResult>(this IAsyncEnumerable<TSource> source, Func<TSource, Task<TResult>> selector)
+        public static async IAsyncEnumerable<TResult> SelectAsync<TSource, TResult>(this IAsyncEnumerable<TSource> source, Func<TSource, Task<TResult>> selector)
         {
             await foreach (var item in source)
             {
@@ -86,7 +86,7 @@ namespace System.Linq.Async
             }
         }
 
-        public static async IAsyncEnumerable<TSource> Where<TSource>(this IAsyncEnumerable<TSource> source, Func<TSource, bool> predicate)
+        public static async IAsyncEnumerable<TSource> WhereAsync<TSource>(this IAsyncEnumerable<TSource> source, Func<TSource, bool> predicate)
         {
             await foreach (var item in source)
             {
@@ -96,218 +96,22 @@ namespace System.Linq.Async
                 }
             }
         }
+
+        public static async IAsyncEnumerable<T> ToAsyncEnumerable<T>(Task<IEnumerable<T>> items)
+        {
+            foreach (var item in await items)
+            {
+                yield return item;
+            }
+        }
     }
 }
 
 namespace Movies
 {
-    public partial class TMDB : IDataProvider, IAccount, IAssignID<int>
+    public partial class TMDB
     {
-        public static readonly string LANGUAGE, ISO_639_1 = System.Globalization.CultureInfo.CurrentCulture.TwoLetterISOLanguageName;
-        public static readonly string REGION, ISO_3166_1 = System.Globalization.RegionInfo.CurrentRegion.TwoLetterISORegionName;
-        public static readonly Models.Company TMDb = new Models.Company
-        {
-            Name = "TMDb"
-        };
-
-        public static readonly ID<int>.Key IDKey = new ID<int>.Key();
-        public static readonly ID<int> ID = IDKey.ID;
-
-        private static readonly string POSTER_SIZE = "/w342";
-        private static readonly string PROFILE_SIZE = "/original";
-        private static readonly string STILL_SIZE = "/original";
-        private static readonly string STREAMING_LOGO_SIZE = "/w45";
-        private static readonly string LOGO_SIZE = "/w300";
-
-        public Models.Company Company { get; } = TMDb;
-        public string Name => Company.Name;
-        public string Username { get; private set; }
-
-        private string UserAccessToken;
-        private string AccountID;
-        private string SessionID;
-        private string ApiKey;
-
-        private Lazy<Task<List<Models.List>>> LazyAllLists;
-
-#if DEBUG
-        private TMDbClient Client
-        {
-            get
-            {
-                Print.Log("accessing Client");
-                return _Client;
-            }
-            set => _Client = value;
-        }
-        private TMDbClient _Client = TMDbClient.Create();
-
-        private static readonly string SECURE_BASE_IMAGE_URL = string.Empty;// = "https://image.tmdb.org/t/p";
-#else
-        private TMDbClient Client;
-        private static readonly string SECURE_BASE_IMAGE_URL = "https://image.tmdb.org/t/p";
-#endif
-        private DataManager DataManager;
-        public static HttpClient WebClient { get; private set; }
-
-        public TMDB(string apiKey, string bearer)
-        {
-            ApiKey = apiKey;
-            Auth = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", bearer);
-
-            RatingParser.TMDb = this;
-
-#if !DEBUG || false
-            Client = new TMDbClient(apiKey);
-#endif
-#if DEBUG
-            Test(ViewModels.ItemViewModel.Data);
-            WebClient = new HttpClient
-            {
-                BaseAddress = new Uri("https://mockTMDb")
-            };
-#else
-            //Config = Client.GetConfigAsync();
-            WebClient = new HttpClient
-            {
-                BaseAddress = new Uri("https://api.themoviedb.org/"),
-                DefaultRequestHeaders =
-                {
-                    Authorization = Auth
-                }
-            };
-#endif
-
-            LazyAllLists = new Lazy<Task<List<Models.List>>>(() => GetAllLists());
-        }
-
-        private string RequestToken;
-
-        public async Task<string> GetOAuthURL(Uri redirectUri)
-        {
-            var response = await WebClient.TrySendAsync("4/auth/request_token", JsonExtensions.JsonObject(JsonExtensions.FormatJson("redirect_to", redirectUri)), HttpMethod.Post);
-
-            if (response?.IsSuccessStatusCode == true && JsonNode.Parse(await response.Content.ReadAsStringAsync()) is JsonNode json && json["success"]?.GetValue<bool>() == true)
-            {
-                RequestToken = json["request_token"]?.GetValue<string>();
-                return string.Format("https://www.themoviedb.org/auth/access?request_token={0}", RequestToken);
-            }
-
-            return null;
-        }
-
-        public async Task<object> Login(object credentials)
-        {
-            JsonNode json = null;
-
-            if (RequestToken != null)
-            {
-                var response = await WebClient.TryPostAsync("4/auth/access_token", JsonExtensions.JsonObject(JsonExtensions.FormatJson("request_token", RequestToken)));
-
-                if (response?.IsSuccessStatusCode == true && JsonNode.Parse(await response.Content.ReadAsStringAsync()) is JsonNode parsed && parsed["success"]?.GetValue<bool>() == true)
-                {
-                    json = parsed;
-                    RequestToken = null;
-                }
-            }
-            else if (credentials != null)
-            {
-                try
-                {
-                    json = JsonNode.Parse(credentials.ToString());
-                }
-                catch (JsonException) { }
-            }
-
-            if (json == null)
-            {
-                return credentials;
-            }
-
-            UserAccessToken = json["access_token"]?.TryGetValue<string>();
-            AccountID = json["account_id"]?.TryGetValue<string>();
-            SessionID = json["session_id"]?.TryGetValue<string>();
-            Username = json["username"]?.TryGetValue<string>();
-
-            if (SessionID == null)
-            {
-                //var content = new StringContent(JsonObject(FormatJson("access_token", UserAccessToken)), Encoding.UTF8, "application/json");
-                //var response = await WebClient.PostAsync(string.Format("https://api.themoviedb.org/3/authentication/session/convert/4"), content);
-                var response = await WebClient.TryPostAsync(string.Format("3/authentication/session/convert/4"), JsonExtensions.JsonObject(JsonExtensions.FormatJson("access_token", UserAccessToken)));
-
-                if (response?.IsSuccessStatusCode == true && JsonNode.Parse(await response.Content.ReadAsStringAsync()) is JsonNode parsed && parsed["success"]?.GetValue<bool>() == true)
-                {
-                    SessionID = parsed["session_id"]?.TryGetValue<string>();
-                }
-            }
-
-            if (Username == null)
-            {
-                //var response = await WebClient.GetAsync(string.Format("https://api.themoviedb.org/3/account?session_id={0}", SessionID));
-                var response = await WebClient.TryGetAsync(string.Format("3/account?session_id={0}", SessionID));
-
-                if (response?.IsSuccessStatusCode == true)
-                {
-                    var parsed = JsonNode.Parse(await response.Content.ReadAsStringAsync());
-                    Username = parsed["username"]?.TryGetValue<string>();// ?? parsed["name"]?.GetValue<string>();
-                    //AccountID = parsed["id"]?.TryGetValue<int>().ToString();
-                }
-            }
-
-            return JsonExtensions.JsonObject(
-                JsonExtensions.FormatJson("access_token", UserAccessToken),
-                JsonExtensions.FormatJson("account_id", AccountID),
-                JsonExtensions.FormatJson("session_id", SessionID),
-                JsonExtensions.FormatJson("username", Username));
-        }
-
-        public async Task<bool> Logout()
-        {
-            /*HttpRequestMessage request = new HttpRequestMessage
-            {
-                Content = new StringContent(JsonObject(FormatJson("access_token", UserAccessToken)), Encoding.UTF8, "application/json"),
-                Method = HttpMethod.Delete,
-                RequestUri = new Uri("https://api.themoviedb.org/4/auth/access_token"),
-            };*/
-
-            //var response = await WebClient.SendAsync(request);
-            var response = await WebClient.TrySendAsync("4/auth/access_token", JsonExtensions.JsonObject(JsonExtensions.FormatJson("access_token", UserAccessToken)), HttpMethod.Delete);
-
-            if (response?.IsSuccessStatusCode == true && JsonNode.Parse(await response.Content.ReadAsStringAsync())["success"]?.GetValue<bool>() == true)
-            {
-                UserAccessToken = Username = AccountID = SessionID = null;
-                return true;
-            }
-
-            return false;
-        }
-
-        private static string BuildImageURL(object path) => BuildImageURL(path?.ToString());
-        private static string BuildImageURL(string path, string size = "/original") => path == null ? null : (SECURE_BASE_IMAGE_URL + size + path);
         private static string BuildVideoURL(Video video) => BuildVideoURL(video.Site, video.Key);
-        private static string BuildVideoURL(string site, string key)
-        {
-            if (site == "YouTube")
-            {
-                return "https://www.youtube.com/embed/" + key;
-            }
-            else if (site == "Vimeo")
-            {
-                return "https://player.vimeo.com/video/" + key;
-            }
-
-            return null;
-        }
-
-        public static string GetFullSizeImage(string path)
-        {
-            if (path != null && path.StartsWith(SECURE_BASE_IMAGE_URL) && path.Split('/').LastOrDefault() is string filePath)
-            {
-                path = SECURE_BASE_IMAGE_URL + "/original/" + filePath;
-            }
-
-            return path;
-        }
 
         private static string GetCacheKey(SearchMovie movie) => GetCacheKey<Models.Movie>(movie.Id);
         private static string GetCacheKey(SearchTv show) => GetCacheKey<Models.TVShow>(show.Id);
@@ -392,11 +196,11 @@ namespace Movies
             {
                 if (filters.Remove(nameof(ItemType), out var rawType) && rawType is ItemType type)
                 {
-                    if (type.HasFlag(ItemType.Collection)) results = CollectionWithOverview(FlattenPages(page => Client.SearchCollectionAsync(e.Query, page), GetCacheKey)).Select(value => GetItem(value.Item1, value.Item2, value.Item3));
-                    else if (type.HasFlag(ItemType.Company)) results = FlattenPages(page => Client.SearchCompanyAsync(e.Query, page), GetCacheKey).Select(GetItem);
-                    else if (type == ItemType.Movie) results = FlattenPages(page => Client.SearchMovieAsync(e.Query, page), GetCacheKey).Select(GetItem);
-                    else if (type == ItemType.TVShow) results = FlattenPages(page => Client.SearchTvShowAsync(e.Query, page), GetCacheKey).Select(GetItem);
-                    else if (type == ItemType.Person) results = FlattenPages(page => Client.SearchPersonAsync(e.Query, page), GetCacheKey).Select(GetItem);
+                    if (type.HasFlag(ItemType.Collection)) results = CollectionWithOverview(FlattenPages(page => Client.SearchCollectionAsync(e.Query, page), GetCacheKey)).SelectAsync(value => GetItem(value.Item1, value.Item2, value.Item3));
+                    else if (type.HasFlag(ItemType.Company)) results = FlattenPages(page => Client.SearchCompanyAsync(e.Query, page), GetCacheKey).SelectAsync(GetItem);
+                    else if (type == ItemType.Movie) results = FlattenPages(page => Client.SearchMovieAsync(e.Query, page), GetCacheKey).SelectAsync(GetItem);
+                    else if (type == ItemType.TVShow) results = FlattenPages(page => Client.SearchTvShowAsync(e.Query, page), GetCacheKey).SelectAsync(GetItem);
+                    else if (type == ItemType.Person) results = FlattenPages(page => Client.SearchPersonAsync(e.Query, page), GetCacheKey).SelectAsync(GetItem);
                 }
 
                 if (results == null)
@@ -925,7 +729,7 @@ namespace Movies
             HandleInfoRequest(service.ProductionCountriesRequested, ConstructMovieInfoRequest(movie => movie.ProductionCountries), countries => (countries as List<ProductionCountry>)?.Select(country => country.Name));
             HandleInfoRequest(service.WatchProvidersRequested, ConstructMovieInfoRequest(movie => movie.WatchProviders, MovieMethods.WatchProviders, (id, token) => Client.GetMovieWatchProvidersAsync(id, token)), ParseWatchProviders);
             HandleInfoRequest(service.KeywordsRequested, ConstructMovieInfoRequest(movie => movie.Keywords, MovieMethods.Keywords, (id, token) => Client.GetMovieKeywordsAsync(id, token)), keywords => (keywords as KeywordsContainer)?.Keywords.Select(keyword => keyword.Name));
-            HandleInfoRequest(service.RecommendedRequested, async (int id) => (IAsyncEnumerable<Models.Item>)await new Items<Models.Movie>(FlattenPages(async page => await ConstructMovieInfoRequest(movie => movie.Recommendations, MovieMethods.Recommendations, async (id, ct) => await Client.GetMovieRecommendationsAsync(id, page, ct))(new object[] { id }) as SearchContainer<SearchMovie>, GetCacheKey).Select(GetItem)).Load(1));
+            HandleInfoRequest(service.RecommendedRequested, async (int id) => (IAsyncEnumerable<Models.Item>)await new Items<Models.Movie>(FlattenPages(async page => await ConstructMovieInfoRequest(movie => movie.Recommendations, MovieMethods.Recommendations, async (id, ct) => await Client.GetMovieRecommendationsAsync(id, page, ct))(new object[] { id }) as SearchContainer<SearchMovie>, GetCacheKey).SelectAsync(GetItem)).Load(1));
             HandleInfoRequest(service.ParentCollectionRequested, async parameters =>
             {
                 var collection = await ConstructMovieInfoRequest(movie => movie.BelongsToCollection)(parameters) as SearchCollection;
@@ -969,7 +773,7 @@ namespace Movies
             HandleInfoRequest(service.NetworksRequested, ConstructTVShowInfoRequest(show => show.Networks), networks => (networks as List<NetworkWithLogo>)?.Select(GetItem));
             HandleInfoRequest(service.WatchProvidersRequested, ConstructTVShowInfoRequest(show => show.WatchProviders, TvShowMethods.WatchProviders, (id, token) => Client.GetTvShowWatchProvidersAsync(id, token)), ParseWatchProviders);
             HandleInfoRequest(service.KeywordsRequested, ConstructTVShowInfoRequest(show => show.Keywords, TvShowMethods.Keywords, (id, token) => Client.GetTvShowKeywordsAsync(id, token)), keywords => (keywords as ResultContainer<Keyword>)?.Results.Select(keyword => keyword.Name));
-            HandleInfoRequest(service.RecommendedRequested, async (int id) => (IAsyncEnumerable<Models.Item>)await new Items<Models.TVShow>(FlattenPages(async page => await ConstructTVShowInfoRequest(show => SearchContainerFromList(show.Recommendations?.Results?.Select(TvShowToSearchTv)), TvShowMethods.Recommendations, async (id, ct) => await Client.GetTvShowRecommendationsAsync(id, page, ct))(new object[] { id }) as SearchContainer<SearchTv>, GetCacheKey).Select(GetItem)).Load(1));
+            HandleInfoRequest(service.RecommendedRequested, async (int id) => (IAsyncEnumerable<Models.Item>)await new Items<Models.TVShow>(FlattenPages(async page => await ConstructTVShowInfoRequest(show => SearchContainerFromList(show.Recommendations?.Results?.Select(TvShowToSearchTv)), TvShowMethods.Recommendations, async (id, ct) => await Client.GetTvShowRecommendationsAsync(id, page, ct))(new object[] { id }) as SearchContainer<SearchTv>, GetCacheKey).SelectAsync(GetItem)).Load(1));
         }
 
         private static SearchTv TvShowToSearchTv(TvShow show) => new SearchTv { Id = show.Id, Name = show.Name, PosterPath = show.PosterPath, Overview = show.Overview };
@@ -1141,7 +945,7 @@ namespace Movies
             Company = Company,
             Score = score,
             TotalVotes = total,
-            Reviews = FlattenPages<ReviewBase>(async page => await getReviews(page))?.Select(GetItem)
+            Reviews = FlattenPages<ReviewBase>(async page => await getReviews(page))?.SelectAsync(GetItem)
         };
 
         //private IAsyncEnumerable<T> FlattenPages<T>(Func<int, Task<SearchContainerWithId<T>>> apiCall) => FlattenPages((Func<int, Task<SearchContainer<T>>>)(async page => await apiCall(page)));
@@ -1425,13 +1229,6 @@ namespace Movies
             Content = review.Content
         };
 
-        public bool TryGetID(Models.Item item, out int id)
-        {
-            // Use search to guess ID if not assigned
-
-            return item.TryGetID(ID, out id);
-        }
-
         private async Task<T> GetDetails<T>(string cacheKey, Func<object[], Task<object>> apiCall, params object[] parameters)
         {
             if (Cache.TryGetValue(cacheKey, out var details))
@@ -1450,7 +1247,7 @@ namespace Movies
             return result;
         }
 
-        public async Task<Models.Item> GetItem(ItemType type, int id)
+        public async Task<Models.Item> GetItem2(ItemType type, int id)
         {
             if (type == ItemType.Movie)
             {

@@ -33,17 +33,29 @@ namespace Movies.ViewModels
             }
         }
 
+        public ICommand PauseChangesCommand { get; }
+        public ICommand ResumeChangesCommand { get; }
         public ICommand ClearCommand { get; }
 
         private Editor _Editor;
+        private bool DeferUpdate;
 
         public ExpressionBuilder()
         {
             Root = new ObservableNode<object>("AND");
             Root.SubtreeChanged += UpdatePredicate;
 
+            PauseChangesCommand = new Command(PauseChanges);
+            ResumeChangesCommand = new Command(ResumeChanges);
             ClearCommand = new Command(Clear);
 
+            OnPredicateChanged();
+        }
+
+        public void PauseChanges() => DeferUpdate = true;
+        public void ResumeChanges()
+        {
+            DeferUpdate = false;
             OnPredicateChanged();
         }
 
@@ -58,8 +70,14 @@ namespace Movies.ViewModels
 
                 var node = new ObservableNode<object>(vm);
                 
-                Add(node);
                 Editor.Select(node);
+            }
+            else if (predicate is BooleanExpression expression)
+            {
+                foreach (var part in expression.Predicates)
+                {
+                    Add(part);
+                }
             }
         }
 
@@ -151,6 +169,11 @@ namespace Movies.ViewModels
 
         protected virtual void OnPredicateChanged()
         {
+            if (DeferUpdate)
+            {
+                return;
+            }
+
             if (Root.Children.Count == 0)
             {
                 Predicate = FilterPredicate.TAUTOLOGY;

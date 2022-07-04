@@ -78,11 +78,6 @@ namespace Movies
             {
                 return Parse(json, out value);
             }
-            else if (json is T result)
-            {
-                value = result;
-                return true;
-            }
             else
             {
                 return json.TryGetValue(out value);
@@ -105,15 +100,13 @@ namespace Movies
 
         public bool TryGetValue(JsonNode json, out T value)
         {
-            json = json[Property];
-
-            if (json == null)
+            if (json.TryGetValue(Property, out JsonNode sub))
             {
-                value = default;
-                return false;
+                return Parser.TryGetValue(sub, out value);
             }
 
-            return Parser.TryGetValue(json, out value);
+            value = default;
+            return false;
         }
     }
 
@@ -127,10 +120,10 @@ namespace Movies
         }
 
         public static Parser<T> Create<T>(Property<T> property) => new Parser<T>(property, new JsonNodeParser<T>());
-        public static Parser<T> Create<T>(string jsonProperty, Property<T> property) => new Parser<T>(property, new JsonPropertyParser<T>(jsonProperty));
-        public static Parser<IEnumerable<T>> Create<T>(MultiProperty<T> property, string subProperty) => new MultiParser<T>(property, new JsonArrayParser<T>(new JsonPropertyParser<T>(subProperty)));
-        public static Parser<T> Create<T>(string jsonProperty, Property<T> property, Func<JsonNode, T> parse) => new Parser<T>(property, new JsonPropertyParser<T>(jsonProperty, new JsonNodeParser<T>(parse)));
         public static Parser<T> Create<T>(Property<T> property, Func<JsonNode, T> parse) => new Parser<T>(property, new JsonNodeParser<T>(parse));
+
+        public static Parser<IEnumerable<T>> Create<T>(MultiProperty<T> property, string subProperty) => new MultiParser<T>(property, new JsonArrayParser<T>(new JsonPropertyParser<T>(subProperty)));
+        public static Parser<IEnumerable<T>> Create<T>(MultiProperty<T> property, Func<JsonNode, IEnumerable<T>> parse) => new MultiParser<T>(property, new JsonNodeParser<IEnumerable<T>>(parse));
 
         public abstract PropertyValuePair GetPair(Task<JsonNode> node);
         public abstract bool TryGetValue(JsonNode json, out PropertyValuePair value);
@@ -167,7 +160,7 @@ namespace Movies
 
         public override PropertyValuePair GetPair(Task<JsonNode> node) => Parser.GetPair(Unwrap(node));
 
-        private async Task<JsonNode> Unwrap(Task<JsonNode> json) => JsonParser?.TryGetValue(await json, out var unwrapped) == true ? unwrapped : await json;
+        private async Task<JsonNode> Unwrap(Task<JsonNode> json) => JsonParser?.TryGetValue(await json, out var unwrapped) == true ? unwrapped : new JsonObject();
     }
 
     public class Parser<T> : Parser, IJsonParser<PropertyValuePair>
@@ -204,5 +197,17 @@ namespace Movies
         public MultiParser(MultiProperty<T> property, IJsonParser<IEnumerable<T>> jsonParser) : base(property, jsonParser) { }
 
         public override PropertyValuePair GetPair(Task<JsonNode> json) => new PropertyValuePair<T>((MultiProperty<T>)Property, Parse(json));
+
+        public override bool TryGetValue(JsonNode json, out PropertyValuePair value)
+        {
+            if (JsonParser.TryGetValue(json, out var value1))
+            {
+                value = new PropertyValuePair<T>((MultiProperty<T>)Property, Task.FromResult(value1));
+                return true;
+            }
+
+            value = null;
+            return false;
+        }
     }
 }

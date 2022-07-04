@@ -47,6 +47,7 @@ namespace Movies
         private Dictionary<Property, IList<object>> Properties = new Dictionary<Property, IList<object>>();
 
         public bool TryGetValue(Property key, out Task<object> value) => TryGetSingle(key, out value);
+        public bool TryGetValue<T>(Property<T> key, out Task<T> value) => TryGetSingle(key, out value);
 
         public Task<IEnumerable<T>> GetMultiple<T>(Property<T> key, string source = null) => TryGetMultiple(key, out Task<IEnumerable<T>> result, source) ? result : Task.FromResult(Enumerable.Empty<T>());
 
@@ -143,12 +144,20 @@ namespace Movies
             return values;
         }
 
-        public void Add<T>(Property<T> key, Task<T> value) => Add(key, value);
-        public void Add<T>(MultiProperty<T> key, Task<IEnumerable<T>> value) => Add(key, value);
+        public void Add<T>(Property<T> key, Task<T> value) => Add((Property)key, value);
+        public void Add<T>(MultiProperty<T> key, Task<IEnumerable<T>> value) => Add((Property)key, value);
 
         public void Add(PropertyValuePair pair)
         {
             Add(pair.Property, pair.Value);
+        }
+
+        public void Add(PropertyDictionary dict)
+        {
+            foreach (var kvp in dict.Properties)
+            {
+                Properties.TryAdd(kvp.Key, kvp.Value);
+            }
         }
 
         private void Add(Property property, object value)

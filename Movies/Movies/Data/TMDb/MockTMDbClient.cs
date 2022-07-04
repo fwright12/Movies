@@ -340,7 +340,7 @@ namespace Movies
 
     public class HttpClient : System.Net.Http.HttpClient
     {
-        new public Task<HttpResponseMessage> GetAsync(string requestUri) => SendAsync(new HttpRequestMessage(HttpMethod.Get, requestUri), new CancellationToken());
+        new public Task<HttpResponseMessage> GetAsync(string requestUri, CancellationToken cancellationToken = default) => SendAsync(new HttpRequestMessage(HttpMethod.Get, requestUri), cancellationToken);
         new public Task<HttpResponseMessage> SendAsync(HttpRequestMessage request) => SendAsync(request, new CancellationToken());
 
         public override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
@@ -356,7 +356,7 @@ namespace Movies
             {
                 content = TRENDING_TV_RESPONSE;
             }
-            else if (endpoint.StartsWith("trending/person"))
+            else if (endpoint.StartsWith("trending/person") || endpoint.StartsWith("person/popular"))
             {
                 content = TRENDING_PEOPLE_RESPONSE;
             }
@@ -378,6 +378,10 @@ namespace Movies
                 {
                     content = THE_OFFICE_RESPONSE;
                 }
+            }
+            else if (endpoint.StartsWith("person"))
+            {
+                content = JESSICA_CHASTAIN_RESPONSE;
             }
             else
             {

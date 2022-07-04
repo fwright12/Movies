@@ -112,20 +112,8 @@ namespace Movies.ViewModels
         public ICommand ToggleSortOrder { get; }
         public ICommand ToggleListLayoutCommand { get; }
 
-        //public static readonly Type TimeSpanConstraintType = typeof(Constraint<TimeSpan>);
+        //public static readonly Type TimeSpanPropertyType = typeof(Property<TimeSpan>);
 
-        public static readonly Type TimeSpanPropertyType = typeof(Property<TimeSpan>);
-
-        /*public static readonly Type LongPickerType = typeof(SelectorViewModel<long>);
-        public static readonly Type DoublePickerType = typeof(SelectorViewModel<double>);
-        public static readonly Type TimeSpanPickerType = typeof(SelectorViewModel<TimeSpan>);
-        public static readonly Type DateTimePickerType = typeof(SelectorViewModel<DateTime>);
-        public static readonly Type StringListType = typeof(SelectorViewModel<string>);
-        public static readonly Type WatchProviderListType = typeof(MultiSelectorViewModel<WatchProvider>);
-        public static readonly Type PersonListType = typeof(SelectorViewModel<PersonViewModel>);
-        public static readonly Type TypeType = typeof(MultiSelectorViewModel<Type>);*/
-
-        public static readonly Property<string> SearchProperty = new Property<string>(string.Empty);
         public static readonly Property<MonetizationType?> MonetizationType = new Property<MonetizationType?>("Monetization Type", GetNames<MonetizationType>());
         public static readonly Property<PersonViewModel> People = new Property<PersonViewModel>("People", new FilterListViewModel<PersonViewModel>(new PeopleSearch())
         {
@@ -140,7 +128,7 @@ namespace Movies.ViewModels
             {
                 await System.Threading.Tasks.Task.CompletedTask;
 
-                foreach (var item in await System.Threading.Tasks.Task.FromResult(new List<PersonViewModel> { new PersonViewModel(App.DataManager, MockData.Instance.MatthewM) }))
+                foreach (var item in await System.Threading.Tasks.Task.FromResult(new List<PersonViewModel> { new PersonViewModel(App.DataManager, MockData.Instance.MatthewM.WithID(TMDB.IDKey, 0)) }))
                 {
                     yield return item;
                 }
@@ -263,16 +251,6 @@ namespace Movies.ViewModels
 
             if (allowedTypes.HasValue)
             {
-#if DEBUG
-                //Filter.ValueChanged += UpdateFilters;
-
-                //var types = allowedTypes.ToString().Split(',').Select(type => Enum.Parse<ItemType>(type.Trim()));
-                /*var selector = new MultiSelectorViewModel<ItemType?>(new Property<ItemType?>(nameof(ItemType), types))
-                {
-                    Name = string.Empty
-                };
-                Filter.Selectors.Insert(0, selector);*/
-
                 if (Movie.WATCH_PROVIDERS.Values is IList list)
                 {
                     list.Clear();
@@ -282,7 +260,10 @@ namespace Movies.ViewModels
                 var types = new Type[]
                 {
                     typeof(Movie),
-                    typeof(TVShow)
+                    typeof(TVShow),
+                    typeof(Person),
+                    typeof(Collection),
+                    //typeof(TVShow),
                 };
                 var editor = new MultiEditor//(types)
                 {
@@ -307,12 +288,6 @@ namespace Movies.ViewModels
                         Editor = editor
                     },
                 };
-                //editor.Filter.Filter(new ExpressionPredicate<Editor<Item>>());
-
-                Source.Predicate.PredicateChanged += (sender, e) =>
-                {
-                    //editorFilter.Filter(editors.GetPredicate(Source.Editor.Predicate));
-                };
 
                 Items = Source.Items;
                 LazyLoadMoreCommand = new Lazy<ICommand>(() =>
@@ -320,46 +295,7 @@ namespace Movies.ViewModels
                     return Source.LoadMoreCommand;
                 });
 
-                /*Filter = new FiltersViewModel(typeof(Movie), typeof(TVShow))
-                {
-                    //{ Media.RUNTIME, TimeSpan.Zero, Operators.GreaterThan },
-                    //Movie.GENRES,
-                    new Preset
-                    {
-                        Text = "On my services",
-                        Value =
-                        {
-                            new Constraint(Movie.WATCH_PROVIDERS)
-                            {
-                                Value = MockData.NetflixStreaming,
-                                Comparison = Operators.Equal
-                            }
-                        }
-                    }
-                };
-                //Filter.AddConstraints(DefaultConstraints);
-
-                if (Filter.Selectors.OfType<MultiSelectorViewModel<WatchProvider>>().FirstOrDefault()?.Values is IList watchProviders)
-                {
-                    watchProviders.Clear();
-                    watchProviders.Add(MockData.NetflixStreaming);
-                }*/
-
                 var itemType = new ItemTypeFilterViewModel(allowedTypes ?? ItemType.Movie | ItemType.TVShow);
-                itemType.ValueChanged += (sender, e) =>
-                {
-                    var type = ((ItemTypeFilterViewModel)sender).Selected;
-
-                    if (type.HasFlag(ItemType.Movie))
-                    {
-
-                    }
-                    if (type.HasFlag(ItemType.TVShow))
-                    {
-
-                    }
-                };
-#endif
 
                 Filters = new ObservableCollection<FilterViewModel>
                 {

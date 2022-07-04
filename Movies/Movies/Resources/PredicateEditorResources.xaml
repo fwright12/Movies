@@ -28,7 +28,7 @@
         <Setter Property="Padding"
                 Value="10, 8" />
         <Setter Property="Margin"
-                Value="2, 0" />
+                Value="2" />
         <Setter Property="BorderColor"
                 Value="Black" />
         <!--<Setter Property="BorderColor"
@@ -54,12 +54,12 @@
         </Setter>
     </Style>
 
-    <DataTemplate x:Key="RoundedTextTemplate">
-        <Frame Style="{StaticResource SelectableTextStyle}">
-            <Label x:Name="Option"
-                   Text="{Binding}" />
-        </Frame>
-    </DataTemplate>
+    <Style x:Key="SelectedTextStyle"
+           TargetType="Label">
+        <Style.Triggers>
+            
+        </Style.Triggers>
+    </Style>
 
     <Style x:Key="StringSelectorStyleOld"
            TargetType="FlexLayout">
@@ -114,7 +114,6 @@
                      Orientation="Horizontal">
             <FlexLayout Direction="Column"
                         BindableLayout.ItemsSource="{Binding OperatorOptions, Converter={Static viewmodels:ReverseListConverter.Instance}}"
-                        BindableLayout.ItemTemplate="{StaticResource RoundedTextTemplate}"
                         forms:Selection.SelectionMode="MandatorySingle"
                         forms:Selection.SelectedIndices="{Binding Selected.Value.Operator, Converter={Static converters:ComparisonConverter.Instance}}">
                 <VisualElement.Resources>
@@ -130,6 +129,14 @@
                         </Style.Triggers>
                     </Style>
                 </VisualElement.Resources>
+
+                <BindableLayout.ItemTemplate>
+                    <DataTemplate>
+                        <Frame Style="{StaticResource SelectableTextStyle}">
+                            <Label Text="{Binding}" />
+                        </Frame>
+                    </DataTemplate>
+                </BindableLayout.ItemTemplate>
             </FlexLayout>
 
             <ContentPresenter HorizontalOptions="FillAndExpand" />
@@ -170,7 +177,8 @@
                 </StackLayout>-->
 
                 <ContentView ext:ContentView.ItemSource="{Binding RHSOptions.Predicate}"
-                             ext:ContentView.ContentTemplate="{StaticResource PredicateTemplateSelector}" />
+                             ext:ContentView.ContentTemplate="{StaticResource PredicateTemplateSelector}"
+                             IsVisible="{Binding Content, Source={RelativeSource Self}, Converter={Static forms:ObjectToFalseConverter.Instance}}"/>
 
                 <ContentView Content="{Binding Converter={Static viewmodels:ObjectToViewConverter.Instance}, ConverterParameter={StaticResource SelectorTemplateSelector}}">
                     <TemplatedView.ControlTemplate>
@@ -186,32 +194,38 @@
         </views:SectionView>
     </DataTemplate>
 
-    <Binding x:Key="OptionsSourceBinding"
-             Converter="{Static viewmodels:TemplateToOptionsConverter.Instance}" />
-
+    <Style x:Key="OptionsStyle"
+           TargetType="View">
+        <Style.Behaviors>
+            <viewmodels:OptionsLayoutBehavior />
+        </Style.Behaviors>
+    </Style>
+    
     <Binding x:Key="OptionsSelectedItemsBinding"
              Path="Predicate.Selected.Children"
              Source="{RelativeSource AncestorType={Static viewmodels:CollectionViewModel.FilterListType}}" />
 
     <Style x:Key="CollectionViewOptionsStyle"
-           TargetType="CollectionView">
+           TargetType="CollectionView"
+           BasedOn="{StaticResource OptionsStyle}">
         <Setter Property="SelectionMode"
                 Value="Multiple" />
-        <Setter Property="ItemsSource"
-                Value="{StaticResource OptionsSourceBinding}" />
         <Setter Property="SelectedItems"
                 Value="{StaticResource OptionsSelectedItemsBinding}" />
     </Style>
 
     <Style x:Key="BindableLayoutOptionsStyle"
            TargetType="Layout"
+           BasedOn="{StaticResource OptionsStyle}"
            ApplyToDerivedTypes="True">
         <Setter Property="forms:Selection.SelectionMode"
                 Value="Multiple" />
-        <Setter Property="BindableLayout.ItemsSource"
-                Value="{StaticResource OptionsSourceBinding}" />
         <Setter Property="forms:Selection.SelectedItems"
                 Value="{StaticResource OptionsSelectedItemsBinding}" />
+        
+        <Style.Behaviors>
+            <viewmodels:OptionsLayoutBehavior />
+        </Style.Behaviors>
     </Style>
 
     <Style x:Key="StringSelectorStyle"
@@ -221,6 +235,15 @@
                 Value="Wrap" />
         <Setter Property="BindableLayout.ItemTemplateSelector"
                 Value="{StaticResource OptionNodeSelector}" />
+    </Style>
+
+    <Style TargetType="Slider">
+        <Setter Property="MinimumTrackColor"
+                Value="{StaticResource Primary}" />
+        <Setter Property="DragStartedCommand"
+                Value="{Binding PauseChangesCommand, Source={RelativeSource AncestorType={x:Type viewmodels:ExpressionBuilder}}}" />
+        <Setter Property="DragCompletedCommand"
+                Value="{Binding ResumeChangesCommand, Source={RelativeSource AncestorType={x:Type viewmodels:ExpressionBuilder}}}" />
     </Style>
 
     <Style x:Key="RuntimePickerStyle"

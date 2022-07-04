@@ -55,7 +55,7 @@ namespace Movies
         {
             public Database()
             {
-                SortBy = Movie.REVENUE;
+                SortBy = POPULARITY;
             }
 
             public IAsyncEnumerable<Item> GetItems(FilterPredicate predicate, CancellationToken cancellationToken = default)
@@ -73,7 +73,7 @@ namespace Movies
                 }
                 else if (typeof(IComparable).IsAssignableFrom(SortBy.Type))
                 {
-                    return Discover(expression, types);
+                    return Discover(predicate, types);
                 }
                 else
                 {
@@ -83,7 +83,7 @@ namespace Movies
 
             private async Task<Collection> CollectionWithOverview(Collection collection)
             {
-                if (collection.TryGetID(ID, out var id) && await GetItemJson(ItemType.Collection, id) is Collection details)
+                if (collection.TryGetID(ID, out var id) && await GetItem(ItemType.Collection, id) is Collection details)
                 {
                     collection.Description = details.Description;
                     collection.Count = details.Count;
@@ -92,7 +92,18 @@ namespace Movies
                 return collection;
             }
 
-            private IAsyncEnumerable<Item> Search(string query, List<Type> types, BooleanExpression filters)
+            private async IAsyncEnumerable<Collection> SearchCollections(string queryParameter)
+            {
+                await foreach (var json in FlattenPages<JsonNode>(API.SEARCH.SEARCH_COLLECTIONS, null, queryParameter))
+                {
+                    if (json.TryGetValue("id", out int id) && await GetItem(ItemType.Collection, id) is Collection collection)
+                    {
+                        yield return collection;
+                    }
+                }
+            }
+
+            public IAsyncEnumerable<Item> Search(string query, List<Type> types, BooleanExpression filters)
             {
                 var queryParameter = $"query={query}";
 
@@ -101,7 +112,8 @@ namespace Movies
                     //if (itemType.Type.HasFlag(ItemType.Collection)) results = CollectionWithOverview(FlattenPages(page => Client.SearchCollectionAsync(e.Query, page), GetCacheKey)).Select(value => GetItem(value.Item1, value.Item2, value.Item3));
                     if (types.Contains(typeof(Collection)))
                     {
-                        return FlattenPages<Collection>(API.SEARCH.SEARCH_COLLECTIONS, TryParseCollection, queryParameter).Select(CollectionWithOverview);
+                        return SearchCollections(queryParameter);
+                        //return FlattenPages<Collection>(API.SEARCH.SEARCH_COLLECTIONS, TryParseCollection, queryParameter).SelectAsync(CollectionWithOverview);
                     }
                     else if (types.Contains(typeof(Company)))
                     {
@@ -125,7 +137,7 @@ namespace Movies
                     }
                 }
 
-                return FlattenPages<Item>(API.SEARCH.MULTI_SEARCH, TryParse, queryParameter).Where(item => types.IndexOf(item.GetType()) >= types.Count - 1);
+                return FlattenPages<Item>(API.SEARCH.MULTI_SEARCH, TryParse, queryParameter).WhereAsync(item => types.IndexOf(item.GetType()) >= types.Count - 1);
             }
 
             private static readonly Property SCORE = new ReflectedProperty("Score", typeof(Rating).GetProperty(nameof(Rating.Score)))
@@ -147,62 +159,47 @@ namespace Movies
                 [VOTE_COUNT] = "vote_count",
             };
 
-            private IAsyncEnumerable<Item> Discover(BooleanExpression filter, List<Type> types, bool sortAscending = false)
+            public IAsyncEnumerable<Item> Discover(FilterPredicate filter, List<Type> types, bool sortAscending = false)
             {
-                TMDbRequest personEndpoint = null;
                 //var filterType = types.Count > 0;
                 //var types = (filterType ? itemType.Value : ItemType.Movie | ItemType.TVShow | ItemType.Person).ToString();
 
                 var sources = new List<IAsyncEnumerable<Item>>();
                 var sortParameter = SortOptions.TryGetValue(SortBy, out var sort) ? $"sort_by={sort}.{(sortAscending ? "asc" : "desc")}" : null;
 
-                if (types.IndexOf(typeof(Movie)) >= types.Count - 1)
+                bool Contains(Type type) => types.IndexOf(type) >= types.Count - 1;
+
+                if (Contains(typeof(Movie)) && MOVIE_PROPERTIES.HasProperty(SortBy))
                 {
-                    var parameters = GetDiscoverParameters(filter, DiscoverMovieParameters).Prepend(sortParameter).ToArray();
-                    sources.Add(FlattenPages<Movie>(API.DISCOVER.MOVIE_DISCOVER, TryParseMovie, parameters));
+                    var parameters = GetDiscoverParameters(filter, DiscoverMovieParameters)?.Prepend(sortParameter).ToArray();
+
+                    if (parameters != null)
+                    {
+                        sources.Add(FlattenPages<Movie>(API.DISCOVER.MOVIE_DISCOVER, TryParseMovie, parameters));
+                    }
                 }
-                if (types.IndexOf(typeof(TVShow)) >= types.Count - 1)
+                if (Contains(typeof(TVShow)) && TVSHOW_PROPERTIES.HasProperty(SortBy))
                 {
-                    var parameters = GetDiscoverParameters(filter, DiscoverTVParameters).Prepend(sortParameter).ToArray();
-                    sources.Add(FlattenPages<TVShow>(API.DISCOVER.TV_DISCOVER, TryParseTVShow, parameters));
+                    var parameters = GetDiscoverParameters(filter, DiscoverTVParameters)?.Prepend(sortParameter).ToArray();
+
+                    if (parameters != null)
+                    {
+                        sources.Add(FlattenPages<TVShow>(API.DISCOVER.TV_DISCOVER, TryParseTVShow, parameters));
+                    }
                 }
-                if (personEndpoint != null && types.IndexOf(typeof(Person)) >= types.Count - 1)
+                if (filter == FilterPredicate.TAUTOLOGY && Contains(typeof(Person)) && PERSON_PROPERTIES.HasProperty(SortBy))
                 {
                     var pages = sortAscending ? Helpers.LazyRange(-1, -1) : Helpers.LazyRange(1, 1);
-                    sources.Add(FlattenPages<Person>(personEndpoint, pages, TryParsePerson));
+                    sources.Add(Request<Person>(API.PEOPLE.GET_POPULAR, pages, TryParsePerson));
                 }
-
-                /*foreach (var type1 in types.Split(","))
-                {
-                    var type = type1.Trim();
-
-                    if (type == ItemType.Movie.ToString() && movieSort != DiscoverMovieSortBy.Undefined)
-                    {
-                        var search = Client.DiscoverMoviesAsync().OrderBy(movieSort);
-                        //sources.Add(FlattenPages(page => search.Query(page), GetCacheKey));
-                    }
-                    else if (type == ItemType.TVShow.ToString() && tvSort != DiscoverTvShowSortBy.Undefined)
-                    {
-                        var search = Client.DiscoverTvShowsAsync().OrderBy(tvSort);
-                        //sources.Add(FlattenPages(page => search.Query(page), GetCacheKey));
-                    }
-                    else if (type == ItemType.Person.ToString() && personSort)
-                    {
-                        //sources.Add(FlattenPages(page => Client.GetPersonListAsync(PersonListType.Popular, page), GetCacheKey, e.SortAscending));
-                    }
-                    else if (filterType)
-                    {
-                        sources.Clear();
-                        break;
-                    }
-                }*/
 
                 return sources.Count == 1 ? sources[0] : Merge(sources, SortBy, sortAscending ? -1 : 1);
             }
 
-            private List<string> GetDiscoverParameters(BooleanExpression expression, IDictionary<Property, Dictionary<Operators, Parameter>> endpoints)
+            private List<string> GetDiscoverParameters(FilterPredicate predicate, IDictionary<Property, Dictionary<Operators, Parameter>> endpoints)
             {
                 var parameters = new List<string>();
+                var expression = predicate as BooleanExpression ?? new BooleanExpression { Predicates = { predicate } };
                 var filters = expression.Predicates;
 
                 var values = new Dictionary<Property, Dictionary<Operators, List<object>>>();
@@ -213,6 +210,49 @@ namespace Movies
 
                     if (filter is OperatorPredicate op && op.LHS is Property property)
                     {
+                        if (endpoints == DiscoverMovieParameters)
+                        {
+                            if (property == TVShow.GENRES)
+                            {
+                                property = Movie.GENRES;
+                            }
+                            else if (property == TVShow.WATCH_PROVIDERS)
+                            {
+                                property = Movie.WATCH_PROVIDERS;
+                            }
+                        }
+                        else if (endpoints == DiscoverTVParameters)
+                        {
+                            if (property == Movie.GENRES)
+                            {
+                                property = TVShow.GENRES;
+                            }
+                            else if (property == Movie.WATCH_PROVIDERS)
+                            {
+                                property = TVShow.WATCH_PROVIDERS;
+                            }
+                        }
+
+                        var value = op.RHS;
+
+                        if (property != op.LHS)
+                        {
+                            var other = property.Values.OfType<object>().FirstOrDefault(value => value.ToString() == op.RHS.ToString());
+
+                            if (other != null)
+                            {
+                                value = other;
+                            }
+                            else if (filters.OfType<OperatorPredicate>().Any(filter => filter.LHS == property))
+                            {
+                                continue;
+                            }
+                            else
+                            {
+                                property = (Property)op.LHS;
+                            }
+                        }
+
                         if (!values.TryGetValue(property, out var dict))
                         {
                             values[property] = dict = new Dictionary<Operators, List<object>>();
@@ -222,7 +262,7 @@ namespace Movies
                             dict[op.Operator] = list = new List<object>();
                         }
 
-                        list.Add(op.RHS);
+                        list.Add(value);
                     }
                 }
 
@@ -230,7 +270,11 @@ namespace Movies
                 {
                     var property = value.Key;
 
-                    if (endpoints.TryGetValue(property, out var options))
+                    if (!endpoints.TryGetValue(property, out var options))
+                    {
+                        return null;
+                    }
+                    else
                     {
                         foreach (var kvp in value.Value)
                         {
@@ -304,16 +348,16 @@ namespace Movies
                 }
                 else if (property == Movie.GENRES || property == TVShow.GENRES)
                 {
-                    if (value is string genre)
+                    if (value is Genre genre)
                     {
-                        return genre;
+                        return genre.Id.ToString();
                     }
                 }
                 else if (property == Media.KEYWORDS)
                 {
-                    if (value is string keyword)
+                    if (value is Keyword keyword)
                     {
-                        return keyword;
+                        return keyword.Id.ToString();
                     }
                 }
                 else if (property == ViewModels.CollectionViewModel.MonetizationType)
@@ -332,10 +376,10 @@ namespace Movies
                 }
                 else if (value is WatchProvider provider)
                 {
-                    return provider.ID;
+                    return provider.Id.ToString();
                 }
 
-                return System.Text.Json.JsonSerializer.Serialize(value, value.GetType());
+                return value.ToString();
             }
         }
     }

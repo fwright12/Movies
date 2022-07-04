@@ -4,6 +4,8 @@
     <TargetFramework>netstandard2.1</TargetFramework>
     <UserSecretsId>e7bda116-34f2-4339-80c4-c4ecbce1b978</UserSecretsId>
     <Configurations>Debug;Release</Configurations>
+    <RunAnalyzersDuringBuild>True</RunAnalyzersDuringBuild>
+    <RunAnalyzersDuringLiveAnalysis>False</RunAnalyzersDuringLiveAnalysis>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">

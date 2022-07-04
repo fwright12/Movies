@@ -3,8 +3,10 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.Globalization;
 using System.Linq;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Xamarin.Forms;
@@ -225,62 +227,6 @@ namespace Movies.ViewModels
         public FilterPredicate GetPredicate(FilterPredicate predicate)
         {
             return new BooleanExpression();
-        }
-    }
-
-    public class TemplateToOptionsConverter : IValueConverter
-    {
-        public static readonly TemplateToOptionsConverter Instance = new TemplateToOptionsConverter();
-
-        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
-        {
-            if (value is OperatorEditor template)
-            {
-                //var editor = (Editor<Item>)value;
-                //var template = editor.Template as PropertyTemplate<Item>;
-
-                var result = new List<ObservableNode<object>>();
-
-                foreach (var option in template.RHSOptions)
-                {
-                    var builder = template.CreateNew();
-
-                    if (builder is OperatorPredicateBuilder temp)
-                    {
-                        temp.RHS = option;
-                    }
-
-                    var node = new ObservableNode<object>(builder);
-                    int index = result.FindIndex(node => (node.Value as OperatorPredicateBuilder)?.RHS == option);
-
-                    if (index == -1)
-                    {
-                        result.Add(node);
-                    }
-                    else
-                    {
-                        continue;
-                        var expression = new ObservableNode<object>("OR");
-
-                        foreach (var child in FlatTreeViewModel<object>.Flatten(result[index]))
-                        {
-                            expression.Children.Add(child);
-                        }
-                        expression.Children.Add(node);
-
-                        result[index] = expression;
-                    }
-                };
-
-                return result;
-            }
-
-            return value;
-        }
-
-        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
-        {
-            throw new NotImplementedException();
         }
     }
 

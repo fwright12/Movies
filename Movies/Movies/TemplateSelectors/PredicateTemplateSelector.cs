@@ -39,6 +39,10 @@ namespace Movies.Templates
                     return FullExpressionTemplate;
                 }
             }
+            else if (item is SearchPredicateBuilder)
+            {
+                return new DataTemplate(() => new Label { IsVisible = false });
+            }
 
             /*var constraint = (ConstraintViewModel)item;
             var property = constraint.Constraint.Property;

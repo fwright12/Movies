@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Net.Http.Headers;
 using System.Net.Http;
 using System.Text;
+using System.Threading.Tasks;
+using System.Linq;
 
 namespace Movies
 {
@@ -59,5 +61,16 @@ namespace Movies
 
             return message;
         }
+    }
+
+    public class PagedTMDbRequest : TMDbRequest, IPagedRequest
+    {
+        public PagedTMDbRequest(string url) : base(url) { }
+
+        public static implicit operator PagedTMDbRequest(string url) => new PagedTMDbRequest(url);
+
+        public string GetURL(int page, params string[] parameters) => GetURL(null, null, false, parameters.Prepend($"page={page}").ToArray());
+
+        public Task<int?> GetTotalPages(HttpResponseMessage response) => Helpers.GetTotalPages(response, new JsonPropertyParser<int>("total_pages"));
     }
 }

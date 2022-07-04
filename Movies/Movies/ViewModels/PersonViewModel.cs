@@ -15,15 +15,15 @@ namespace Movies.ViewModels
 
     public class PersonViewModel : CollectionViewModel
     {
-        public DateTime? Birthday => RequestSingle(PersonService.BirthdayRequested);
-        public string Birthplace => RequestSingle(PersonService.BirthplaceRequested);
-        public DateTime? Deathday => RequestSingle(PersonService.DeathdayRequested);
+        public DateTime? Birthday => RequestValue(Person.BIRTHDAY);
+        public string Birthplace => RequestValue(Person.BIRTHPLACE);
+        public DateTime? Deathday => RequestValue(Person.DEATHDAY);
         public int? Age => ((Deathday ?? DateTime.Now) - Birthday)?.Days / 365;
-        public IEnumerable<string> AlsoKnownAs => RequestSingle(PersonService.AlsoKnownAsRequested);
-        public string Gender => RequestSingle(PersonService.GenderRequested);
-        public string Bio => RequestSingle(PersonService.BioRequested);
-        public string ProfilePath => RequestSingle(PersonService.ProfilePathRequested);
-        public IEnumerable<Item> Credits => RequestSingle(PersonService.CreditsRequested);
+        public IEnumerable<string> AlsoKnownAs => RequestValue(Person.ALSO_KNOWN_AS);
+        public string Gender => RequestValue(Person.GENDER);
+        public string Bio => RequestValue(Person.BIO);
+        public string ProfilePath => RequestValue(Person.PROFILE_PATH);
+        public IEnumerable<Item> Credits => RequestValue(Person.CREDITS);
 
         public override string PrimaryImagePath => ProfilePath;
         public override string Description => Bio;
@@ -62,7 +62,8 @@ namespace Movies.ViewModels
 
         public static async IAsyncEnumerable<Item> GetCredits(PersonService service, Person person)
         {
-            var credits = await service.CreditsRequested.GetSingle(person);
+            //var credits = await service.CreditsRequested.GetSingle(person);
+            var credits = await Data.GetDetails(person).GetMultiple(Person.CREDITS);
 
             if (credits == null)
             {

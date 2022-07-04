@@ -8,10 +8,13 @@ namespace Movies.Models
 
     public class WatchProvider
     {
-        public string ID { get; set; }
+        public int Id { get; set; }
         public Company Company { get; set; }
         public MonetizationType Type { get; set; }
         public double Price { get; set; }
+
+        public override bool Equals(object obj) => obj is WatchProvider provider && provider.Id == Id;
+        public override int GetHashCode() => Id;
 
         public override string ToString() => Company?.Name ?? base.ToString();
     }

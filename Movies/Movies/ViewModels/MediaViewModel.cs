@@ -104,7 +104,6 @@ namespace Movies.ViewModels
 
         protected abstract MediaService<TItem> MediaService { get; }
 
-#if DEBUG
         public string Tagline => RequestValue(Media.TAGLINE);
         public string Description => RequestValue(Media.DESCRIPTION);
         public string ContentRating => RequestValue(ContentRatingProperty);
@@ -112,7 +111,7 @@ namespace Movies.ViewModels
         public string OriginalTitle => RequestValue(Media.ORIGINAL_TITLE);
         public string OriginalLanguage => RequestValue(Media.ORIGINAL_LANGUAGE);
         public IEnumerable<string> Languages => RequestValue(Media.LANGUAGES);
-        public IEnumerable<string> Genres => RequestValue(GenresProperty);
+        public IEnumerable<string> Genres => RequestValue(GenresProperty) is IEnumerable<Genre> genres ? genres.Select(genre => genre.Name) : null;
 
         public override string PrimaryImagePath => RequestValue(Media.TRAILER_PATH);
         public string PosterPath => RequestValue(Media.POSTER_PATH);
@@ -126,37 +125,12 @@ namespace Movies.ViewModels
         public IEnumerable<Company> ProductionCompanies => RequestValue(Media.PRODUCTION_COMPANIES);
         public IEnumerable<string> ProductionCountries => RequestValue(Media.PRODUCTION_COUNTRIES);
         public List<Group<WatchProvider>> WatchProviders => Providers(RequestValue(WatchProvidersProperty));
-        public IEnumerable<string> Keywords => RequestValue(Movie.KEYWORDS);
-        public CollectionViewModel Recommended => _Recommended ??= (RequestValue(Media.RECOMMENDED) is IAsyncEnumerable<Item> items ? ForceLoad(new CollectionViewModel(DataManager, "Recommended", items)) : null);
+        public IEnumerable<string> Keywords => RequestValue(Movie.KEYWORDS) is IEnumerable<Keyword> keywords ? keywords.Select(keyword => keyword.Name) : null;
+        public CollectionViewModel Recommended => _Recommended ??= (RequestValue(Media.RECOMMENDED) is IAsyncEnumerable<Item> items ? new CollectionViewModel(DataManager, "Recommended", items) : null);
 
         protected abstract Property<string> ContentRatingProperty { get; }
-        protected abstract MultiProperty<string> GenresProperty { get; }
+        protected abstract MultiProperty<Genre> GenresProperty { get; }
         protected abstract MultiProperty<WatchProvider> WatchProvidersProperty { get; }
-#else
-        public string Tagline => RequestSingle(MediaService.TaglineRequested);
-        public string Description => RequestSingle(MediaService.DescriptionRequested);
-        public string ContentRating => RequestSingle(MediaService.ContentRatingRequested);
-        public TimeSpan? Runtime => RequestSingle(MediaService.RuntimeRequested);
-        public string OriginalTitle => RequestSingle(MediaService.OriginalTitleRequested);
-        public string OriginalLanguage => RequestSingle(MediaService.OriginalLanguageRequested);
-        public IEnumerable<string> Languages => RequestSingle(MediaService.LanguagesRequested);
-        public IEnumerable<string> Genres => RequestSingle(MediaService.GenresRequested);
-
-        public override string PrimaryImagePath => RequestSingle(MediaService.TrailerPathRequested);
-        public string PosterPath => RequestSingle(MediaService.PosterPathRequested);
-        public string BackdropPath => RequestSingle(MediaService.BackdropPathRequested);
-        public string TrailerPath => RequestSingle(MediaService.TrailerPathRequested);
-        //public override string PrimaryImagePath => TrailerPath;
-
-        public IEnumerable<Rating> Ratings => RequestSingle(MediaService.RatingRequested) is Rating rating ? new List<Rating> { rating } : null;
-        public List<Group<Credit>> Cast => GetCrew(RequestSingle(MediaService.CastRequested));
-        public List<Group<Credit>> Crew => GetCrew(RequestSingle(MediaService.CrewRequested));
-        public IEnumerable<Company> ProductionCompanies => RequestSingle(MediaService.ProductionCompaniesRequested);
-        public IEnumerable<string> ProductionCountries => RequestSingle(MediaService.ProductionCountriesRequested);
-        public List<Group<WatchProvider>> WatchProviders => Providers(RequestSingle(MediaService.WatchProvidersRequested));
-        public IEnumerable<string> Keywords => RequestSingle(MediaService.KeywordsRequested);
-        public CollectionViewModel Recommended => _Recommended ??= (RequestSingle(MediaService.RecommendedRequested) is IAsyncEnumerable<Item> items ? ForceLoad(new CollectionViewModel(DataManager, "Recommended", items)) : null);
-#endif
 
         private CollectionViewModel _Recommended;
 

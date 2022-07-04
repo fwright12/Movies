@@ -39,20 +39,19 @@ namespace Movies.ViewModels
         {
             if (e.PropertyName == nameof(LHS) || e.PropertyName == nameof(Operator) || e.PropertyName == nameof(RHS))
             {
+                Predicate = BuildPredicate();
+
+                if (LHS == null || RHS == null)
+                {
+                    Predicate = null;
+                }
+
                 OnPredicateChanged();
-                //Predicate = BuildPredicate();
             }
         }
 
         protected virtual void OnPredicateChanged()
         {
-            Predicate = BuildPredicate();
-
-            if (LHS == null || RHS == null)
-            {
-                Predicate = null;
-            }
-
             PredicateChanged?.Invoke(this, EventArgs.Empty);
         }
 

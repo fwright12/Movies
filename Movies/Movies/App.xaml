@@ -110,22 +110,19 @@
                         Value="{OnPlatform Android={AppThemeBinding Light={StaticResource LightSecondaryBackground}, Dark={StaticResource DarkSecondaryBackground}}, iOS={Static Color.Default}}" />-->
             </Style>
 
-            <Style TargetType="SearchBar"
-                   ApplyToDerivedTypes="True">
+            <Style TargetType="SearchBar">
                 <Setter Property="BackgroundColor"
                         Value="Transparent" />
                 <Setter Property="CancelButtonColor"
                         Value="{StaticResource Primary}" />
             </Style>
 
-            <Style TargetType="ActivityIndicator"
-                   ApplyToDerivedTypes="True">
+            <Style TargetType="ActivityIndicator">
                 <Setter Property="Color"
                         Value="{StaticResource Primary}" />
             </Style>
 
-            <Style TargetType="CheckBox"
-                   ApplyToDerivedTypes="True">
+            <Style TargetType="CheckBox">
                 <Setter Property="Color"
                         Value="{StaticResource Primary}" />
             </Style>

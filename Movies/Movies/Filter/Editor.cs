@@ -1,8 +1,21 @@
-﻿using System.Windows.Input;
+﻿using System;
+using System.Windows.Input;
 using Xamarin.Forms;
 
 namespace Movies.ViewModels
 {
+    public class SimpleEditor : Editor
+    {
+        private Func<IPredicateBuilder> Create { get; }
+
+        public SimpleEditor(Func<IPredicateBuilder> create)
+        {
+            Create = create;
+        }
+
+        public override IPredicateBuilder CreateNew() => Create();
+    }
+
     public class Editor<TPredicate> : Editor where TPredicate : IPredicateBuilder, new()
     {
         public override IPredicateBuilder CreateNew() => new TPredicate();
@@ -13,7 +26,7 @@ namespace Movies.ViewModels
         public ObservableNode<object> Selected
         {
             get => _Selected;
-            set => UpdateValue(ref _Selected, value);
+            private set => UpdateValue(ref _Selected, value);
         }
 
         public ICommand AddNewCommand { get; }

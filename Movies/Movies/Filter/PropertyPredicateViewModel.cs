@@ -9,50 +9,6 @@ namespace Movies.ViewModels
     public class PropertyPredicateBuilder : OperatorPredicateBuilder
     {
         public Property Property => LHS as Property;
-        public bool IsValid
-        {
-            get => _IsValid;
-            private set => UpdateValue(ref _IsValid, value);
-        }
-
-        public ICommand PauseChangesCommand { get; }
-        public ICommand ResumeChangesCommand { get; }
-
-        private bool _IsValid;
-        private bool DeferUpdate;
-
-        public PropertyPredicateBuilder()//Property property)
-        {
-            //Property = property;
-
-            PauseChangesCommand = new Command(PauseChanges);
-            ResumeChangesCommand = new Command(ResumeChanges);
-
-            PropertyChanged += Changed;
-        }
-
-        public void PauseChanges() => DeferUpdate = true;
-        public void ResumeChanges()
-        {
-            DeferUpdate = false;
-            OnPredicateChanged();
-        }
-
-        protected override void OnPredicateChanged()
-        {
-            if (!DeferUpdate)
-            {
-                base.OnPredicateChanged();
-            }
-        }
-
-        private void Changed(object sender, PropertyChangedEventArgs e)
-        {
-            if (e.PropertyName == nameof(LHS) || e.PropertyName == nameof(Operator) || e.PropertyName == nameof(RHS))
-            {
-                IsValid = Predicate != FilterPredicate.TAUTOLOGY;// && Predicate != FilterPredicate<T>.CONTRADICTION;
-            }
-        }
 
         public override FilterPredicate BuildPredicate()
         {
@@ -60,19 +16,16 @@ namespace Movies.ViewModels
             {
                 if (RHS is IComparable comparable)
                 {
-                    if (Operator != Operators.Equal && (int)Operator == comparable.CompareTo(range.First) * -1)
+                    var first = (range.First as IComparable)?.CompareTo(comparable);
+                    var last = (range.Last as IComparable)?.CompareTo(comparable);
+
+                    if ((Operator == Operators.LessThan && first == 1) || (Operator == Operators.GreaterThan && last == -1))
                     {
                         return FilterPredicate.CONTRADICTION;
                     }
-                    else
+                    else if ((Operator == Operators.LessThan && last == 0) || (Operator == Operators.GreaterThan && first == 0))
                     {
-                        bool min = Operator == Operators.GreaterThan && range.Last == null && Equals(RHS, range.First);
-                        bool max = Operator == Operators.LessThan && range.First == null && Equals(RHS, range.Last);
-
-                        if (min || max)
-                        {
-                            return FilterPredicate.TAUTOLOGY;
-                        }
+                        return FilterPredicate.TAUTOLOGY;
                     }
                 }
                 else
@@ -88,7 +41,7 @@ namespace Movies.ViewModels
             }
             else if (Property?.Values != null)
             {
-                if (!Property.Values.OfType<object>().Contains(RHS))
+                if (RHS == null)//!Property.Values.OfType<object>().Contains(RHS))
                 {
                     return FilterPredicate.CONTRADICTION;
                 }

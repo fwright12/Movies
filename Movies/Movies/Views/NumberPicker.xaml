@@ -11,7 +11,8 @@
                     Value="{Binding Source={RelativeSource AncestorType={x:Type views:NumberPicker}}}" />
         </Style>
 
-        <Style TargetType="Slider"
+        <Style x:Key="asdfljwkerj"
+               TargetType="Slider"
                BasedOn="{StaticResource NumberPicker}">
             <Setter Property="Maximum"
                     Value="{Binding Upper}" />
@@ -41,6 +42,13 @@
 
                 <FlexLayout Direction="Row"
                             JustifyContent="Center">
+                    <VisualElement.Resources>
+                        <Style TargetType="Button">
+                            <Setter Property="FontSize"
+                                    Value="Title" />
+                        </Style>
+                    </VisualElement.Resources>
+                    
                     <Button Text="-"
                             Command="{TemplateBinding StepDownCommand}" />
 

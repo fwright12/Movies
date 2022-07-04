@@ -20,7 +20,7 @@ namespace Movies
         public static Company TMDb { get; } = new Company
         {
             Name = "TMDb",
-            LogoPath = Xamarin.Forms.ImageSource.FromResource("Movies.Logos.TMDbLogo.png")
+            LogoPath = "file://Movies.Logos.TMDbLogo.png"
         };
 
         public static Company Netflix { get; } = new Company

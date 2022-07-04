@@ -8,6 +8,12 @@ namespace Movies
 {
     public static class API
     {
+        public static class CERTIFICATIONS
+        {
+            public static readonly TMDbRequest GET_MOVIE_CERTIFICATIONS = "certification/movie/list";
+            public static readonly TMDbRequest GET_TV_CERTIFICATIONS = "certification/tv/list";
+        }
+
         public static class COLLECTIONS
         {
             public static readonly TMDbRequest GET_DETAILS = new TMDbRequest("collection/{0}")
@@ -18,13 +24,13 @@ namespace Movies
 
         public static class DISCOVER
         {
-            public static readonly PagedTMDbRequest MOVIE_DISCOVER = new TMDbRequest("discover/movie")
+            public static readonly PagedTMDbRequest MOVIE_DISCOVER = new PagedTMDbRequest("discover/movie")
             {
                 HasLanguageParameter = true,
                 HasRegionParameter = true,
                 HasAdultParameter = true,
             };
-            public static readonly PagedTMDbRequest TV_DISCOVER = new TMDbRequest("discover/tv")
+            public static readonly PagedTMDbRequest TV_DISCOVER = new PagedTMDbRequest("discover/tv")
             {
                 HasLanguageParameter = true,
             };
@@ -33,6 +39,10 @@ namespace Movies
         public static class GENRES
         {
             public static readonly TMDbRequest GET_MOVIE_LIST = new TMDbRequest("genre/movie/list")
+            {
+                HasLanguageParameter = true,
+            };
+            public static readonly TMDbRequest GET_TV_LIST = new TMDbRequest("genre/tv/list")
             {
                 HasLanguageParameter = true,
             };
@@ -51,12 +61,12 @@ namespace Movies
                 HasLanguageParameter = true
             };
             public static readonly TMDbRequest GET_KEYWORDS = "movie/{0}/keywords";
-            public static readonly TMDbRequest GET_RECOMMENDATIONS = new TMDbRequest("movie/{0}/recommendations")
+            public static readonly PagedTMDbRequest GET_RECOMMENDATIONS = new PagedTMDbRequest("movie/{0}/recommendations")
             {
                 HasLanguageParameter = true,
             };
             public static readonly TMDbRequest GET_RELEASE_DATES = "movie/{0}/release_dates";
-            public static readonly TMDbRequest GET_REVIEWS = new TMDbRequest("movie/{0}/reviews")
+            public static readonly PagedTMDbRequest GET_REVIEWS = new PagedTMDbRequest("movie/{0}/reviews")
             {
                 HasLanguageParameter = true,
             };
@@ -66,22 +76,22 @@ namespace Movies
             };
             public static readonly TMDbRequest GET_WATCH_PROVIDERS = "movie/{0}/watch/providers";
 
-            public static readonly PagedTMDbRequest GET_NOW_PLAYING = new TMDbRequest("movie/now_playing")
+            public static readonly PagedTMDbRequest GET_NOW_PLAYING = new PagedTMDbRequest("movie/now_playing")
             {
                 HasLanguageParameter = true,
                 HasRegionParameter = true,
             };
-            public static readonly PagedTMDbRequest GET_POPULAR = new TMDbRequest("movie/popular")
+            public static readonly PagedTMDbRequest GET_POPULAR = new PagedTMDbRequest("movie/popular")
             {
                 HasLanguageParameter = true,
                 HasRegionParameter = true,
             };
-            public static readonly PagedTMDbRequest GET_TOP_RATED = new TMDbRequest("movie/top_rated")
+            public static readonly PagedTMDbRequest GET_TOP_RATED = new PagedTMDbRequest("movie/top_rated")
             {
                 HasLanguageParameter = true,
                 HasRegionParameter = true,
             };
-            public static readonly PagedTMDbRequest GET_UPCOMING = new TMDbRequest("movie/upcoming")
+            public static readonly PagedTMDbRequest GET_UPCOMING = new PagedTMDbRequest("movie/upcoming")
             {
                 HasLanguageParameter = true,
                 HasRegionParameter = true,
@@ -101,49 +111,43 @@ namespace Movies
                 HasLanguageParameter = true,
             };
 
-            public static readonly TMDbRequest CONTENT_RATINGS = new TMDbRequest("tv/{0}/content_ratings")
+            public static readonly TMDbRequest COMBINED_CREDITS = new TMDbRequest("person/{0}/combined_credits")
             {
                 HasLanguageParameter = true
             };
-            public static readonly TMDbRequest AGGREGATE_CREDITS = new TMDbRequest("tv/{0}/aggregate_credits")
+
+            public static readonly PagedTMDbRequest GET_POPULAR = new PagedTMDbRequest("person/popular")
             {
-                HasLanguageParameter = true
-            };
-            public static readonly TMDbRequest KEYWORDS = "tv/{0}/keywords";
-            public static readonly TMDbRequest WATCH_PROVIDERS = "tv/{0}/watch/providers";
-            public static readonly TMDbRequest RECOMMENDED = "tv/{0}/recommendations";
-            public static readonly TMDbRequest VIDEOS = new TMDbRequest("tv/{0}/videos")
-            {
-                HasLanguageParameter = true
+                HasLanguageParameter = true,
             };
         }
 
         public static class SEARCH
         {
-            public static readonly PagedTMDbRequest SEARCH_COLLECTIONS = new TMDbRequest("search/collection")
+            public static readonly PagedTMDbRequest SEARCH_COLLECTIONS = new PagedTMDbRequest("search/collection")
             {
                 HasLanguageParameter = true,
             };
-            public static readonly PagedTMDbRequest SEARCH_KEYWORDS = new TMDbRequest("search/keyword");
-            public static readonly PagedTMDbRequest SEARCH_MOVIES = new TMDbRequest("search/movie")
+            public static readonly PagedTMDbRequest SEARCH_KEYWORDS = new PagedTMDbRequest("search/keyword");
+            public static readonly PagedTMDbRequest SEARCH_MOVIES = new PagedTMDbRequest("search/movie")
             {
                 HasLanguageParameter = true,
                 HasAdultParameter = true,
                 HasRegionParameter = true,
             };
-            public static readonly PagedTMDbRequest MULTI_SEARCH = new TMDbRequest("search/multi")
+            public static readonly PagedTMDbRequest MULTI_SEARCH = new PagedTMDbRequest("search/multi")
             {
                 HasLanguageParameter = true,
                 HasAdultParameter = true,
                 HasRegionParameter = true
             };
-            public static readonly PagedTMDbRequest SEARCH_PEOPLE = new TMDbRequest("search/person")
+            public static readonly PagedTMDbRequest SEARCH_PEOPLE = new PagedTMDbRequest("search/person")
             {
                 HasLanguageParameter = true,
                 HasAdultParameter = true,
                 HasRegionParameter = true
             };
-            public static readonly PagedTMDbRequest SEARCH_TV_SHOWS = new TMDbRequest("search/tv")
+            public static readonly PagedTMDbRequest SEARCH_TV_SHOWS = new PagedTMDbRequest("search/tv")
             {
                 HasLanguageParameter = true,
                 HasAdultParameter = true,
@@ -167,11 +171,11 @@ namespace Movies
                 HasLanguageParameter = true
             };
             public static readonly TMDbRequest GET_KEYWORDS = "tv/{0}/keywords";
-            public static readonly TMDbRequest GET_RECOMMENDATIONS = new TMDbRequest("tv/{0}/recommendations")
+            public static readonly PagedTMDbRequest GET_RECOMMENDATIONS = new PagedTMDbRequest("tv/{0}/recommendations")
             {
                 HasLanguageParameter = true,
             };
-            public static readonly TMDbRequest GET_REVIEWS = new TMDbRequest("tv/{0}/reviews")
+            public static readonly PagedTMDbRequest GET_REVIEWS = new PagedTMDbRequest("tv/{0}/reviews")
             {
                 HasLanguageParameter = true,
             };
@@ -181,19 +185,19 @@ namespace Movies
             };
             public static readonly TMDbRequest GET_WATCH_PROVIDERS = "tv/{0}/watch/providers";
 
-            public static readonly PagedTMDbRequest GET_TV_AIRING_TODAY = new TMDbRequest("tv/airing_today")
+            public static readonly PagedTMDbRequest GET_TV_AIRING_TODAY = new PagedTMDbRequest("tv/airing_today")
             {
                 HasLanguageParameter = true,
             };
-            public static readonly PagedTMDbRequest GET_TV_ON_THE_AIR = new TMDbRequest("tv/on_the_air")
+            public static readonly PagedTMDbRequest GET_TV_ON_THE_AIR = new PagedTMDbRequest("tv/on_the_air")
             {
                 HasLanguageParameter = true,
             };
-            public static readonly PagedTMDbRequest GET_POPULAR = new TMDbRequest("tv/popular")
+            public static readonly PagedTMDbRequest GET_POPULAR = new PagedTMDbRequest("tv/popular")
             {
                 HasLanguageParameter = true,
             };
-            public static readonly PagedTMDbRequest GET_TOP_RATED = new TMDbRequest("tv/top_rated")
+            public static readonly PagedTMDbRequest GET_TOP_RATED = new PagedTMDbRequest("tv/top_rated")
             {
                 HasLanguageParameter = true,
             };
@@ -226,6 +230,20 @@ namespace Movies
                 HasLanguageParameter = true
             };
         }
+
+        public static class WATCH_PROVIDERS
+        {
+            public static readonly TMDbRequest GET_MOVIE_PROVIDERS = new TMDbRequest("watch/providers/movie")
+            {
+                HasLanguageParameter = true,
+                HasRegionParameter = true,
+            };
+            public static readonly TMDbRequest GET_TV_PROVIDERS = new TMDbRequest("watch/providers/tv")
+            {
+                HasLanguageParameter = true,
+                HasRegionParameter = true,
+            };
+        }
     }
 
     public class Parameter
@@ -243,7 +261,7 @@ namespace Movies
 
     public partial class TMDB
     {
-        public static readonly Property<double> POPULARITY = new Property<double>("Popularity");
+        public static readonly Property<double> POPULARITY = new Property<double>("TMDb Popularity");
 
         private static readonly Dictionary<Property, Dictionary<Operators, Parameter>> DiscoverMediaParameters = new Dictionary<Property, Dictionary<Operators, Parameter>>
         {
@@ -400,12 +418,13 @@ namespace Movies
             ReviewsEndpoint = API.TV.GET_REVIEWS
         };
         private static readonly IJsonParser<IEnumerable<Company>> COMPANIES_PARSER = new JsonArrayParser<Company>(new JsonNodeParser<Company>(ParseCompany));
-        private static readonly IJsonParser<IEnumerable<Credit>> CREDITS_PARSER = new JsonArrayParser<Credit>(new JsonNodeParser<Credit>(ParseCredit));
+        private static readonly IJsonParser<IEnumerable<Genre>> GENRES_PARSER = new JsonArrayParser<Genre>(new JsonNodeParser<Genre>(TryParseGenre));
+        private static readonly MultiParser<Keyword> KEYWORDS_PARSER = new MultiParser<Keyword>(Media.KEYWORDS, new JsonArrayParser<Keyword>(new JsonNodeParser<Keyword>(TryParseKeyword)));
 
-        private static readonly List<Parser> CREDITS_PARSERS = new ParserList
+        private static readonly List<Parser> CREDITS_PARSERS = new List<Parser>
         {
-            ["cast"] = new MultiParser<Credit>(Media.CAST, CREDITS_PARSER),
-            ["crew"] = new MultiParser<Credit>(Media.CREW, CREDITS_PARSER),
+            new MultiParser<Credit>(Media.CAST, new JsonNodeParser<IEnumerable<Credit>>(TryParseCast)),
+            new MultiParser<Credit>(Media.CREW, new JsonNodeParser<IEnumerable<Credit>>(TryParseCrew))
         };
 
         private static List<Parser> MEDIA_PARSERS = new ParserList
@@ -437,23 +456,23 @@ namespace Movies
             [API.MOVIES.GET_DETAILS] = new ParserList(MEDIA_PARSERS)
             {
                 ["title"] = TITLE_PARSER,
-                ["genres"] = Parser.Create(Movie.GENRES, "name"),
+                ["genres"] = new MultiParser<Genre>(Movie.GENRES, GENRES_PARSER),
                 ["runtime"] = new Parser<TimeSpan>(Media.RUNTIME, RUNTIME_PARSER),
                 ["original_title"] = ORIGINAL_TITLE_PARSER,
                 ["release_date"] = Parser.Create(Movie.RELEASE_DATE),
                 ["budget"] = Parser.Create(Movie.BUDGET),
                 ["revenue"] = Parser.Create(Movie.REVENUE),
-                ["belongs_to_collection"] = Parser.Create(Movie.PARENT_COLLECTION, json => TryParseCollection(json, out var collection) ? collection : null),
+                ["belongs_to_collection"] = new Parser<Collection>(Movie.PARENT_COLLECTION, new JsonNodeParser<Collection>(TryParseCollection)),
                 [""] = new Parser<Rating>(Media.RATING, MOVIE_RATING_PARSER)
             },
             [API.MOVIES.GET_CREDITS] = CREDITS_PARSERS,
             [API.MOVIES.GET_KEYWORDS] = new ParserList
             {
-                ["keywords"] = Parser.Create(Media.KEYWORDS, "name")
+                ["keywords"] = KEYWORDS_PARSER
             },
             [API.MOVIES.GET_RECOMMENDATIONS] = new ParserList
             {
-                ["recommendations"] = Parser.Create(Media.RECOMMENDED, ParseMovieRecommended)
+                ["results"] = Parser.Create(Media.RECOMMENDED, json => ParseRecommended<Movie>(json, TryParseMovie))
             },
             [API.MOVIES.GET_RELEASE_DATES] = new ParserList
             {
@@ -474,8 +493,9 @@ namespace Movies
                 ["original_name"] = ORIGINAL_TITLE_PARSER,
                 ["first_air_date"] = Parser.Create(TVShow.FIRST_AIR_DATE),
                 ["last_air_date"] = Parser.Create(TVShow.LAST_AIR_DATE),
-                ["genres"] = Parser.Create(TVShow.GENRES, "name"),
+                ["genres"] = new MultiParser<Genre>(TVShow.GENRES, GENRES_PARSER),
                 ["networks"] = new MultiParser<Company>(TVShow.NETWORKS, COMPANIES_PARSER),
+                ["seasons"] = new MultiParser<TVSeason>(TVShow.SEASONS, null),
                 [""] = new Parser<Rating>(Media.RATING, TV_RATING_PARSER)
             },
             [API.TV.GET_CONTENT_RATINGS] = new ParserList
@@ -483,13 +503,13 @@ namespace Movies
                 ["results"] = Parser.Create(TVShow.CONTENT_RATING, ParseTVCertification)
             },
             [API.TV.GET_AGGREGATE_CREDITS] = CREDITS_PARSERS,
-            [API.MOVIES.GET_RECOMMENDATIONS] = new ParserList
+            [API.TV.GET_RECOMMENDATIONS] = new ParserList
             {
-                //["recommendations"] = Parser.Create(Media.RECOMMENDED)
+                ["results"] = Parser.Create(Media.RECOMMENDED, json => ParseRecommended<TVShow>(json, TryParseTVShow))
             },
             [API.TV.GET_KEYWORDS] = new ParserList
             {
-                ["results"] = Parser.Create(Media.KEYWORDS, "name")
+                ["results"] = KEYWORDS_PARSER
             },
             [API.TV.GET_WATCH_PROVIDERS] = new ParserList
             {
@@ -503,11 +523,12 @@ namespace Movies
             {
                 ["air_date"] = Parser.Create(TVSeason.YEAR),
                 //["release_date"] = new Parser<TimeSpan>(TVSeason.AVERAGE_RUNTIME),
+                [""] = new MultiParser<TVEpisode>(TVSeason.EPISODES, new TVItemsParser<TVSeason, TVEpisode>("episodes", TryParseTVEpisode)),
             },
-            [API.TV_SEASONS.GET_AGGREGATE_CREDITS] = new ParserList
+            [API.TV_SEASONS.GET_AGGREGATE_CREDITS] = new List<Parser>
             {
-                ["cast"] = new MultiParser<Credit>(TVSeason.CAST, CREDITS_PARSER),
-                ["crew"] = new MultiParser<Credit>(TVSeason.CREW, CREDITS_PARSER),
+                new MultiParser<Credit>(TVSeason.CAST, new JsonNodeParser<IEnumerable<Credit>>(TryParseCast)),
+                new MultiParser<Credit>(TVSeason.CREW, new JsonNodeParser<IEnumerable<Credit>>(TryParseCrew))
             },
         });
 
@@ -519,18 +540,29 @@ namespace Movies
                 ["still_path"] = Parser.Create(Media.POSTER_PATH, path => BuildImageURL(path.TryGetValue<string>(), STILL_SIZE)),
                 ["overview"] = Parser.Create(Media.DESCRIPTION),
             },
-            [API.TV_EPISODES.GET_CREDITS] = new ParserList
+            [API.TV_EPISODES.GET_CREDITS] = new List<Parser>
             {
-                [""] = new MultiParser<Credit>(Media.CAST, new JsonNodeParser<IEnumerable<Credit>>(ParseTVEpisodeCast)),
-                ["crew"] = new MultiParser<Credit>(Media.CREW, CREDITS_PARSER),
+                new MultiParser<Credit>(Media.CAST, new JsonNodeParser<IEnumerable<Credit>>(TryParseTVEpisodeCast)),
+                new MultiParser<Credit>(Media.CREW, new JsonNodeParser<IEnumerable<Credit>>(TryParseCrew))
             },
         });
 
         private static readonly ItemProperties PERSON_PROPERTIES = new ItemProperties(new Dictionary<TMDbRequest, List<Parser>>
         {
-            [API.PEOPLE.DETAILS] = new List<Parser>
+            [API.PEOPLE.DETAILS] = new ParserList
             {
-
+                ["birthday"] = Parser.Create(Person.BIRTHDAY),
+                ["deathday"] = Parser.Create(Person.DEATHDAY),
+                ["also_known_as"] = new MultiParser<string>(Person.ALSO_KNOWN_AS, new JsonArrayParser<string>()),
+                ["gender"] = Parser.Create(Person.GENDER),
+                ["biography"] = Parser.Create(Person.BIO),
+                ["popularity"] = Parser.Create(POPULARITY),
+                ["place_of_birth"] = Parser.Create(Person.BIRTHPLACE),
+                ["profile_path"] = Parser.Create(Person.PROFILE_PATH, path => BuildImageURL(path.TryGetValue<string>(), PROFILE_SIZE))
+            },
+            [API.PEOPLE.COMBINED_CREDITS] = new List<Parser>
+            {
+                new MultiParser<Item>(Person.CREDITS, new JsonNodeParser<IEnumerable<Item>>(TryParsePersonCredits))
             }
         });
 

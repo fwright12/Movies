@@ -14,9 +14,10 @@ namespace Movies.Models
 
         public static readonly Property<DateTime> FIRST_AIR_DATE = new Property<DateTime>("First Air Date");
         public static readonly Property<DateTime> LAST_AIR_DATE = new Property<DateTime>("Last Air Date");
+        public static readonly MultiProperty<TVSeason> SEASONS = new MultiProperty<TVSeason>("Seasons");
         public static readonly MultiProperty<Company> NETWORKS = new MultiProperty<Company>("Networks");
         public static readonly Property<string> CONTENT_RATING = new Property<string>("Content Rating", new List<string> { "TV", "TV-14", "TV-MA" });
-        public static readonly MultiProperty<string> GENRES = new MultiProperty<string>("Genres", new List<string> { "Action", "Adventure", "Romance", "Comedy", "Thriller", "Mystery", "Sci-Fi", "Horror", "Mockumentary" });
+        public static readonly MultiProperty<Genre> GENRES = new MultiProperty<Genre>("Genres", System.Linq.Enumerable.Select(new List<string> { "Action", "Adventure", "Romance", "Comedy", "Thriller", "Mystery", "Sci-Fi", "Horror", "Mockumentary" }, name => new Genre { Name = name }));
         public static readonly MultiProperty<WatchProvider> WATCH_PROVIDERS = new MultiProperty<WatchProvider>("Watch Providers", new List<WatchProvider> { MockData.NetflixStreaming });
     }
 
@@ -34,6 +35,7 @@ namespace Movies.Models
 
         public static readonly Property<DateTime> YEAR = new Property<DateTime>("Year");
         public static readonly Property<TimeSpan> AVERAGE_RUNTIME = new Property<TimeSpan>("Average Runtime");
+        public static readonly MultiProperty<TVEpisode> EPISODES = new MultiProperty<TVEpisode>("Episodes");
         public static readonly MultiProperty<Credit> CAST = new MultiProperty<Credit>("Cast");
         public static readonly MultiProperty<Credit> CREW = new MultiProperty<Credit>("Crew");
     }

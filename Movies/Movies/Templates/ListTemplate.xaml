@@ -20,13 +20,15 @@
             </ResourceDictionary>
         </VisualElement.Resources>
 
-        <forms:DrawerView.SnapPoints>
-            <forms:SnapPoint Value="50" />
-        </forms:DrawerView.SnapPoints>
-
         <forms:DrawerView.DrawerTemplate>
             <views:FilterTemplate />
         </forms:DrawerView.DrawerTemplate>
+
+        <forms:DrawerView.SnapPoints>
+            <forms:ElementSnapPoint Element="{Binding Parent.Children[1].Content.Content.Children[1], Source={RelativeSource Self}}"
+                                    Alignment="End" />
+            <forms:SnapPoint Value="{Binding Height, Source={RelativeSource AncestorType={x:Type forms:DrawerView}}, Converter={Static forms:ArithmeticConverter.SUBTRACT}, ConverterParameter=25}" />
+        </forms:DrawerView.SnapPoints>
 
         <!--<VisualElement.Triggers>
             <DataTrigger TargetType="forms:DrawerView"
@@ -320,8 +322,8 @@
                                 </VisualElement.Resources>
 
                                 <Button BindingContext="{Binding Source={RelativeSource AncestorType={x:Type forms:DrawerView}}}"
-                                        Command="{Binding Toggle}"
-                                        IsVisible="{Binding Drawer, Converter={Static forms:FalseIfNullConverter.Instance}}"/>
+                                        Command="{Binding NextSnapPointCommand}"
+                                        IsVisible="{Binding Drawer, Converter={Static forms:FalseIfNullConverter.Instance}}" />
 
                                 <Button Command="{Binding ToggleListLayoutCommand}">
                                     <VisualStateManager.VisualStateGroups>

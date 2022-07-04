@@ -3,13 +3,45 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Async;
+using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
 namespace Movies
 {
     public partial class TMDB
     {
+        public static bool TryParse(JsonNode json, out Item item)
+        {
+            item = null;
+            var type = json["media_type"];
+
+            if (type?.TryGetValue<string>() == "movie")
+            {
+                if (TryParseMovie(json, out var movie))
+                {
+                    item = movie;
+                }
+            }
+            else if (type?.TryGetValue<string>() == "tv")
+            {
+                if (TryParseTVShow(json, out var show))
+                {
+                    item = show;
+                }
+            }
+            else if (type?.TryGetValue<string>() == "person")
+            {
+                if (TryParsePerson(json, out var person))
+                {
+                    item = person;
+                }
+            }
+
+            return item != null;
+        }
+
         public static bool TryParseMovie(JsonNode json, out Movie movie)
         {
             if (json.TryGetValue("id", out int id) && json.TryGetValue("title", out string title) && json.TryGetValue("release_date", out string releaseDate))
@@ -20,11 +52,6 @@ namespace Movies
 
             movie = null;
             return false;
-        }
-
-        public static bool TryParseTVShow1(JsonNode json, out TVShow show)
-        {
-            throw new NotImplementedException();
         }
 
         public static bool TryParsePerson(JsonNode json, out Person person)
@@ -129,7 +156,7 @@ namespace Movies
                     collection.PosterPath = BuildImageURL(poster_path, POSTER_SIZE);
                 }
 
-                //collection.Items = GetJsonCollectionItems(collection, id, json);
+                collection.Items = GetJsonCollectionItems(collection, id, json);
 
                 return true;
             }
@@ -138,48 +165,22 @@ namespace Movies
             return false;
         }
 
-        private static async IAsyncEnumerable<T> Unwrap<T>(Func<Task<IEnumerable<T>>> items)
-        {
-            foreach (var item in await items())
-            {
-                yield return item;
-            }
-        }
-
-        private static async Task<IEnumerable<T>> GetItemsAsync<T>(TMDbRequest request, IJsonParser<IEnumerable<T>> parser, JsonNode json = null)
-        {
-            if (json != null && parser.TryGetValue(json, out var items))
-            {
-                return items;
-            }
-            else if (request != null)
-            {
-                var response = await WebClient.TryGetAsync(request.GetURL());
-
-                if (response?.IsSuccessStatusCode == true)
-                {
-                    json = JsonNode.Parse(await response.Content.ReadAsStringAsync());
-                    return await GetItemsAsync(null, parser, json);
-                }
-            }
-
-            return System.Linq.Enumerable.Empty<T>();
-        }
-
         public IAsyncEnumerable<Item> GetJsonCollectionItems(Item item, int id) => GetJsonCollectionItems(item, id, null);
         private static IAsyncEnumerable<Item> GetJsonCollectionItems(Item item, int id, JsonNode json)
         {
             if (item is TVShow show)
             {
+                return GetTVItems(show, TVShow.SEASONS);
                 var request = string.Format(API.TV.GET_DETAILS.GetURL(), id);
-                return GetJsonCollectionItems(request, "seasons", (JsonNode node, out TVSeason temp) => TryParseTVSeason(json, show, out temp), json);
+                return GetJsonCollectionItems(request, "seasons", (JsonNode node, out TVSeason temp) => TryParseTVSeason(node, show, out temp), json);
 
                 //return new Items<Item>(GetCollectionItems(async () => (TvShow)await ConstructTVShowInfoRequest(show => show)(new object[] { id }), show => show.Seasons, season => GetItem(season, show), GetCacheKey<Models.TVShow>(id), season => GetCacheKey<Models.TVSeason>(season.Id)));
             }
             else if (item is TVSeason season)
             {
+                return GetTVItems(season, TVSeason.EPISODES);
                 var request = string.Format(API.TV_SEASONS.GET_DETAILS.GetURL(), id, season.SeasonNumber);
-                return GetJsonCollectionItems(request, "episodes", (JsonNode node, out TVEpisode temp) => TryParseTVEpisode(json, season, out temp), json);
+                return GetJsonCollectionItems(request, "episodes", (JsonNode node, out TVEpisode temp) => TryParseTVEpisode(node, season, out temp), json);
             }
             else if (item is Collection collection)
             {
@@ -198,7 +199,36 @@ namespace Movies
             }
         }
 
-        private static async IAsyncEnumerable<T> GetJsonCollectionItems<T>(TMDbRequest request, string collectionProperty, System.Linq.Async.Enumerable.TryParseFunc<JsonNode, T> parse, JsonNode json) where T : Item
+        private abstract class TVItemsParser
+        {
+            public Item Parent { get; set; }
+        }
+
+        private class TVItemsParser<TParent, TChild> : TVItemsParser, IJsonParser<IEnumerable<TChild>> where TParent : Item where TChild : Item
+        {
+            public TryParseFunc Parse { get; }
+            public string Property { get; }
+
+            public TVItemsParser(string property, TryParseFunc parse)
+            {
+                Property = property;
+                Parse = parse;
+            }
+
+            public delegate bool TryParseFunc(JsonNode json, TParent parent, out TChild result);
+
+            public bool TryGetValue(JsonNode json, out IEnumerable<TChild> value) => TryParseCollection(json, new JsonPropertyParser<IEnumerable<JsonNode>>(Property), out value, new JsonNodeParser<TChild>((JsonNode json, out TChild result) => Parse(json, (TParent)Parent, out result)));
+        }
+
+        private static async IAsyncEnumerable<T> GetTVItems<T>(Item tv, Property<T> property)
+        {
+            foreach (var item in await Data.GetDetails(tv).GetMultiple(property))
+            {
+                yield return item;
+            }
+        }
+
+        private static async IAsyncEnumerable<T> GetJsonCollectionItems<T>(TMDbRequest request, string collectionProperty, System.Linq.Async.Enumerable.TryParseFunc<JsonNode, T> parse, JsonNode json)
         {
             //return Unwrap(() => GetItemsAsync(request, parser, json));
 
@@ -219,29 +249,6 @@ namespace Movies
             {
                 yield return temp;
             }
-        }
-
-        public static bool TryParse(JsonNode json, out Item item)
-        {
-            item = null;
-            var type = json["media_type"];
-
-            if (type?.TryGetValue<string>() == "movie")
-            {
-                if (TryParseMovie(json, out var movie))
-                {
-                    item = movie;
-                }
-            }
-            else if (type?.TryGetValue<string>() == "tv")
-            {
-                if (TryParseTVShow1(json, out var show))
-                {
-                    item = show;
-                }
-            }
-
-            return item != null;
         }
 
         public static string ParseMovieCertification(JsonNode json)
@@ -347,19 +354,49 @@ namespace Movies
                     var appended = API.MOVIES.GET_REVIEWS.Endpoint.Replace(API.MOVIES.GET_DETAILS.Endpoint, string.Empty).TrimStart('/');
                     if (json[appended] is JsonNode reviews)
                     {
-                        
+
                     }
 
-                    value.Reviews = FlattenPages<Review>(ReviewsEndpoint, (JsonNode json, out Review review) =>
+                    var request = new ParameterizedPagedRequest(ReviewsEndpoint, id);
+                    value.Reviews = FlattenPages(request, (JsonNode json, out Review review) =>
                     {
                         review = ParseReview(json);
                         return true;
-                    }, id.ToString());
+                    });
                 }
 
                 return true;
             }
         }
+
+        private static bool TryParsePersonCredits(JsonNode json, out IEnumerable<Item> result)
+        {
+            var credits = new List<Item>();
+
+            if (TryParseCollection(json, new JsonPropertyParser<IEnumerable<JsonNode>>("cast"), out var cast, new JsonNodeParser<Item>(TryParse)))
+            {
+                credits.AddRange(cast);
+            }
+            if (TryParseCollection(json, new JsonPropertyParser<IEnumerable<JsonNode>>("crew"), out var crew, new JsonNodeParser<Item>(TryParse)))
+            {
+                credits.AddRange(crew);
+            }
+
+            if (credits.Count > 0)
+            {
+                result = credits;
+                return true;
+            }
+            else
+            {
+                result = null;
+                return false;
+            }
+        }
+
+        public static bool TryParseCast(JsonNode json, out IEnumerable<Credit> credits) => TryParseCredits(json, "cast", out credits);
+        public static bool TryParseCrew(JsonNode json, out IEnumerable<Credit> credits) => TryParseCredits(json, "crew", out credits);
+        public static bool TryParseCredits(JsonNode json, string property, out IEnumerable<Credit> credits) => TryParseCollection(json, new JsonPropertyParser<IEnumerable<JsonNode>>(property), out credits, new JsonNodeParser<Credit>(ParseCredit));
 
         public static Credit ParseCredit(JsonNode json) => new Credit
         {
@@ -368,20 +405,17 @@ namespace Movies
             Department = json["department"]?.TryGetValue<string>(),
         };
 
-        public static IEnumerable<Credit> ParseTVEpisodeCast(JsonNode json)
+        public static bool TryParseTVEpisodeCast(JsonNode json, out IEnumerable<Credit> result)
         {
-            var result = System.Linq.Enumerable.Empty<Credit>();
-
-            if (json["cast"] is JsonNode cast && CREDITS_PARSER.TryGetValue(cast, out var cast1))
+            if (TryParseCredits(json, "cast", out var cast) && TryParseCredits(json, "guest_stars", out var guest))
+            //if (json["cast"] is JsonNode castNode && CREDITS_PARSER.TryGetValue(castNode, out var cast) && json["guest_stars"] is JsonNode guestNode && CREDITS_PARSER.TryGetValue(guestNode, out var guest))
             {
-                result = result.Concat(cast1);
-            }
-            if (json["guest_stars"] is JsonNode guest && CREDITS_PARSER.TryGetValue(guest, out var guest1))
-            {
-                result = result.Concat(guest1);
+                result = cast.Concat(guest);
+                return true;
             }
 
-            return result;
+            result = null;
+            return false;
         }
 
         public static Company ParseCompany(JsonNode json) => new Company
@@ -409,32 +443,112 @@ namespace Movies
                     {
                         foreach (var provider in monetizationGroup.Value.AsArray())
                         {
-                            yield return new WatchProvider
+                            if (TryParseWatchProvider(provider, out var temp))
                             {
-                                Company = new Company
-                                {
-                                    Name = provider["provider_name"]?.TryGetValue<string>(),
-                                    LogoPath = provider["logo_path"]?.TryGetValue<string>(),
-                                },
-                                Type = type
-                            };
+                                temp.Type = type;
+                                yield return temp;
+                            }
                         }
                     }
                 }
             }
         }
 
-        public static IAsyncEnumerable<Item> ParseMovieRecommended(JsonNode json) => ParseRecommended<Movie>(json, API.MOVIES.GET_RECOMMENDATIONS, TryParseMovie);
-        public static async IAsyncEnumerable<T> ParseRecommended<T>(JsonNode json, PagedTMDbRequest request, System.Linq.Async.Enumerable.TryParseFunc<JsonNode, T> parse)
+        public static bool TryParseWatchProvider(JsonNode json, out WatchProvider provider)
         {
-            foreach (var recommended in ParseCollection(json, PageParser, new JsonNodeParser<T>(parse)))
+            if (json.TryGetValue("provider_id", out int id))
             {
-                yield return recommended;
+                provider = new WatchProvider
+                {
+                    Id = id,
+                    Company = new Company
+                    {
+                        Name = json["provider_name"]?.TryGetValue<string>(),
+                        LogoPath = json["logo_path"]?.TryGetValue<string>(),
+                    },
+                };
+                return true;
             }
 
-            await foreach (var item in Request(request, Helpers.LazyRange(2), parse))
+            provider = null;
+            return false;
+        }
+
+        public static bool TryParseGenre(JsonNode json, out Genre genre)
+        {
+            if (json.TryGetValue("id", out int id) && json.TryGetValue("name", out string name))
             {
-                yield return item;
+                genre = new Genre
+                {
+                    Id = id,
+                    Name = name,
+                };
+                return true;
+            }
+
+            genre = null;
+            return false;
+        }
+
+        public static bool TryParseKeyword(JsonNode json, out Keyword keyword)
+        {
+            if (json.TryGetValue("id", out int id) && json.TryGetValue("name", out string name))
+            {
+                keyword = new Keyword
+                {
+                    Id = id,
+                    Name = name,
+                };
+                return true;
+            }
+
+            keyword = null;
+            return false;
+        }
+
+        public static IAsyncEnumerable<T> ParseRecommended<T>(JsonNode json, System.Linq.Async.Enumerable.TryParseFunc<JsonNode, T> parse) => TryParseCollection(json, new JsonNodeParser<IEnumerable<JsonNode>>(), out var result, new JsonNodeParser<T>(parse)) ? System.Linq.Async.Enumerable.ToAsyncEnumerable(Task.FromResult(result)) : null;
+
+        public class PagedParser<T> : IJsonParser<IAsyncEnumerable<T>>
+        {
+            public IPagedRequest Request { get; }
+            public IJsonParser<IAsyncEnumerable<T>> ItemParser { get; }
+
+            public PagedParser(IPagedRequest request, IJsonParser<IAsyncEnumerable<T>> itemParser)
+            {
+                Request = request;
+                ItemParser = itemParser;
+            }
+
+            public bool TryGetValue(JsonNode json, out IAsyncEnumerable<T> value)
+            {
+                value = SelectMany(json);
+                return true;
+            }
+
+            private async IAsyncEnumerable<T> SelectMany(JsonNode json)
+            {
+                var pages = WebClient.GetPagesAsync(Request, Helpers.LazyRange(2, 1)).SelectAsync(GetJson);
+
+                await foreach (var page in Prepend(pages, json))
+                {
+                    if (ItemParser.TryGetValue(page, out var items))
+                    {
+                        await foreach (var item in items)
+                        {
+                            yield return item;
+                        }
+                    }
+                }
+            }
+        }
+
+        private static async IAsyncEnumerable<T> Prepend<T>(IAsyncEnumerable<T> source, T item)
+        {
+            yield return item;
+
+            await foreach (var more in source)
+            {
+                yield return more;
             }
         }
     }

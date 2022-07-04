@@ -14,6 +14,12 @@
                     <movies:PredicateEditorResources />
                 </ResourceDictionary.MergedDictionaries>
 
+                <Style TargetType="Button"
+                       CanCascade="True">
+                    <Setter Property="FontSize"
+                            Value="{OnPlatform iOS={Static NamedSize.Medium}, Android={Static NamedSize.Default}}" />
+                </Style>
+
                 <Style x:Key="FilterExpressionStyle"
                        TargetType="Layout">
                     <Setter Property="BindingContext"
@@ -44,7 +50,7 @@
                             <ContentPresenter HorizontalOptions="StartAndExpand" />
 
                             <Button Text="Done"
-                                    Command="{Binding Toggle, Source={RelativeSource AncestorType={x:Type forms:DrawerView}}}"
+                                    Command="{Binding NextSnapPointCommand, Source={RelativeSource AncestorType={x:Type forms:DrawerView}}}"
                                     HorizontalOptions="End" />
                         </StackLayout>
 
@@ -64,8 +70,6 @@
                         <Setter TargetName="scroll"
                                 Property="ScrollView.Orientation"
                                 Value="Vertical" />
-                        <Setter Property="HeightRequest"
-                                Value="100" />
                         <Setter TargetName="filters"
                                 Property="ContentView.ControlTemplate"
                                 Value="{StaticResource CompactFiltersTemplate}" />
@@ -96,9 +100,7 @@
                         <Setter TargetName="scroll"
                                 Property="ScrollView.Orientation"
                                 Value="Vertical" />
-                        <Setter Property="HeightRequest"
-                                Value="500" />
-                        
+
                         <Setter TargetName="filters"
                                 Property="ContentView.ControlTemplate"
                                 Value="{StaticResource FullFiltersTemplate}" />

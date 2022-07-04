@@ -81,7 +81,7 @@ namespace Movies.ViewModels
             {
                 PropertyChanged -= SelectedChanged;
 
-                Selected = Editors.FirstOrDefault(editor => editor.Selected?.Value == builder)?.Selected;
+                Select(Editors.FirstOrDefault(editor => editor.Selected?.Value == builder)?.Selected);
 
                 PropertyChanged += SelectedChanged;
             }
@@ -94,11 +94,11 @@ namespace Movies.ViewModels
                 return;
             }
 
-            PropertyChanged -= SubPredicateChanged;
+            //PropertyChanged -= SubPredicateChanged;
 
             SelectedChanged(Selected);
 
-            PropertyChanged += SubPredicateChanged;
+            //PropertyChanged += SubPredicateChanged;
         }
 
         private bool SelectedChanged(ObservableNode<object> selected)
@@ -112,9 +112,9 @@ namespace Movies.ViewModels
                         return true;
                     }
                 }
-                else if (selected.Value is OperatorPredicateBuilder builder && editor is OperatorEditor op && op.LHSOptions.OfType<object>().Contains(builder.LHS) && op.RHSOptions.OfType<object>().Contains(builder.RHS))
+                else if (selected.Value is OperatorPredicateBuilder builder && editor is OperatorEditor op && op.LHSOptions.OfType<object>().Contains(builder.LHS))// && op.RHSOptions.OfType<object>().Contains(builder.RHS))
                 {
-                    editor.Selected = selected;
+                    editor.Select(selected);
                     return true;
                 }
             }

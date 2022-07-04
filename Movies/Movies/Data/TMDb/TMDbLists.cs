@@ -110,9 +110,9 @@ namespace Movies
         public static T TryGetValue<T>(this JsonNode node) => TryGetValue<T>(node, out var value) ? value : default;
         public static bool TryGetValue<T>(this JsonNode node, string property, out T value)
         {
-            if ((node as JsonObject)?[property] is JsonNode temp)
+            if ((node as JsonObject)?.TryGetPropertyValue(property, out var temp) == true)
             {
-                return temp.TryGetValue(out value);
+                return TryGetValue(temp, out value);
             }
 
             value = default;
@@ -120,17 +120,56 @@ namespace Movies
         }
         public static bool TryGetValue<T>(this JsonNode node, out T value)
         {
-            try
+            if (node is T t)
             {
-                value = node.GetValue<T>();
+                value = t;
                 return true;
             }
-            catch
-            {
 
+            try
+            {
+                if (node == null)
+                {
+                    value = default;
+                    return value == null;
+                }
+                else
+                {
+                    value = node.GetValue<T>();
+                    return true;
+                }
             }
+            catch { }
 
             value = default;
+            return false;
+        }
+
+        public static bool TryGetValue<T>(this JsonElement json, out T value, string path = "", JsonSerializerOptions options = null)
+        {
+            value = default;
+
+            foreach (var property in path.Split('.'))
+            {
+                if (!string.IsNullOrEmpty(property) && !json.TryGetProperty(property, out json))
+                {
+                    return false;
+                }
+            }
+
+            if (json is T t)
+            {
+                value = t;
+                return true;
+            }
+
+            try
+            {
+                value = json.Deserialize<T>(options);
+                return true;
+            }
+            catch { }
+
             return false;
         }
 
