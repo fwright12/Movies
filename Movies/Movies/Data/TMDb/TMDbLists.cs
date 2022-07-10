@@ -10,50 +10,50 @@ using System.Threading.Tasks;
 
 namespace Movies
 {
+    public interface IJsonCache
+    {
+        Task<JsonResponse> TryGetValueAsync(string url);
+        Task AddAsync(string url, JsonResponse response);
+    }
+
+    public class JsonResponse
+    {
+        public string Json { get; }
+        public DateTime Timestamp { get; }
+
+        public JsonResponse(string json)
+        {
+            Json = json;
+            Timestamp = DateTime.Now;
+        }
+
+        public static async Task<JsonResponse> Create(Func<Task<HttpResponseMessage>> request)
+        {
+            var response = await request();
+
+            if (response?.IsSuccessStatusCode == true)
+            {
+                return new JsonResponse(await response.Content.ReadAsStringAsync());
+            }
+
+            return null;
+        }
+    }
+
     public static class JsonExtensions
     {
-        public interface ICache
-        {
-            Task<JsonResponse> TryGetValueAsync(string url);
-            Task AddAsync(string url, JsonResponse response);
-        }
-
-        public class JsonResponse
-        {
-            public string Json { get; }
-            public DateTime Timestamp { get; }
-
-            public JsonResponse(string json)
-            {
-                Json = json;
-                Timestamp = DateTime.Now;
-            }
-
-            public static async Task<JsonResponse> Create(Func<Task<HttpResponseMessage>> request)
-            {
-                var response = await request();
-
-                if (response?.IsSuccessStatusCode == true)
-                {
-                    return new JsonResponse(await response.Content.ReadAsStringAsync());
-                }
-
-                return null;
-            }
-        }
-
-        public static Task<JsonResponse> TryGetCachedAsync(this HttpClient client, string url, ICache cache) => TryGetCachedAsync(client, new HttpRequestMessage(HttpMethod.Get, url), cache);
-        public static async Task<JsonResponse> TryGetCachedAsync(this HttpClient client, HttpRequestMessage request, ICache cache)
+        public static Task<JsonResponse> TryGetCachedAsync(this HttpClient client, string url, IJsonCache cache) => TryGetCachedAsync(client, new HttpRequestMessage(HttpMethod.Get, url), cache);
+        public static async Task<JsonResponse> TryGetCachedAsync(this HttpClient client, HttpRequestMessage request, IJsonCache cache)
         {
             var url = request.RequestUri.ToString();
-            var response = await cache.TryGetValueAsync(url);
+            var cached = cache.TryGetValueAsync(url);
 
-            if (response != null)
+            if (cached != null)
             {
-                return response;
+                return await cached;
             }
 
-            response = new JsonResponse(await TryGetContentAsync(client, request));
+            var response = new JsonResponse(await TryGetContentAsync(client, request));
             await cache.AddAsync(url, response);
 
             return response;
@@ -232,7 +232,8 @@ namespace Movies
                 return item != null;
             }
 
-            public IAsyncEnumerable<JsonNode> FlattenPages(string apiCall) => TMDB.FlattenPages(Client, apiCall);
+            public IAsyncEnumerable<JsonNode> FlattenPages(string apiCall, params string[] parameters) => Request(Client.GetPagesAsync(new PagedTMDbRequest(apiCall), Helpers.LazyRange(1, 1), default, parameters).SelectAsync(GetJson), new JsonNodeParser<JsonNode>());
+            //public IAsyncEnumerable<JsonNode> FlattenPages(string apiCall) => TMDB.FlattenPages(Client, apiCall);
 
             protected bool TryGetId(Models.Item item, out int id) => IDSystem.TryGetID(item, out id);
 

@@ -22,9 +22,7 @@ namespace Movies.Templates
         private static readonly HashSet<Property> SmallValues = new HashSet<Property>
         {
             CollectionViewModel.MonetizationType,
-            Movie.CONTENT_RATING,
             Movie.GENRES,
-            TVShow.CONTENT_RATING,
             TVShow.GENRES,
         };
 
@@ -46,7 +44,7 @@ namespace Movies.Templates
 
             if (selector is OperatorEditor op)
             {
-                if (!op.LHSOptions.OfType<object>().Any() || SmallValues.Intersect(op.LHSOptions.OfType<Property>()).Any())
+                if (op.DefaultLHS as string == CollectionViewModel.ITEM_TYPE || SmallValues.Intersect(op.LHSOptions.OfType<Property>()).Any())
                 {
                     return SmallValuesTemplate;
                 }

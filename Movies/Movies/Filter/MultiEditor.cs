@@ -112,7 +112,7 @@ namespace Movies.ViewModels
                         return true;
                     }
                 }
-                else if (selected.Value is OperatorPredicateBuilder builder && editor is OperatorEditor op && op.LHSOptions.OfType<object>().Contains(builder.LHS))// && op.RHSOptions.OfType<object>().Contains(builder.RHS))
+                else if (editor is OperatorEditor op && editor.Selected?.Value.GetType() == selected.Value.GetType() && selected.Value is OperatorPredicateBuilder builder && op.LHSOptions.OfType<object>().Contains(builder.LHS))// && op.RHSOptions.OfType<object>().Contains(builder.RHS))
                 {
                     editor.Select(selected);
                     return true;

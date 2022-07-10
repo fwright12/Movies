@@ -46,8 +46,32 @@ namespace Movies.ViewModels
             });
         }
 
-        protected T RequestValue<T>(Property<T> property, [CallerMemberName] string propertyName = null) => GetValue(Properties.GetSingle(property), propertyName);
-        protected IEnumerable<T> RequestValue<T>(MultiProperty<T> property, [CallerMemberName] string propertyName = null) => GetValue(Properties.GetMultiple(property), propertyName);
+        protected bool TryRequestValue<T>(Property<T> property, out T value, [CallerMemberName] string propertyName = null)
+        {
+            if (Properties.TryGetValue(property, out var task))
+            {
+                value = GetValue(task, propertyName);
+                return true;
+            }
+
+            value = default;
+            return false;
+        }
+        protected bool TryRequestValue<T>(MultiProperty<T> property, out IEnumerable<T> value, [CallerMemberName] string propertyName = null)
+        {
+            if (Properties.TryGetValue(property, out var task))
+            {
+                value = GetValue(task, propertyName);
+                return true;
+            }
+
+            value = default;
+            return false;
+        }
+
+        protected T RequestValue<T>(Property<T> property, [CallerMemberName] string propertyName = null) => TryRequestValue(property, out var value, propertyName) ? value : default;
+        protected IEnumerable<T> RequestValue<T>(MultiProperty<T> property, [CallerMemberName] string propertyName = null) => TryRequestValue(property, out var value, propertyName) ? value : default;
+
         protected TValue RequestSingle<TItem, TValue>(InfoRequestHandler<TItem, TValue> handler, [CallerMemberName] string property = null) where TItem : Item => Item is TItem item ? GetValue(handler.GetSingle(item), property) : default;
 
         public override string ToString() => Item?.ToString() ?? base.ToString();

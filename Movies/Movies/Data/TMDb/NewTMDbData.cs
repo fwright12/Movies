@@ -52,7 +52,7 @@ namespace Movies
                 {
                     if (totalPages.HasValue)
                     {
-                        page = totalPages.Value + pageItr.Current;
+                        page = totalPages.Value - ~pageItr.Current;
                     }
                     else
                     {
@@ -160,29 +160,18 @@ namespace Movies
         private Lazy<Task<List<Models.List>>> LazyAllLists;
 
 #if DEBUG
-        private TMDbClient Client
-        {
-            get
-            {
-                Print.Log("accessing Client");
-                return _Client;
-            }
-            set => _Client = value;
-        }
-        private TMDbClient _Client = TMDbClient.Create();
-
         private static readonly string SECURE_BASE_IMAGE_URL = string.Empty;// = "https://image.tmdb.org/t/p";
 #else
-        private TMDbClient Client;
         private static readonly string SECURE_BASE_IMAGE_URL = "https://image.tmdb.org/t/p";
 #endif
         private DataManager DataManager;
         public static HttpClient WebClient { get; private set; }
 
-        public TMDB(string apiKey, string bearer)
+        public TMDB(string apiKey, string bearer, IJsonCache cache = null)
         {
             ApiKey = apiKey;
             Auth = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", bearer);
+            ResponseCache = cache;
 
             RatingParser.TMDb = this;
 
@@ -190,7 +179,7 @@ namespace Movies
             //Config = Client.GetConfigAsync();
             WebClient = new HttpClient
             {
-#if DEBUG
+#if DEBUG && false
                 BaseAddress = new Uri("https://mockTMDb"),
 #else
                 BaseAddress = new Uri("https://api.themoviedb.org/"),
@@ -200,6 +189,8 @@ namespace Movies
                     Authorization = Auth
                 }
             };
+
+            GetPropertyValues = InitValues();
 
             LazyAllLists = new Lazy<Task<List<Models.List>>>(() => GetAllLists());
         }
@@ -332,12 +323,16 @@ namespace Movies
         }
 
         public static string BuildApiCall(string endpoint, params string[] parameters) => BuildApiCall(endpoint, (IEnumerable<string>)parameters);
-        public static string BuildApiCall(string endpoint, IEnumerable<string> parameters) => endpoint + "?" + string.Join('&', parameters);
-
-        public static async Task<IEnumerable<T>> Request<T>(TMDbRequest request, IJsonParser<IEnumerable<JsonNode>> parseItems, IJsonParser<T> parse = null, params string[] parameters)
+        public static string BuildApiCall(string endpoint, IEnumerable<string> parameters)
         {
-            string url = request.GetURL(null, null, false, parameters);
-            return ParseCollection(await GetJson(await WebClient.TryGetAsync(url)), parseItems, parse);
+            var url = endpoint;
+
+            if (parameters.Any())
+            {
+                url += "?" + string.Join('&', parameters);
+            }
+
+            return url;
         }
 
         public static IAsyncEnumerable<T> Request<T>(IPagedRequest request, System.Linq.Async.Enumerable.TryParseFunc<JsonNode, T> parse = null, bool reverse = false, params string[] parameters) => Request(request, Helpers.LazyRange(1, 1), parse, reverse, parameters);
@@ -421,30 +416,32 @@ namespace Movies
         public IAsyncEnumerable<Item> GetTrendingPeopleAsync(string timeWindow = "week") => GetTrendingAsync<Person>("person", TryParsePerson, timeWindow);
         public IAsyncEnumerable<Item> GetPopularPeopleAsync() => FlattenPages<Person>(API.PEOPLE.GET_POPULAR, TryParsePerson);
 
-        public static JsonExtensions.ICache ResponseCache;
+        public IJsonCache ResponseCache { get; set; }
 
-        public static string GetURL(TMDbRequest request, params string[] parameters) => request.GetURL(null, null, false, parameters);
-        public HttpRequestMessage GetMessage(TMDbRequest request) => request.GetMessage(Auth, LANGUAGE, REGION);
+        private readonly IJsonParser<IEnumerable<Genre>> GENRE_VALUES_PARSER = new JsonPropertyParser<IEnumerable<Genre>>("genres", GENRES_PARSER);
+        private readonly IJsonParser<IEnumerable<string>> CERTIFICATION_VALUES_PARSER = new JsonNodeParser<IEnumerable<string>>(TryParseCertifications);
+        private static readonly IJsonParser<IEnumerable<WatchProvider>> PROVIDER_PARSER = new JsonPropertyParser<IEnumerable<WatchProvider>>("results", new JsonNodeParser<IEnumerable<WatchProvider>>(TryParseWatchProviders));
 
-        private static readonly IJsonParser<WatchProvider> PROVIDER_PARSER = new JsonNodeParser<WatchProvider>(TryParseWatchProvider);
+        public Task GetPropertyValues { get; }
 
         private Task InitValues() => Task.WhenAll(new Task[]
         {
-            SetValues(Movie.GENRES, API.GENRES.GET_MOVIE_LIST, GENRES_PARSER),
-            SetValues(TVShow.GENRES, API.GENRES.GET_TV_LIST, GENRES_PARSER),
-            SetValues(Movie.CONTENT_RATING, API.CERTIFICATIONS.GET_MOVIE_CERTIFICATIONS, new JsonNodeParser<IEnumerable<string>>(TryParseCertifications)),
+            SetValues(Movie.GENRES, API.GENRES.GET_MOVIE_LIST, GENRE_VALUES_PARSER),
+            SetValues(TVShow.GENRES, API.GENRES.GET_TV_LIST, GENRE_VALUES_PARSER),
+            SetValues(Movie.CONTENT_RATING, API.CERTIFICATIONS.GET_MOVIE_CERTIFICATIONS, CERTIFICATION_VALUES_PARSER),
+            SetValues(TVShow.CONTENT_RATING, API.CERTIFICATIONS.GET_TV_CERTIFICATIONS, CERTIFICATION_VALUES_PARSER),
             SetValues(Movie.WATCH_PROVIDERS, API.WATCH_PROVIDERS.GET_MOVIE_PROVIDERS, PROVIDER_PARSER),
             SetValues(TVShow.WATCH_PROVIDERS, API.WATCH_PROVIDERS.GET_TV_PROVIDERS, PROVIDER_PARSER),
         });
 
-        private Task SetValues<T>(Property<T> property, TMDbRequest request, IJsonParser<T> parser) => SetValues(property, request, new JsonArrayParser<T>(parser));
+        //private Task SetValues<T>(Property<T> property, TMDbRequest request, IJsonParser<T> parser) => SetValues(property, request, new JsonArrayParser<T>(parser));
         private async Task SetValues<T>(Property<T> property, TMDbRequest request, IJsonParser<IEnumerable<T>> parser)
         {
             if (property.Values is ICollection<T> list)
             {
                 //var apiCall = new ApiCall<IEnumerable<T>>(endpoint, new JsonArrayParser<T>(parser));
 
-                var response = await WebClient.TryGetCachedAsync(GetMessage(request), ResponseCache);
+                var response = await WebClient.TryGetCachedAsync(request.GetURL(), ResponseCache);
 
                 if (JsonParser.TryParse(response.Json, parser, out var values))
                 {
@@ -461,17 +458,30 @@ namespace Movies
         {
             if (json.TryGetValue("certifications", out json))
             {
-                if (json.TryGetValue(region, out JsonArray array) && new JsonArrayParser<string>(new JsonPropertyParser<string>("certification")).TryGetValue(array, out certifications))
+                if (json.TryGetValue(region, out JsonArray array))
                 {
-                    return true;
+                    array = new JsonArray(array.OrderBy(json => json["order"]?.TryGetValue<int>() ?? int.MaxValue).Select(json => JsonNode.Parse(json.ToJsonString())).ToArray());
+                    return new JsonArrayParser<string>(new JsonPropertyParser<string>("certification")).TryGetValue(array, out certifications);
                 }
-                else
+                else if (region != "US")
                 {
                     return TryParseCertifications(json, "US", out certifications);
                 }
             }
 
             certifications = null;
+            return false;
+        }
+
+        private static bool TryParseWatchProviders(JsonNode json, out IEnumerable<WatchProvider> providers)
+        {
+            if (json is JsonArray array)
+            {
+                array = new JsonArray(array.OrderBy(json => json["display_priority"]?.TryGetValue<int>() ?? int.MaxValue).Select(json => JsonNode.Parse(json.ToJsonString())).ToArray());
+                return new JsonArrayParser<WatchProvider>(new JsonNodeParser<WatchProvider>(TryParseWatchProvider)).TryGetValue(array, out providers);
+            }
+
+            providers = null;
             return false;
         }
 
@@ -533,22 +543,47 @@ namespace Movies
 
         Task<Item> IAssignID<int>.GetItem(ItemType type, int id) => GetItem(type, id);
 
+        private static Dictionary<int, Collection> CollectionCache = new Dictionary<int, Collection>();
+        private static readonly SemaphoreSlim CollectionCacheSemaphore = new SemaphoreSlim(1, 1);
+
+        public static async Task<Collection> GetCollection(int id)
+        {
+            Collection cached = null;
+
+            await CollectionCacheSemaphore.WaitAsync();
+            CollectionCache.TryGetValue(id, out cached);
+            CollectionCacheSemaphore.Release();
+
+            if (cached != null)
+            {
+                return cached;
+            }
+
+            var url = string.Format(API.COLLECTIONS.GET_DETAILS.GetURL(), id);
+            var response = await WebClient.TryGetAsync(url);
+
+            if (response?.IsSuccessStatusCode == true)
+            {
+                var json = JsonNode.Parse(await response.Content.ReadAsStringAsync());
+
+                if (TryParseCollection(json, out var collection))
+                {
+                    await CollectionCacheSemaphore.WaitAsync();
+                    CollectionCache[id] = collection;
+                    CollectionCacheSemaphore.Release();
+                    
+                    return collection;
+                }
+            }
+
+            return null;
+        }
+
         public static async Task<Item> GetItem(ItemType type, int id)
         {
             if (type == ItemType.Collection)
             {
-                var url = string.Format(API.COLLECTIONS.GET_DETAILS.GetURL(), id);
-                var response = await WebClient.TryGetAsync(url);
-
-                if (response?.IsSuccessStatusCode == true)
-                {
-                    var json = JsonNode.Parse(await response.Content.ReadAsStringAsync());
-
-                    if (TryParseCollection(json, out var collection))
-                    {
-                        return collection;
-                    }
-                }
+                return await GetCollection(id);
             }
             else if (ITEM_PROPERTIES.TryGetValue(type, out var properties))
             {

@@ -5,10 +5,85 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Threading.Tasks;
 
 namespace Movies
 {
-    public class PredicateConverter : JsonConverter<OperatorPredicate>
+    public class AppPropertiesCache : IJsonCache
+    {
+        public Xamarin.Forms.Application Application { get; }
+
+        public AppPropertiesCache(Xamarin.Forms.Application application)
+        {
+            Application = application;
+        }
+
+        public Task AddAsync(string url, JsonResponse response)
+        {
+            Application.Properties[url] = JsonSerializer.Serialize(response);
+            return Application.SavePropertiesAsync();
+        }
+
+        public Task<JsonResponse> TryGetValueAsync(string url)
+        {
+            if (Application.Properties.TryGetValue(url, out var value) && value is string cached)
+            {
+                try
+                {
+                    return Task.FromResult(JsonSerializer.Deserialize<JsonResponse>(cached));
+                }
+                catch { }
+            }
+
+            return null;
+        }
+    }
+
+    public abstract class ReadOnlyJsonConverter<T> : JsonConverter<T>
+    {
+        public JsonSerializerOptions GetOptions(JsonSerializerOptions original, Func<JsonConverter, bool> predicate)
+        {
+            var options = new JsonSerializerOptions(original);
+
+            for (int i = 0; i < options.Converters.Count; i++)
+            {
+                if (!predicate(options.Converters[i]))
+                {
+                    options.Converters.RemoveAt(i--);
+                }
+            }
+            
+            return options;
+        }
+
+        public override void Write(Utf8JsonWriter writer, T value, JsonSerializerOptions options) => writer.WriteRawValue(JsonSerializer.Serialize(value, GetOptions(options, converter => converter != this)));
+    }
+
+    public class ItemTypeConverter : ReadOnlyJsonConverter<Type>
+    {
+        public static readonly Type[] Types = new Type[]
+        {
+            typeof(Movie),
+            typeof(TVShow),
+            typeof(TVSeason),
+            typeof(TVEpisode),
+            typeof(Person),
+            typeof(Collection),
+            typeof(List),
+        };
+
+        public override bool CanConvert(Type typeToConvert) => typeof(Type).IsAssignableFrom(typeToConvert);
+
+        public override Type Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            var value = reader.GetString();
+            return Types.FirstOrDefault(type => type.ToString() == value) ?? throw new NotSupportedException();
+        }
+
+        public override void Write(Utf8JsonWriter writer, Type value, JsonSerializerOptions options) => writer.WriteStringValue(value.ToString());
+    }
+
+    public class PredicateConverter : ReadOnlyJsonConverter<OperatorPredicate>
     {
         public override OperatorPredicate Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         {
@@ -21,23 +96,42 @@ namespace Movies
                 //opElement.TryGetInt32(out var op) &&
                 root.TryGetProperty(nameof(OperatorPredicate.RHS), out var rhsNode))
             {
+                if (name == CollectionViewModel.ITEM_TYPE)
+                {
+                    return new OperatorPredicate
+                    {
+                        LHS = name,
+                        Operator = (Operators)op,
+                        RHS = rhsNode.Deserialize<Type>(options)
+                    };
+                }
+
                 var propertyConverter = options.Converters.OfType<PropertyConverter>().FirstOrDefault();
 
                 if (propertyConverter == null)
                 {
                     return null;
                 }
-                
-                foreach (var property in propertyConverter.Properties.Where(property => property.Name == name))
+
+                var properties = propertyConverter.Properties.Where(property => property.Name == name).ToArray();
+
+                for (int i = 0; i < properties.Length; i++)
                 {
+                    var property = properties[i];
+
                     try
                     {
-                        return new OperatorPredicate
+                        var rhs = rhsNode.Deserialize(property.Type, options);
+
+                        if (i == properties.Length - 1 || property?.Values.OfType<object>().Contains(rhs) == true)
                         {
-                            LHS = property,
-                            Operator = (Operators)op,
-                            RHS = rhsNode.Deserialize(property.Type, options)
-                        };
+                            return new OperatorPredicate
+                            {
+                                LHS = property,
+                                Operator = (Operators)op,
+                                RHS = rhs
+                            };
+                        }
                     }
                     catch { }
                 }
@@ -71,23 +165,6 @@ namespace Movies
 
             }
         }*/
-
-        public JsonSerializerOptions GetOptions(JsonSerializerOptions original, Func<JsonConverter, bool> predicate)
-        {
-            var options = new JsonSerializerOptions(original);
-
-            for (int i = 0; i < options.Converters.Count; i++)
-            {
-                if (predicate(options.Converters[i]))
-                {
-                    options.Converters.RemoveAt(i--);
-                }
-            }
-
-            return options;
-        }
-
-        public override void Write(Utf8JsonWriter writer, OperatorPredicate value, JsonSerializerOptions options) => writer.WriteRawValue(JsonSerializer.Serialize(value, GetOptions(options, option => !(option is PredicateConverter))));
     }
 
     public class PropertyConverter : JsonConverter<Property>
@@ -106,7 +183,8 @@ namespace Movies
             var properties = new List<Property>
             {
                 CollectionViewModel.People,
-                CollectionViewModel.MonetizationType
+                CollectionViewModel.MonetizationType,
+                TMDB.SCORE
             };
 
             foreach (var type in types)

@@ -43,6 +43,15 @@ namespace Movies.ViewModels
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => Convert(value, targetType, parameter, culture);
     }
 
+    public class DoubleToIntConverter : IValueConverter
+    {
+        public static readonly DoubleToIntConverter Instance = new DoubleToIntConverter();
+
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture) => value is int l ? (double)l : value;
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => value is double d ? (int)d : value;
+    }
+
     public class DoubleToLongConverter : IValueConverter
     {
         public static readonly DoubleToLongConverter Instance = new DoubleToLongConverter();
@@ -50,6 +59,15 @@ namespace Movies.ViewModels
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture) => value is long l ? (double)l : value;
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => value is double d ? (long)d : value;
+    }
+
+    public class ObjectToDoubleConverter : IValueConverter
+    {
+        public static readonly ObjectToDoubleConverter Instance = new ObjectToDoubleConverter();
+
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture) => value is double d ? d : value;
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => value is double d ? d : value;
     }
 
     public class TreeNodeTemplateSelector<T> : DataTemplateSelector
@@ -149,17 +167,48 @@ namespace Movies.ViewModels
         public Operators DefaultOperator { get; set; } = Operators.Equal;
         public object DefaultRHS { get; set; }
 
-        public override IPredicateBuilder CreateNew() => new PropertyPredicateBuilder
+        public override void Reset()
         {
-            LHS = DefaultLHS,
-            Operator = DefaultOperator,
-            RHS = DefaultRHS
-        };
+            if (Selected.Value is OperatorPredicateBuilder builder)
+            {
+                Reset(builder);
+            }
+            else //if (Selected.Value is ExpressionBuilder expression)
+            {
+                var items = Selected.Children;
+                var remove = new List<ObservableNode<object>>();
+
+                foreach (var item in items)
+                {
+                    if (item.Value is OperatorPredicateBuilder temp && LHSOptions.OfType<object>().Contains(temp.LHS))
+                    {
+                        remove.Add(item);
+                    }
+                }
+
+                Selected.Remove(remove.ToArray());
+            }
+        }
+
+        private void Reset(OperatorPredicateBuilder builder)
+        {
+            builder.LHS = DefaultLHS;
+            builder.Operator = DefaultOperator;
+            builder.RHS = DefaultRHS;
+        }
+
+        public override IPredicateBuilder CreateNew()
+        {
+            var builder = new PropertyPredicateBuilder();
+            Reset(builder);
+            return builder;
+        }
     }
 
     public class PropertyEditorFilter : MultiEditor
     {
         public IEnumerable<Type> Types { get; }
+        public Editor TypeSelector { get; }
         public List<Editor> Defaults { get; set; } = new List<Editor>();
 
         public FilterListViewModel<Editor> Filter { get; }
@@ -193,8 +242,9 @@ namespace Movies.ViewModels
             }
 
             //var typeEditor = new Editor<T>(new PropertyTemplate<T>(new Property<Type>("Types", types)));
-            var typeEditor = new OperatorEditor
+            TypeSelector = new OperatorEditor
             {
+                DefaultLHS = CollectionViewModel.ITEM_TYPE,
                 RHSOptions = types
             };
 
@@ -205,7 +255,7 @@ namespace Movies.ViewModels
             };*/
             //_ = editorFilter.LoadMore(int.MaxValue);
 
-            Add(typeEditor);
+            Add(TypeSelector);
             Add(editor);
         }
 

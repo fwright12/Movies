@@ -107,10 +107,26 @@ namespace System.Linq.Async
     }
 }
 
+#if true
 namespace Movies
 {
     public partial class TMDB
     {
+#if DEBUG
+        private TMDbClient Client
+        {
+            get
+            {
+                Print.Log("accessing Client");
+                return _Client;
+            }
+            set => _Client = value;
+        }
+        private TMDbClient _Client = TMDbClient.Create();
+#else
+        private TMDbClient Client;
+#endif
+
         private static string BuildVideoURL(Video video) => BuildVideoURL(video.Site, video.Key);
 
         private static string GetCacheKey(SearchMovie movie) => GetCacheKey<Models.Movie>(movie.Id);
@@ -999,7 +1015,7 @@ namespace Movies
             }
         }
 
-        public IAsyncEnumerable<Models.Item> GetCollectionItems(Models.Item item, int id)
+        public IAsyncEnumerable<Models.Item> GetCollectionItems1(Models.Item item, int id)
         {
             if (item is Models.TVShow show)
             {
@@ -1318,3 +1334,4 @@ namespace Movies
         }
     }
 }
+#endif

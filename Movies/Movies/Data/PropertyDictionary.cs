@@ -46,12 +46,68 @@ namespace Movies
 
         private Dictionary<Property, IList<object>> Properties = new Dictionary<Property, IList<object>>();
 
+        public void AddProperty<T>(Property<T> property) => AddProperty((Property)property);
+        private IList<object> AddProperty(Property property)
+        {
+            if (!Properties.TryGetValue(property, out var values))
+            {
+                Properties.Add(property, values = new List<object>());
+                PropertyAdded?.Invoke(this, new PropertyEventArgs(property));
+            }
+
+            return values;
+        }
+
+        public void Add<T>(Property<T> key, Task<T> value) => Add((Property)key, value);
+        public void Add<T>(MultiProperty<T> key, Task<IEnumerable<T>> value) => Add((Property)key, value);
+
+        public void Add(PropertyValuePair pair)
+        {
+            Add(pair.Property, pair.Value);
+        }
+
+        public void Add(PropertyDictionary dict)
+        {
+            foreach (var kvp in dict.Properties)
+            {
+                Properties.TryAdd(kvp.Key, kvp.Value);
+            }
+        }
+
+        private void Add(Property property, object value)
+        {
+            if (!Properties.TryGetValue(property, out var values))
+            {
+                Properties.Add(property, values = new List<object>());
+            }
+
+            values.Add(value);
+        }
+
         public bool TryGetValue(Property key, out Task<object> value) => TryGetSingle(key, out value);
         public bool TryGetValue<T>(Property<T> key, out Task<T> value) => TryGetSingle(key, out value);
+        public bool TryGetValue<T>(MultiProperty<T> key, out Task<IEnumerable<T>> value) => TryGetMultiple(key, out value);
 
-        public Task<IEnumerable<T>> GetMultiple<T>(Property<T> key, string source = null) => TryGetMultiple(key, out Task<IEnumerable<T>> result, source) ? result : Task.FromResult(Enumerable.Empty<T>());
+        //public Task<IEnumerable<T>> GetMultiple<T>(Property<T> key, string source = null) => TryGetMultiple(key, out Task<IEnumerable<T>> result, source) ? result : Task.FromResult(Enumerable.Empty<T>());
 
-        public Task<T> GetSingle<T>(Property<T> key, string source = null) => TryGetSingle(key, out Task<T> result, source) ? result : Task.FromResult<T>(default);
+        //public Task<T> GetSingle<T>(Property<T> key, string source = null) => TryGetSingle(key, out Task<T> result, source) ? result : Task.FromResult<T>(default);
+
+        private bool TryGetSingle<T>(Property key, out Task<T> result, string source = null)
+        {
+            var values = AddProperty(key);
+
+            foreach (var value in values)
+            {
+                if (TryCastTask<T>(value, out var temp))
+                {
+                    result = temp;
+                    return true;
+                }
+            }
+
+            result = null;
+            return false;
+        }
 
         private bool TryGetMultiple<T>(Property key, out Task<IEnumerable<T>> result, string source = null)
         {
@@ -92,23 +148,6 @@ namespace Movies
             return values;
         }
 
-        private bool TryGetSingle<T>(Property key, out Task<T> result, string source = null)
-        {
-            var values = AddProperty(key);
-
-            foreach (var value in values)
-            {
-                if (TryCastTask<T>(value, out var temp))
-                {
-                    result = temp;
-                    return true;
-                }
-            }
-
-            result = null;
-            return false;
-        }
-
         private bool TryCastTask<T>(object untyped, out Task<T> typed)
         {
             if (untyped is Task<T> task)
@@ -131,44 +170,6 @@ namespace Movies
         }
 
         private async Task<T> CastTask<T>(Task task) => (T)await (dynamic)task;
-
-        public void AddProperty<T>(Property<T> property) => AddProperty((Property)property);
-        private IList<object> AddProperty(Property property)
-        {
-            if (!Properties.TryGetValue(property, out var values))
-            {
-                Properties.Add(property, values = new List<object>());
-                PropertyAdded?.Invoke(this, new PropertyEventArgs(property));
-            }
-
-            return values;
-        }
-
-        public void Add<T>(Property<T> key, Task<T> value) => Add((Property)key, value);
-        public void Add<T>(MultiProperty<T> key, Task<IEnumerable<T>> value) => Add((Property)key, value);
-
-        public void Add(PropertyValuePair pair)
-        {
-            Add(pair.Property, pair.Value);
-        }
-
-        public void Add(PropertyDictionary dict)
-        {
-            foreach (var kvp in dict.Properties)
-            {
-                Properties.TryAdd(kvp.Key, kvp.Value);
-            }
-        }
-
-        private void Add(Property property, object value)
-        {
-            if (!Properties.TryGetValue(property, out var values))
-            {
-                Properties.Add(property, values = new List<object>());
-            }
-
-            values.Add(value);
-        }
 
         public IEnumerator<PropertyValuePair> GetEnumerator()
         {

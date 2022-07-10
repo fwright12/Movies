@@ -87,7 +87,7 @@ namespace Movies
                     show.PosterPath = BuildImageURL(poster_path, POSTER_SIZE);
                 }
 
-                show.Items = GetJsonCollectionItems(show, id, json);
+                show.Items = GetCollectionItems(show, id, json);
 
                 return true;
             }
@@ -116,7 +116,7 @@ namespace Movies
                     season.PosterPath = BuildImageURL(poster_path, POSTER_SIZE);
                 }
 
-                season.Items = GetJsonCollectionItems(season, id, json);
+                season.Items = GetCollectionItems(season, id, json);
 
                 return true;
             }
@@ -156,7 +156,7 @@ namespace Movies
                     collection.PosterPath = BuildImageURL(poster_path, POSTER_SIZE);
                 }
 
-                collection.Items = GetJsonCollectionItems(collection, id, json);
+                collection.Items = GetCollectionItems(collection, id, json);
 
                 return true;
             }
@@ -165,37 +165,39 @@ namespace Movies
             return false;
         }
 
-        public IAsyncEnumerable<Item> GetJsonCollectionItems(Item item, int id) => GetJsonCollectionItems(item, id, null);
-        private static IAsyncEnumerable<Item> GetJsonCollectionItems(Item item, int id, JsonNode json)
+        public IAsyncEnumerable<Item> GetCollectionItems(Item item, int id) => GetCollectionItems(item, id, null);
+        private static IAsyncEnumerable<Item> GetCollectionItems(Item item, int id, JsonNode json)
         {
             if (item is TVShow show)
             {
                 return GetTVItems(show, TVShow.SEASONS);
-                var request = string.Format(API.TV.GET_DETAILS.GetURL(), id);
-                return GetJsonCollectionItems(request, "seasons", (JsonNode node, out TVSeason temp) => TryParseTVSeason(node, show, out temp), json);
-
-                //return new Items<Item>(GetCollectionItems(async () => (TvShow)await ConstructTVShowInfoRequest(show => show)(new object[] { id }), show => show.Seasons, season => GetItem(season, show), GetCacheKey<Models.TVShow>(id), season => GetCacheKey<Models.TVSeason>(season.Id)));
             }
             else if (item is TVSeason season)
             {
                 return GetTVItems(season, TVSeason.EPISODES);
-                var request = string.Format(API.TV_SEASONS.GET_DETAILS.GetURL(), id, season.SeasonNumber);
-                return GetJsonCollectionItems(request, "episodes", (JsonNode node, out TVEpisode temp) => TryParseTVEpisode(node, season, out temp), json);
             }
             else if (item is Collection collection)
             {
-                var request = string.Format(API.COLLECTIONS.GET_DETAILS.GetURL(), id);
-                return GetJsonCollectionItems<Movie>(request, "parts", TryParseMovie, json);
-
-                /*return new Items<Models.Item>(GetCollectionItems(() => Client.GetCollectionAsync(id), collection1 =>
+                if (json?.TryGetValue("parts", out IEnumerable<JsonNode> cached) == true)
                 {
-                    collection.PosterPath = BuildImageURL(collection1.PosterPath, POSTER_SIZE);
-                    return collection1.Parts;
-                }, GetItem, GetCacheKey<Models.Collection>(id), GetCacheKey));*/
+                    return AsAsync(ParseCollection(cached, new JsonNodeParser<Movie>(TryParseMovie)));
+                }
+
+                //var request = string.Format(API.COLLECTIONS.GET_DETAILS.GetURL(), id);
+                //return GetJsonCollectionItems<Movie>(request, "parts", TryParseMovie, json);
             }
             else
             {
                 return Empty<Item>();
+            }
+
+            return GetCollectionItems(item.ItemType, id);
+        }
+        private static async IAsyncEnumerable<Item> GetCollectionItems(ItemType type, int id)
+        {
+            await foreach (var item in (await GetItem(type, id) as Collection))
+            {
+                yield return item;
             }
         }
 
@@ -220,35 +222,44 @@ namespace Movies
             public bool TryGetValue(JsonNode json, out IEnumerable<TChild> value) => TryParseCollection(json, new JsonPropertyParser<IEnumerable<JsonNode>>(Property), out value, new JsonNodeParser<TChild>((JsonNode json, out TChild result) => Parse(json, (TParent)Parent, out result)));
         }
 
-        private static async IAsyncEnumerable<T> GetTVItems<T>(Item tv, Property<T> property)
+        private class CollectionParser : Parser<Collection>
         {
-            foreach (var item in await Data.GetDetails(tv).GetMultiple(property))
+            public CollectionParser(Property<Collection> property) : base(property, new JsonNodeParser<Collection>(TryParseCollection)) { }
+
+            public override PropertyValuePair GetPair(Task<JsonNode> json) => new PropertyValuePair<Collection>((Property<Collection>)Property, FullCollectionDetails(json));
+
+            private async Task<Collection> FullCollectionDetails(Task<JsonNode> task)
             {
-                yield return item;
+                var json = await task;
+
+                if (json.TryGetValue("id", out int id))
+                {
+                    return await GetCollection(id);
+                }
+
+                return null;
             }
         }
 
-        private static async IAsyncEnumerable<T> GetJsonCollectionItems<T>(TMDbRequest request, string collectionProperty, System.Linq.Async.Enumerable.TryParseFunc<JsonNode, T> parse, JsonNode json)
+        private static async IAsyncEnumerable<T> GetTVItems<T>(Item tv, MultiProperty<T> property)
         {
-            //return Unwrap(() => GetItemsAsync(request, parser, json));
-
-            var parseItems = new JsonPropertyParser<IEnumerable<JsonNode>>(collectionProperty);
-            var jsonParser = new JsonNodeParser<T>(parse);
-            IEnumerable<T> items;
-
-            if (json != null && parseItems.TryGetValue(json, out var cached))
+            if (Data.GetDetails(tv).TryGetValue(property, out var items))
             {
-                items = ParseCollection(cached, jsonParser);
+                foreach (var item in await items)
+                {
+                    yield return item;
+                }
             }
-            else
+        }
+
+        private static async IAsyncEnumerable<T> AsAsync<T>(IEnumerable<T> items)
+        {
+            foreach (var item in items)
             {
-                items = await Request(request, parseItems, jsonParser);
+                yield return item;
             }
 
-            foreach (var temp in items)
-            {
-                yield return temp;
-            }
+            await Task.CompletedTask;
         }
 
         public static string ParseMovieCertification(JsonNode json)
@@ -421,7 +432,7 @@ namespace Movies
         public static Company ParseCompany(JsonNode json) => new Company
         {
             Name = json["name"]?.TryGetValue<string>(),
-            LogoPath = json["logo_path"].TryGetValue<string>()
+            LogoPath = BuildImageURL(json["logo_path"].TryGetValue<string>(), LOGO_SIZE)
         };
 
         private static readonly Dictionary<string, MonetizationType> MonetizationTypeMap = new Dictionary<string, MonetizationType>
@@ -464,7 +475,7 @@ namespace Movies
                     Company = new Company
                     {
                         Name = json["provider_name"]?.TryGetValue<string>(),
-                        LogoPath = json["logo_path"]?.TryGetValue<string>(),
+                        LogoPath = BuildImageURL(json["logo_path"]?.TryGetValue<string>(), STREAMING_LOGO_SIZE),
                     },
                 };
                 return true;

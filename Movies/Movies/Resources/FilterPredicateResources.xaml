@@ -11,7 +11,8 @@
                     xmlns:forms="clr-namespace:Xamarin.Forms;assembly=Xamarin.Forms.Extensions"
                     x:Class="Movies.FilterPredicateResources">
     <Style x:Key="DefaultComparisonStyle"
-           TargetType="Label">
+           TargetType="Label"
+           CanCascade="True">
         <Style.Triggers>
             <DataTrigger TargetType="Label"
                          Binding="{Binding}"
@@ -37,7 +38,8 @@
     </Style>
 
     <Style x:Key="DateTimeComparisonStyle"
-           TargetType="Label">
+           TargetType="Label"
+           CanCascade="True">
         <Style.Triggers>
             <DataTrigger TargetType="Label"
                          Binding="{Binding}"

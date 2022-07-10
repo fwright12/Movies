@@ -17,9 +17,9 @@ namespace Movies.ViewModels
     {
         public static readonly SingleItemListConverter Instance = new SingleItemListConverter();
 
-        public object Convert(object value, Type targetType, object parameter, CultureInfo culture) => new List<object> { value.ToString() };
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture) => new List<object> { value };
 
-        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => value is IList list && list.Count > 0 && Enum.TryParse(typeof(ListLayouts), list[0].ToString(), out var result) ? result : value;
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => value is IList list && list.Count == 1 ? list[0] : null;
     }
 
     public enum ListLayouts { Grid, List }
@@ -63,7 +63,7 @@ namespace Movies.ViewModels
         }
         private ListLayouts _ListLayout;
 
-        public Collection List => (Collection)Item;
+        public Collection List => Item as Collection;
         public int? Count
         {
             get
@@ -114,6 +114,7 @@ namespace Movies.ViewModels
 
         //public static readonly Type TimeSpanPropertyType = typeof(Property<TimeSpan>);
 
+        public static readonly string ITEM_TYPE = nameof(object.GetType);
         public static readonly Property<MonetizationType?> MonetizationType = new Property<MonetizationType?>("Monetization Type", GetNames<MonetizationType>());
         public static readonly Property<PersonViewModel> People = new Property<PersonViewModel>("People", new FilterListViewModel<PersonViewModel>(new PeopleSearch())
         {
@@ -140,22 +141,16 @@ namespace Movies.ViewModels
         public FilterListViewModel<object> Source { get; }
 
         public ICommand UpdateDetails { get; }
-        public IList SortOptions { get; set; }
-        public string SortBy
+
+        public bool SortAscending => List?.SortAscending ?? false;
+        public IList<Property> SortOptions { get; set; }
+        public Property SortBy
         {
             get => _SortBy;
-            set
-            {
-                if (value != _SortBy)
-                {
-                    _SortBy = value;
-                    UpdateFilters(this, new EventArgs());
-                    OnPropertyChanged(nameof(SortBy));
-                }
-            }
+            set => UpdateValue(ref _SortBy, value);
         }
-        private string _SortBy;
-        public bool SortAscending { get; private set; } = false;
+        private Property _SortBy;
+
         public bool Loading
         {
             get => _Loading;
@@ -183,10 +178,11 @@ namespace Movies.ViewModels
         public static readonly Predicate<object> GreaterThanOnePredicate = value => value is int i && i > 1;
 
         private OperatorEditor GetComparableEditor(params Property[] properties) => GetComparableEditor(properties.FirstOrDefault()?.Values.OfType<object>().FirstOrDefault(), properties);
-        private OperatorEditor GetComparableEditor(object defaultValue, params Property[] properties) => GetEditor(properties, defaultValue, Operators.GreaterThan, Operators.Equal, Operators.LessThan);
-        private OperatorEditor GetEqualityEditor(params Property[] properties) => GetEditor(properties, null, Operators.Equal);
+        private OperatorEditor GetComparableEditor(object defaultValue, params Property[] properties) => GetEditor(properties, defaultValue, null, Operators.GreaterThan, Operators.Equal, Operators.LessThan);
+        private OperatorEditor GetEqualityEditor(params Property[] properties) => GetEqualityEditor(null, properties);
+        private OperatorEditor GetEqualityEditor(ObservableNode<object> selected, params Property[] properties) => GetEditor(properties, null, selected, Operators.Equal);
 
-        private OperatorEditor GetEditor(IEnumerable<Property> properties, object defaultValue, params Operators[] operators)
+        private OperatorEditor GetEditor(IEnumerable<Property> properties, object defaultValue, ObservableNode<object> selected, params Operators[] operators)
         {
             var editor = new OperatorEditor
             {
@@ -198,7 +194,14 @@ namespace Movies.ViewModels
                 DefaultRHS = defaultValue
             };
 
-            editor.AddNew();
+            if (selected != null)
+            {
+                editor.Select(selected);
+            }
+            else
+            {
+                editor.AddNew();
+            }
 
             return editor;
         }
@@ -251,11 +254,11 @@ namespace Movies.ViewModels
 
             if (allowedTypes.HasValue)
             {
-                if (Movie.WATCH_PROVIDERS.Values is IList list)
+                /*if (Movie.WATCH_PROVIDERS.Values is IList list)
                 {
                     list.Clear();
                     list.Add(MockData.NetflixStreaming);
-                }
+                }*/
 
                 var types = new Type[]
                 {
@@ -263,37 +266,49 @@ namespace Movies.ViewModels
                     typeof(TVShow),
                     typeof(Person),
                     typeof(Collection),
-                    //typeof(TVShow),
                 };
+
+                var predicate = new ExpressionBuilder();
+                var wrapper = new ItemWrapper(items, this);
+                Source = new FilterListViewModel<object>(wrapper)
+                {
+                    Predicate = predicate
+                };
+
                 var editor = new MultiEditor//(types)
                 {
                     GetComparableEditor(new DateTime(1900, 1, 1), Movie.RELEASE_DATE),
                     GetComparableEditor(Media.RUNTIME),
-                    GetEqualityEditor(Movie.CONTENT_RATING, TVShow.CONTENT_RATING),
-                    GetEqualityEditor(Movie.GENRES, TVShow.GENRES),
-                    GetEqualityEditor(Movie.WATCH_PROVIDERS, TVShow.WATCH_PROVIDERS),
-                    GetEqualityEditor(MonetizationType),
+                    GetEqualityEditor(Movie.CONTENT_RATING),// TVShow.CONTENT_RATING),
+                    GetEqualityEditor(predicate.Root, Movie.GENRES, TVShow.GENRES),
+                    GetComparableEditor(TMDB.SCORE),
+                    GetEqualityEditor(predicate.Root, Movie.WATCH_PROVIDERS, TVShow.WATCH_PROVIDERS),
+                    GetEqualityEditor(predicate.Root, MonetizationType),
                     GetEqualityEditor(People),
                     //GetComparableEditor(Movie.BUDGET),
                     //GetComparableEditor(Movie.REVENUE),
                     GetEqualityEditor(Media.KEYWORDS),
                 };
-                editor = new PropertyEditorFilter(editor, types);
 
-                var wrapper = new ItemWrapper(items, this);
-                Source = new FilterListViewModel<object>(wrapper)
-                {
-                    Predicate = new ExpressionBuilder
-                    {
-                        Editor = editor
-                    },
-                };
+                var propertyEditor = new PropertyEditorFilter(editor, types);
+                propertyEditor.TypeSelector.Select(predicate.Root);
+
+                predicate.Editor = propertyEditor;
 
                 Items = Source.Items;
                 LazyLoadMoreCommand = new Lazy<ICommand>(() =>
                 {
                     return Source.LoadMoreCommand;
                 });
+
+                PropertyChanged += (sender, e) =>
+                {
+                    if (e.PropertyName == nameof(SortBy))
+                    {
+                        List.SortBy = SortBy;
+                        Refresh();
+                    }
+                };
 
                 var itemType = new ItemTypeFilterViewModel(allowedTypes ?? ItemType.Movie | ItemType.TVShow);
 
@@ -308,21 +323,15 @@ namespace Movies.ViewModels
 
                 ToggleSortOrder = new Command(() =>
                 {
-                    SortAscending = !SortAscending;
+                    List.SortAscending = !List.SortAscending;
                     OnPropertyChanged(nameof(SortAscending));
+                    Refresh();
                 });
 
                 foreach (FilterViewModel model in Filters)
                 {
                     model.ValueChanged += UpdateFilters;
                 }
-                PropertyChanged += (sender, e) =>
-                {
-                    if (e.PropertyName == nameof(SortAscending))
-                    {
-                        UpdateFilters(this, EventArgs.Empty);
-                    }
-                };
             }
 
             ((INotifyCollectionChanged)Items).CollectionChanged += (sender, e) => OnPropertyChanged(nameof(Count));
@@ -377,6 +386,8 @@ namespace Movies.ViewModels
             Itr = items.GetAsyncEnumerator();
             _ = Load(10);
         }
+
+        private void Refresh() => Source.Refresh();
 
         private static async IAsyncEnumerable<T> Where<T>(IAsyncEnumerable<T> source, Func<T, bool> predicate)
         {

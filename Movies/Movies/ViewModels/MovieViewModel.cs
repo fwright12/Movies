@@ -7,9 +7,9 @@ namespace Movies.ViewModels
 {
     public class MovieViewModel : MediaViewModel<Movie>
     {
-        public DateTime? Year => RequestValue(Movie.RELEASE_DATE);
-        public long? Budget => RequestValue(Movie.BUDGET);
-        public long? Revenue => RequestValue(Movie.REVENUE);
+        public DateTime? Year => TryRequestValue(Movie.RELEASE_DATE, out var year) ? year : (DateTime?)null;
+        public long? Budget => TryRequestValue(Movie.BUDGET, out var budget) ? budget : (long?)null;
+        public long? Revenue => TryRequestValue(Movie.REVENUE, out var revenue) ? revenue : (long?)null;
         public CollectionViewModel ParentCollection => _ParentCollection ??= (RequestValue(Movie.PARENT_COLLECTION) is Collection collection ? new CollectionViewModel(DataManager, collection) : null);
 
         protected override Property<string> ContentRatingProperty => Movie.CONTENT_RATING;

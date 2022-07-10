@@ -262,9 +262,32 @@ namespace Movies
     public partial class TMDB
     {
         public static readonly Property<double> POPULARITY = new Property<double>("TMDb Popularity");
+        public static readonly Property SCORE = new Property<double>("Score", new SteppedValueRange
+        {
+            First = 0.0,
+            Last = 10.0,
+            Step = 0.1
+        }) // typeof(Rating).GetProperty(nameof(Rating.Score)))
+        {
+            Parent = Media.RATING
+        };
+        public static readonly Property VOTE_COUNT = new ReflectedProperty("Vote Count", typeof(Rating).GetProperty(nameof(Rating.TotalVotes)))
+        {
+            Parent = Media.RATING
+        };
 
         private static readonly Dictionary<Property, Dictionary<Operators, Parameter>> DiscoverMediaParameters = new Dictionary<Property, Dictionary<Operators, Parameter>>
         {
+            /*["Vote Count"] = new Dictionary<int, string>
+            {
+                [-1] = "vote_count.lte",
+                [1] = "vote_count.gte"
+            },*/
+            [SCORE] = new Dictionary<Operators, Parameter>
+            {
+                [Operators.LessThan] = "vote_average.lte",
+                [Operators.GreaterThan] = "vote_average.gte"
+            },
             [Media.RUNTIME] = new Dictionary<Operators, Parameter>
             {
                 [Operators.LessThan] = "with_runtime.lte",
@@ -311,16 +334,6 @@ namespace Movies
             /*["Release Type"] = new Dictionary<int, string>
             {
                 [0] = "with_release_type"
-            },
-            ["Vote Count"] = new Dictionary<int, string>
-            {
-                [-1] = "vote_count.lte",
-                [1] = "vote_count.gte"
-            },
-            ["Vote Average"] = new Dictionary<int, string>
-            {
-                [-1] = "vote_average.lte",
-                [1] = "vote_average.gte"
             },*/
             [Movie.GENRES] = new Dictionary<Operators, Parameter>
             {
@@ -462,7 +475,7 @@ namespace Movies
                 ["release_date"] = Parser.Create(Movie.RELEASE_DATE),
                 ["budget"] = Parser.Create(Movie.BUDGET),
                 ["revenue"] = Parser.Create(Movie.REVENUE),
-                ["belongs_to_collection"] = new Parser<Collection>(Movie.PARENT_COLLECTION, new JsonNodeParser<Collection>(TryParseCollection)),
+                ["belongs_to_collection"] = new CollectionParser(Movie.PARENT_COLLECTION),
                 [""] = new Parser<Rating>(Media.RATING, MOVIE_RATING_PARSER)
             },
             [API.MOVIES.GET_CREDITS] = CREDITS_PARSERS,
@@ -523,7 +536,8 @@ namespace Movies
             {
                 ["air_date"] = Parser.Create(TVSeason.YEAR),
                 //["release_date"] = new Parser<TimeSpan>(TVSeason.AVERAGE_RUNTIME),
-                [""] = new MultiParser<TVEpisode>(TVSeason.EPISODES, new TVItemsParser<TVSeason, TVEpisode>("episodes", TryParseTVEpisode)),
+                ["episodes"] = new MultiParser<TVEpisode>(TVSeason.EPISODES, null),
+                //[""] = new MultiParser<TVEpisode>(TVSeason.EPISODES, new TVItemsParser<TVSeason, TVEpisode>("episodes", TryParseTVEpisode)),
             },
             [API.TV_SEASONS.GET_AGGREGATE_CREDITS] = new List<Parser>
             {

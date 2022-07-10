@@ -23,7 +23,7 @@ namespace Movies.Templates
                 {
                     return MoneyValueTemplate;
                 }
-                else if (builder is PropertyPredicateBuilder)
+                else if (property != TMDB.SCORE && builder is PropertyPredicateBuilder)
                 {
                     if (builder.RHS is IComparable && !(builder.RHS is string) && !(builder.RHS is Enum))
                     {

@@ -19,8 +19,9 @@ namespace Movies
 
         public HttpMethod Method { get; set; }
         public string Endpoint { get; set; }
+        public int Version { get; set; } = 3;
 
-        public bool AuthenticationRequired { get; set; }
+        public AuthenticationHeaderValue Authorization { get; set; }
         public bool HasLanguageParameter { get; set; }
         public bool HasRegionParameter { get; set; }
         public bool HasAdultParameter { get; set; }
@@ -47,17 +48,18 @@ namespace Movies
 
             parameters.AddRange(otherParameters);
 
-            return TMDB.BuildApiCall(Endpoint, parameters);
+            return TMDB.BuildApiCall($"{Version}/" + Endpoint, parameters);
         }
 
-        public HttpRequestMessage GetMessage(AuthenticationHeaderValue auth, string language = null, string region = null, bool adult = false)
+        public HttpRequestMessage GetMessage()
         {
-            var message = new HttpRequestMessage(Method, GetURL(language, region, adult));
-
-            if (AuthenticationRequired)
+            var message = new HttpRequestMessage(Method, GetURL(null, null, false))
             {
-                message.Headers.Authorization = auth;
-            }
+                Headers =
+                {
+                    Authorization = Authorization
+                }
+            };
 
             return message;
         }

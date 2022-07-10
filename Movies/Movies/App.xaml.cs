@@ -113,9 +113,10 @@ namespace Movies
             }
 #endif
 
-            TMDB tmdb = new TMDB(TMDB_API_KEY, TMDB_V4_BEARER);
+            TMDB tmdb = new TMDB(TMDB_API_KEY, TMDB_V4_BEARER, new AppPropertiesCache(this));
             Trakt trakt = new Trakt(tmdb, TRAKT_CLIENT_ID, TRAKT_CLIENT_SECRET);
 
+            TMDbGetPropertyValues = tmdb.GetPropertyValues;
             tmdb.Company.LogoPath ??= "file://Movies.Logos.TMDbLogo.png";
             trakt.Company.LogoPath ??= "file://Movies.Logos.TraktLogo.png";
 
@@ -379,21 +380,12 @@ namespace Movies
             }
         }
 
-        private static readonly Type[] PrimitiveJsonTypes = new Type[]
-        {
-            typeof(int),
-            typeof(long),
-            typeof(double),
-            typeof(bool),
-            typeof(string),
-            typeof(DateTime)
-        };
-
         private static readonly string POPULAR_FILTERS = "PopularFilters";
         private readonly System.Text.Json.JsonSerializerOptions FilterSerializerOptions = new System.Text.Json.JsonSerializerOptions
         {
             Converters =
             {
+                new ItemTypeConverter(),
                 new PredicateConverter(),
                 new PropertyConverter(),
                 new PersonConverter()
@@ -406,7 +398,7 @@ namespace Movies
             var collection = new CollectionViewModel(DataManager, null, db, ItemType.Movie | ItemType.TVShow | ItemType.Person | ItemType.Collection, db)// | ItemType.Company)
             {
                 ListLayout = ListLayouts.Grid,
-                SortOptions = new List<string> { "Popularity", "Release Date", "Revenue", "Original Title", "Vote Average", "Vote Count" },
+                SortOptions = new List<Property> { TMDB.POPULARITY, Movie.RELEASE_DATE, Movie.REVENUE, Media.ORIGINAL_TITLE, TMDB.SCORE, TMDB.VOTE_COUNT },
             };
 
             if (collection.Source.Predicate is ExpressionBuilder builder && builder.Editor is MultiEditor editor)
@@ -420,48 +412,67 @@ namespace Movies
 
                 if (Properties.TryGetValue(POPULAR_FILTERS, out var value) && value is string filters)
                 {
-                    try
-                    {
-                        var expression = new BooleanExpression();
-                        var predicates = System.Text.Json.JsonSerializer.Deserialize<IEnumerable<OperatorPredicate>>(filters, FilterSerializerOptions);
-
-                        foreach (var predicate in predicates)
-                        {
-                            expression.Predicates.Add(predicate);
-                        }
-
-                        builder.Add(expression);
-                    }
-                    catch (Exception e)
-                    {
-                        Print.Log(e);
-                    }
+                    _ = DeserializeFilters(builder, filters);
                 }
             }
 
             collection.Source.Predicate.PredicateChanged += (sender, e) =>
             {
-                var builder = (IPredicateBuilder)sender;
-
-                try
-                {
-                    //var temp = SerializeFilters(builder.Predicate);
-                    var predicates = (builder.Predicate as BooleanExpression).Predicates.OfType<OperatorPredicate>();
-                    var json = System.Text.Json.JsonSerializer.Serialize(predicates, FilterSerializerOptions);
-                    var temp = System.Text.Json.JsonSerializer.Deserialize<IEnumerable<OperatorPredicate>>(json, FilterSerializerOptions);
-
-                    Print.Log(json);
-
-                    //Properties[POPULAR_FILTERS] = json;
-                    _ = SavePropertiesAsync();
-                }
-                catch (Exception e1)
-                {
-                    Print.Log(e1);
-                }
+                _ = SerializeFilters((IPredicateBuilder)sender);
             };
 
             return collection;
+        }
+
+        private Task TMDbGetPropertyValues { get; }
+
+        private Task SerializeFilters(IPredicateBuilder builder)
+        {
+            try
+            {
+                //var temp = SerializeFilters(builder.Predicate);
+                var predicates = (builder.Predicate as BooleanExpression).Predicates.OfType<OperatorPredicate>();
+                var json = System.Text.Json.JsonSerializer.Serialize(predicates, FilterSerializerOptions);
+                var temp = System.Text.Json.JsonSerializer.Deserialize<IEnumerable<OperatorPredicate>>(json, FilterSerializerOptions);
+
+                Print.Log(json);
+
+                //Properties[POPULAR_FILTERS] = json;
+                return SavePropertiesAsync();
+            }
+            catch (Exception e1)
+            {
+                Print.Log(e1);
+            }
+
+            return Task.CompletedTask;
+        }
+
+        private async Task DeserializeFilters(ExpressionBuilder builder, string filters)
+        {
+            await TMDbGetPropertyValues;
+
+            try
+            {
+                var expression = new BooleanExpression();
+                var predicates = System.Text.Json.JsonSerializer.Deserialize<IEnumerable<OperatorPredicate>>(filters, FilterSerializerOptions);
+
+                foreach (var predicate in predicates)
+                {
+                    expression.Predicates.Add(predicate);
+                }
+
+                builder.Add(expression);
+
+                foreach (var child in builder.Root.Children)
+                {
+                    builder.Editor.Select(child);
+                }
+            }
+            catch (Exception e)
+            {
+                Print.Log(e);
+            }
         }
 
         public IEnumerable<IListProvider> LoggedInListProviders() => Services.Values.OfType<IListProvider>().Where(provider => !(provider is IAccount account) || Accounts?.FirstOrDefault(temp => temp.Account == account)?.IsLoggedIn == true);

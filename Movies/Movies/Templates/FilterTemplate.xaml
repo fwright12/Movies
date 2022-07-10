@@ -69,7 +69,11 @@
                     <VisualState.Setters>
                         <Setter TargetName="scroll"
                                 Property="ScrollView.Orientation"
-                                Value="Vertical" />
+                                Value="Neither" />
+                        <Setter TargetName="scroll"
+                                Property="Layout.Padding"
+                                Value="0,0,0,10" />
+                        
                         <Setter TargetName="filters"
                                 Property="ContentView.ControlTemplate"
                                 Value="{StaticResource CompactFiltersTemplate}" />
@@ -100,6 +104,9 @@
                         <Setter TargetName="scroll"
                                 Property="ScrollView.Orientation"
                                 Value="Vertical" />
+                        <Setter TargetName="scroll"
+                                Property="Layout.Padding"
+                                Value="0" />
 
                         <Setter TargetName="filters"
                                 Property="ContentView.ControlTemplate"
@@ -114,7 +121,7 @@
 
         <Layout.Padding>
             <MultiBinding Converter="{Static forms:ThicknessConverter.Instance}"
-                          ConverterParameter="horizontal">
+                          ConverterParameter="horizontal, top">
                 <Binding Source="{StaticResource PagePadding}" />
                 <Binding Path="CornerRadius"
                          Source="{RelativeSource AncestorType={x:Type Frame}}"
@@ -124,27 +131,27 @@
 
         <ContentView x:Name="filters">
             <VisualElement.Resources>
-                <Style TargetType="Frame">
+                <Style TargetType="Frame"
+                       BasedOn="{StaticResource FrameStyle}">
                     <Setter Property="CornerRadius"
                             Value="10" />
                     <Setter Property="BorderColor"
                             Value="{StaticResource Primary}" />
-                    <Setter Property="Padding"
-                            Value="5" />
                     <Setter Property="Margin"
                             Value="2" />
                     <Setter Property="ControlTemplate">
                         <ControlTemplate>
                             <StackLayout BindingContext="{TemplateBinding BindingContext}"
-                                         Orientation="Horizontal">
-                                <ContentPresenter />
+                                         Orientation="Horizontal"
+                                         Spacing="0">
+                                <ContentPresenter Padding="5, 5, 0, 5" />
 
-                                <Label Text="x">
-                                    <View.GestureRecognizers>
-                                        <TapGestureRecognizer Command="{Binding RemoveSelfCommand}"
-                                                              CommandParameter="{Binding}" />
-                                    </View.GestureRecognizers>
-                                </Label>
+                                <Button Text="x"
+                                        Command="{Binding RemoveSelfCommand}"
+                                        CommandParameter="{Binding}"
+                                        BackgroundColor="Transparent"
+                                        HeightRequest="0"
+                                        WidthRequest="{Binding Height, Source={RelativeSource Self}}" />
                             </StackLayout>
                         </ControlTemplate>
                     </Setter>
@@ -153,7 +160,7 @@
 
             <Button Text="Clear"
                     TextColor="Red"
-                    Command="{Binding Predicate.ClearCommand}"
+                    Command="{Binding Predicate.Root.ClearCommand}"
                     Grid.Column="1"
                     VerticalOptions="Start" />
         </ContentView>

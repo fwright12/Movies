@@ -75,11 +75,30 @@ namespace Movies.ViewModels
 
         public void Clear()
         {
+            var children = new List<ObservableNode<T>>(Children);
             Children.Clear();
+
+            AssignParent(Children, new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Remove, children));
         }
 
         public bool Remove() => Parent?.Remove(this) ?? false;
-        public bool Remove(ObservableNode<T> node) => Remove(node.Value);
+        public bool Remove(params ObservableNode<T>[] nodes)
+        {
+            bool success = true;
+
+            Children.CollectionChanged -= AssignParent;
+
+            foreach (var node in nodes)
+            {
+                success &= Children.Remove(node);
+            }
+
+            Children.CollectionChanged += AssignParent;
+
+            AssignParent(Children, new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Remove, nodes));
+
+            return success;
+        }
         public bool Remove(T value)
         {
             for (int i = 0; i < Children.Count; i++)
@@ -101,6 +120,11 @@ namespace Movies.ViewModels
 
         private void AssignParent(object sender, NotifyCollectionChangedEventArgs e)
         {
+            if (e.Action == NotifyCollectionChangedAction.Reset)
+            {
+                return;
+            }
+
             if (e.OldItems != null)
             {
                 foreach (var node in e.OldItems.OfType<ObservableNode<T>>())

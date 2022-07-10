@@ -49,7 +49,7 @@ namespace Movies.ViewModels
             Selected = node;
         }
 
-        public void Reset()
+        public virtual void Reset()
         {
             Selected.Remove();
             AddNew();

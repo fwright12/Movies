@@ -17,6 +17,29 @@ using Xamarin.Forms.Platform.iOS;
 [assembly: ExportRenderer(typeof(CarouselView), typeof(Movies.iOS.CarouselViewRenderer))]
 namespace Movies.iOS
 {
+    public class Test : ShellRenderer
+    {
+        public override UINavigationController NavigationController => base.NavigationController;
+
+        protected override void OnElementPropertyChanged(object sender, PropertyChangedEventArgs e)
+        {
+            base.OnElementPropertyChanged(sender, e);
+
+            if (e.PropertyName == nameof(Xamarin.Forms.PlatformConfiguration.iOSSpecific.NavigationPage.PrefersLargeTitlesProperty.PropertyName))
+            {
+                NavigationController.NavigationBar.PrefersLargeTitles = Xamarin.Forms.PlatformConfiguration.iOSSpecific.NavigationPage.GetPrefersLargeTitles(Element);
+            }
+        }
+    }
+
+    public class PageRenderer : Xamarin.Forms.Platform.iOS.PageRenderer
+    {
+        public PageRenderer()
+        {
+            NavigationController.NavigationBar.PrefersLargeTitles = true;
+        }
+    }
+
     public class EntryRenderer : Xamarin.Forms.Platform.iOS.EntryRenderer
     {
         public EntryRenderer()

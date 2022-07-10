@@ -15,7 +15,7 @@ namespace Movies.ViewModels
 
     public class PersonViewModel : CollectionViewModel
     {
-        public DateTime? Birthday => RequestValue(Person.BIRTHDAY);
+        public DateTime? Birthday => TryRequestValue(Person.BIRTHDAY, out var birthday) ? birthday : (DateTime?)null;
         public string Birthplace => RequestValue(Person.BIRTHPLACE);
         public DateTime? Deathday => RequestValue(Person.DEATHDAY);
         public int? Age => ((Deathday ?? DateTime.Now) - Birthday)?.Days / 365;
@@ -63,9 +63,8 @@ namespace Movies.ViewModels
         public static async IAsyncEnumerable<Item> GetCredits(PersonService service, Person person)
         {
             //var credits = await service.CreditsRequested.GetSingle(person);
-            var credits = await Data.GetDetails(person).GetMultiple(Person.CREDITS);
 
-            if (credits == null)
+            if (!Data.GetDetails(person).TryGetValue(Person.CREDITS, out var task) || !(await task is IEnumerable<Item> credits))
             {
                 yield break;
             }

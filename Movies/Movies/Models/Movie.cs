@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 
 namespace Movies.Models
 {
@@ -23,8 +24,11 @@ namespace Movies.Models
         });
         public static readonly Property<Collection> PARENT_COLLECTION = new Property<Collection>("Parent Collection");
 
-        public static readonly Property<string> CONTENT_RATING = new Property<string>("Content Rating", new List<string> { "G", "PG", "PG-13", "R", "NC-17" });
-        public static readonly MultiProperty<Genre> GENRES = new MultiProperty<Genre>("Genres", System.Linq.Enumerable.Select(new List<string> { "Action", "Adventure", "Romance", "Comedy", "Thriller", "Mystery", "Sci-Fi", "Horror", "Documentary" }, name => new Genre { Name = name }));
-        public static readonly MultiProperty<WatchProvider> WATCH_PROVIDERS = new MultiProperty<WatchProvider>("Watch Providers", new List<WatchProvider> { MockData.NetflixStreaming });
+        public static readonly Property<string> CONTENT_RATING = new Property<string>("Content Rating", new ObservableCollection<string>());
+        //public static readonly Property<string> CONTENT_RATING = new Property<string>("Content Rating", new List<string> { "G", "PG", "PG-13", "R", "NC-17" });
+        public static readonly MultiProperty<Genre> GENRES = new MultiProperty<Genre>("Genres", new ObservableCollection<Genre>());
+        //public static readonly MultiProperty<Genre> GENRES = new MultiProperty<Genre>("Genres", System.Linq.Enumerable.Select(new List<string> { "Action", "Adventure", "Romance", "Comedy", "Thriller", "Mystery", "Sci-Fi", "Horror", "Documentary" }, name => new Genre { Name = name }));
+        public static readonly MultiProperty<WatchProvider> WATCH_PROVIDERS = new MultiProperty<WatchProvider>("Watch Providers", new ObservableCollection<WatchProvider>());
+        //public static readonly MultiProperty<WatchProvider> WATCH_PROVIDERS = new MultiProperty<WatchProvider>("Watch Providers", new List<WatchProvider> { MockData.NetflixStreaming });
     }
 }

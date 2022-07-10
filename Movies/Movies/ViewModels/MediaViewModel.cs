@@ -107,7 +107,7 @@ namespace Movies.ViewModels
         public string Tagline => RequestValue(Media.TAGLINE);
         public string Description => RequestValue(Media.DESCRIPTION);
         public string ContentRating => RequestValue(ContentRatingProperty);
-        public TimeSpan? Runtime => RequestValue(Media.RUNTIME);
+        public TimeSpan? Runtime => TryRequestValue(Media.RUNTIME, out var runtime) ? runtime : (TimeSpan?)null;
         public string OriginalTitle => RequestValue(Media.ORIGINAL_TITLE);
         public string OriginalLanguage => RequestValue(Media.ORIGINAL_LANGUAGE);
         public IEnumerable<string> Languages => RequestValue(Media.LANGUAGES);

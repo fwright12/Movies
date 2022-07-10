@@ -39,6 +39,7 @@ namespace Movies.Models
         public IAsyncEnumerable<Item> Items { protected get; set; }
         public bool IsFullyLoaded { get; private set; }
         public Property SortBy { get; set; }
+        public bool SortAscending { get; set; }
 
         private LinkedList<Item> Cached;
         private ICollection<LinkedListNode<Item>> Removed;

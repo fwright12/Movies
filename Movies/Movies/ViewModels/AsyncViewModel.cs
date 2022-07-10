@@ -75,9 +75,8 @@ namespace Movies.ViewModels
         event AsyncDataRequestEventHandler<object> InfoRequested;
     }
 
-    public class AsyncDataViewModel : INotifyPropertyChanged, IRequestInfo
+    public class AsyncDataViewModel : BindableViewModel, IRequestInfo
     {
-        public event PropertyChangedEventHandler PropertyChanged;
         public event AsyncDataRequestEventHandler<object> InfoRequested;
 
         private Dictionary<string, object> CachedValues;
@@ -212,11 +211,6 @@ namespace Movies.ViewModels
         protected virtual void OnInfoRequested(AsyncEventArgs<object> args)
         {
             InfoRequested?.Invoke(this, args);
-        }
-
-        protected virtual void OnPropertyChanged([CallerMemberName] string propertyName = null)
-        {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
     }
 }

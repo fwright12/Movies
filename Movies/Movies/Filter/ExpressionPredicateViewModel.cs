@@ -35,7 +35,6 @@ namespace Movies.ViewModels
 
         public ICommand PauseChangesCommand { get; }
         public ICommand ResumeChangesCommand { get; }
-        public ICommand ClearCommand { get; }
 
         private Editor _Editor;
         private bool DeferUpdate;
@@ -47,7 +46,6 @@ namespace Movies.ViewModels
 
             PauseChangesCommand = new Command(PauseChanges);
             ResumeChangesCommand = new Command(ResumeChanges);
-            ClearCommand = new Command(Clear);
 
             OnPredicateChanged();
         }
@@ -63,27 +61,27 @@ namespace Movies.ViewModels
         {
             if (predicate is OperatorPredicate op)
             {
-                var vm = op.LHS is Property ? new PropertyPredicateBuilder() : new OperatorPredicateBuilder();
+                //var vm = op.LHS is Property ? new PropertyPredicateBuilder() : new OperatorPredicateBuilder();
+                var vm = new PropertyPredicateBuilder();
                 vm.LHS = op.LHS;
                 vm.Operator = op.Operator;
                 vm.RHS = op.RHS;
 
                 var node = new ObservableNode<object>(vm);
                 
-                Editor.Select(node);
+                Add(node);
             }
             else if (predicate is BooleanExpression expression)
             {
+                PauseChanges();
+
                 foreach (var part in expression.Predicates)
                 {
                     Add(part);
                 }
-            }
-        }
 
-        public void Clear()
-        {
-            Root.Children.Clear();
+                ResumeChanges();
+            }
         }
 
         private void SelectedChanged(object sender, PropertyChangeEventArgs e)
@@ -159,7 +157,7 @@ namespace Movies.ViewModels
         {
             var builder = (IPredicateBuilder)sender;
 
-            if (builder.Predicate == FilterPredicate.TAUTOLOGY)
+            if (builder.Predicate == null || builder.Predicate == FilterPredicate.TAUTOLOGY)
             {
                 Root.Remove(builder);
             }

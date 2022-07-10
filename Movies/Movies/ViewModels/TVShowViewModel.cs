@@ -37,8 +37,8 @@ namespace Movies.ViewModels
     {
         public CollectionViewModel Seasons { get; }
 
-        public DateTime? FirstAirDate => RequestValue(TVShow.FIRST_AIR_DATE);
-        public DateTime? LastAirDate => RequestValue(TVShow.LAST_AIR_DATE);
+        public DateTime? FirstAirDate => TryRequestValue(TVShow.FIRST_AIR_DATE, out var first) ? first : (DateTime?)null;
+        public DateTime? LastAirDate => TryRequestValue(TVShow.LAST_AIR_DATE, out var last) ? last : (DateTime?)null;
         public IEnumerable<Company> Networks => RequestValue(TVShow.NETWORKS);
 
 
@@ -57,7 +57,7 @@ namespace Movies.ViewModels
     {
         public int Number { get; }
 
-        public DateTime? Year => RequestValue(TVSeason.YEAR);
+        public DateTime? Year => TryRequestValue(TVSeason.YEAR, out var year) ? year : (DateTime?)null;
         public TimeSpan? AvgRuntime => null;// RequestSingle(TVSeasonService.AvgRuntimeRequested);
         public List<Group<Credit>> Cast => MediaViewModel.GetCrew(RequestValue(TVSeason.CAST));
         public List<Group<Credit>> Crew => MediaViewModel.GetCrew(RequestValue(TVSeason.CREW));
@@ -83,7 +83,7 @@ namespace Movies.ViewModels
         public int? Season { get; }
         public int? Number { get; }
 
-        public DateTime? AirDate => RequestValue(TVEpisode.AIR_DATE);
+        public DateTime? AirDate => TryRequestValue(TVEpisode.AIR_DATE, out var date) ? date : (DateTime?)null;
 
         protected override MediaService<TVEpisode> MediaService => DataManager.TVEpisodeService;
         protected override Property<string> ContentRatingProperty => TVShow.CONTENT_RATING;

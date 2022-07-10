@@ -29,20 +29,20 @@
                 Value="10, 8" />
         <Setter Property="Margin"
                 Value="2" />
-        <Setter Property="BorderColor"
-                Value="Black" />
-        <!--<Setter Property="BorderColor"
-                        Value="{Binding TextColor, Source={x:Reference Option}}" />-->
         <Setter Property="VisualStateManager.VisualStateGroups">
             <VisualStateGroupList>
                 <VisualStateGroup Name="CommonStates">
-                    <VisualState Name="{Static VisualStateManager+CommonStates.Normal}" />
+                    <VisualState Name="{Static VisualStateManager+CommonStates.Normal}">
+                        <VisualState.Setters>
+                            <Setter Property="BorderColor"
+                                    Value="{Binding Content.TextColor, Source={RelativeSource Self}}" />
+                        </VisualState.Setters>
+                    </VisualState>
+
                     <VisualState Name="{Static VisualStateManager+CommonStates.Selected}">
                         <VisualState.Setters>
                             <Setter Property="BackgroundColor"
                                     Value="{StaticResource Primary}" />
-                            <Setter Property="BorderColor"
-                                    Value="{Binding BackgroundColor, Source={RelativeSource Self}}" />
 
                             <!--<Setter TargetName="Option"
                                             Property="Label.TextColor"
@@ -54,10 +54,16 @@
         </Setter>
     </Style>
 
-    <Style x:Key="SelectedTextStyle"
-           TargetType="Label">
+    <Style x:Key="SelectableFrameTextStyle"
+           TargetType="Label"
+           CanCascade="True">
         <Style.Triggers>
-            
+            <DataTrigger TargetType="Label"
+                         Binding="{Binding Parent.BackgroundColor, Source={RelativeSource Self}}"
+                         Value="{StaticResource Primary}">
+                <Setter Property="TextColor"
+                        Value="{StaticResource DarkPrimaryText}" />
+            </DataTrigger>
         </Style.Triggers>
     </Style>
 
@@ -115,31 +121,33 @@
             <FlexLayout Direction="Column"
                         BindableLayout.ItemsSource="{Binding OperatorOptions, Converter={Static viewmodels:ReverseListConverter.Instance}}"
                         forms:Selection.SelectionMode="MandatorySingle"
-                        forms:Selection.SelectedIndices="{Binding Selected.Value.Operator, Converter={Static converters:ComparisonConverter.Instance}}">
+                        forms:Selection.SelectedItems="{Binding Selected.Value.Operator, Converter={Static viewmodels:SingleItemListConverter.Instance}}">
                 <VisualElement.Resources>
                     <Style TargetType="Label"
-                           BasedOn="{StaticResource DefaultComparisonStyle}">
-                        <Style.Triggers>
-                            <DataTrigger TargetType="Label"
-                                         Binding="{Binding Parent.Parent.BindingContext.Selected.Value.LHS.Type, Source={RelativeSource Self}, Mode=OneTime}"
-                                         Value="{x:Type sys:DateTime}">
-                                <Setter Property="Style"
-                                        Value="{StaticResource DateTimeComparisonStyle}" />
-                            </DataTrigger>
-                        </Style.Triggers>
-                    </Style>
+                           CanCascade="True"
+                           BasedOn="{StaticResource SelectableFrameTextStyle}" />
                 </VisualElement.Resources>
 
                 <BindableLayout.ItemTemplate>
                     <DataTemplate>
                         <Frame Style="{StaticResource SelectableTextStyle}">
-                            <Label Text="{Binding}" />
+                            <Label Style="{StaticResource DefaultComparisonStyle}">
+                                <VisualElement.Triggers>
+                                    <DataTrigger TargetType="Label"
+                                                 Binding="{Binding Parent.Parent.BindingContext.Selected.Value.LHS.Type, Source={RelativeSource Self}}"
+                                                 Value="{x:Type sys:DateTime}">
+                                        <Setter Property="Style"
+                                                Value="{StaticResource DateTimeComparisonStyle}" />
+                                    </DataTrigger>
+                                </VisualElement.Triggers>
+                            </Label>
                         </Frame>
                     </DataTemplate>
                 </BindableLayout.ItemTemplate>
             </FlexLayout>
 
-            <ContentPresenter HorizontalOptions="FillAndExpand" />
+            <ContentPresenter HorizontalOptions="FillAndExpand"
+                              VerticalOptions="Center" />
         </StackLayout>
     </ControlTemplate>
 
@@ -178,7 +186,7 @@
 
                 <ContentView ext:ContentView.ItemSource="{Binding RHSOptions.Predicate}"
                              ext:ContentView.ContentTemplate="{StaticResource PredicateTemplateSelector}"
-                             IsVisible="{Binding Content, Source={RelativeSource Self}, Converter={Static forms:ObjectToFalseConverter.Instance}}"/>
+                             IsVisible="{Binding Content, Source={RelativeSource Self}, Converter={Static forms:ObjectToFalseConverter.Instance}}" />
 
                 <ContentView Content="{Binding Converter={Static viewmodels:ObjectToViewConverter.Instance}, ConverterParameter={StaticResource SelectorTemplateSelector}}">
                     <TemplatedView.ControlTemplate>
@@ -200,10 +208,9 @@
             <viewmodels:OptionsLayoutBehavior />
         </Style.Behaviors>
     </Style>
-    
+
     <Binding x:Key="OptionsSelectedItemsBinding"
-             Path="Predicate.Selected.Children"
-             Source="{RelativeSource AncestorType={Static viewmodels:CollectionViewModel.FilterListType}}" />
+             Path="Selected.Children" />
 
     <Style x:Key="CollectionViewOptionsStyle"
            TargetType="CollectionView"
@@ -211,7 +218,7 @@
         <Setter Property="SelectionMode"
                 Value="Multiple" />
         <Setter Property="SelectedItems"
-                Value="{StaticResource OptionsSelectedItemsBinding}" />
+                Value="{Binding Selected.Children}" />
     </Style>
 
     <Style x:Key="BindableLayoutOptionsStyle"
@@ -222,10 +229,6 @@
                 Value="Multiple" />
         <Setter Property="forms:Selection.SelectedItems"
                 Value="{StaticResource OptionsSelectedItemsBinding}" />
-        
-        <Style.Behaviors>
-            <viewmodels:OptionsLayoutBehavior />
-        </Style.Behaviors>
     </Style>
 
     <Style x:Key="StringSelectorStyle"
@@ -246,10 +249,25 @@
                 Value="{Binding ResumeChangesCommand, Source={RelativeSource AncestorType={x:Type viewmodels:ExpressionBuilder}}}" />
     </Style>
 
-    <Style x:Key="RuntimePickerStyle"
+    <Style x:Key="DefaultPickerStyle"
            TargetType="views:NumberPicker">
+        <Setter Property="AbsoluteMax"
+                Value="{Binding RHSOptions.Last}" />
+        <Setter Property="AbsoluteMin"
+                Value="{Binding RHSOptions.First}" />
+        <Setter Property="Upper"
+                Value="{Binding AbsoluteMax, Source={RelativeSource Self}}" />
         <Setter Property="Lower"
-                Value="0" />
+                Value="{Binding AbsoluteMin, Source={RelativeSource Self}}" />
+        <Setter Property="Step"
+                Value="{Binding RHSOptions.Step}" />
+        <Setter Property="Value"
+                Value="{Binding Selected.Value.RHS}" />
+    </Style>
+
+    <Style x:Key="RuntimePickerStyle"
+           TargetType="views:NumberPicker"
+           BasedOn="{StaticResource DefaultPickerStyle}">
         <Setter Property="Upper"
                 Value="180" />
         <Setter Property="Step"
@@ -257,7 +275,8 @@
     </Style>
 
     <Style x:Key="DatePickerStyle"
-           TargetType="views:NumberPicker">
+           TargetType="views:NumberPicker"
+           BasedOn="{StaticResource DefaultPickerStyle}">
         <Setter Property="Upper"
                 Value="{Static viewmodels:CollectionViewModel.NextYear}" />
         <Setter Property="Lower"
@@ -267,7 +286,8 @@
     </Style>
 
     <Style x:Key="MoneyPickerStyle"
-           TargetType="views:NumberPicker">
+           TargetType="views:NumberPicker"
+           BasedOn="{StaticResource DefaultPickerStyle}">
         <Setter Property="Lower"
                 Value="0" />
         <Setter Property="Upper"
@@ -275,6 +295,12 @@
         <Setter Property="Step"
                 Value="1000000" />
     </Style>
+
+    <DataTemplate x:Key="ScorePickerTemplate">
+        <views:NumberPicker Value="{Binding Selected.Value.RHS, Converter={Static viewmodels:ObjectToDoubleConverter.Instance}}"
+                            Upper="10"
+                            Style="{StaticResource DefaultPickerStyle}" />
+    </DataTemplate>
 
     <DataTemplate x:Key="MoneyPickerTemplate">
         <views:NumberPicker Value="{Binding Selected.Value.RHS, Converter={Static viewmodels:DoubleToLongConverter.Instance}}"
@@ -291,26 +317,62 @@
     </DataTemplate>
 
     <DataTemplate x:Key="DateTimePickerTemplate">
-        <views:DeluxeDatePicker>
-            <VisualElement.Resources>
-                <Style TargetType="views:NumberPicker"
-                       BasedOn="{StaticResource DatePickerStyle}" />
-            </VisualElement.Resources>
+        <views:DeluxeDatePicker ControlTemplate="{x:Null}">
+            <views:DeluxeDatePicker.DatePicker>
+                <DatePicker Date="{Binding Parent.Parent.BindingContext.Selected.Value.RHS, Source={RelativeSource Self}, Mode=TwoWay}" />
+            </views:DeluxeDatePicker.DatePicker>
 
-            <DatePicker Date="{Binding Parent.BindingContext.Selected.Value.RHS, Source={RelativeSource Self}, Mode=TwoWay}" />
+            <views:NumberPicker Content="{Binding DatePicker, Source={RelativeSource AncestorType={x:Type views:DeluxeDatePicker}}}"
+                                Value="{Binding Year, Source={RelativeSource AncestorType={x:Type views:DeluxeDatePicker}}}"
+                                Style="{StaticResource DatePickerStyle}">
+                <TemplatedView.ControlTemplate>
+                    <ControlTemplate x:DataType="views:NumberPicker">
+                        <StackLayout Orientation="Vertical">
+                            <Slider Maximum="{TemplateBinding Upper}"
+                                    Minimum="{TemplateBinding Lower}"
+                                    Value="{TemplateBinding Value}" />
+
+                            <FlexLayout Direction="Row"
+                                        JustifyContent="Center">
+                                <VisualElement.Resources>
+                                    <Style TargetType="Button">
+                                        <Setter Property="FontSize"
+                                                Value="Title" />
+                                    </Style>
+                                </VisualElement.Resources>
+
+                                <Button Text="-"
+                                        FlexLayout.Shrink="0"
+                                        Command="{TemplateBinding StepDownCommand}" />
+
+                                <ContentPresenter />
+
+                                <Button Text="+"
+                                        FlexLayout.Shrink="0"
+                                        Command="{TemplateBinding StepUpCommand}" />
+                            </FlexLayout>
+                        </StackLayout>
+                    </ControlTemplate>
+                </TemplatedView.ControlTemplate>
+            </views:NumberPicker>
         </views:DeluxeDatePicker>
     </DataTemplate>
 
     <DataTemplate x:Key="WatchProviderListTemplate">
-        <CollectionView ItemsLayout="HorizontalGrid, 3"
-                        ItemSizingStrategy="MeasureFirstItem"
-                        HeightRequest="150"
+        <CollectionView ItemSizingStrategy="MeasureFirstItem"
+                        HeightRequest="180"
                         Style="{StaticResource CollectionViewOptionsStyle}">
+            <CollectionView.ItemsLayout>
+                <GridItemsLayout Orientation="Horizontal"
+                                 Span="3"
+                                 HorizontalItemSpacing="10" />
+            </CollectionView.ItemsLayout>
+
             <ItemsView.ItemTemplate>
                 <DataTemplate>
-                    <Image Source="{Binding Value.RHS.Company.LogoPath}"
-                           WidthRequest="50"
-                           HeightRequest="50">
+                    <views:ImageView AltText="{Binding Value.RHS.Company.Name}"
+                                     WidthRequest="50"
+                                     Padding="0, 5">
                         <VisualStateManager.VisualStateGroups>
                             <VisualStateGroup>
                                 <VisualState Name="Normal">
@@ -322,13 +384,17 @@
 
                                 <VisualState Name="Selected">
                                     <VisualState.Setters>
+                                        <Setter Property="BackgroundColor"
+                                                Value="Transparent" />
                                         <Setter Property="Opacity"
                                                 Value="1" />
                                     </VisualState.Setters>
                                 </VisualState>
                             </VisualStateGroup>
                         </VisualStateManager.VisualStateGroups>
-                    </Image>
+
+                        <Image Source="{Binding Value.RHS.Company.LogoPath}" />
+                    </views:ImageView>
                 </DataTemplate>
             </ItemsView.ItemTemplate>
         </CollectionView>
@@ -367,13 +433,31 @@
         <CollectionView Style="{StaticResource SearchResultsStyle}" />
     </DataTemplate>
 
+    <DataTemplate x:Key="SingleStringTemplate">
+        <FlexLayout Wrap="Wrap"
+                    BindableLayout.ItemsSource="{Binding RHSOptions}"
+                    forms:Selection.SelectionMode="Single"
+                    forms:Selection.SelectedItems="{Binding Selected.Value.RHS, Converter={Static viewmodels:SingleItemListConverter.Instance}}">
+            <BindableLayout.ItemTemplate>
+                <DataTemplate>
+                    <Frame Style="{StaticResource SelectableTextStyle}">
+                        <Label Text="{Binding}"
+                               Style="{StaticResource SelectableFrameTextStyle}" />
+                    </Frame>
+                </DataTemplate>
+            </BindableLayout.ItemTemplate>
+        </FlexLayout>
+    </DataTemplate>
+
     <DataTemplate x:Key="StringFiniteTemplate">
         <FlexLayout Style="{StaticResource StringSelectorStyle}">
             <VisualElement.Resources>
-                <Style TargetType="Frame">
-                    <Setter Property="Style"
-                            Value="{StaticResource SelectableTextStyle}" />
-                </Style>
+                <Style TargetType="Frame"
+                       BasedOn="{StaticResource SelectableTextStyle}" />
+
+                <Style TargetType="Label"
+                       CanCascade="True"
+                       BasedOn="{StaticResource SelectableFrameTextStyle}" />
             </VisualElement.Resources>
         </FlexLayout>
     </DataTemplate>
@@ -386,6 +470,8 @@
         <forms:TypeTemplateSelector.Templates>
             <forms:TypeDataTemplate Type="{x:Type x:Int64}"
                                     Template="{StaticResource MoneyPickerTemplate}" />
+            <forms:TypeDataTemplate Type="{x:Type x:Double}"
+                                    Template="{StaticResource ScorePickerTemplate}" />
             <forms:TypeDataTemplate Type="{x:Type x:TimeSpan}"
                                     Template="{StaticResource TimeSpanPickerTemplate}" />
             <forms:TypeDataTemplate Type="{x:Type sys:DateTime}"
@@ -394,6 +480,8 @@
                                     Template="{StaticResource WatchProviderListTemplate}" />
             <forms:TypeDataTemplate Type="{x:Type viewmodels:PersonViewModel}"
                                     Template="{StaticResource PersonListTemplate}" />
+            <forms:TypeDataTemplate Type="{x:Type x:String}"
+                                    Template="{StaticResource SingleStringTemplate}" />
 
             <forms:TypeDataTemplate Type="{x:Type x:Object}"
                                     Template="{StaticResource StringSearchTemplate}" />
@@ -405,7 +493,7 @@
                                         TypeTemplate="{StaticResource TypeTemplate}"
                                         FiniteValuesTemplate="{StaticResource ValueTemplateSelector}"
                                         SmallValuesTemplate="{StaticResource StringFiniteTemplate}"
-                                        LargeValuesTemplate="{StaticResource StringSearchTemplate}" />
+                                        LargeValuesTemplate="{StaticResource StringInfiniteTemplate}" />
 
     <DataTemplate x:Key="MultiEditorTemplate">
         <StackLayout Orientation="Vertical"

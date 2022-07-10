@@ -36,7 +36,18 @@ namespace Movies
             Info = test;
         }
 
-        public bool HasProperty(Property property) => PropertyLookup.ContainsKey(property);
+        public bool HasProperty(Property property)
+        {
+            for (; property != null; property = property.Parent)
+            {
+                if (PropertyLookup.ContainsKey(property))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
 
         public void Add(TMDbRequest request, IEnumerable<Parser> parsers)
         {
@@ -60,26 +71,27 @@ namespace Movies
 
         public void HandleRequests(Item item, PropertyDictionary properties, TMDB tmdb)
         {
-            if (!tmdb.TryGetID(item, out var id))
-            {
-                return;
-            }
-
-            var parameters = new List<object> { id };
+            var handler = new RequestHandler(this, item);
+            var parameters = new List<object>();
 
             if (item is TVSeason season)
             {
                 parameters.Add(season.SeasonNumber);
+                item = season.TVShow;
             }
             else if (item is TVEpisode episode)
             {
                 parameters.Add(episode.Season.SeasonNumber, episode.EpisodeNumber);
+                item = episode.Season?.TVShow;
             }
 
-            var handler = new RequestHandler(this, item)
+            if (item == null || !tmdb.TryGetID(item, out var id))
             {
-                Parameters = parameters.ToArray(),
-            };
+                return;
+            }
+
+            parameters.Insert(0, id);
+            handler.Parameters = parameters.ToArray();
 
             properties.PropertyAdded += handler.PropertyRequested;
         }

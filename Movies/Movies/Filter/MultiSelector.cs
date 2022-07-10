@@ -25,7 +25,8 @@ namespace Movies.ViewModels
             if (bindable.BindingContext is OperatorEditor editor)
             {
                 var vm = new OptionsViewModel(editor);
-
+                SelectedItemsChanged(bindable, vm);
+                
                 bindable.SetBinding(bindable is CollectionView ? ItemsView.ItemsSourceProperty : BindableLayout.ItemsSourceProperty, new Binding(nameof(OptionsViewModel.Items), source: vm));
                 bindable.PropertyChanged += (sender, e) =>
                 {
@@ -34,11 +35,15 @@ namespace Movies.ViewModels
                         return;
                     }
 
-                    var bindable = (BindableObject)sender;
-                    vm.SelectedItems = (IEnumerable)bindable.GetValue(bindable is CollectionView ? SelectableItemsView.SelectedItemsProperty : Selection.SelectedItemsProperty);
+                    SelectedItemsChanged((BindableObject)sender, vm);
                 };
                 //bindable.SetBinding(bindable is CollectionView ? SelectableItemsView.SelectedItemsProperty : Selection.SelectedItemsProperty, new Binding(nameof(OptionsViewModel.SelectedItems), BindingMode.OneWayToSource, source: vm));
             }
+        }
+
+        private static void SelectedItemsChanged(BindableObject bindable, OptionsViewModel vm)
+        {
+            vm.SelectedItems = (IEnumerable)bindable.GetValue(bindable is CollectionView ? SelectableItemsView.SelectedItemsProperty : Selection.SelectedItemsProperty);
         }
     }
 
@@ -104,7 +109,7 @@ namespace Movies.ViewModels
 
             if (builder is OperatorPredicateBuilder temp)
             {
-                temp.LHS = Template.LHSOptions.OfType<Property>().FirstOrDefault(property => property.Values?.OfType<object>().Contains(option) == true);
+                temp.LHS = Template.LHSOptions.OfType<Property>().FirstOrDefault(property => property.Values?.OfType<object>().Contains(option) == true) ?? Template.DefaultLHS;
                 temp.RHS = option;
             }
 
