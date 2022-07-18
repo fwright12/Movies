@@ -2,7 +2,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Linq.Async;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
@@ -56,15 +55,9 @@ namespace Movies
 
         public static bool TryParsePerson(JsonNode json, out Person person)
         {
-            if (json.TryGetValue("name", out string name))
+            if (json.TryGetValue("id", out int id) && json.TryGetValue("name", out string name))
             {
-                person = new Person(name);
-
-                if (json.TryGetValue("id", out int id))
-                {
-                    person.SetID(IDKey, id);
-                }
-
+                person = new Person(name).WithID(IDKey, id);
                 return true;
             }
 
@@ -262,6 +255,22 @@ namespace Movies
             await Task.CompletedTask;
         }
 
+        public static bool TryParseLastAirDate(JsonNode json, out DateTime? airDate)
+        {
+            if (json.TryGetValue(out airDate) && json.Parent?.TryGetValue("in_production", out bool inProduction) == true)
+            {
+                if (inProduction)
+                {
+                    airDate = null;
+                }
+
+                return true;
+            }
+
+            airDate = null;
+            return false;
+        }
+
         public static string ParseMovieCertification(JsonNode json)
         {
             if (json is JsonArray regionalReleases)
@@ -315,23 +324,23 @@ namespace Movies
         {
             if (json is JsonArray results)
             {
-                var videos = ForRegion(results, ISO_3166_1, ISO_639_1)
-                    .Concat(ForRegion(results, "US", "en"));
-
-                var video = videos.FirstOrDefault();
-
-                foreach (var temp in videos)
+                var temp = new IEnumerable<JsonNode>[]
                 {
-                    if (temp.TryGetValue("official", out bool official) && official)
+                    ForRegion(results, ISO_3166_1, ISO_639_1),
+                    ForRegion(results, FALLBACK_REGION, FALLBACK_LANGUAGE)
+                };
+
+                foreach (var videos in temp)
+                {
+                    var trailers = videos.Where(video => video.TryGetValue("type", out string type) && type == "Trailer");
+                    var teasers = videos.Where(video => video.TryGetValue("type", out string type) && type == "Teaser");
+                    var trailersAndTeasers = trailers.Concat(teasers);
+                    var video = trailersAndTeasers.FirstOrDefault(trailer => trailer.TryGetValue("official", out bool official) && official) ?? trailersAndTeasers.FirstOrDefault();
+
+                    if (video != null && video.TryGetValue("site", out string site) && video.TryGetValue("key", out string key))
                     {
-                        video = temp;
-                        break;
+                        return BuildVideoURL(site, key);
                     }
-                }
-
-                if (video != null && video.TryGetValue("site", out string site) && video.TryGetValue("key", out string key))
-                {
-                    return BuildVideoURL(site, key);
                 }
             }
 
@@ -517,7 +526,7 @@ namespace Movies
             return false;
         }
 
-        public static IAsyncEnumerable<T> ParseRecommended<T>(JsonNode json, System.Linq.Async.Enumerable.TryParseFunc<JsonNode, T> parse) => TryParseCollection(json, new JsonNodeParser<IEnumerable<JsonNode>>(), out var result, new JsonNodeParser<T>(parse)) ? System.Linq.Async.Enumerable.ToAsyncEnumerable(Task.FromResult(result)) : null;
+        public static IAsyncEnumerable<T> ParseRecommended<T>(JsonNode json, AsyncEnumerable.TryParseFunc<JsonNode, T> parse) => TryParseCollection(json, new JsonNodeParser<IEnumerable<JsonNode>>(), out var result, new JsonNodeParser<T>(parse)) ? AsyncEnumerable.ToAsyncEnumerable(Task.FromResult(result)) : null;
 
         public class PagedParser<T> : IJsonParser<IAsyncEnumerable<T>>
         {

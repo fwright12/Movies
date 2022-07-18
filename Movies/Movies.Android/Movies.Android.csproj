@@ -16,7 +16,7 @@
     <MonoAndroidResourcePrefix>Resources</MonoAndroidResourcePrefix>
     <MonoAndroidAssetsPrefix>Assets</MonoAndroidAssetsPrefix>
     <AndroidUseLatestPlatformSdk>false</AndroidUseLatestPlatformSdk>
-    <TargetFrameworkVersion>v11.0</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v12.0</TargetFrameworkVersion>
     <AndroidHttpClientHandlerType>Xamarin.Android.Net.AndroidClientHandler</AndroidHttpClientHandlerType>
     <NuGetPackageImportStamp>
     </NuGetPackageImportStamp>
@@ -36,6 +36,7 @@
     <BundleAssemblies>false</BundleAssemblies>
     <MandroidI18n />
     <PlatformTarget>AnyCPU</PlatformTarget>
+    <AndroidSupportedAbis />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugSymbols>false</DebugSymbols>
@@ -55,6 +56,7 @@
     <AndroidPackageFormat>aab</AndroidPackageFormat>
     <AndroidUseAapt2>true</AndroidUseAapt2>
     <AndroidCreatePackagePerAbi>false</AndroidCreatePackagePerAbi>
+    <AndroidSupportedAbis>armeabi-v7a;x86;x86_64;arm64-v8a</AndroidSupportedAbis>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug Live|AnyCPU'">
     <DebugSymbols>true</DebugSymbols>
@@ -79,8 +81,17 @@
     <PackageReference Include="Xamarin.Android.Support.v4" Version="28.0.0.3" />
     <PackageReference Include="Xamarin.Android.Support.v7.CardView" Version="28.0.0.3" />
     <PackageReference Include="Xamarin.Android.Support.v7.MediaRouter" Version="28.0.0.3" />
+    <PackageReference Include="Xamarin.AndroidX.Core">
+      <Version>1.8.0.1</Version>
+    </PackageReference>
+    <PackageReference Include="Xamarin.AndroidX.Lifecycle.LiveData">
+      <Version>2.4.1.2</Version>
+    </PackageReference>
     <PackageReference Include="Xamarin.AndroidX.MediaRouter" Version="1.2.5.2" />
     <PackageReference Include="Xamarin.AndroidX.Palette" Version="1.0.0.10" />
+    <PackageReference Include="Xamarin.AndroidX.Work.Runtime">
+      <Version>2.7.1.4</Version>
+    </PackageReference>
     <PackageReference Include="Xamarin.Forms">
       <Version>5.0.0.2291</Version>
     </PackageReference>

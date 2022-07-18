@@ -11,6 +11,7 @@
                     xmlns:movies="clr-namespace:Movies"
                     xmlns:collections="clr-namespace:System.Collections;assembly=mscorlib"
                     xmlns:templates="clr-namespace:Movies.Templates"
+                    xmlns:converters="clr-namespace:Movies.Converters"
                     x:Class="Movies.Views.InfoPageResources">
     <DataTemplate x:Key="DefaultTemplate">
         <Label Text="{Binding}"
@@ -56,7 +57,7 @@
             <Grid RowDefinitions="*, Auto"
                   ColumnDefinitions="*, Auto"
                   ColumnSpacing="10">
-                <Image Source="{Binding Company.LogoPath}"
+                <Image Source="{Binding Company.LogoPath, Converter={Static converters:UriToImageSourceConverter.Instance}}"
                        Grid.Row="0"
                        Grid.Column="0" />
 

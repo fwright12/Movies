@@ -116,27 +116,12 @@ namespace Movies.ViewModels
 
         public static readonly string ITEM_TYPE = nameof(object.GetType);
         public static readonly Property<MonetizationType?> MonetizationType = new Property<MonetizationType?>("Monetization Type", GetNames<MonetizationType>());
-        public static readonly Property<PersonViewModel> People = new Property<PersonViewModel>("People", new FilterListViewModel<PersonViewModel>(new PeopleSearch())
+        public static readonly Property<PersonViewModel> People = new Property<PersonViewModel>("People", new FilterListViewModel<PersonViewModel>(new App.PeopleSearch())
         {
             Predicate = new SearchPredicateBuilder()
         });
 
         public static IEnumerable<T> GetNames<T>() where T : struct, Enum => Enum.GetNames(typeof(T)).Select(name => Enum.Parse<T>(name));
-
-        public class PeopleSearch : AsyncFilterable<PersonViewModel>
-        {
-            public override async IAsyncEnumerable<PersonViewModel> GetItems(FilterPredicate predicate, CancellationToken cancellationToken = default)
-            {
-                await System.Threading.Tasks.Task.CompletedTask;
-
-                foreach (var item in await System.Threading.Tasks.Task.FromResult(new List<PersonViewModel> { new PersonViewModel(App.DataManager, MockData.Instance.MatthewM.WithID(TMDB.IDKey, 0)) }))
-                {
-                    yield return item;
-                }
-            }
-        }
-
-        public IList<FilterViewModel> Filters { get; }
 
         public FilterListViewModel<object> Source { get; }
 
@@ -146,10 +131,16 @@ namespace Movies.ViewModels
         public IList<Property> SortOptions { get; set; }
         public Property SortBy
         {
-            get => _SortBy;
-            set => UpdateValue(ref _SortBy, value);
+            get => List?.SortBy;
+            set
+            {
+                if (Item is Collection collection && value != collection.SortBy)
+                {
+                    collection.SortBy = value;
+                    OnPropertyChanged();
+                }
+            }
         }
-        private Property _SortBy;
 
         public bool Loading
         {
@@ -310,28 +301,12 @@ namespace Movies.ViewModels
                     }
                 };
 
-                var itemType = new ItemTypeFilterViewModel(allowedTypes ?? ItemType.Movie | ItemType.TVShow);
-
-                Filters = new ObservableCollection<FilterViewModel>
-                {
-                    new SearchFilterViewModel
-                    {
-                        Placeholder = "Search movies, TV, people, and more..."
-                    },
-                    itemType,
-                };
-
                 ToggleSortOrder = new Command(() =>
                 {
                     List.SortAscending = !List.SortAscending;
                     OnPropertyChanged(nameof(SortAscending));
                     Refresh();
                 });
-
-                foreach (FilterViewModel model in Filters)
-                {
-                    model.ValueChanged += UpdateFilters;
-                }
             }
 
             ((INotifyCollectionChanged)Items).CollectionChanged += (sender, e) => OnPropertyChanged(nameof(Count));
@@ -389,38 +364,7 @@ namespace Movies.ViewModels
 
         private void Refresh() => Source.Refresh();
 
-        private static async IAsyncEnumerable<T> Where<T>(IAsyncEnumerable<T> source, Func<T, bool> predicate)
-        {
-            await foreach (var item in source)
-            {
-                if (predicate(item))
-                {
-                    yield return item;
-                }
-            }
-        }
-
-        private void UpdateFilters(object sender, EventArgs e)
-        {
-            string query = "";
-            Dictionary<string, object> filters = new Dictionary<string, object>();
-
-            foreach (FilterViewModel model in Filters)
-            {
-                if (model is SearchFilterViewModel search)
-                {
-                    query = search.Query;
-                }
-                else if (model is ItemTypeFilterViewModel types && types.SelectedOptions.Count > 0)
-                {
-                    filters.Add(nameof(ItemType), types.Selected);
-                }
-            }
-
-            //UpdateItems(DataManager.Search(query, filters, SortBy, SortAscending));
-        }
-
-        public CollectionViewModel(DataManager dataManager, Person person) : this(dataManager, person.Name, PersonViewModel.GetCredits(dataManager.PersonService, person), null, person) { }
+        public CollectionViewModel(DataManager dataManager, Person person) : this(dataManager, person.Name, PersonViewModel.GetCredits(person), null, person) { }
         public CollectionViewModel(DataManager dataManager, Collection collection) : this(dataManager, collection.Name, collection, null, collection) { }
 
         public CollectionViewModel(DataManager dataManager, string name, IAsyncEnumerable<Item> items, ItemType? allowedTypes = null) : this(dataManager, name, items, allowedTypes, null) { }

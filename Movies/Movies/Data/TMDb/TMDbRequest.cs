@@ -38,31 +38,27 @@ namespace Movies
         public static implicit operator TMDbRequest(string url) => new TMDbRequest(url);
 
 
-        public string GetURL(string language = null, string region = null, bool adult = false, params string[] otherParameters)
+        public string GetURL(params string[] parameters) => GetURL(DEFAULT_LANGUAGE, DEFAULT_REGION, ADULT, parameters);
+        public string GetURL(string language, string region, bool adult, params string[] otherParameters)
         {
             var parameters = new List<string>();
 
-            if (HasLanguageParameter) parameters.Add($"language={language ?? DEFAULT_LANGUAGE}");
-            if (HasRegionParameter) parameters.Add($"region={region ?? DEFAULT_REGION}");
-            if (HasAdultParameter) parameters.Add($"adult={adult || ADULT}");
+            if (HasLanguageParameter) parameters.Add($"language={language}");
+            if (HasRegionParameter) parameters.Add($"region={region}");
+            if (HasAdultParameter) parameters.Add($"adult={adult}");
 
             parameters.AddRange(otherParameters);
 
-            return TMDB.BuildApiCall($"{Version}/" + Endpoint, parameters);
+            return TMDB.BuildApiCall((Version >= 0 ? $"{Version}/" : string.Empty) + Endpoint, parameters);
         }
 
-        public HttpRequestMessage GetMessage()
+        public HttpRequestMessage GetRequest(params string[] parameters) => new HttpRequestMessage(Method, GetURL(parameters))
         {
-            var message = new HttpRequestMessage(Method, GetURL(null, null, false))
+            Headers =
             {
-                Headers =
-                {
-                    Authorization = Authorization
-                }
-            };
-
-            return message;
-        }
+                Authorization = Authorization
+            }
+        };
     }
 
     public class PagedTMDbRequest : TMDbRequest, IPagedRequest
@@ -71,7 +67,7 @@ namespace Movies
 
         public static implicit operator PagedTMDbRequest(string url) => new PagedTMDbRequest(url);
 
-        public string GetURL(int page, params string[] parameters) => GetURL(null, null, false, parameters.Prepend($"page={page}").ToArray());
+        public HttpRequestMessage GetRequest(int page, params string[] parameters) => GetRequest(parameters.Prepend($"page={page}").ToArray());
 
         public Task<int?> GetTotalPages(HttpResponseMessage response) => Helpers.GetTotalPages(response, new JsonPropertyParser<int>("total_pages"));
     }

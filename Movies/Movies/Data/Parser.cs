@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Linq.Async;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 
@@ -56,10 +55,10 @@ namespace Movies
 
     public class JsonNodeParser<T> : IJsonParser<T>
     {
-        private System.Linq.Async.Enumerable.TryParseFunc<JsonNode, T> Parse;
+        private AsyncEnumerable.TryParseFunc<JsonNode, T> Parse;
 
         public JsonNodeParser() { }
-        public JsonNodeParser(System.Linq.Async.Enumerable.TryParseFunc<JsonNode, T> parse)
+        public JsonNodeParser(AsyncEnumerable.TryParseFunc<JsonNode, T> parse)
         {
             Parse = parse;
         }

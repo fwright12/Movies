@@ -7,6 +7,7 @@ using System.ComponentModel;
 using System.Globalization;
 using System.Linq;
 using System.Text.Json.Nodes;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using Movies.Models;
@@ -106,11 +107,33 @@ namespace Movies
         public App()
         {
 #if DEBUG
+            if (!Properties.ContainsKey(API.GENRES.GET_MOVIE_LIST.GetURL()))
+            {
+                foreach (var kvp in new Dictionary<TMDbRequest, string>
+                {
+                    [API.GENRES.GET_MOVIE_LIST] = HttpClient.MOVIE_GENRE_VALUES,
+                    [API.GENRES.GET_TV_LIST] = HttpClient.TV_GENRE_VALUES,
+                    [API.CERTIFICATIONS.GET_MOVIE_CERTIFICATIONS] = HttpClient.MOVIE_CERTIFICATION_VALUES,
+                    [API.CERTIFICATIONS.GET_TV_CERTIFICATIONS] = HttpClient.TV_CERTIFICATION_VALUES,
+                    [API.WATCH_PROVIDERS.GET_MOVIE_PROVIDERS] = HttpClient.MOVIE_WATCH_PROVIDER_VALUES,
+                    [API.WATCH_PROVIDERS.GET_TV_PROVIDERS] = HttpClient.TV_WATCH_PROVIDER_VALUES,
+                })
+                {
+                    Properties[kvp.Key.GetURL()] = System.Text.Json.JsonSerializer.Serialize(new JsonResponse(kvp.Value));
+                }
+
+                _ = SavePropertiesAsync();
+            }
+
             if (Device.RuntimePlatform == Device.iOS)
             {
                 Properties[GetLoginCredentialsKey(ServiceName.TMDb)] = TMDB_LOGIN_INFO;
                 Properties[GetLoginCredentialsKey(ServiceName.Trakt)] = TRAKT_LOGIN_INFO;
+
+                _ = SavePropertiesAsync();
             }
+
+            //UserAppTheme = OSAppTheme.Dark;
 #endif
 
             TMDB tmdb = new TMDB(TMDB_API_KEY, TMDB_V4_BEARER, new AppPropertiesCache(this));
@@ -140,7 +163,7 @@ namespace Movies
             }
 #else
             LocalDatabase = new Database(tmdb, TMDB.IDKey);
-            DataManager.AddDataSource(tmdb);
+            //DataManager.AddDataSource(tmdb);
 
 #if DEBUG
             MovieExplore = new List<object>
@@ -272,6 +295,61 @@ namespace Movies
         public static Item GetAutoWireFromItem(BindableObject bindable) => (Item)bindable.GetValue(AutoWireFromItemProperty);
         public static void SetAutoWireFromItem(BindableObject bindable, Item value) => bindable.SetValue(AutoWireFromItemProperty, value);
 
+        public class PeopleSearch : AsyncFilterable<PersonViewModel>
+        {
+            public override async IAsyncEnumerable<PersonViewModel> GetItems(FilterPredicate predicate, CancellationToken cancellationToken = default)
+            {
+                if (!(predicate is SearchPredicate search) || string.IsNullOrEmpty(search.Query))
+                {
+                    yield break;
+                }
+                
+#if DEBUG && true
+                await System.Threading.Tasks.Task.CompletedTask;
+
+                foreach (var item in await System.Threading.Tasks.Task.FromResult(Enumerable.Repeat(new PersonViewModel(App.DataManager, MockData.Instance.MatthewM.WithID(TMDB.IDKey, 0)), 5)))
+                {
+                    yield return item;
+                }
+#else
+                await foreach (var person in TMDB.Database.SearchPeople(search.Query))
+                {
+                    yield return new PersonViewModel(DataManager, person);
+                }
+#endif
+            }
+        }
+
+        public class KeywordsSearch : AsyncFilterable<Keyword>
+        {
+            public override async IAsyncEnumerable<Keyword> GetItems(FilterPredicate predicate, CancellationToken cancellationToken = default)
+            {
+                if (!(predicate is SearchPredicate search) || string.IsNullOrEmpty(search.Query))
+                {
+                    yield break;
+                }
+
+#if DEBUG && true
+                await System.Threading.Tasks.Task.CompletedTask;
+
+                var keywords = await System.Threading.Tasks.Task.FromResult(App.AdKeywords);
+                for (int i = 0; i < keywords.Length; i++)
+                {
+                    yield return new Keyword
+                    {
+                        Id = i,
+                        Name = keywords[i],
+                    };
+                }
+#else
+                await foreach (var keyword in TMDB.Database.SearchKeywords(search.Query))
+                {
+                    yield return keyword;
+                }
+#endif
+            }
+        }
+
 #if DEBUG
         private void TMDBSetup(AccountViewModel tmdb) { }
         private void TraktSetup(AccountViewModel tmdb) { }
@@ -394,8 +472,7 @@ namespace Movies
 
         private CollectionViewModel GetPopular()
         {
-            var db = new TMDB.Database();
-            var collection = new CollectionViewModel(DataManager, null, db, ItemType.Movie | ItemType.TVShow | ItemType.Person | ItemType.Collection, db)// | ItemType.Company)
+            var collection = new CollectionViewModel(DataManager, null, TMDB.Database.Instance, ItemType.Movie | ItemType.TVShow | ItemType.Person | ItemType.Collection, TMDB.Database.Instance)// | ItemType.Company)
             {
                 ListLayout = ListLayouts.Grid,
                 SortOptions = new List<Property> { TMDB.POPULARITY, Movie.RELEASE_DATE, Movie.REVENUE, Media.ORIGINAL_TITLE, TMDB.SCORE, TMDB.VOTE_COUNT },
@@ -412,7 +489,9 @@ namespace Movies
 
                 if (Properties.TryGetValue(POPULAR_FILTERS, out var value) && value is string filters)
                 {
+#if !DEBUG || true
                     _ = DeserializeFilters(builder, filters);
+#endif
                 }
             }
 
@@ -431,13 +510,15 @@ namespace Movies
             try
             {
                 //var temp = SerializeFilters(builder.Predicate);
-                var predicates = (builder.Predicate as BooleanExpression).Predicates.OfType<OperatorPredicate>();
+                var predicates = (builder.Predicate as BooleanExpression)?.Predicates.OfType<OperatorPredicate>() ?? Enumerable.Empty<OperatorPredicate>();
                 var json = System.Text.Json.JsonSerializer.Serialize(predicates, FilterSerializerOptions);
+#if DEBUG && false
                 var temp = System.Text.Json.JsonSerializer.Deserialize<IEnumerable<OperatorPredicate>>(json, FilterSerializerOptions);
 
                 Print.Log(json);
+#endif
 
-                //Properties[POPULAR_FILTERS] = json;
+                Properties[POPULAR_FILTERS] = json;
                 return SavePropertiesAsync();
             }
             catch (Exception e1)

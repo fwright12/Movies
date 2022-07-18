@@ -12,6 +12,7 @@ namespace Movies.Models
             BirthYear = birthYear ?? 0;
         }
 
+        public static readonly Property<string> NAME = new Property<string>("Name");
         public static readonly Property<DateTime> BIRTHDAY = new Property<DateTime>("Birthday");
         public static readonly Property<string> BIRTHPLACE = new Property<string>("Birthplace");
         public static readonly Property<DateTime?> DEATHDAY = new Property<DateTime?>("Deathday");

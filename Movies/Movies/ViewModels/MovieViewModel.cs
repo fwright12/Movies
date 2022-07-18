@@ -17,7 +17,6 @@ namespace Movies.ViewModels
         protected override MultiProperty<WatchProvider> WatchProvidersProperty => Movie.WATCH_PROVIDERS;
 
         private CollectionViewModel _ParentCollection;
-        protected override MediaService<Movie> MediaService => DataManager.MovieService;
 
         public MovieViewModel(DataManager dataManager, Movie movie) : base(dataManager, movie) { }
     }

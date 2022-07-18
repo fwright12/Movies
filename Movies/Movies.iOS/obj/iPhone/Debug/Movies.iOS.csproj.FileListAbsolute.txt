@@ -1,7 +1,6 @@
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhone\Debug\Movies.iOS.exe
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhone\Debug\Movies.iOS.pdb
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhone\Debug\Microsoft.Bcl.AsyncInterfaces.dll
-C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhone\Debug\Newtonsoft.Json.dll
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhone\Debug\SQLite-net.dll
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhone\Debug\SQLitePCLRaw.batteries_v2.dll
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhone\Debug\SQLitePCLRaw.nativelibrary.dll
@@ -12,7 +11,6 @@ C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhone\Debug\Syst
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhone\Debug\System.Runtime.CompilerServices.Unsafe.dll
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhone\Debug\System.Text.Encodings.Web.dll
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhone\Debug\System.Text.Json.dll
-C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhone\Debug\TMDbLib.dll
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhone\Debug\Xamarin.Essentials.dll
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhone\Debug\Xamarin.Essentials.pdb
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhone\Debug\Firebase.Core.dll
@@ -63,15 +61,10 @@ C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhone\Debug\Xama
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhone\Debug\System.Extensions.dll
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhone\Debug\Xamarin.Forms.Extensions.pdb
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhone\Debug\Xamarin.Forms.Extensions.dll.config
+C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhone\Debug\Xamarin.Forms.Extensions.dll.mdb
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhone\Debug\Movies.pdb
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhone\Debug\System.Extensions.pdb
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhone\Debug\System.Extensions.dll.mdb
-C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Debug\Movies.iOS.csproj.AssemblyReference.cache
-C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Debug\Movies.iOS.csproj.CoreCompileInputs.cache
-C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Debug\Movies.iOS.csproj.CopyComplete
-C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Debug\Movies.iOS.exe
-C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Debug\Movies.iOS.pdb
-C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhone\Debug\Xamarin.Forms.Extensions.dll.mdb
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Debug\device-builds\iphone11.8-15.5\actool\_PartialAppManifest.items
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Debug\device-builds\iphone11.8-15.5\actool\_BundleResourceWithLogicalName.items
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Debug\device-builds\iphone11.8-15.5\actool\_ProcessedImageAssetsPath.items
@@ -102,8 +95,12 @@ C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Debug\devi
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Debug\device-builds\iphone11.8-15.5\_ProcessedBundleResourcesPath.items
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Debug\device-builds\iphone11.8-15.5\_ProcessedContentPath.items
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Debug\device-builds\iphone11.8-15.5\optimized\
+C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Debug\Movies.iOS.csproj.AssemblyReference.cache
+C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Debug\Movies.iOS.csproj.CoreCompileInputs.cache
+C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Debug\Movies.iOS.csproj.CopyComplete
+C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Debug\Movies.iOS.exe
+C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Debug\Movies.iOS.pdb
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Debug\device-builds\iphone11.8-15.5\CopyFilesToMac\Microsoft.Bcl.AsyncInterfaces.dll.ReferenceCopyLocalPaths.stamp
-C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Debug\device-builds\iphone11.8-15.5\CopyFilesToMac\Newtonsoft.Json.dll.ReferenceCopyLocalPaths.stamp
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Debug\device-builds\iphone11.8-15.5\CopyFilesToMac\SQLite-net.dll.ReferenceCopyLocalPaths.stamp
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Debug\device-builds\iphone11.8-15.5\CopyFilesToMac\SQLitePCLRaw.batteries_v2.dll.ReferenceCopyLocalPaths.stamp
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Debug\device-builds\iphone11.8-15.5\CopyFilesToMac\SQLitePCLRaw.nativelibrary.dll.ReferenceCopyLocalPaths.stamp
@@ -114,7 +111,6 @@ C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Debug\devi
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Debug\device-builds\iphone11.8-15.5\CopyFilesToMac\System.Runtime.CompilerServices.Unsafe.dll.ReferenceCopyLocalPaths.stamp
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Debug\device-builds\iphone11.8-15.5\CopyFilesToMac\System.Text.Encodings.Web.dll.ReferenceCopyLocalPaths.stamp
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Debug\device-builds\iphone11.8-15.5\CopyFilesToMac\System.Text.Json.dll.ReferenceCopyLocalPaths.stamp
-C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Debug\device-builds\iphone11.8-15.5\CopyFilesToMac\TMDbLib.dll.ReferenceCopyLocalPaths.stamp
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Debug\device-builds\iphone11.8-15.5\CopyFilesToMac\Xamarin.Essentials.dll.ReferenceCopyLocalPaths.stamp
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Debug\device-builds\iphone11.8-15.5\CopyFilesToMac\Xamarin.Essentials.pdb.ReferenceCopyLocalPaths.stamp
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Debug\device-builds\iphone11.8-15.5\CopyFilesToMac\Firebase.Core.dll.ReferenceCopyLocalPaths.stamp

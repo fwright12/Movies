@@ -1,6 +1,7 @@
 ﻿using System;
-using System.Threading.Tasks;
+using System.ComponentModel;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Input;
 using Xamarin.Forms;
 
@@ -41,11 +42,20 @@ namespace Movies.ViewModels
             };
         }
 
+        private string LastQuery;
+
         public void BuildPredicate()
         {
+            if (LastQuery == Query)
+            {
+                return;
+            }
+
+            Cancel?.Cancel();
+
             Predicate = new SearchPredicate
             {
-                Query = Query
+                Query = LastQuery = Query
             };
 
             PredicateChanged?.Invoke(this, EventArgs.Empty);
@@ -58,7 +68,10 @@ namespace Movies.ViewModels
                 await Task.Delay(SearchDelay, cancellationToken);
             }
 
-            BuildPredicate();
+            if (!cancellationToken.IsCancellationRequested)
+            {
+                BuildPredicate();
+            }
         }
     }
 }

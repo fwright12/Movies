@@ -102,8 +102,6 @@ namespace Movies.ViewModels
     {
         public string Title => Name;
 
-        protected abstract MediaService<TItem> MediaService { get; }
-
         public string Tagline => RequestValue(Media.TAGLINE);
         public string Description => RequestValue(Media.DESCRIPTION);
         public string ContentRating => RequestValue(ContentRatingProperty);

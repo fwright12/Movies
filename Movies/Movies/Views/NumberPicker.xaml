@@ -48,13 +48,14 @@
                                     Value="Title" />
                         </Style>
                     </VisualElement.Resources>
-                    
+
                     <Button Text="-"
                             Command="{TemplateBinding StepDownCommand}" />
 
                     <Entry Text="{TemplateBinding Value, Mode=TwoWay}"
                            Keyboard="Numeric"
-                           WidthRequest="75" />
+                           WidthRequest="75"
+                           FlexLayout.Shrink="0" />
 
                     <Button Text="+"
                             Command="{TemplateBinding StepUpCommand}" />

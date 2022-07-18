@@ -99,7 +99,7 @@ namespace Movies
         public class RequestHandler
         {
             public ItemProperties Context { get; }
-            public Item Item { get; set; }
+            public Item Item { get; private set; }
             public object[] Parameters { get; set; }
 
             public RequestHandler(ItemProperties context, Item item)
@@ -118,7 +118,7 @@ namespace Movies
             }
 
             public void PropertyRequested(object sender, PropertyEventArgs e) => PropertyRequested((PropertyDictionary)sender, e.Properties);
-            public void PropertyRequested(PropertyDictionary dict, IEnumerable<Property> properties)
+            public IEnumerable<Task<JsonNode>> PropertyRequested(PropertyDictionary dict, IEnumerable<Property> properties)
             {
                 var requests = new List<TMDbRequest>();
 
@@ -132,16 +132,17 @@ namespace Movies
 
                 if (requests.Count == 0)
                 {
-                    return;
+                    return null;
                 }
 
-                foreach (var property in Context.Info.Values.SelectMany(parsers => parsers).Select(parser => parser.Property).Except(properties))
+                requests = Context.Info.Select(kvp => kvp.Key).ToList();
+                /*foreach (var property in Context.Info.Values.SelectMany(parsers => parsers).Select(parser => parser.Property).Except(properties))
                 {
                     if (Context.PropertyLookup.TryGetValue(property, out var request))
                     {
                         requests.Add(request);
                     }
-                }
+                }*/
 
                 var batched = new List<List<TMDbRequest>>(Context.SupportsAppendToResponse.Select(atr => new List<TMDbRequest>()));
                 var parsers = new List<List<IEnumerable<Parser>>>(Context.SupportsAppendToResponse.Select(atr => new List<IEnumerable<Parser>>()));
@@ -195,32 +196,56 @@ namespace Movies
                     }
                 }
 
+                var result = new List<Task<JsonNode>>();
+
                 for (int i = 0; i < batched.Count; i++)
                 {
-                    var response = ApiCall(batched[i].FirstOrDefault(), batched[i].Skip(1));
-
-                    foreach (var parser in parsers[i].SelectMany(x => x))
-                    {
-                        if (parser.Property == TVShow.SEASONS)
-                        {
-                            dict.Add(TVShow.SEASONS, GetTVItems(response, "seasons", (JsonNode json, out TVSeason season) => TMDB.TryParseTVSeason(json, (TVShow)Item, out season)));
-                        }
-                        else if (parser.Property == TVSeason.EPISODES)
-                        {
-                            if (Item is TVSeason season)
-                            {
-                                dict.Add(TVSeason.EPISODES, GetTVItems(response, "episodes", (JsonNode json, out TVEpisode episode) => TMDB.TryParseTVEpisode(json, season, out episode)));
-                            }
-                        }
-                        else
-                        {
-                            dict.Add(parser.GetPair(response));
-                        }
-                    }
+                    result.Add(Request(dict, batched[i].FirstOrDefault(), batched[i].Skip(1), parsers[i].SelectMany(x => x)));
                 }
+
+                return result;
             }
 
-            private async Task<IEnumerable<T>> GetTVItems<T>(Task<JsonNode> json, string property, System.Linq.Async.Enumerable.TryParseFunc<JsonNode, T> parse) => TMDB.TryParseCollection(await json, new JsonPropertyParser<IEnumerable<JsonNode>>(property), out var result, new JsonNodeParser<T>(parse)) ? result : null;
+            public async Task<T> GetItem<T>(PropertyDictionary dict, JsonNodeParser<T> parser) where T : Item
+            {
+                var json = await PropertyRequested(dict, Context.PropertyLookup.Keys).First();
+
+                if (parser.TryGetValue(json, out var value))
+                {
+                    Item = value;
+                    return value;
+                }
+
+                return null;
+            }
+
+            private Task<JsonNode> Request(PropertyDictionary dict, TMDbRequest details, IEnumerable<TMDbRequest> appended, IEnumerable<Parser> parsers)
+            {
+                var response = ApiCall(details, appended);
+
+                foreach (var parser in parsers)
+                {
+                    if (parser.Property == TVShow.SEASONS)
+                    {
+                        dict.Add(TVShow.SEASONS, GetTVItems(response, "seasons", (JsonNode json, out TVSeason season) => TMDB.TryParseTVSeason(json, (TVShow)Item, out season)));
+                    }
+                    else if (parser.Property == TVSeason.EPISODES)
+                    {
+                        if (Item is TVSeason season)
+                        {
+                            dict.Add(TVSeason.EPISODES, GetTVItems(response, "episodes", (JsonNode json, out TVEpisode episode) => TMDB.TryParseTVEpisode(json, season, out episode)));
+                        }
+                    }
+                    else
+                    {
+                        dict.Add(parser.GetPair(response));
+                    }
+                }
+
+                return response;
+            }
+
+            private async Task<IEnumerable<T>> GetTVItems<T>(Task<JsonNode> json, string property, AsyncEnumerable.TryParseFunc<JsonNode, T> parse) => TMDB.TryParseCollection(await json, new JsonPropertyParser<IEnumerable<JsonNode>>(property), out var result, new JsonNodeParser<T>(parse)) ? result : null;
 
             private List<Parser> ReplacePagedParsers(PagedTMDbRequest request, IEnumerable<Parser> parsers)
             {

@@ -7,6 +7,7 @@
               xmlns:forms="clr-namespace:Xamarin.Forms;assembly=Xamarin.Forms.Extensions"
               x:Class="Movies.Views.FilterTemplate">
     <StackLayout Orientation="Vertical"
+                 Spacing="0"
                  BackgroundColor="{AppThemeBinding Light={StaticResource LightSecondaryBackground}, Dark={StaticResource DarkSecondaryBackground}}">
         <VisualElement.Resources>
             <ResourceDictionary>
@@ -17,15 +18,15 @@
                 <Style TargetType="Button"
                        CanCascade="True">
                     <Setter Property="FontSize"
-                            Value="{OnPlatform iOS={Static NamedSize.Medium}, Android={Static NamedSize.Default}}" />
+                            Value="{OnPlatform iOS=Medium, Android={Static NamedSize.Default}}" />
                 </Style>
 
                 <Style x:Key="FilterExpressionStyle"
                        TargetType="Layout">
                     <Setter Property="BindingContext"
-                            Value="{TemplateBinding BindingContext.Predicate}" />
+                            Value="{TemplateBinding BindingContext}" />
                     <Setter Property="BindableLayout.ItemsSource"
-                            Value="{Binding Root, Converter={Static viewmodels:CollectionViewModel.TreeToListConverter}}" />
+                            Value="{Binding}" />
                     <Setter Property="BindableLayout.ItemTemplateSelector"
                             Value="{StaticResource NodeSelector}" />
                     <Setter Property="BindableLayout.EmptyView"
@@ -60,6 +61,8 @@
                                     Style="{StaticResource FilterExpressionStyle}" />
                     </StackLayout>
                 </ControlTemplate>
+
+                <x:Int32 x:Key="zero">0</x:Int32>
             </ResourceDictionary>
         </VisualElement.Resources>
 
@@ -73,13 +76,13 @@
                         <Setter TargetName="scroll"
                                 Property="Layout.Padding"
                                 Value="0,0,0,10" />
-                        
+
                         <Setter TargetName="filters"
                                 Property="ContentView.ControlTemplate"
                                 Value="{StaticResource CompactFiltersTemplate}" />
                         <Setter TargetName="filters"
                                 Property="ContentView.IsVisible"
-                                Value="{Binding Predicate.Predicate, Converter={Static forms:ObjectToFalseConverter.Instance}, ConverterParameter={Static movies:FilterPredicate.TAUTOLOGY}}" />
+                                Value="{Binding Count, Converter={Static forms:ObjectToFalseConverter.Instance}, ConverterParameter={StaticResource zero}}" />
 
                         <!--<MultiBinding>
                                             <MultiBinding.Converter>
@@ -129,7 +132,8 @@
             </MultiBinding>
         </Layout.Padding>
 
-        <ContentView x:Name="filters">
+        <ContentView x:Name="filters"
+                     BindingContext="{Binding Predicate.Root, Converter={Static viewmodels:CollectionViewModel.TreeToListConverter}, Source={RelativeSource AncestorType={Static viewmodels:CollectionViewModel.FilterListType}}}">
             <VisualElement.Resources>
                 <Style TargetType="Frame"
                        BasedOn="{StaticResource FrameStyle}">
@@ -144,14 +148,21 @@
                             <StackLayout BindingContext="{TemplateBinding BindingContext}"
                                          Orientation="Horizontal"
                                          Spacing="0">
-                                <ContentPresenter Padding="5, 5, 0, 5" />
+                                <ContentPresenter Padding="5, 5, 0, 5"
+                                                  Style="{StaticResource ContentPresenterFix}" />
 
-                                <Button Text="x"
-                                        Command="{Binding RemoveSelfCommand}"
-                                        CommandParameter="{Binding}"
-                                        BackgroundColor="Transparent"
-                                        HeightRequest="0"
-                                        WidthRequest="{Binding Height, Source={RelativeSource Self}}" />
+                                <ImageButton Command="{Binding RemoveSelfCommand}"
+                                             CommandParameter="{Binding}"
+                                             BackgroundColor="Transparent"
+                                             Padding="{OnPlatform Android=5}"
+                                             HeightRequest="0"
+                                             WidthRequest="33">
+                                    <ImageButton.Source>
+                                        <FontImageSource Glyph="{OnPlatform Android=&#xf2d7;, iOS=&#xf404;}"
+                                                         FontFamily="{StaticResource IoniconsFont}"
+                                                         Color="{StaticResource Primary}" />
+                                    </ImageButton.Source>
+                                </ImageButton>
                             </StackLayout>
                         </ControlTemplate>
                     </Setter>
@@ -160,17 +171,13 @@
 
             <Button Text="Clear"
                     TextColor="Red"
-                    Command="{Binding Predicate.Root.ClearCommand}"
+                    Command="{Binding Predicate.Root.ClearCommand, Source={RelativeSource AncestorType={Static viewmodels:CollectionViewModel.FilterListType}}}"
                     Grid.Column="1"
                     VerticalOptions="Start" />
         </ContentView>
 
         <ScrollView x:Name="scroll"
-                    views:Extensions.Content="{Binding Converter={Static viewmodels:ObjectToViewConverter.Instance}, ConverterParameter={StaticResource PredicateTemplateSelector}}"
-                    BindingContext="{Binding Predicate}">
-            <VisualElement.Behaviors>
-                <viewmodels:ScrollLockBehavior />
-            </VisualElement.Behaviors>
-        </ScrollView>
+                    views:Extensions.Content="{Binding Converter={Static forms:ObjectToViewConverter.Instance}, ConverterParameter={StaticResource PredicateTemplateSelector}}"
+                    BindingContext="{Binding Predicate}" />
     </StackLayout>
 </DataTemplate>

@@ -13,147 +13,30 @@ using Xamarin.Forms;
 
 namespace Movies.ViewModels
 {
-    public class ObjectToViewConverter : IValueConverter
+    public class ScrollLockBehavior : Behavior<ScrollView>
     {
-        public static readonly ObjectToViewConverter Instance = new ObjectToViewConverter();
+        private double LastScrollX, LastScrollY;
 
-        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        protected override void OnAttachedTo(ScrollView bindable)
         {
-            if (value != null && parameter is DataTemplateSelector selector)
+            base.OnAttachedTo(bindable);
+            return;
+            bindable.Scrolled += (sender, e) =>
             {
-                return selector.SelectTemplate(value, null).CreateContent();
-            }
+                double deltaX = e.ScrollX - LastScrollX;
+                double deltaY = e.ScrollY - LastScrollY;
 
-            return value;
-        }
+                //Print.Log(e.ScrollX, e.ScrollY, LastScrollY, deltaY);
 
-        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
-        {
-            throw new NotImplementedException();
-        }
-    }
+                LastScrollX = e.ScrollX;
+                LastScrollY = e.ScrollY;
 
-
-    public class ReverseListConverter : IValueConverter
-    {
-        public static readonly ReverseListConverter Instance = new ReverseListConverter();
-
-        public object Convert(object value, Type targetType, object parameter, CultureInfo culture) => (value is IEnumerable items) ? items.OfType<object>().Reverse() : value;
-
-        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => Convert(value, targetType, parameter, culture);
-    }
-
-    public class DoubleToIntConverter : IValueConverter
-    {
-        public static readonly DoubleToIntConverter Instance = new DoubleToIntConverter();
-
-        public object Convert(object value, Type targetType, object parameter, CultureInfo culture) => value is int l ? (double)l : value;
-
-        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => value is double d ? (int)d : value;
-    }
-
-    public class DoubleToLongConverter : IValueConverter
-    {
-        public static readonly DoubleToLongConverter Instance = new DoubleToLongConverter();
-
-        public object Convert(object value, Type targetType, object parameter, CultureInfo culture) => value is long l ? (double)l : value;
-
-        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => value is double d ? (long)d : value;
-    }
-
-    public class ObjectToDoubleConverter : IValueConverter
-    {
-        public static readonly ObjectToDoubleConverter Instance = new ObjectToDoubleConverter();
-
-        public object Convert(object value, Type targetType, object parameter, CultureInfo culture) => value is double d ? d : value;
-
-        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => value is double d ? d : value;
-    }
-
-    public class TreeNodeTemplateSelector<T> : DataTemplateSelector
-    {
-        public DataTemplate INodeTemplate { get; set; }
-        public DataTemplate LeafNodeTemplate { get; set; }
-
-        protected override DataTemplate OnSelectTemplate(object item, BindableObject container)
-        {
-            var node = (ObservableNode<T>)item;
-            var template = node.Children.Count == 0 ? LeafNodeTemplate : INodeTemplate;
-
-            return (template as DataTemplateSelector)?.SelectTemplate(node.Value, container) ?? template;
-        }
-    }
-
-    public class TreeToListConverter<T> : IValueConverter
-    {
-        public object Convert(object value, Type targetType, object parameter, CultureInfo culture) => new FlatTreeViewModel<T>((ObservableNode<T>)value).Leaves;
-
-        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
-        {
-            throw new NotImplementedException();
-        }
-    }
-
-    public class FlatTreeViewModel<T>
-    {
-        public ObservableNode<T> Root { get; }
-
-        public IList<ObservableNode<T>> Leaves { get; }
-
-        public FlatTreeViewModel(ObservableNode<T> root)
-        {
-            Root = root;
-            if (root.Children.Count == 0)
-            {
-                Leaves = new ObservableCollection<ObservableNode<T>>();
-            }
-            else
-            {
-                Leaves = new ObservableCollection<ObservableNode<T>>(Flatten(root));
-            }
-
-            Root.SubtreeChanged += (sender, e) =>
-            {
-                if (e.OldItems != null)
+                if (e.ScrollX != 0 || e.ScrollY != 0)
                 {
-                    foreach (var item in e.OldItems.OfType<ObservableNode<T>>())
-                    {
-                        foreach (var value in Flatten(item))
-                        {
-                            Leaves.Remove(value);
-                        }
-                    }
-                }
-
-                if (e.NewItems != null)
-                {
-                    foreach (var item in e.NewItems.OfType<ObservableNode<T>>())
-                    {
-                        foreach (var value in Flatten(item))
-                        {
-                            Leaves.Add(value);
-                        }
-                    }
+                    ((View)bindable.Parent).HeightRequest += deltaY;
+                    _ = bindable.ScrollToAsync(0, 0, false);
                 }
             };
-        }
-
-        public static IEnumerable<ObservableNode<T>> Flatten(ObservableNode<T> root)
-        {
-            if (root.Children.Count == 0)
-            {
-                yield return root;
-            }
-            else
-            {
-                foreach (var child in root.Children)
-                {
-                    foreach (var node in Flatten(child))
-                    {
-                        yield return node;
-                    }
-                }
-            }
         }
     }
 
@@ -212,13 +95,13 @@ namespace Movies.ViewModels
         public List<Editor> Defaults { get; set; } = new List<Editor>();
 
         public FilterListViewModel<Editor> Filter { get; }
-        private Dictionary<Type, HashSet<Property>> Properties = new Dictionary<Type, HashSet<Property>>();
+        //private Dictionary<Type, HashSet<Property>> Properties = new Dictionary<Type, HashSet<Property>>();
 
         public PropertyEditorFilter(Editor editor, params Type[] types)
         {
             Types = types;
 
-            foreach (var type in Types)
+            /*foreach (var type in Types)
             {
                 var list = new HashSet<Property>();
 
@@ -236,10 +119,10 @@ namespace Movies.ViewModels
                 {
                     Print.Log(property);
                     list.Add(new ReflectedProperty(property));
-                }*/
+                }
 
                 Properties.Add(type, list);
-            }
+            }*/
 
             //var typeEditor = new Editor<T>(new PropertyTemplate<T>(new Property<Type>("Types", types)));
             TypeSelector = new OperatorEditor
@@ -307,13 +190,13 @@ namespace Movies.ViewModels
             }
         }
 
-        private FilterList<T> Source;
+        private FilterList Source;
         private IPredicateBuilder _Predicate;
 
-        public FilterListViewModel(IAsyncEnumerable<T> source) : this(new FilterList<T>(source)) { }
-        public FilterListViewModel(IEnumerable<T> source) : this(new FilterList<T>(Convert(source))) { }
+        public FilterListViewModel(IAsyncEnumerable<T> source) : this(new FilterList(source)) { }
+        public FilterListViewModel(IEnumerable<T> source) : this(new FilterList(Convert(source))) { }
 
-        private static async IAsyncEnumerable<T> Convert<T>(IEnumerable<T> source)
+        private static async IAsyncEnumerable<T> Convert(IEnumerable<T> source)
         {
             await Task.CompletedTask;
             foreach (var item in source)
@@ -322,7 +205,7 @@ namespace Movies.ViewModels
             }
         }
 
-        private FilterListViewModel(FilterList<T> source) : base(source)
+        private FilterListViewModel(FilterList source) : base(source)
         {
             Source = source;
         }
@@ -335,7 +218,7 @@ namespace Movies.ViewModels
 
         private void PredicateChanged(object sender, EventArgs e) => Filter(Predicate.Predicate);
 
-        private class FilterList<T> : IAsyncEnumerable<T>
+        private class FilterList : IAsyncEnumerable<T>
         {
             public FilterPredicate Filter { get; set; }
 
@@ -344,11 +227,6 @@ namespace Movies.ViewModels
             public FilterList(IAsyncEnumerable<T> items)
             {
                 Items = items;
-            }
-
-            public FilterList(IEnumerable<T> items)
-            {
-                //Items = items;
             }
 
             public IAsyncEnumerator<T> GetAsyncEnumerator(CancellationToken cancellationToken = default) => ((Items as IAsyncFilterable<T>)?.GetItems(Filter ?? FilterPredicate.TAUTOLOGY, cancellationToken) ?? Items).GetAsyncEnumerator(cancellationToken);

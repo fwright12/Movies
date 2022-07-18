@@ -92,7 +92,7 @@ namespace Movies
 
         public async Task AddSourceAsync(List list)
         {
-            var buffer = await Task.WhenAll(System.Linq.Async.Enumerable.ReadAll(this), System.Linq.Async.Enumerable.ReadAll(list));
+            var buffer = await Task.WhenAll(AsyncEnumerable.ReadAll(this), AsyncEnumerable.ReadAll(list));
 
             if (Reverse)
             {
@@ -308,7 +308,7 @@ namespace Movies
                 yield break;
             }
 
-            var lazyMain = new Lazy<Task<List<Item>>>(() => System.Linq.Async.Enumerable.ReadAll(main));
+            var lazyMain = new Lazy<Task<List<Item>>>(() => AsyncEnumerable.ReadAll(main));
 
             foreach (var itr in itrs.Skip(1))
             {

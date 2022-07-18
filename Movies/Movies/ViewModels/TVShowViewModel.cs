@@ -7,7 +7,7 @@ namespace Movies.ViewModels
 {
     public class TVSeriesViewModel : CollectionViewModel
     {
-        public string PosterPath => RequestSingle(DataManager.TVShowService.PosterPathRequested);
+        public string PosterPath => null;// RequestSingle(DataManager.TVShowService.PosterPathRequested);
 
         public TVSeriesViewModel(DataManager dataManager, TVShow tvShow) : base(dataManager, tvShow.Name, Concat(tvShow))
         {
@@ -41,8 +41,6 @@ namespace Movies.ViewModels
         public DateTime? LastAirDate => TryRequestValue(TVShow.LAST_AIR_DATE, out var last) ? last : (DateTime?)null;
         public IEnumerable<Company> Networks => RequestValue(TVShow.NETWORKS);
 
-
-        protected override MediaService<TVShow> MediaService => DataManager.TVShowService;
         protected override Property<string> ContentRatingProperty => TVShow.CONTENT_RATING;
         protected override MultiProperty<Genre> GenresProperty => TVShow.GENRES;
         protected override MultiProperty<WatchProvider> WatchProvidersProperty => TVShow.WATCH_PROVIDERS;
@@ -64,11 +62,8 @@ namespace Movies.ViewModels
 
         public override string PrimaryImagePath => (Item as Collection)?.PosterPath ?? base.PrimaryImagePath;
 
-        private TVSeasonService TVSeasonService;
-
         public TVSeasonViewModel(DataManager dataManager, TVSeason season) : base(dataManager, season)
         {
-            TVSeasonService = dataManager.TVSeasonService;
             Number = season.SeasonNumber;
             DescriptionLabel = "Summary";
             ListLabel = "Episodes";
@@ -85,7 +80,6 @@ namespace Movies.ViewModels
 
         public DateTime? AirDate => TryRequestValue(TVEpisode.AIR_DATE, out var date) ? date : (DateTime?)null;
 
-        protected override MediaService<TVEpisode> MediaService => DataManager.TVEpisodeService;
         protected override Property<string> ContentRatingProperty => TVShow.CONTENT_RATING;
         protected override MultiProperty<Genre> GenresProperty => TVShow.GENRES;
         protected override MultiProperty<WatchProvider> WatchProvidersProperty => TVShow.WATCH_PROVIDERS;

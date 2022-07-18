@@ -246,10 +246,13 @@
                               ColumnDefinitions="*, Auto"
                               Padding="0,0,0,5">
                             <VisualElement.Resources>
-                                <Style x:Key="SquareButtonStyle"
-                                       TargetType="Button">
+                                <Style TargetType="Button">
                                     <Setter Property="WidthRequest"
                                             Value="{Binding Height, Source={RelativeSource Self}}" />
+                                    <Setter Property="FontFamily"
+                                            Value="{StaticResource IoniconsFont}" />
+                                    <Setter Property="FontSize"
+                                            Value="Title" />
                                 </Style>
                             </VisualElement.Resources>
 
@@ -281,9 +284,7 @@
                                 <Label Text="Sort: "
                                        FontSize="Default" />
 
-                                <Button Command="{Binding ToggleSortOrder}"
-                                        FontFamily="{StaticResource IoniconsFont}"
-                                        FontSize="Title">
+                                <Button Command="{Binding ToggleSortOrder}">
                                     <Button.Text>
                                         <Binding Path="SortAscending">
                                             <Binding.Converter>
@@ -298,7 +299,6 @@
                                         x:DataType="{x:Null}"
                                         ItemsSource="{Binding SortOptions}"
                                         SelectedItem="{Binding SortBy}"
-                                        SelectedIndex="0"
                                         BackgroundColor="Transparent"
                                         TextColor="{StaticResource Primary}"
                                         TitleColor="{Binding TextColor, Source={RelativeSource Self}}"
@@ -311,17 +311,8 @@
                                          Orientation="Horizontal"
                                          Spacing="0"
                                          Grid.Column="1">
-                                <VisualElement.Resources>
-                                    <Style TargetType="Button"
-                                           BasedOn="{StaticResource SquareButtonStyle}">
-                                        <Setter Property="FontFamily"
-                                                Value="{StaticResource IoniconsFont}" />
-                                        <Setter Property="FontSize"
-                                                Value="Title" />
-                                    </Style>
-                                </VisualElement.Resources>
-
                                 <Button BindingContext="{Binding Source={RelativeSource AncestorType={x:Type forms:DrawerView}}}"
+                                        Text="{OnPlatform Android=&#xf38b;, iOS=&#xf31b;}"
                                         Command="{Binding NextSnapPointCommand}"
                                         IsVisible="{Binding Drawer, Converter={Static forms:FalseIfNullConverter.Instance}}" />
 

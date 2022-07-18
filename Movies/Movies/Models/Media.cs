@@ -40,32 +40,9 @@ namespace Movies.Models
         public static readonly MultiProperty<Company> PRODUCTION_COMPANIES = new MultiProperty<Company>("Production Companies");
         public static readonly MultiProperty<string> PRODUCTION_COUNTRIES = new MultiProperty<string>("Production Countries");
         public static readonly Property<IAsyncEnumerable<Item>> RECOMMENDED = new Property<IAsyncEnumerable<Item>>("Recommended");
-        public static readonly MultiProperty<Keyword> KEYWORDS = new MultiProperty<Keyword>("Keywords", new FilterListViewModel<Keyword>(new KeywordsSearch())
+        public static readonly MultiProperty<Keyword> KEYWORDS = new MultiProperty<Keyword>("Keywords", new FilterListViewModel<Keyword>(new App.KeywordsSearch())
         { 
             Predicate = new SearchPredicateBuilder()
         });
-
-        public class KeywordsSearch : AsyncFilterable<Keyword>
-        {
-            public override async IAsyncEnumerable<Keyword> GetItems(FilterPredicate predicate, CancellationToken cancellationToken = default)
-            {
-                await System.Threading.Tasks.Task.CompletedTask;
-
-                if (!(predicate is SearchPredicate search) || string.IsNullOrEmpty(search.Query))
-                {
-                    yield break;
-                }
-
-                var keywords = await System.Threading.Tasks.Task.FromResult(App.AdKeywords);
-                for (int i = 0; i < keywords.Length; i++)
-                {
-                    yield return new Keyword
-                    {
-                        Id = i,
-                        Name = keywords[i],
-                    };
-                }
-            }
-        }
     }
 }

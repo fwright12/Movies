@@ -1,12 +1,11 @@
 ﻿using Movies.Models;
 using System;
 using System.Collections.Generic;
-using System.Linq.Async;
 using System.Linq;
-using System.Net.Http;
+using System.Text.Json;
 using System.Text.Json.Nodes;
-using System.Threading.Tasks;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace Movies
 {
@@ -18,6 +17,38 @@ namespace Movies
             await Task.WhenAll(itrs.Select(itr => itr.MoveNextAsync().AsTask()));
             //IComparable[] values = await Task.WhenAll(itrs.Select(itr => byValue(itr.Current)));
 
+            async Task<object> Wrap(Task<Rating> result, bool score)
+            {
+                var rating = await result;
+
+                if (score)
+                {
+                    return rating.Score;
+                }
+                else
+                {
+                    return rating.TotalVotes;
+                }
+            }
+
+            bool TryGetValue(Item item, Property property, out Task<object> value)
+            {
+                var properties = Data.GetDetails(item);
+
+                if (properties.TryGetValue(property, out value))
+                {
+                    return true;
+                }
+                else if ((property == SCORE || property == VOTE_COUNT) && properties.TryGetValue(Media.RATING, out var rating))
+                {
+                    value = Wrap(rating, property == SCORE);
+                    return true;
+                }
+
+                value = null;
+                return false;
+            }
+
             while (itrs.Count > 0)
             {
                 int index = 0;
@@ -28,11 +59,11 @@ namespace Movies
                     IComparable first;
                     IComparable second;
 
-                    if (!Data.GetDetails(itrs[index].Current).TryGetValue(property, out var a) || (first = await a as IComparable) == null)
+                    if (!TryGetValue(itrs[index].Current, property, out var a) || (first = await a as IComparable) == null)
                     {
                         itrs.RemoveAt(index);
                     }
-                    else if (!Data.GetDetails(itrs[i].Current).TryGetValue(property, out var b) || (second = await b as IComparable) == null)
+                    else if (!TryGetValue(itrs[i].Current, property, out var b) || (second = await b as IComparable) == null)
                     {
                         itrs.RemoveAt(i--);
                     }
@@ -53,7 +84,9 @@ namespace Movies
 
         public class Database : Collection, IAsyncFilterable<Item>
         {
-            public Database()
+            public static readonly Database Instance = new Database();
+
+            private Database()
             {
                 SortBy = POPULARITY;
             }
@@ -69,7 +102,7 @@ namespace Movies
 
                 if (expression.Predicates.OfType<SearchPredicate>().FirstOrDefault() is SearchPredicate search && !string.IsNullOrEmpty(search.Query))
                 {
-                    return Search(search.Query, types, expression);
+                    return Search(search.Query, expression, types);
                 }
                 else if (typeof(IComparable).IsAssignableFrom(SortBy.Type))
                 {
@@ -92,9 +125,11 @@ namespace Movies
                 return collection;
             }
 
-            private async IAsyncEnumerable<Collection> SearchCollections(string queryParameter)
+            public static IAsyncEnumerable<Person> SearchPeople(string query, FilterPredicate predicate = null) => FlattenSearchPages<Person>(API.SEARCH.SEARCH_PEOPLE, query, TryParsePerson);
+            public static IAsyncEnumerable<Keyword> SearchKeywords(string query, FilterPredicate predicate = null) => FlattenSearchPages<Keyword>(API.SEARCH.SEARCH_KEYWORDS, query, TryParseKeyword);
+            public static async IAsyncEnumerable<Collection> SearchCollections(string query, FilterPredicate predicate = null)
             {
-                await foreach (var json in FlattenPages<JsonNode>(API.SEARCH.SEARCH_COLLECTIONS, null, queryParameter))
+                await foreach (var json in FlattenSearchPages<JsonNode>(API.SEARCH.SEARCH_COLLECTIONS, query))
                 {
                     if (json.TryGetValue("id", out int id))
                     {
@@ -103,16 +138,19 @@ namespace Movies
                 }
             }
 
-            public IAsyncEnumerable<Item> Search(string query, List<Type> types, BooleanExpression filters)
+            private static IAsyncEnumerable<T> FlattenSearchPages<T>(IPagedRequest request, string query, AsyncEnumerable.TryParseFunc<JsonNode, T> parse = null, params string[] parameters) => Request(request, parse, false, parameters.Prepend($"query={query}").ToArray());// FlattenPages(request, Helpers.LazyRange(0, 1), parse, false, parameters);
+
+            public IAsyncEnumerable<Item> Search(string query, FilterPredicate filters, params Type[] itemTypes) => Search(query, filters, (IEnumerable<Type>)itemTypes);
+            public IAsyncEnumerable<Item> Search(string query, FilterPredicate filters, IEnumerable<Type> itemTypes)
             {
-                var queryParameter = $"query={query}";
+                var types = itemTypes.ToList();
 
                 if (types.Count > 0)
                 {
                     //if (itemType.Type.HasFlag(ItemType.Collection)) results = CollectionWithOverview(FlattenPages(page => Client.SearchCollectionAsync(e.Query, page), GetCacheKey)).Select(value => GetItem(value.Item1, value.Item2, value.Item3));
                     if (types.Contains(typeof(Collection)))
                     {
-                        return SearchCollections(queryParameter);
+                        return SearchCollections(query);
                         //return FlattenPages<Collection>(API.SEARCH.SEARCH_COLLECTIONS, TryParseCollection, queryParameter).SelectAsync(CollectionWithOverview);
                     }
                     else if (types.Contains(typeof(Company)))
@@ -124,20 +162,20 @@ namespace Movies
                     {
                         if (types[0] == typeof(Movie))
                         {
-                            return FlattenPages<Movie>(API.SEARCH.SEARCH_MOVIES, TryParseMovie, queryParameter);
+                            return FlattenSearchPages<Movie>(API.SEARCH.SEARCH_MOVIES, query, TryParseMovie);
                         }
                         else if (types[0] == typeof(TVShow))
                         {
-                            return FlattenPages<TVShow>(API.SEARCH.SEARCH_TV_SHOWS, TryParseTVShow, queryParameter);
+                            return FlattenSearchPages<TVShow>(API.SEARCH.SEARCH_TV_SHOWS, query, TryParseTVShow);
                         }
                         else if (types[0] == typeof(Person))
                         {
-                            return FlattenPages<Person>(API.SEARCH.SEARCH_PEOPLE, TryParsePerson, queryParameter);
+                            return SearchPeople(query, filters);
                         }
                     }
                 }
 
-                return FlattenPages<Item>(API.SEARCH.MULTI_SEARCH, TryParse, queryParameter).WhereAsync(item => types.Count * types.IndexOf(item.GetType()) >= 0);
+                return FlattenSearchPages<Item>(API.SEARCH.MULTI_SEARCH, query, TryParse).WhereAsync(item => types.Count * types.IndexOf(item.GetType()) >= 0);
             }
 
             private static readonly Dictionary<Property, string> SortOptions = new Dictionary<Property, string>
@@ -239,10 +277,10 @@ namespace Movies
                             {
                                 value = other;
                             }
-                            else if (filters.OfType<OperatorPredicate>().Any(temp => temp != filter && temp.LHS == op.LHS))
+                            /*else if (filters.OfType<OperatorPredicate>().Any(temp => temp != filter && temp.LHS == op.LHS))
                             {
                                 continue;
-                            }
+                            }*/
                             else
                             {
                                 property = (Property)op.LHS;
@@ -268,7 +306,16 @@ namespace Movies
 
                     if (!endpoints.TryGetValue(property, out var options))
                     {
-                        return null;
+                        if (property == Movie.GENRES) property = TVShow.GENRES;
+                        else if (property == TVShow.GENRES) property = Movie.GENRES;
+                        else if (property == Movie.WATCH_PROVIDERS) property = TVShow.WATCH_PROVIDERS;
+                        else if (property == TVShow.WATCH_PROVIDERS) property = Movie.WATCH_PROVIDERS;
+                        else return null;
+
+                        if (!values.ContainsKey(property))
+                        {
+                            return null;
+                        }
                     }
                     else
                     {
@@ -339,7 +386,14 @@ namespace Movies
                 {
                     if (value is TimeSpan runtime)
                     {
-                        return runtime.Minutes.ToString();
+                        return runtime.TotalMinutes.ToString();
+                    }
+                }
+                else if (property == Movie.CONTENT_RATING || property == TVShow.CONTENT_RATING)
+                {
+                    if (value is string str)
+                    {
+                        return str;
                     }
                 }
                 else if (property == Movie.GENRES || property == TVShow.GENRES)
@@ -375,7 +429,14 @@ namespace Movies
                     return provider.Id.ToString();
                 }
 
-                return value.ToString();
+                var result = JsonSerializer.Serialize(value, value.GetType());
+
+                if (value is DateTime)
+                {
+                    result = result.Trim('\"');
+                }
+
+                return result;
             }
         }
     }

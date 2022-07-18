@@ -75,6 +75,11 @@ namespace Movies.ViewModels
 
         public void Clear()
         {
+            if (Children.Count == 0)
+            {
+                return;
+            }
+
             var children = new List<ObservableNode<T>>(Children);
             Children.Clear();
 

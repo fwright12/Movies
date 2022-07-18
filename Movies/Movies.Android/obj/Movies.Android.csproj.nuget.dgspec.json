@@ -53,14 +53,14 @@
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
         "originalTargetFrameworks": [
-          "monoandroid11.0"
+          "monoandroid12.0"
         ],
         "sources": {
           "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
           "https://api.nuget.org/v3/index.json": {}
         },
         "frameworks": {
-          "monoandroid11.0": {
+          "monoandroid12.0": {
             "projectReferences": {
               "C:\\Users\\Flint\\Documents\\Code\\C#\\Xamarin.Forms.Extensions\\Xamarin.Forms.Extensions.csproj": {
                 "projectPath": "C:\\Users\\Flint\\Documents\\Code\\C#\\Xamarin.Forms.Extensions\\Xamarin.Forms.Extensions.csproj"
@@ -73,7 +73,7 @@
         }
       },
       "frameworks": {
-        "monoandroid11.0": {
+        "monoandroid12.0": {
           "dependencies": {
             "Xamarin.Android.Support.Design": {
               "target": "Package",
@@ -95,6 +95,14 @@
               "target": "Package",
               "version": "[28.0.0.3, )"
             },
+            "Xamarin.AndroidX.Core": {
+              "target": "Package",
+              "version": "[1.8.0.1, )"
+            },
+            "Xamarin.AndroidX.Lifecycle.LiveData": {
+              "target": "Package",
+              "version": "[2.4.1.2, )"
+            },
             "Xamarin.AndroidX.MediaRouter": {
               "target": "Package",
               "version": "[1.2.5.2, )"
@@ -102,6 +110,10 @@
             "Xamarin.AndroidX.Palette": {
               "target": "Package",
               "version": "[1.0.0.10, )"
+            },
+            "Xamarin.AndroidX.Work.Runtime": {
+              "target": "Package",
+              "version": "[2.7.1.4, )"
             },
             "Xamarin.Forms": {
               "target": "Package",
@@ -169,17 +181,9 @@
               "target": "Package",
               "version": "[4.7.0, )"
             },
-            "Newtonsoft.Json": {
-              "target": "Package",
-              "version": "[13.0.1, )"
-            },
             "System.Text.Json": {
               "target": "Package",
               "version": "[6.0.2, )"
-            },
-            "TMDbLib": {
-              "target": "Package",
-              "version": "[1.9.1, )"
             },
             "Xamarin.Essentials": {
               "target": "Package",

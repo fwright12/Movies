@@ -1,11 +1,10 @@
 ﻿<?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://xamarin.com/schemas/2014/forms"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-             xmlns:forms="clr-namespace:Xamarin.Forms;assembly=Xamarin.Forms.Extensions"
-             xmlns:ext="clr-namespace:Xamarin.Forms.Extensions;assembly=Xamarin.Forms.Extensions"
              xmlns:movies="clr-namespace:Movies"
-             xmlns:views="clr-namespace:Movies.Views"
+             xmlns:converters="clr-namespace:Movies.Converters"
              xmlns:viewmodels="clr-namespace:Movies.ViewModels"
+             xmlns:ext="clr-namespace:Xamarin.Forms.Extensions;assembly=Xamarin.Forms.Extensions"
              x:Class="Movies.Views.SettingsPage">
     <VisualElement.Resources>
         <Style TargetType="Label">
@@ -27,8 +26,9 @@
                     <StackLayout BindingContext="{TemplateBinding BindingContext}"
                                  x:DataType="viewmodels:AccountViewModel"
                                  Orientation="Horizontal">
-                        <Image Source="{Binding Account.Company.LogoPath}"
-                               WidthRequest="{Binding Height, Source={RelativeSource Self}}" />
+                        <Image Source="{Binding Account.Company.LogoPath, Converter={Static converters:UriToImageSourceConverter.Instance}}"
+                               WidthRequest="{Binding Height, Source={RelativeSource Self}}"
+                               HeightRequest="0" />
 
                         <ContentPresenter HorizontalOptions="FillAndExpand"
                                           VerticalOptions="Center"

@@ -14,7 +14,7 @@ namespace Movies.Models
         }
 
         public static readonly Property<DateTime> FIRST_AIR_DATE = new Property<DateTime>("First Air Date");
-        public static readonly Property<DateTime> LAST_AIR_DATE = new Property<DateTime>("Last Air Date");
+        public static readonly Property<DateTime?> LAST_AIR_DATE = new Property<DateTime?>("Last Air Date");
         public static readonly MultiProperty<TVSeason> SEASONS = new MultiProperty<TVSeason>("Seasons");
         public static readonly MultiProperty<Company> NETWORKS = new MultiProperty<Company>("Networks");
         public static readonly Property<string> CONTENT_RATING = new Property<string>("Content Rating", new ObservableCollection<string>());

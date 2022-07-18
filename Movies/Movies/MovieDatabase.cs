@@ -87,6 +87,7 @@ namespace Movies.Views
             UserInfo = new SQLiteAsyncConnection(path, SQLiteOpenFlags.ReadWrite | SQLiteOpenFlags.Create | SQLiteOpenFlags.SharedCache);
 
             path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), ItemInfoDBFilename);
+            //File.Delete(path);
             ItemInfo = new SQLiteAsyncConnection(path, SQLiteOpenFlags.ReadWrite | SQLiteOpenFlags.Create | SQLiteOpenFlags.SharedCache);
 
             Init = Setup();

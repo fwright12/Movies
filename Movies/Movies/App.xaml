@@ -178,6 +178,14 @@
                    ApplyToDerivedTypes="True"
                    BasedOn="{StaticResource FrameStyle}" />
 
+            <Style x:Key="ContentPresenterFix"
+                   TargetType="ContentPresenter">
+                <Setter Property="BindingContext"
+                        Value="{TemplateBinding BindingContext}" />
+                <Setter Property="BindingContext"
+                        Value="{Binding Content.BindingContext, Mode=OneWayToSource, Source={RelativeSource Self}}" />
+            </Style>
+
             <Style x:Key="DefaultSectionViewStyle"
                    TargetType="views:SectionView"
                    ApplyToDerivedTypes="True"

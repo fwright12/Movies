@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Linq.Async;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
@@ -10,10 +9,11 @@ using System.Threading.Tasks;
 
 namespace Movies
 {
-    public interface IJsonCache
+    public interface IJsonCache : IEnumerable<KeyValuePair<string, JsonResponse>>
     {
         Task<JsonResponse> TryGetValueAsync(string url);
         Task AddAsync(string url, JsonResponse response);
+        Task<bool> Expire(string url);
     }
 
     public class JsonResponse
@@ -21,10 +21,12 @@ namespace Movies
         public string Json { get; }
         public DateTime Timestamp { get; }
 
-        public JsonResponse(string json)
+        public JsonResponse(string json) : this(json, DateTime.Now) { }
+
+        public JsonResponse(string json, DateTime timeStamp)
         {
             Json = json;
-            Timestamp = DateTime.Now;
+            Timestamp = timeStamp;
         }
 
         public static async Task<JsonResponse> Create(Func<Task<HttpResponseMessage>> request)
@@ -149,6 +151,11 @@ namespace Movies
         {
             value = default;
 
+            if (path != string.Empty && json.ValueKind != JsonValueKind.Object)
+            {
+                return false;
+            }
+
             foreach (var property in path.Split('.'))
             {
                 if (!string.IsNullOrEmpty(property) && !json.TryGetProperty(property, out json))
@@ -189,7 +196,7 @@ namespace Movies
             protected object _ID;
             private string Token;
 
-            public BaseList(object id, TMDB idSystem, string bearer, Func<IAsyncEnumerable<JsonNode>, IAsyncEnumerable<JsonNode>> cacheWrapper = null)
+            public BaseList(object id, TMDB idSystem, string bearer)
             {
                 _ID = id;
                 Client = new HttpClient
@@ -203,36 +210,13 @@ namespace Movies
                 AllowedTypes = ItemType.Movie | ItemType.TVShow;
                 Token = bearer;
 
-                var temp = cacheWrapper == null ? GetItems() : cacheWrapper(GetItems());
-                Items = temp.TrySelect<JsonNode, Models.Item>(TryParse);
+                Items = GetItems();
             }
 
-            protected abstract IAsyncEnumerable<JsonNode> GetItems();
+            protected abstract IAsyncEnumerable<Models.Item> GetItems();
 
-            protected bool TryParse(JsonNode json, out Models.Item item)
-            {
-                item = null;
-                var type = json["media_type"];
-
-                if (type?.TryGetValue<string>() == "movie")
-                {
-                    if (TryParseMovie(json, out var movie))
-                    {
-                        item = movie;
-                    }
-                }
-                else if (type?.TryGetValue<string>() == "tv")
-                {
-                    if (TMDB.TryParseTVShow(json, out var show))
-                    {
-                        item = show;
-                    }
-                }
-
-                return item != null;
-            }
-
-            public IAsyncEnumerable<JsonNode> FlattenPages(string apiCall, params string[] parameters) => Request(Client.GetPagesAsync(new PagedTMDbRequest(apiCall), Helpers.LazyRange(1, 1), default, parameters).SelectAsync(GetJson), new JsonNodeParser<JsonNode>());
+            public IAsyncEnumerable<T> Request<T>(IPagedRequest request, AsyncEnumerable.TryParseFunc<JsonNode, T> parse, params string[] parameters) => TMDB.Request(Client.GetPagesAsync(request, Helpers.LazyRange(1, 1), default, parameters).SelectAsync(GetJson), new JsonNodeParser<T>(parse));
+            //public IAsyncEnumerable<JsonNode> FlattenPages(string apiCall, params string[] parameters) => Request(Client.GetPagesAsync(new PagedTMDbRequest(apiCall), Helpers.LazyRange(1, 1), default, parameters).SelectAsync(GetJson), new JsonNodeParser<JsonNode>());
             //public IAsyncEnumerable<JsonNode> FlattenPages(string apiCall) => TMDB.FlattenPages(Client, apiCall);
 
             protected bool TryGetId(Models.Item item, out int id) => IDSystem.TryGetID(item, out id);
@@ -278,14 +262,14 @@ namespace Movies
         {
             private string DetailsBackup;
 
-            public List(string token, TMDB idSystem, Func<IAsyncEnumerable<JsonNode>, IAsyncEnumerable<JsonNode>> cacheWrapper = null) : this(null, token, idSystem, cacheWrapper) { }
+            public List(string token, TMDB idSystem) : this(null, token, idSystem) { }
 
-            private List(object id, string token, TMDB idSystem, Func<IAsyncEnumerable<JsonNode>, IAsyncEnumerable<JsonNode>> cacheWrapper = null) : base(id, idSystem, token, cacheWrapper)
+            private List(object id, string token, TMDB idSystem) : base(id, idSystem, token)
             {
                 Client.BaseAddress = new Uri("https://api.themoviedb.org/4/");
             }
 
-            public static bool TryParse(JsonNode json, string token, TMDB idSystem, out Models.List list, Func<IAsyncEnumerable<JsonNode>, IAsyncEnumerable<JsonNode>> cacheWrapper = null)
+            public static bool TryParse(JsonNode json, string token, TMDB idSystem, out Models.List list)
             {
                 list = null;
 
@@ -294,7 +278,7 @@ namespace Movies
                     return false;
                 }
 
-                var localList = new List(id, token, idSystem, cacheWrapper)
+                var localList = new List(id, token, idSystem)
                 {
                     Name = json["name"]?.TryGetValue<string>(),
                     Description = json["description"]?.TryGetValue<string>(),
@@ -456,14 +440,19 @@ namespace Movies
                 return added;
             }*/
 
-            protected override async IAsyncEnumerable<JsonNode> GetItems()
+            protected override async IAsyncEnumerable<Models.Item> GetItems()
             {
                 if (ID == null)
                 {
                     yield break;
                 }
 
-                await foreach (var item in FlattenPages(string.Format("list/{0}?page={{0}}&sort_by={1}", ID, Reverse ? "original_order.desc" : "original_order.asc")))
+                var request = new PagedTMDbRequest($"list/{ID}")
+                {
+                    Version = -1
+                };
+
+                await foreach (var item in Request<Models.Item>(request, TMDB.TryParse, $"sort_by=original_order.{(Reverse ? "desc" : "asc")}"))
                 {
                     yield return item;
                 }
@@ -479,7 +468,7 @@ namespace Movies
             private string SessionID;
             private Models.Collection Movies;
 
-            public NamedList(string itemsPath, string statusPath, string bearer, string accountID, string sessionId, TMDB idSystem, Func<IAsyncEnumerable<JsonNode>, IAsyncEnumerable<JsonNode>> cacheWrapper = null) : base(itemsPath, idSystem, bearer, cacheWrapper)
+            public NamedList(string itemsPath, string statusPath, string bearer, string accountID, string sessionId, TMDB idSystem) : base(itemsPath, idSystem, bearer)
             {
                 AccountID = accountID;
                 SessionID = sessionId;
@@ -494,22 +483,9 @@ namespace Movies
                 Movies = new Models.Collection
                 {
                     Reverse = true,
-                    Items = (cacheWrapper == null ? GetMovies() : cacheWrapper(GetMovies())).TrySelect<JsonNode, Models.Item>(TryParse)
+                    Items = GetMovies()
                 };
-                Items = Concat(Items, Movies);
-            }
-
-            private static async IAsyncEnumerable<T> Concat<T>(IAsyncEnumerable<T> first, IAsyncEnumerable<T> second)
-            {
-                await foreach (var item in first)
-                {
-                    yield return item;
-                }
-
-                await foreach (var item in second)
-                {
-                    yield return item;
-                }
+                Items = Items.Concat(Movies);
             }
 
             private async Task<bool> UpdateStatus(bool status, IEnumerable<Models.Item> items)
@@ -611,22 +587,28 @@ namespace Movies
                 return items.OfType<Models.TVShow>().Concat<Models.Item>(items.OfType<Models.Movie>()).ToList();
             }*/
 
-            protected override async IAsyncEnumerable<JsonNode> GetItems()
+            protected override async IAsyncEnumerable<Models.Item> GetItems()
             {
-                await foreach (var item in FlattenPages(string.Format("4/account/{0}/tv/" + ID + "?page={{0}}", AccountID)))
+                var request = new PagedTMDbRequest($"account/{AccountID}/tv/{ID}")
                 {
-                    var show = item.AsObject();
-                    show.Add("media_type", "tv");
+                    Version = 4
+                };
+
+                await foreach (var show in Request<Models.TVShow>(request, TryParseTVShow))
+                {
                     yield return show;
                 }
             }
 
-            private async IAsyncEnumerable<JsonNode> GetMovies()
+            private async IAsyncEnumerable<Models.Movie> GetMovies()
             {
-                await foreach (var item in FlattenPages(string.Format("4/account/{0}/movie/" + ID + "?page={{0}}", AccountID)))
+                var request = new PagedTMDbRequest($"account/{AccountID}/movie/{ID}")
                 {
-                    var movie = item.AsObject();
-                    movie.Add("media_type", "movie");
+                    Version = 4,
+                };
+
+                await foreach (var movie in Request<Models.Movie>(request, TryParseMovie))
+                {
                     yield return movie;
                 }
             }
@@ -690,13 +672,18 @@ namespace Movies
         }
 #endif
 
-        public Models.List CreateList() => new List(UserAccessToken, this, CacheItems);
+        public Models.List CreateList() => new List(UserAccessToken, this);
 
         public async Task<List<Models.List>> GetAllLists()
         {
             var lists = new List<Models.List>();
+            var request = new PagedTMDbRequest($"account/{AccountID}/lists")
+            {
+                Version = 4,
+                Authorization = UserAuth
+            };
 
-            await foreach (var list in FlattenPages(WebClient, string.Format("https://api.themoviedb.org/4/account/{0}/lists?page={{0}}", AccountID), UserAccessToken).TrySelect<JsonNode, Models.List>(TryParseList))
+            await foreach (var list in Request<Models.List>(request, TryParseList))
             {
                 lists.Add(list);
             }
@@ -723,74 +710,7 @@ namespace Movies
             }
         }
 
-        //public IAsyncEnumerable<Models.List> GetAllListsAsync() => SafeFlattenPages(WebClient, string.Format("https://api.themoviedb.org/4/account/{0}/lists?page={{0}}", AccountID), UserAccessToken).TrySelect<JsonNode, Models.List>(TryParseList);
-
-        private string GetCacheKey<T>(JsonNode json) => json.TryGetValue<int>("id", out var id) ? GetCacheKey<T>(id) : null;
-        private string GetListItemCacheKey(JsonNode json) => json.TryGetValue<int>("id", out var id) ? (json["media_type"]?.TryGetValue<string>() == "tv" ? GetCacheKey<Models.TVShow>(id) : GetCacheKey<Models.Movie>(id)) : null;
-
-        private bool TryParseList(JsonNode json, out Models.List list) => List.TryParse(json, UserAccessToken, this, out list, CacheItems);
-
-        private IAsyncEnumerable<JsonNode> CacheItems(IAsyncEnumerable<JsonNode> items) => CacheStream(items, GetListItemCacheKey);
-        private async IAsyncEnumerable<T> CacheStream<T>(IAsyncEnumerable<T> items, Func<T, string> getCacheKey)
-        {
-            await foreach (var item in items)
-            {
-                await AddToCacheAsync(getCacheKey(item), item);
-                yield return item;
-            }
-        }
-
-        //public delegate bool TryParse<T>(JsonNode json, out T value);
-
-        //public IAsyncEnumerable<T> FlattenPages<T>(string apiCall, Func<JsonNode, T> parse) => FlattenPages<T>(WebClient, apiCall, parse);
-        public static async IAsyncEnumerable<JsonNode> SafeFlattenPages(HttpClient client, string apiCall, string bearer = null)
-        {
-            try
-            {
-                await foreach (var item in FlattenPages(client, apiCall, bearer))
-                {
-                    yield return item;
-                }
-            }
-            finally { }
-        }
-
-        public static async IAsyncEnumerable<JsonNode> FlattenPages(HttpClient client, string apiCall, string bearer = null)
-        {
-            for (int page = 1; ; page++)
-            {
-                var request = new HttpRequestMessage(HttpMethod.Get, string.Format(apiCall, page));
-                if (bearer != null)
-                {
-                    request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", bearer);
-                }
-                var response = await client.SendAsync(request);
-
-                if (!response.IsSuccessStatusCode)
-                {
-                    throw new HttpRequestException(response.ReasonPhrase);
-                }
-
-                var parsed = JsonNode.Parse(await response.Content.ReadAsStringAsync());
-                var results = parsed["results"]?.AsArray();
-                //var totalPages = parsed["total_pages"]?.GetValue<int>();
-
-                if (results == null || !parsed.TryGetValue("total_pages", out int totalPages))
-                {
-                    break;
-                }
-
-                foreach (var result in results)
-                {
-                    yield return result;
-                }
-
-                if (page >= totalPages)
-                {
-                    break;
-                }
-            }
-        }
+        private bool TryParseList(JsonNode json, out Models.List list) => List.TryParse(json, UserAccessToken, this, out list);
 
         public Task<Models.List> GetWatchlist() => Task.FromResult(GetNamedList("watchlist", "watchlist"));
 
@@ -819,7 +739,7 @@ namespace Movies
             return response?.IsSuccessStatusCode == true && List.TryParse(JsonNode.Parse(await response.Content.ReadAsStringAsync()), UserAccessToken, this, out var list) ? list : null;
         }
 
-        private Models.List GetNamedList(string itemsPath, string statusPath) => new NamedList(itemsPath, statusPath, UserAccessToken, AccountID, SessionID, this, CacheItems);
+        private Models.List GetNamedList(string itemsPath, string statusPath) => new NamedList(itemsPath, statusPath, UserAccessToken, AccountID, SessionID, this);
     }
 
 }

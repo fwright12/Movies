@@ -10,10 +10,8 @@
       "Movies/1.0.0": {
         "dependencies": {
           "Microsoft.CSharp": "4.7.0",
-          "Newtonsoft.Json": "13.0.1",
           "System.Extensions": "1.0.0",
           "System.Text.Json": "6.0.2",
-          "TMDbLib": "1.9.1",
           "Xamarin.Essentials": "1.7.1",
           "Xamarin.Forms": "5.0.0.2291",
           "Xamarin.Forms.Extensions": "1.0.0",
@@ -36,14 +34,6 @@
           "lib/netstandard2.0/Microsoft.CSharp.dll": {
             "assemblyVersion": "4.0.5.0",
             "fileVersion": "4.700.19.56404"
-          }
-        }
-      },
-      "Newtonsoft.Json/13.0.1": {
-        "runtime": {
-          "lib/netstandard2.0/Newtonsoft.Json.dll": {
-            "assemblyVersion": "13.0.0.0",
-            "fileVersion": "13.0.1.25517"
           }
         }
       },
@@ -172,17 +162,6 @@
           }
         }
       },
-      "TMDbLib/1.9.1": {
-        "dependencies": {
-          "Newtonsoft.Json": "13.0.1"
-        },
-        "runtime": {
-          "lib/netstandard2.1/TMDbLib.dll": {
-            "assemblyVersion": "1.0.0.0",
-            "fileVersion": "1.9.1.0"
-          }
-        }
-      },
       "Xamarin.Essentials/1.7.1": {
         "dependencies": {
           "System.Numerics.Vectors": "4.5.0"
@@ -244,13 +223,6 @@
       "sha512": "sha512-pTj+D3uJWyN3My70i2Hqo+OXixq3Os2D1nJ2x92FFo6sk8fYS1m1WLNTs0Dc1uPaViH0YvEEwvzddQ7y4rhXmA==",
       "path": "microsoft.csharp/4.7.0",
       "hashPath": "microsoft.csharp.4.7.0.nupkg.sha512"
-    },
-    "Newtonsoft.Json/13.0.1": {
-      "type": "package",
-      "serviceable": true,
-      "sha512": "sha512-ppPFpBcvxdsfUonNcvITKqLl3bqxWbDCZIzDWHzjpdAHRFfZe0Dw9HmA0+za13IdyrgJwpkDTDA9fHaxOrt20A==",
-      "path": "newtonsoft.json/13.0.1",
-      "hashPath": "newtonsoft.json.13.0.1.nupkg.sha512"
     },
     "sqlite-net-pcl/1.8.116": {
       "type": "package",
@@ -335,13 +307,6 @@
       "sha512": "sha512-zteT+G8xuGu6mS+mzDzYXbzS7rd3K6Fjb9RiZlYlJPam2/hU7JCBZBVEcywNuR+oZ1ncTvc/cq0faRr3P01OVg==",
       "path": "system.threading.tasks.extensions/4.5.4",
       "hashPath": "system.threading.tasks.extensions.4.5.4.nupkg.sha512"
-    },
-    "TMDbLib/1.9.1": {
-      "type": "package",
-      "serviceable": true,
-      "sha512": "sha512-rZ0RHoatS1dANF+q424oe1YW+ldiADRk1sC5Rb+Ruv1Omb5+DWIePzvXk6smUs8V8O77iLeDP8+gqBhAASlgCg==",
-      "path": "tmdblib/1.9.1",
-      "hashPath": "tmdblib.1.9.1.nupkg.sha512"
     },
     "Xamarin.Essentials/1.7.1": {
       "type": "package",

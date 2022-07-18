@@ -12,6 +12,8 @@ using Xamarin.Forms.Platform.iOS;
 
 //[assembly: ExportRenderer(typeof(Page), typeof(Movies.iOS.NavigationPageRenderer))]
 //[assembly: ExportRenderer(typeof(ScrollView), typeof(Movies.iOS.ScrollViewRenderer))]
+//[assembly: ExportRenderer(typeof(PageRenderer), typeof(Movies.iOS.PageRenderer))]
+//[assembly: ExportRenderer(typeof(Shell), typeof(Movies.iOS.Test))]
 [assembly: ExportRenderer(typeof(SearchBar), typeof(Movies.iOS.SearchBarRenderer))]
 [assembly: ExportRenderer(typeof(CollectionView), typeof(Movies.iOS.CollectionViewRenderer))]
 [assembly: ExportRenderer(typeof(CarouselView), typeof(Movies.iOS.CarouselViewRenderer))]
@@ -19,12 +21,35 @@ namespace Movies.iOS
 {
     public class Test : ShellRenderer
     {
-        public override UINavigationController NavigationController => base.NavigationController;
+        public override UINavigationController NavigationController
+        {
+            get
+            {
+                var a = base.NavigationController;
+
+                if (a?.NavigationBar is UINavigationBar bar)
+                {
+                    bar.PrefersLargeTitles = true;
+                }
+
+                return a;
+            }
+        }
+        protected override void OnElementSet(Shell element)
+        {
+            base.OnElementSet(element);
+
+            if (NavigationController?.NavigationBar is UINavigationBar bar)
+            {
+                bar.PrefersLargeTitles = true;
+            }
+        }
 
         protected override void OnElementPropertyChanged(object sender, PropertyChangedEventArgs e)
         {
             base.OnElementPropertyChanged(sender, e);
 
+            return;
             if (e.PropertyName == nameof(Xamarin.Forms.PlatformConfiguration.iOSSpecific.NavigationPage.PrefersLargeTitlesProperty.PropertyName))
             {
                 NavigationController.NavigationBar.PrefersLargeTitles = Xamarin.Forms.PlatformConfiguration.iOSSpecific.NavigationPage.GetPrefersLargeTitles(Element);
@@ -34,9 +59,29 @@ namespace Movies.iOS
 
     public class PageRenderer : Xamarin.Forms.Platform.iOS.PageRenderer
     {
-        public PageRenderer()
+        public override UINavigationController NavigationController
         {
-            NavigationController.NavigationBar.PrefersLargeTitles = true;
+            get
+            {
+                var a = base.NavigationController;
+
+                if (a?.NavigationBar is UINavigationBar bar)
+                {
+                    bar.PrefersLargeTitles = true;
+                }
+
+                return a;
+            }
+        }
+
+        protected override void OnElementChanged(VisualElementChangedEventArgs e)
+        {
+            base.OnElementChanged(e);
+
+            if (NavigationController?.NavigationBar is UINavigationBar bar)
+            {
+                bar.PrefersLargeTitles = true;
+            }
         }
     }
 

@@ -72,8 +72,6 @@ namespace Movies.ViewModels
         protected T RequestValue<T>(Property<T> property, [CallerMemberName] string propertyName = null) => TryRequestValue(property, out var value, propertyName) ? value : default;
         protected IEnumerable<T> RequestValue<T>(MultiProperty<T> property, [CallerMemberName] string propertyName = null) => TryRequestValue(property, out var value, propertyName) ? value : default;
 
-        protected TValue RequestSingle<TItem, TValue>(InfoRequestHandler<TItem, TValue> handler, [CallerMemberName] string property = null) where TItem : Item => Item is TItem item ? GetValue(handler.GetSingle(item), property) : default;
-
         public override string ToString() => Item?.ToString() ?? base.ToString();
     }
 }

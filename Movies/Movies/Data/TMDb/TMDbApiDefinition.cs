@@ -262,7 +262,7 @@ namespace Movies
     public partial class TMDB
     {
         public static readonly Property<double> POPULARITY = new Property<double>("TMDb Popularity");
-        public static readonly Property SCORE = new Property<double>("Score", new SteppedValueRange
+        public static readonly Property SCORE = new Property<double>("TMDb Score", new SteppedValueRange
         {
             First = 0.0,
             Last = 10.0,
@@ -362,8 +362,8 @@ namespace Movies
         {
             [Movie.RELEASE_DATE] = new Dictionary<Operators, Parameter>
             {
-                [Operators.LessThan] = "release_date.lte",
-                [Operators.GreaterThan] = "release_date.gte"
+                [Operators.LessThan] = "air_date.lte",
+                [Operators.GreaterThan] = "air_date.gte"
             },
             /*["Release Type"] = new Dictionary<int, string>
             {
@@ -453,18 +453,7 @@ namespace Movies
             ["popularity"] = Parser.Create(POPULARITY),
         };
 
-        private static readonly Dictionary<TMDbRequest, List<Parser>> MEDIA_APPENDED_PARSERS = new Dictionary<TMDbRequest, List<Parser>>
-        {
-            //["reviews"] = new Dictionary<string, Parser>(),
-#if !DEBUG || false
-            [API.MOVIES.GET_VIDEOS] = new ParserList
-            {
-                ["results"] = Parser.Create(Media.TRAILER_PATH, ParseTrailerPath)
-            },
-#endif
-        };
-
-        private static readonly ItemProperties MOVIE_PROPERTIES = new ItemProperties(new Dictionary<TMDbRequest, List<Parser>>(MEDIA_APPENDED_PARSERS)
+        private static readonly ItemProperties MOVIE_PROPERTIES = new ItemProperties(new Dictionary<TMDbRequest, List<Parser>>
         {
             [API.MOVIES.GET_DETAILS] = new ParserList(MEDIA_PARSERS)
             {
@@ -491,13 +480,19 @@ namespace Movies
             {
                 ["results"] = Parser.Create(Movie.CONTENT_RATING, ParseMovieCertification)
             },
+#if !DEBUG || false
+            [API.MOVIES.GET_VIDEOS] = new ParserList
+            {
+                ["results"] = Parser.Create(Media.TRAILER_PATH, ParseTrailerPath)
+            },
+#endif
             [API.MOVIES.GET_WATCH_PROVIDERS] = new ParserList
             {
                 ["results"] = new MultiParser<WatchProvider>(Movie.WATCH_PROVIDERS, new JsonNodeParser<IEnumerable<WatchProvider>>(ParseWatchProviders))
             }
         });
 
-        private static readonly ItemProperties TVSHOW_PROPERTIES = new ItemProperties(new Dictionary<TMDbRequest, List<Parser>>(MEDIA_APPENDED_PARSERS)
+        private static readonly ItemProperties TVSHOW_PROPERTIES = new ItemProperties(new Dictionary<TMDbRequest, List<Parser>>
         {
             [API.TV.GET_DETAILS] = new ParserList(MEDIA_PARSERS)
             {
@@ -505,7 +500,7 @@ namespace Movies
                 ["episode_run_time"] = Parser.Create(Media.RUNTIME, json => (json as JsonArray)?.FirstOrDefault() is JsonNode first && RUNTIME_PARSER.TryGetValue(first, out var runtime) ? runtime : TimeSpan.Zero),
                 ["original_name"] = ORIGINAL_TITLE_PARSER,
                 ["first_air_date"] = Parser.Create(TVShow.FIRST_AIR_DATE),
-                ["last_air_date"] = Parser.Create(TVShow.LAST_AIR_DATE),
+                ["last_air_date"] = new Parser<DateTime?>(TVShow.LAST_AIR_DATE, new JsonNodeParser<DateTime?>(TryParseLastAirDate)),
                 ["genres"] = new MultiParser<Genre>(TVShow.GENRES, GENRES_PARSER),
                 ["networks"] = new MultiParser<Company>(TVShow.NETWORKS, COMPANIES_PARSER),
                 ["seasons"] = new MultiParser<TVSeason>(TVShow.SEASONS, null),
@@ -524,6 +519,12 @@ namespace Movies
             {
                 ["results"] = KEYWORDS_PARSER
             },
+#if !DEBUG || false
+            [API.TV.GET_VIDEOS] = new ParserList
+            {
+                ["results"] = Parser.Create(Media.TRAILER_PATH, ParseTrailerPath)
+            },
+#endif
             [API.TV.GET_WATCH_PROVIDERS] = new ParserList
             {
                 ["results"] = new MultiParser<WatchProvider>(TVShow.WATCH_PROVIDERS, new JsonNodeParser<IEnumerable<WatchProvider>>(ParseWatchProviders))
@@ -565,6 +566,7 @@ namespace Movies
         {
             [API.PEOPLE.DETAILS] = new ParserList
             {
+                ["name"] = Parser.Create(Person.NAME),
                 ["birthday"] = Parser.Create(Person.BIRTHDAY),
                 ["deathday"] = Parser.Create(Person.DEATHDAY),
                 ["also_known_as"] = new MultiParser<string>(Person.ALSO_KNOWN_AS, new JsonArrayParser<string>()),

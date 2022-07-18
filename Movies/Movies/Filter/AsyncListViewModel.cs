@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
+using System.ComponentModel;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using Xamarin.Forms;
@@ -14,11 +15,25 @@ namespace Movies.ViewModels
         public event NotifyCollectionChangedEventHandler CollectionChanged;
 
         public IList<T> Items { get; set; }
+        public bool Loading
+        {
+            get => _Loading;
+            private set
+            {
+                if (value != _Loading)
+                {
+                    _Loading = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
 
-        public ICommand LoadMoreCommand { get; }
+        public ICommand LoadMoreCommand => LazyLoadMoreCommand.Value;
 
+        private Lazy<ICommand> LazyLoadMoreCommand;
         private IAsyncEnumerable<T> Source;
         private IAsyncEnumerator<T> Itr;
+        private bool _Loading;
 
         public AsyncListViewModel(IAsyncEnumerable<T> source)
         {
@@ -27,22 +42,43 @@ namespace Movies.ViewModels
             Items = items;
 
             Source = source;
-            LoadMoreCommand = new Command<int?>(count => _ = LoadMore(count ?? 1));
+            LazyLoadMoreCommand = new Lazy<ICommand>(() =>
+            {
+                if (Itr == null)
+                {
+                    Refresh();
+                }
 
-            Refresh();
+                return new Command<int?>(count => _ = LoadMore(count ?? 1));
+            });
+
+            //Refresh();
         }
 
         public async Task LoadMore(int count = 1)
         {
-            if (Itr == null)
+            if (Loading)
             {
                 return;
             }
 
-            for (int i = 0; i < count && await Itr.MoveNextAsync(); i++)
+            Loading = true;
+
+            try
             {
-                Items.Add(Itr.Current);
+                for (int i = 0; i < count && await Itr.MoveNextAsync(); i++)
+                {
+                    Items.Add(Itr.Current);
+                }
             }
+            catch (Exception e)
+            {
+#if DEBUG
+                Print.Log(e);
+#endif
+            }
+
+            Loading = false;
         }
 
         public void Refresh()

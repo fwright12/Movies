@@ -9,7 +9,7 @@ using Movies.ViewModels;
 
 namespace Movies
 {
-    public class MockData : IDataProvider, IAssignID<int>
+    public class MockData : IAssignID<int>
     {
         public static readonly ID<int>.Key IDKey = new ID<int>.Key();
         public static readonly ID<int> ID = IDKey.ID;
@@ -278,7 +278,7 @@ namespace Movies
         {
             [0] = new Dictionary<string, object>
             {
-                [nameof(PersonService.ProfilePathRequested)] = "https://upload.wikimedia.org/wikipedia/commons/3/3b/Matthew_McConaughey_2011.jpg",
+                /*[nameof(PersonService.ProfilePathRequested)] = "https://upload.wikimedia.org/wikipedia/commons/3/3b/Matthew_McConaughey_2011.jpg",
                 [nameof(PersonService.BirthdayRequested)] = new DateTime(1971, 3, 13),
                 [nameof(PersonService.BirthplaceRequested)] = "Texas",
                 [nameof(PersonService.AlsoKnownAsRequested)] = new List<string> { "Big M" },
@@ -288,7 +288,7 @@ namespace Movies
                 {
                     Instance.Interstellar,
                     new Movie("Dallas Buyers Club", 2007).WithID(IDKey, 2)
-                },
+                },*/
             }
         };
 
@@ -326,7 +326,7 @@ namespace Movies
 
         private MockData()
         {
-            DataManager.AddDataSource(this);
+            //DataManager.AddDataSource(this);
 
             //InterstellarModel = new Movie("Interstellar", ((DateTime)MovieInfo[0][nameof(MovieViewModel.Year)]).Year, new ID(this, "0"));
             Interstellar = new Movie("Interstellar", 2014).WithID(IDKey, 0);
@@ -446,17 +446,6 @@ namespace Movies
             return Task.FromResult(item);
         }
 
-        private bool HandleAnyInfoRequests<TItem, TValue>(Dictionary<int, Dictionary<string, object>> info, ItemInfoEventArgs<TItem, TValue> args, string property) where TItem : Item
-        {
-            if (HandleAnyInfoRequests(info, args.Item, property, out TValue value))
-            {
-                args.SetValue(value);
-                return true;
-            }
-
-            return false;
-        }
-
         private bool HandleAnyInfoRequests<T>(Dictionary<int, Dictionary<string, object>> info, Item item, string property, out T result)
         {
             result = default;
@@ -473,157 +462,6 @@ namespace Movies
 
             result = default;
             return false;
-        }
-
-        private void HandleMediaRequests<T>(MediaService<T> service) where T : Item
-        {
-            Dictionary<int, Dictionary<string, object>> info;
-
-            if (typeof(T) == typeof(Movie))
-            {
-                info = MovieInfo;
-            }
-            else if (typeof(T) == typeof(TVShow))
-            {
-                info = TVShowInfo;
-            }
-            else if (typeof(T) == typeof(TVEpisode))
-            {
-                info = TVEpisodeInfo;
-            }
-            else
-            {
-                return;
-            }
-
-            service.TaglineRequested.AddHandler((sender, e) => HandleAnyInfoRequests(info, e, nameof(MovieViewModel.Tagline)));
-            service.DescriptionRequested.AddHandler((sender, e) => HandleAnyInfoRequests(info, e, nameof(MovieViewModel.Description)));
-            service.ContentRatingRequested.AddHandler((sender, e) => HandleAnyInfoRequests(info, e, nameof(MovieViewModel.ContentRating)));
-            service.RuntimeRequested.AddHandler((sender, e) => HandleAnyInfoRequests(info, e, nameof(MovieViewModel.Runtime)));
-            service.OriginalTitleRequested.AddHandler((sender, e) => HandleAnyInfoRequests(info, e, nameof(MovieViewModel.OriginalTitle)));
-            service.OriginalLanguageRequested.AddHandler((sender, e) => HandleAnyInfoRequests(info, e, nameof(MovieViewModel.OriginalLanguage)));
-            service.LanguagesRequested.AddHandler((sender, e) => HandleAnyInfoRequests(info, e, nameof(MovieViewModel.Languages)));
-            service.GenresRequested.AddHandler((sender, e) => HandleAnyInfoRequests(info, e, nameof(MovieViewModel.Genres)));
-
-            service.PosterPathRequested.AddHandler((sender, e) => HandleAnyInfoRequests(info, e, nameof(MovieViewModel.PosterPath)));
-            service.BackdropPathRequested.AddHandler((sender, e) => HandleAnyInfoRequests(info, e, nameof(MovieViewModel.BackdropPath)));
-            service.TrailerPathRequested.AddHandler((sender, e) => HandleAnyInfoRequests(info, e, nameof(MovieViewModel.TrailerPath)));
-
-            service.RatingRequested.AddHandler((sender, e) => HandleAnyInfoRequests(info, e, nameof(MovieViewModel.Ratings)));
-            service.CrewRequested.AddHandler((sender, e) => HandleAnyInfoRequests(info, e, nameof(MovieViewModel.Crew)));
-            service.CastRequested.AddHandler((sender, e) => HandleAnyInfoRequests(info, e, nameof(MovieViewModel.Cast)));
-            service.ProductionCompaniesRequested.AddHandler((sender, e) => HandleAnyInfoRequests(info, e, nameof(MovieViewModel.ProductionCompanies)));
-            service.ProductionCountriesRequested.AddHandler((sender, e) => HandleAnyInfoRequests(info, e, nameof(MovieViewModel.ProductionCountries)));
-            service.WatchProvidersRequested.AddHandler((sender, e) => HandleAnyInfoRequests(info, e, nameof(MovieViewModel.WatchProviders)));
-            service.KeywordsRequested.AddHandler((sender, e) => HandleAnyInfoRequests(info, e, nameof(MovieViewModel.Keywords)));
-            service.RecommendedRequested.AddHandler((sender, e) => HandleAnyInfoRequests(info, e, nameof(MovieViewModel.Recommended)));
-        }
-
-        public void HandleInfoRequests(DataManager manager)
-        {
-            manager.Searched += (sender, e) =>
-            {
-                Print.Log("search for " + (e.Query ?? string.Empty) + " with (" + (e.Filters == null ? string.Empty : string.Join(", ", e.Filters.Select(kvp => kvp.Key + ": " + kvp.Value))) + ") sorted by " + (e.SortBy ?? "default"));
-                e.Results = GetTrending();
-            };
-            //manager.MovieService.InfoRequested += (sender, e) => HandleAnyInfoRequests(MovieInfo, e.Args, e.PropertyName);
-            HandleMediaRequests(manager.MovieService);
-            manager.MovieService.ReleaseDateRequested.AddHandler((sender, e) => HandleAnyInfoRequests(MovieInfo, e, nameof(MovieViewModel.Year)));
-            manager.MovieService.BudgetRequested.AddHandler((sender, e) => HandleAnyInfoRequests(MovieInfo, e, nameof(MovieViewModel.Budget)));
-            manager.MovieService.RevenueRequested.AddHandler((sender, e) => HandleAnyInfoRequests(MovieInfo, e, nameof(MovieViewModel.Revenue)));
-
-            HandleMediaRequests(manager.TVShowService);
-            manager.TVShowService.FirstAirDateRequested.AddHandler((sender, e) => HandleAnyInfoRequests(TVShowInfo, e, nameof(TVShowViewModel.FirstAirDate)));
-            manager.TVShowService.LastAirDateRequested.AddHandler((sender, e) => HandleAnyInfoRequests(TVShowInfo, e, nameof(TVShowViewModel.LastAirDate)));
-            manager.TVShowService.NetworksRequested.AddHandler((sender, e) => HandleAnyInfoRequests(TVShowInfo, e, nameof(TVShowViewModel.Networks)));
-            //manager.TVShowService.InfoRequested += (sender, e) => HandleAnyInfoRequests(TVShowInfo, e.Args, e.PropertyName);
-            //manager.TVShowService.SeasonsRequested += (sender, e) => HandleAnyInfoRequests(TVShowInfo, e, nameof(CollectionViewModel.Items));
-
-            manager.TVSeasonService.YearRequested.AddHandler((sender, e) => HandleAnyInfoRequests(TVSeasonsInfo, e, nameof(TVSeasonViewModel.Year)));
-            manager.TVSeasonService.AvgRuntimeRequested.AddHandler((sender, e) => HandleAnyInfoRequests(TVSeasonsInfo, e, nameof(TVSeasonViewModel.AvgRuntime)));
-            manager.TVSeasonService.CrewRequested.AddHandler((sender, e) => HandleAnyInfoRequests(TVSeasonsInfo, e, nameof(TVSeasonViewModel.Crew)));
-            manager.TVSeasonService.CastRequested.AddHandler((sender, e) => HandleAnyInfoRequests(TVSeasonsInfo, e, nameof(TVSeasonViewModel.Cast)));
-            //manager.TVSeasonService.InfoRequested += (sender, e) => HandleAnyInfoRequests(TVSeasonsInfo, e.Args, e.PropertyName);
-            //manager.TVSeasonService.EpisodesRequested += (sender, e) => HandleAnyInfoRequests(TVSeasonsInfo, e, nameof(TVSeasonViewModel.Items));
-
-            HandleMediaRequests(manager.TVEpisodeService);
-            manager.TVEpisodeService.AirDateRequested.AddHandler((sender, e) => HandleAnyInfoRequests(TVEpisodeInfo, e, nameof(TVEpisodeViewModel.AirDate)));
-
-            var personService = manager.PersonService;
-            personService.BirthdayRequested.AddHandler((sender, e) => HandleAnyInfoRequests(PersonInfo, e, nameof(PersonService.BirthdayRequested)));
-            personService.BirthplaceRequested.AddHandler((sender, e) => HandleAnyInfoRequests(PersonInfo, e, nameof(PersonService.BirthplaceRequested)));
-            personService.DeathdayRequested.AddHandler((sender, e) => HandleAnyInfoRequests(PersonInfo, e, nameof(PersonService.DeathdayRequested)));
-            personService.AlsoKnownAsRequested.AddHandler((sender, e) => HandleAnyInfoRequests(PersonInfo, e, nameof(PersonService.AlsoKnownAsRequested)));
-            personService.GenderRequested.AddHandler((sender, e) => HandleAnyInfoRequests(PersonInfo, e, nameof(PersonService.GenderRequested)));
-            personService.BioRequested.AddHandler((sender, e) => HandleAnyInfoRequests(PersonInfo, e, nameof(PersonService.BioRequested)));
-            personService.ProfilePathRequested.AddHandler((sender, e) => HandleAnyInfoRequests(PersonInfo, e, nameof(PersonService.ProfilePathRequested)));
-            personService.CreditsRequested.AddHandler((sender, e) => HandleAnyInfoRequests(PersonInfo, e, nameof(PersonService.CreditsRequested)));
-
-            /*{
-                //if (int.TryParse(e.Item.ID, out var id) && TVShowInfo.TryGetValue(id, out var info) && info.TryGetValue(nameof(TVShowViewModel.Seasons), out var value) && value is IList<int> ids)
-                if (HandleAnyInfoRequests(TVShowInfo, e.Item, nameof(CollectionViewModel.Items), out IList<int> ids))
-                {
-                    var seasons = new List<TVSeason>();
-
-                    foreach (int seasonID in ids)
-                    {
-                        //if (TVSeasonsInfo.TryGetValue(seasonID, out var seasonInfo) && seasonInfo.TryGetValue(nameof(TVSeasonViewModel.Number), out var numberRaw) && numberRaw is int number)
-                        if (HandleAnyInfoRequests<int>(TVSeasonsInfo, seasonID, nameof(TVSeasonViewModel.Number), out var number))
-                        {
-                            seasons.Add(new TVSeason(e.Item, number, new ID(this, seasonID.ToString())));
-                        }
-                    }
-
-                    e.Value = seasons;
-                }
-            };*/
-
-            /*manager.MovieInfoRequested += (sender, e) =>
-            {
-                var info = MovieInfo;
-
-                if (info != null && int.TryParse(e.Item.ID, out var id) && info[id].TryGetValue(e.PropertyName, out var value))
-                {
-                    if (e.PropertyName == nameof(TVShowViewModel.Seasons) && value is IList<TVSeasonViewModel> seasons)
-                    {
-                        foreach (var season in seasons)
-                        {
-                            season.InfoRequested += HandleMediaInfoRequests;
-                        }
-                    }
-
-                    e.Value = value;
-                }
-            };
-
-            manager.HandleMovieInfoRequests += (sender, e) => e.Value.InfoRequested += HandleMediaInfoRequests;
-            manager.HandleTVShowInfoRequests += (sender, e) =>
-            {
-                e.Value.InfoRequested += HandleMediaInfoRequests;
-                e.Value.SeasonsRequested += (sender, e) =>
-                {
-                    var show = (TVShowViewModel)sender;
-                    if (TVShowInfo.TryGetValue(show.ID, out var info) && info.TryGetValue("Seasons", out var seasonsInfo) && seasonsInfo is IEnumerable<int> ids)
-                    {
-                        var seasons = new List<TVSeason>();
-
-                        var itr = ids.GetEnumerator();
-                        for (int i = 0; itr.MoveNext(); i++)
-                        {
-                            if (TVSeasonsInfo.TryGetValue(itr.Current, out var seasonInfo) && seasonInfo.TryGetValue(nameof(TVSeasonViewModel.Year), out var year))
-                            {
-                                //seasons.Add(new TVSeason(show.Title, year as DateTime? ?? DateTime.Now, i));
-                            }
-                        }
-
-                        e.SetValue(seasons, "Mock");
-                    }
-                };
-            };
-            manager.HandleTVSeasonInfoRequests += (sender, e) => e.Value.InfoRequested += HandleTVSeasonInfoRequests;
-            manager.HandleTVEpisodeInfoRequests += (sender, e) => e.Value.InfoRequested += HandleTVEpisodeInfoRequests;
-
-            manager.HandlePersonInfoRequests += (sender, e) => e.Value.InfoRequested += HandlePersonInfoRequests;*/
         }
 
         /*private void HandleMediaInfoRequests(object sender, AsyncEventArgs<object> e)

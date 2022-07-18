@@ -164,9 +164,8 @@
                      Orientation="Horizontal">
             <Label Text="{Binding Value.LHS, StringFormat='{0}: '}" />
 
-            <ContentView ControlTemplate="{StaticResource PredicateOperatorRHSControlTemplate}">
-                <ContentPresenter CompressedLayout.IsHeadless="True" />
-            </ContentView>
+            <ContentView ControlTemplate="{StaticResource PredicateOperatorRHSControlTemplate}"
+                         StyleClass="PredicateClass" />
         </StackLayout>
     </ControlTemplate>
 

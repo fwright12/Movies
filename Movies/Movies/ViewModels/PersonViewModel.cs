@@ -28,8 +28,6 @@ namespace Movies.ViewModels
         public override string PrimaryImagePath => ProfilePath;
         public override string Description => Bio;
 
-        private PersonService PersonService => DataManager.PersonService;
-
         public PersonViewModel(DataManager dataManager, Person person) : base(dataManager, person)
         {
             //List.Description = Bio;
@@ -60,7 +58,7 @@ namespace Movies.ViewModels
             };
         }
 
-        public static async IAsyncEnumerable<Item> GetCredits(PersonService service, Person person)
+        public static async IAsyncEnumerable<Item> GetCredits(Person person)
         {
             //var credits = await service.CreditsRequested.GetSingle(person);
 

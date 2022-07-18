@@ -44,3 +44,7 @@ C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies\obj\Release\netstandard2.
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies\obj\Release\netstandard2.1\Movies.csproj.CopyComplete
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies\obj\Release\netstandard2.1\Movies.dll
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies\obj\Release\netstandard2.1\Movies.pdb
+C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies\obj\Release\netstandard2.1\Resources\FilterPredicateResources.xaml.g.cs
+C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies\obj\Release\netstandard2.1\Resources\PredicateEditorResources.xaml.g.cs
+C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies\obj\Release\netstandard2.1\Views\DeluxeDatePicker.xaml.g.cs
+C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies\obj\Release\netstandard2.1\Views\NumberPicker.xaml.g.cs

@@ -26,7 +26,7 @@ namespace Movies.ViewModels
             {
                 var vm = new OptionsViewModel(editor);
                 SelectedItemsChanged(bindable, vm);
-                
+
                 bindable.SetBinding(bindable is CollectionView ? ItemsView.ItemsSourceProperty : BindableLayout.ItemsSourceProperty, new Binding(nameof(OptionsViewModel.Items), source: vm));
                 bindable.PropertyChanged += (sender, e) =>
                 {
@@ -62,12 +62,15 @@ namespace Movies.ViewModels
                     oldObservable.CollectionChanged -= SelectedItemsChanged;
                 }
 
+                var oldItems = _SelectedItems?.OfType<object>() ?? Enumerable.Empty<object>();
+                var newItems = value?.OfType<object>() ?? Enumerable.Empty<object>();
+                IEnumerable<object> removed = ExceptWith(new HashSet<object>(oldItems), newItems);
+                IEnumerable<object> added = ExceptWith(new HashSet<object>(newItems), oldItems);
+                var e = new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Replace, added.ToList(), removed.ToList());
+
                 _SelectedItems = value;
 
-                if (_SelectedItems != null)
-                {
-                    SelectedItemsChanged(value, new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Add, new List<object>(value.OfType<object>())));
-                }
+                SelectedItemsChanged(value, e);
                 if (_SelectedItems is INotifyCollectionChanged newObservable)
                 {
                     newObservable.CollectionChanged += SelectedItemsChanged;
@@ -91,6 +94,12 @@ namespace Movies.ViewModels
             {
                 observable.CollectionChanged += OptionsChanged;
             }
+        }
+
+        private static HashSet<T> ExceptWith<T>(HashSet<T> source, IEnumerable<T> other)
+        {
+            source.ExceptWith(other);
+            return source;
         }
 
         public void RemoveOption(object option)

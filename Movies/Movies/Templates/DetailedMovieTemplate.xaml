@@ -2,9 +2,10 @@
 <DataTemplate xmlns="http://xamarin.com/schemas/2014/forms"
               xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
               xmlns:movies="clr-namespace:Movies"
-              xmlns:views="clr-namespace:Movies.Views"
-              xmlns:viewmodels="clr-namespace:Movies.ViewModels"
+              xmlns:converters="clr-namespace:Movies.Converters"
               xmlns:models="clr-namespace:Movies.Models"
+              xmlns:viewmodels="clr-namespace:Movies.ViewModels"
+              xmlns:views="clr-namespace:Movies.Views"
               x:Class="Movies.Templates.DetailedMovieTemplate">
     <views:CollectionItemView Title="{Binding Title}"
                               ThumbnailTemplate="{StaticResource CompressedMovieTemplate}">
@@ -58,7 +59,7 @@
                 <BindableLayout.ItemTemplate>
                     <DataTemplate x:DataType="models:Rating">
                         <StackLayout Orientation="Horizontal">
-                            <Image Source="{Binding Company.LogoPath}"
+                            <Image Source="{Binding Company.LogoPath, Converter={Static converters:UriToImageSourceConverter.Instance}}"
                                    HeightRequest="{Binding Height, Source={x:Reference score}}" />
 
                             <Label Text="{Binding Score}"

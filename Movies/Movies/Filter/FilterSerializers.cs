@@ -1,6 +1,7 @@
 ﻿using Movies.Models;
 using Movies.ViewModels;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
@@ -24,19 +25,44 @@ namespace Movies
             return Application.SavePropertiesAsync();
         }
 
-        public Task<JsonResponse> TryGetValueAsync(string url)
+        public Task<JsonResponse> TryGetValueAsync(string url) => TryGetValue(url, out var response) ? Task.FromResult(response) : null;
+
+        public bool TryGetValue(string url, out JsonResponse response)
         {
             if (Application.Properties.TryGetValue(url, out var value) && value is string cached)
             {
-                try
+                var root = JsonDocument.Parse(cached).RootElement;
+
+                if (root.TryGetValue(out string json, nameof(JsonResponse.Json)) && root.TryGetValue(out DateTime timeStamp, nameof(JsonResponse.Timestamp)))
                 {
-                    return Task.FromResult(JsonSerializer.Deserialize<JsonResponse>(cached));
+                    response = new JsonResponse(json, timeStamp);
+                    return true;
                 }
-                catch { }
             }
 
-            return null;
+            response = null;
+            return false;
         }
+
+        public async Task<bool> Expire(string url)
+        {
+            bool success = Application.Properties.Remove(url);
+            await Application.SavePropertiesAsync();
+            return success;
+        }
+
+        public IEnumerator<KeyValuePair<string, JsonResponse>> GetEnumerator()
+        {
+            foreach (var kvp in Application.Properties)
+            {
+                if (kvp.Key is string url && TryGetValue(url, out var response))
+                {
+                    yield return new KeyValuePair<string, JsonResponse>(url, response);
+                }
+            }
+        }
+
+        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
     }
 
     public abstract class ReadOnlyJsonConverter<T> : JsonConverter<T>
