@@ -3,7 +3,8 @@
               xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
               xmlns:views="clr-namespace:Movies.Views"
               xmlns:viewmodels="clr-namespace:Movies.ViewModels"
-              x:Class="Movies.Templates.EpisodeTemplate">
+              x:Class="Movies.Templates.EpisodeTemplate"
+              x:DataType="viewmodels:TVEpisodeViewModel">
     <views:CollectionItemView>
         <views:CollectionItemView.Title>
             <MultiBinding StringFormat="{}{0}. {1}">
@@ -26,10 +27,9 @@
                            LineBreakMode="NoWrap">
                         <Label.FormattedText>
                             <FormattedString>
-                                <Span Text="{Binding AirDate, StringFormat='{0:M/d/yy}', FallbackValue=''}"
-                                      x:DataType="viewmodels:TVEpisodeViewModel" />
+                                <Span Text="{Binding AirDate, StringFormat='{0:M/d/yy}', FallbackValue=''}" />
                                 <!--<Span Text="{Binding Runtime, Converter={Static views:HrMinConverter.Instance}, TargetNullValue={StaticResource DetailedTemplateNullValue}}" />-->
-                                <Span Text="{Binding Ratings[0].Score}" />
+                                <!--<Span Text="{Binding Ratings[0].Score}" />-->
                             </FormattedString>
                         </Label.FormattedText>
                     </Label>

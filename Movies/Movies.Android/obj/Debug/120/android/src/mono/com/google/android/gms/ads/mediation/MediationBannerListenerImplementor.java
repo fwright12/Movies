@@ -18,7 +18,7 @@ public class MediationBannerListenerImplementor
 			"n_onAdLeftApplication:(Lcom/google/android/gms/ads/mediation/MediationBannerAdapter;)V:GetOnAdLeftApplication_Lcom_google_android_gms_ads_mediation_MediationBannerAdapter_Handler:Android.Gms.Ads.Mediation.IMediationBannerListenerInvoker, Xamarin.GooglePlayServices.Ads.Lite\n" +
 			"n_onAdLoaded:(Lcom/google/android/gms/ads/mediation/MediationBannerAdapter;)V:GetOnAdLoaded_Lcom_google_android_gms_ads_mediation_MediationBannerAdapter_Handler:Android.Gms.Ads.Mediation.IMediationBannerListenerInvoker, Xamarin.GooglePlayServices.Ads.Lite\n" +
 			"n_onAdOpened:(Lcom/google/android/gms/ads/mediation/MediationBannerAdapter;)V:GetOnAdOpened_Lcom_google_android_gms_ads_mediation_MediationBannerAdapter_Handler:Android.Gms.Ads.Mediation.IMediationBannerListenerInvoker, Xamarin.GooglePlayServices.Ads.Lite\n" +
-			"n_zza:(Lcom/google/android/gms/ads/mediation/MediationBannerAdapter;Ljava/lang/String;Ljava/lang/String;)V:GetZza_Lcom_google_android_gms_ads_mediation_MediationBannerAdapter_Ljava_lang_String_Ljava_lang_String_Handler:Android.Gms.Ads.Mediation.IMediationBannerListenerInvoker, Xamarin.GooglePlayServices.Ads.Lite\n" +
+			"n_zzd:(Lcom/google/android/gms/ads/mediation/MediationBannerAdapter;Ljava/lang/String;Ljava/lang/String;)V:GetZzd_Lcom_google_android_gms_ads_mediation_MediationBannerAdapter_Ljava_lang_String_Ljava_lang_String_Handler:Android.Gms.Ads.Mediation.IMediationBannerListenerInvoker, Xamarin.GooglePlayServices.Ads.Lite\n" +
 			"";
 		mono.android.Runtime.register ("Android.Gms.Ads.Mediation.IMediationBannerListenerImplementor, Xamarin.GooglePlayServices.Ads.Lite", MediationBannerListenerImplementor.class, __md_methods);
 	}
@@ -88,12 +88,12 @@ public class MediationBannerListenerImplementor
 	private native void n_onAdOpened (com.google.android.gms.ads.mediation.MediationBannerAdapter p0);
 
 
-	public void zza (com.google.android.gms.ads.mediation.MediationBannerAdapter p0, java.lang.String p1, java.lang.String p2)
+	public void zzd (com.google.android.gms.ads.mediation.MediationBannerAdapter p0, java.lang.String p1, java.lang.String p2)
 	{
-		n_zza (p0, p1, p2);
+		n_zzd (p0, p1, p2);
 	}
 
-	private native void n_zza (com.google.android.gms.ads.mediation.MediationBannerAdapter p0, java.lang.String p1, java.lang.String p2);
+	private native void n_zzd (com.google.android.gms.ads.mediation.MediationBannerAdapter p0, java.lang.String p1, java.lang.String p2);
 
 	private java.util.ArrayList refList;
 	public void monodroidAddReference (java.lang.Object obj)

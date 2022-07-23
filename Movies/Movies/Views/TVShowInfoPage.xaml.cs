@@ -144,7 +144,7 @@ namespace Movies.Views
     {
         public TVShowInfoPage()
         {
-            App.DataManager.BatchBegin();
+            DataService.Instance.BatchBegin();
             InitializeComponent();
         }
 

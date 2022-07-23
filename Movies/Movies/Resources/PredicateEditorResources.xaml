@@ -62,7 +62,8 @@
         </Style.Triggers>
     </Style>
     
-    <DataTemplate x:Key="SearchTemplate">
+    <DataTemplate x:Key="SearchTemplate"
+                  x:DataType="viewmodels:SearchPredicateBuilder">
         <SearchBar Text="{Binding Query, Mode=TwoWay}"
                    SearchCommand="{Binding SearchCommand}"
                    TextColor="{AppThemeBinding Light={StaticResource LightPrimaryText}, Dark={StaticResource DarkPrimaryText}}"

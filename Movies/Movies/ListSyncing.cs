@@ -78,7 +78,7 @@ namespace Movies
                 return;
             }
 
-            var model = new ListViewModel(DataManager)
+            var model = new ListViewModel
             {
                 Editing = true
             };
@@ -185,7 +185,7 @@ namespace Movies
                         l.Add(synced.List.ID);
                     }*/
 
-                    var lvm = new ListViewModel(DataManager, sources);
+                    var lvm = new ListViewModel(sources);
                     CustomLists.Add(lvm);
                     i++;
                 }
@@ -287,7 +287,7 @@ namespace Movies
             {
                 sync.List.Name += string.Format(" [{0}]", sync.Provider.Name);
                 await sync.List.Update();
-                CustomLists.Add(new ListViewModel(DataManager, sync));
+                CustomLists.Add(new ListViewModel(sync));
             }
         }
 

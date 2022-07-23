@@ -15,7 +15,6 @@ namespace Movies
         public static readonly ID<int> ID = IDKey.ID;
 
         public static readonly MockData Instance = new MockData();
-        private readonly DataManager DataManager = new DataManager();
 
         public static Company TMDb { get; } = new Company
         {

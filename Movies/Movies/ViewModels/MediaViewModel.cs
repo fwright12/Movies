@@ -24,7 +24,45 @@ namespace Movies.ViewModels
 
     public abstract class MediaViewModel : ItemViewModel
     {
-        public MediaViewModel(DataManager dataManager, Item item) : base(dataManager, item) { }
+        public string Title => Name;
+
+        public string Tagline => RequestValue(Media.TAGLINE);
+        public string Description => RequestValue(Media.DESCRIPTION);
+        public string ContentRating => RequestValue(ContentRatingProperty);
+        public TimeSpan? Runtime => TryRequestValue(Media.RUNTIME, out var runtime) ? runtime : (TimeSpan?)null;
+        public string OriginalTitle => RequestValue(Media.ORIGINAL_TITLE);
+        public string OriginalLanguage => RequestValue(Media.ORIGINAL_LANGUAGE);
+        public IEnumerable<string> Languages => RequestValue(Media.LANGUAGES);
+        public IEnumerable<string> Genres => RequestValue(GenresProperty) is IEnumerable<Genre> genres ? genres.Select(genre => genre.Name) : null;
+
+        public override string PrimaryImagePath => RequestValue(Media.TRAILER_PATH);
+        public string PosterPath => RequestValue(Media.POSTER_PATH);
+        public string BackdropPath => RequestValue(Media.BACKDROP_PATH);
+        public string TrailerPath => RequestValue(Media.TRAILER_PATH);
+        //public override string PrimaryImagePath => TrailerPath;
+
+        public IEnumerable<Rating> Ratings => RequestValue(Media.RATING) is Rating rating ? new List<Rating> { rating } : null;
+        public List<Group<Credit>> Cast => GetCrew(RequestValue(Media.CAST));
+        public List<Group<Credit>> Crew => GetCrew(RequestValue(Media.CREW));
+        public IEnumerable<Company> ProductionCompanies => RequestValue(Media.PRODUCTION_COMPANIES);
+        public IEnumerable<string> ProductionCountries => RequestValue(Media.PRODUCTION_COUNTRIES);
+        public List<Group<WatchProvider>> WatchProviders => Providers(RequestValue(WatchProvidersProperty));
+        public IEnumerable<string> Keywords => RequestValue(Movie.KEYWORDS) is IEnumerable<Keyword> keywords ? keywords.Select(keyword => keyword.Name) : null;
+        public CollectionViewModel Recommended => _Recommended ??= (RequestValue(Media.RECOMMENDED) is IAsyncEnumerable<Item> items ? new CollectionViewModel("Recommended", items) : null);
+
+        protected abstract Property<string> ContentRatingProperty { get; }
+        protected abstract MultiProperty<Genre> GenresProperty { get; }
+        protected abstract MultiProperty<WatchProvider> WatchProvidersProperty { get; }
+
+        private CollectionViewModel _Recommended;
+
+        protected static CollectionViewModel ForceLoad(CollectionViewModel cvm)
+        {
+            //cvm.LoadMoreCommand.Execute(null);
+            return cvm;
+        }
+
+        public MediaViewModel(Item item) : base(item) { }
 
         public static List<Group<Credit>> GetCrew(IEnumerable<Credit> crew)
         {
@@ -96,48 +134,5 @@ namespace Movies.ViewModels
 
             return new List<Group<WatchProvider>>(GroupSort(providers, provider => provider.Type).OrderBy(kvp => (int)kvp.Key).Select(type => new Group<WatchProvider>(type.Key.ToString(), type.Value)));
         }
-    }
-
-    public abstract class MediaViewModel<TItem> : MediaViewModel where TItem : Item
-    {
-        public string Title => Name;
-
-        public string Tagline => RequestValue(Media.TAGLINE);
-        public string Description => RequestValue(Media.DESCRIPTION);
-        public string ContentRating => RequestValue(ContentRatingProperty);
-        public TimeSpan? Runtime => TryRequestValue(Media.RUNTIME, out var runtime) ? runtime : (TimeSpan?)null;
-        public string OriginalTitle => RequestValue(Media.ORIGINAL_TITLE);
-        public string OriginalLanguage => RequestValue(Media.ORIGINAL_LANGUAGE);
-        public IEnumerable<string> Languages => RequestValue(Media.LANGUAGES);
-        public IEnumerable<string> Genres => RequestValue(GenresProperty) is IEnumerable<Genre> genres ? genres.Select(genre => genre.Name) : null;
-
-        public override string PrimaryImagePath => RequestValue(Media.TRAILER_PATH);
-        public string PosterPath => RequestValue(Media.POSTER_PATH);
-        public string BackdropPath => RequestValue(Media.BACKDROP_PATH);
-        public string TrailerPath => RequestValue(Media.TRAILER_PATH);
-        //public override string PrimaryImagePath => TrailerPath;
-
-        public IEnumerable<Rating> Ratings => RequestValue(Media.RATING) is Rating rating ? new List<Rating> { rating } : null;
-        public List<Group<Credit>> Cast => GetCrew(RequestValue(Media.CAST));
-        public List<Group<Credit>> Crew => GetCrew(RequestValue(Media.CREW));
-        public IEnumerable<Company> ProductionCompanies => RequestValue(Media.PRODUCTION_COMPANIES);
-        public IEnumerable<string> ProductionCountries => RequestValue(Media.PRODUCTION_COUNTRIES);
-        public List<Group<WatchProvider>> WatchProviders => Providers(RequestValue(WatchProvidersProperty));
-        public IEnumerable<string> Keywords => RequestValue(Movie.KEYWORDS) is IEnumerable<Keyword> keywords ? keywords.Select(keyword => keyword.Name) : null;
-        public CollectionViewModel Recommended => _Recommended ??= (RequestValue(Media.RECOMMENDED) is IAsyncEnumerable<Item> items ? new CollectionViewModel(DataManager, "Recommended", items) : null);
-
-        protected abstract Property<string> ContentRatingProperty { get; }
-        protected abstract MultiProperty<Genre> GenresProperty { get; }
-        protected abstract MultiProperty<WatchProvider> WatchProvidersProperty { get; }
-
-        private CollectionViewModel _Recommended;
-
-        protected static CollectionViewModel ForceLoad(CollectionViewModel cvm)
-        {
-            //cvm.LoadMoreCommand.Execute(null);
-            return cvm;
-        }
-
-        public MediaViewModel(DataManager dataManager, Item item) : base(dataManager, item) { }
     }
 }

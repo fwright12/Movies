@@ -31,13 +31,17 @@ namespace Movies
         {
             if (Application.Properties.TryGetValue(url, out var value) && value is string cached)
             {
-                var root = JsonDocument.Parse(cached).RootElement;
-
-                if (root.TryGetValue(out string json, nameof(JsonResponse.Json)) && root.TryGetValue(out DateTime timeStamp, nameof(JsonResponse.Timestamp)))
+                try
                 {
-                    response = new JsonResponse(json, timeStamp);
-                    return true;
+                    var root = JsonDocument.Parse(cached).RootElement;
+
+                    if (root.TryGetValue(out string json, nameof(JsonResponse.Json)) && root.TryGetValue(out DateTime timeStamp, nameof(JsonResponse.Timestamp)))
+                    {
+                        response = new JsonResponse(json, timeStamp);
+                        return true;
+                    }
                 }
+                catch { }
             }
 
             response = null;
@@ -255,7 +259,7 @@ namespace Movies
             if (root.TryGetValue(out int id, "id") && root.TryGetValue(out string name, "name"))
             {
                 var year = root.TryGetValue(out int temp, "year") ? temp : (int?)null;
-                return new PersonViewModel(App.DataManager, new Person(name, year).WithID(TMDB.IDKey, id));
+                return new PersonViewModel(new Person(name, year).WithID(TMDB.IDKey, id));
             }
 
             throw new JsonException();

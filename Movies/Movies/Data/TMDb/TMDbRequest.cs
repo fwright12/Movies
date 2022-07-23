@@ -10,8 +10,8 @@ namespace Movies
 {
     public class TMDbRequest
     {
-        public static string DEFAULT_LANGUAGE { get; set; } = System.Globalization.CultureInfo.CurrentCulture.TwoLetterISOLanguageName;
-        public static string DEFAULT_REGION { get; set; } = System.Globalization.RegionInfo.CurrentRegion.TwoLetterISORegionName;
+        public static string DEFAULT_LANGUAGE = System.Globalization.CultureInfo.CurrentCulture.TwoLetterISOLanguageName;
+        public static string DEFAULT_REGION = System.Globalization.RegionInfo.CurrentRegion.TwoLetterISORegionName;
         public static bool ADULT { get; set; } = false;
 
         public static string DEFAULT_ISO_639_1 => DEFAULT_LANGUAGE;

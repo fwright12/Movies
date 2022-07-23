@@ -98,9 +98,9 @@ namespace Movies
             return result;
         }
 
-        private async Task<ListViewModel> GetWatchlist() => WithHandlers(new NamedListViewModel(DataManager, "Watchlist", await GetNamedSyncList(WATCHLIST_ID), ItemType.Movie | ItemType.TVShow));
-        private async Task<ListViewModel> GetFavorites() => WithHandlers(new NamedListViewModel(DataManager, "Favorites", await GetNamedSyncList(FAVORITES_ID)));
-        private async Task<ListViewModel> GetHistory() => WithHandlers(new NamedListViewModel(DataManager, "Watched", await GetNamedSyncList(HISTORY_ID), ItemType.Movie | ItemType.TVShow));
+        private async Task<ListViewModel> GetWatchlist() => WithHandlers(new NamedListViewModel("Watchlist", await GetNamedSyncList(WATCHLIST_ID), ItemType.Movie | ItemType.TVShow));
+        private async Task<ListViewModel> GetFavorites() => WithHandlers(new NamedListViewModel("Favorites", await GetNamedSyncList(FAVORITES_ID)));
+        private async Task<ListViewModel> GetHistory() => WithHandlers(new NamedListViewModel("Watched", await GetNamedSyncList(HISTORY_ID), ItemType.Movie | ItemType.TVShow));
 
         private ListViewModel WithHandlers(ListViewModel list)
         {

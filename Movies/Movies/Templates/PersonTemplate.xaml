@@ -2,8 +2,10 @@
 <DataTemplate xmlns="http://xamarin.com/schemas/2014/forms"
               xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
               xmlns:movies="clr-namespace:Movies"
+              xmlns:viewmodels="clr-namespace:Movies.ViewModels"
               xmlns:views="clr-namespace:Movies.Views"
-              x:Class="Movies.Templates.PersonTemplate">
+              x:Class="Movies.Templates.PersonTemplate"
+              x:DataType="viewmodels:PersonViewModel">
     <views:CollectionItemView Title="{Binding Name}">
         <views:CollectionItemView.ThumbnailTemplate>
             <DataTemplate>

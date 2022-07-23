@@ -27,17 +27,15 @@ namespace Movies.ViewModels
         public virtual string PrimaryImagePath => null;
         public ICommand AddToListCommand { get; }
 
-        public static readonly DataService Data = new DataService();
         protected PropertyDictionary Properties;
-        protected DataManager DataManager;
 
-        public ItemViewModel(DataManager dataManager, Item item)
+        public ItemViewModel(Item item)
         {
-            DataManager = dataManager;
             Item = item;
+
             if (Item != null)
             {
-                Properties = Data.GetDetails(Item);
+                Properties = DataService.Instance.GetDetails(Item);
             }
 
             AddToListCommand = new Command<IEnumerable<object>>(async lists =>

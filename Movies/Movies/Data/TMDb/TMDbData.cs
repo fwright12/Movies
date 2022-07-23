@@ -247,7 +247,6 @@ namespace Movies
 #else
         private static readonly string SECURE_BASE_IMAGE_URL = "https://image.tmdb.org/t/p";
 #endif
-        private DataManager DataManager;
         public static HttpClient WebClient { get; private set; }
 
         public TMDB(string apiKey, string bearer, IJsonCache cache = null)
@@ -258,7 +257,7 @@ namespace Movies
 
             RatingParser.TMDb = this;
 
-            Test(ViewModels.ItemViewModel.Data);
+            Test(DataService.Instance);
             //Config = Client.GetConfigAsync();
             WebClient = new HttpClient
             {

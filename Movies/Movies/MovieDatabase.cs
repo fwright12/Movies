@@ -82,16 +82,18 @@ namespace Movies.Views
             IDSystem = tmdb;
             IDKey = idKey;
 
-            string path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), UserInfoDBFilename);
+            string path = GetFilePath(UserInfoDBFilename);
             //File.Delete(path);
             UserInfo = new SQLiteAsyncConnection(path, SQLiteOpenFlags.ReadWrite | SQLiteOpenFlags.Create | SQLiteOpenFlags.SharedCache);
 
-            path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), ItemInfoDBFilename);
+            path = GetFilePath(ItemInfoDBFilename);
             //File.Delete(path);
             ItemInfo = new SQLiteAsyncConnection(path, SQLiteOpenFlags.ReadWrite | SQLiteOpenFlags.Create | SQLiteOpenFlags.SharedCache);
 
             Init = Setup();
         }
+
+        private string GetFilePath(string dbName) => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), dbName);
 
         private async Task Setup()
         {
@@ -124,19 +126,28 @@ namespace Movies.Views
                 LocalList.ItemsTable,
             }.Select(table => UserInfo.CreateTable(table)));
 
-            await Task.WhenAll(new Table[]
+            var itemTables = new Dictionary<ItemType, Table>
             {
-                Movies,
-                TVShows,
-                People,
-                Collections
-            }.Select(table => ItemInfo.CreateTable(table)));
+                [ItemType.Movie] = Movies,
+                [ItemType.TVShow] = TVShows,
+                [ItemType.Person] = People,
+                [ItemType.Collection] = Collections
+            };
+            await Task.WhenAll(itemTables.Values.Select(table => ItemInfo.CreateTable(table)));
 
             //await Task.WhenAll(SQL.CreateTable(SyncLists), SQL.CreateTable(LocalList.DetailsTable), SQL.CreateTable(LocalList.ItemsTable));//, SQL.CreateTable(Movies));
             if ((await UserInfo.QueryScalarsAsync<int>(string.Format("select count(*) from {0}", LocalList.DetailsTable))).First() == 0)
             {
                 await UserInfo.ExecuteAsync(string.Format("insert into {0} ({1}) values (?), (?), (?)", LocalList.DetailsTable, LocalList.DetailsCols.ID), 0, 1, 2);
                 //await SQL.ExecuteAsync(string.Format("insert into {0} values (?), (?), (?)", SyncLists, 0, 1, 2);
+            }
+
+            await ItemInfo.ExecuteAsync($"attach database '{GetFilePath(UserInfoDBFilename)}' as items");
+            foreach (var kvp in itemTables)
+            {
+                //Print.Log(string.Join(',', await ItemInfo.QueryAsync<ValueTuple<string>>($"select {LocalList.ItemsCols.ITEM_ID} from items.{LocalList.ItemsTable} where {LocalList.ItemsCols.ITEM_TYPE} = ?", kvp.Key)));
+                //Print.Log($"delete from {kvp.Value} where {kvp.Value.Columns[0]} not in (select {LocalList.ItemsCols.ITEM_ID} from items.{LocalList.ItemsTable} where {LocalList.ItemsCols.ITEM_TYPE} = ?)");
+                _ = ItemInfo.ExecuteAsync($"delete from {kvp.Value} where {kvp.Value.Columns[0]} not in (select {LocalList.ItemsCols.ITEM_ID} from items.{LocalList.ItemsTable} where {LocalList.ItemsCols.ITEM_TYPE} = ?)", kvp.Key);
             }
 
 #if DEBUG

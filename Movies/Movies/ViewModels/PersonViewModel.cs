@@ -28,7 +28,7 @@ namespace Movies.ViewModels
         public override string PrimaryImagePath => ProfilePath;
         public override string Description => Bio;
 
-        public PersonViewModel(DataManager dataManager, Person person) : base(dataManager, person)
+        public PersonViewModel(Person person) : base(person)
         {
             //List.Description = Bio;
             //OnPropertyChanged(nameof(Item));
@@ -62,7 +62,7 @@ namespace Movies.ViewModels
         {
             //var credits = await service.CreditsRequested.GetSingle(person);
 
-            if (!Data.GetDetails(person).TryGetValue(Person.CREDITS, out var task) || !(await task is IEnumerable<Item> credits))
+            if (!DataService.Instance.GetDetails(person).TryGetValue(Person.CREDITS, out var task) || !(await task is IEnumerable<Item> credits))
             {
                 yield break;
             }

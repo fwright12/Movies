@@ -3,7 +3,9 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:converters="clr-namespace:Movies.Converters"
              xmlns:views="clr-namespace:Movies.Views"
-             x:Class="Movies.Views.ReviewsPage">
+             xmlns:models="clr-namespace:Movies.Models"
+             x:Class="Movies.Views.ReviewsPage"
+             x:DataType="models:Rating">
     <CollectionView views:Extensions.ItemsSource="{Binding Reviews}"
                     RemainingItemsThreshold="1"
                     Margin="10, 0">
@@ -13,7 +15,7 @@
         </CollectionView.ItemsLayout>
 
         <CollectionView.ItemTemplate>
-            <DataTemplate>
+            <DataTemplate x:DataType="models:Review">
                 <views:SectionView Style="{StaticResource ExpandableSectionViewStyle}"
                                    Title="{Binding Author}"
                                    BackgroundColor="{AppThemeBinding Light={StaticResource LightSecondaryBackground}, Dark={StaticResource DarkSecondaryBackground}}">

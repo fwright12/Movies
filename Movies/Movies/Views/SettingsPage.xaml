@@ -105,6 +105,29 @@
     <TableView Intent="Settings"
                HasUnevenRows="True">
         <TableRoot>
+            <TableSection Title="Localization"
+                          BindingContext="{Binding UserPrefs, Source={Static Application.Current}}">
+                <ViewCell>
+                    <FlexLayout Direction="Row"
+                                Style="{StaticResource ViewCellStyle}">
+                        <Label Text="Language: " />
+
+                        <Picker SelectedItem="{Binding Language}"
+                                FlexLayout.Grow="1" />
+                    </FlexLayout>
+                </ViewCell>
+
+                <ViewCell>
+                    <FlexLayout Direction="Row"
+                                Style="{StaticResource ViewCellStyle}">
+                        <Label Text="Region: " />
+
+                        <Picker SelectedItem="{Binding Region}"
+                                FlexLayout.Grow="1" />
+                    </FlexLayout>
+                </ViewCell>
+            </TableSection>
+
             <TableSection Title="My Accounts"
                           BindingContext="{Binding Source={Static Application.Current}}">
                 <ViewCell>

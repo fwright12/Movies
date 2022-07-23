@@ -1,7 +1,6 @@
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhoneSimulator\Debug\Movies.iOS.exe
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhoneSimulator\Debug\Movies.iOS.pdb
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhoneSimulator\Debug\Microsoft.Bcl.AsyncInterfaces.dll
-C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhoneSimulator\Debug\Newtonsoft.Json.dll
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhoneSimulator\Debug\SQLite-net.dll
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhoneSimulator\Debug\SQLitePCLRaw.batteries_v2.dll
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhoneSimulator\Debug\SQLitePCLRaw.nativelibrary.dll
@@ -12,7 +11,6 @@ C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhoneSimulator\D
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhoneSimulator\Debug\System.Runtime.CompilerServices.Unsafe.dll
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhoneSimulator\Debug\System.Text.Encodings.Web.dll
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhoneSimulator\Debug\System.Text.Json.dll
-C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhoneSimulator\Debug\TMDbLib.dll
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhoneSimulator\Debug\Xamarin.Essentials.dll
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhoneSimulator\Debug\Xamarin.Essentials.pdb
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhoneSimulator\Debug\Firebase.Core.dll
@@ -63,7 +61,6 @@ C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhoneSimulator\D
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhoneSimulator\Debug\System.Extensions.dll
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhoneSimulator\Debug\Xamarin.Forms.Extensions.pdb
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhoneSimulator\Debug\Xamarin.Forms.Extensions.dll.config
-C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhoneSimulator\Debug\Xamarin.Forms.Extensions.dll.mdb
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhoneSimulator\Debug\Movies.pdb
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhoneSimulator\Debug\System.Extensions.pdb
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhoneSimulator\Debug\System.Extensions.dll.mdb

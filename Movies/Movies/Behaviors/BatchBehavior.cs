@@ -16,7 +16,7 @@ namespace Movies
         {
             base.OnAttachedTo(bindable);
 
-            App.DataManager.BatchBegin();
+            DataService.Instance.BatchBegin();
             //Print.Log("\tbatch begin", bindable.GetType(), (bindable as VisualElement)?.Style?.Behaviors.Count);
             bindable.BindingContextChanged += EndBatch;
             return;
@@ -65,7 +65,7 @@ namespace Movies
         private void EndBatch(object sender, EventArgs e)
         {
             //Print.Log(((BindableObject)sender).BindingContext?.GetType());
-            App.DataManager.BatchEnd();
+            DataService.Instance.BatchEnd();
             //Print.Log("\tbatch end", ((BindableObject)sender)?.BindingContext?.GetType(), ((BindableObject)sender)?.BindingContext);
             if (sender is VisualElement visualElement && !visualElement.Behaviors.Remove(this))
             {

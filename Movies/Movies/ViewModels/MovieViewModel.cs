@@ -5,12 +5,12 @@ using Movies.Models;
 
 namespace Movies.ViewModels
 {
-    public class MovieViewModel : MediaViewModel<Movie>
+    public class MovieViewModel : MediaViewModel
     {
         public DateTime? Year => TryRequestValue(Movie.RELEASE_DATE, out var year) ? year : (DateTime?)null;
         public long? Budget => TryRequestValue(Movie.BUDGET, out var budget) ? budget : (long?)null;
         public long? Revenue => TryRequestValue(Movie.REVENUE, out var revenue) ? revenue : (long?)null;
-        public CollectionViewModel ParentCollection => _ParentCollection ??= (RequestValue(Movie.PARENT_COLLECTION) is Collection collection ? new CollectionViewModel(DataManager, collection) : null);
+        public CollectionViewModel ParentCollection => _ParentCollection ??= (RequestValue(Movie.PARENT_COLLECTION) is Collection collection ? new CollectionViewModel(collection) : null);
 
         protected override Property<string> ContentRatingProperty => Movie.CONTENT_RATING;
         protected override MultiProperty<Genre> GenresProperty => Movie.GENRES;
@@ -18,6 +18,6 @@ namespace Movies.ViewModels
 
         private CollectionViewModel _ParentCollection;
 
-        public MovieViewModel(DataManager dataManager, Movie movie) : base(dataManager, movie) { }
+        public MovieViewModel(Movie movie) : base(movie) { }
     }
 }

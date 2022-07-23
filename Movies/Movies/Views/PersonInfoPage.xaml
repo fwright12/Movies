@@ -6,6 +6,7 @@
              xmlns:supp="clr-namespace:Xamarin.Forms;assembly=Xamarin.Forms.Extensions"
              xmlns:movies="clr-namespace:Movies"
              x:Class="Movies.Views.PersonInfoPage"
+             x:DataType="viewmodels:PersonViewModel"
              Style="{StaticResource InfoPageStyle}">
     <ContentPage.ControlTemplate>
         <movies:ListTemplate />

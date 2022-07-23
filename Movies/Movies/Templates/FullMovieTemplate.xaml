@@ -6,7 +6,8 @@
               xmlns:views="clr-namespace:Movies.Views"
               xmlns:viewmodels="clr-namespace:Movies.ViewModels"
               xmlns:movies="clr-namespace:Movies"
-              x:Class="Movies.Templates.FullMovieTemplate">
+              x:Class="Movies.Templates.FullMovieTemplate"
+              x:DataType="viewmodels:MediaViewModel">
     <AbsoluteLayout Style="{StaticResource BatchStyle}">
         <Image Source="{Binding PosterPath, Converter={Static views:ImageSizeConverter.Instance}}"
                Aspect="AspectFill"
@@ -81,15 +82,14 @@
                     <ContentView x:DataType="viewmodels:TVShowViewModel"
                                  ext:ContentView.ItemSource="{Binding Seasons}"
                                  HeightRequest="200"
-                                 Style="{StaticResource InfoSectionStyle}"
-                                 CompressedLayout.IsHeadless="False" />
+                                 Style="{StaticResource InfoSectionStyle}" />
 
                     <views:SectionView Title="Ratings"
                                        ext:ContentView.ItemSource="{Binding Ratings, TargetNullValue={StaticResource EmptyRatings}}"
                                        Style="{StaticResource InfoSectionStyle}" />
 
                     <forms:AdView Style="{StaticResource InlineBannerAdStyle}"
-                                  AdUnitID="{Static movies:App.InlineBannerAdUnitID1}"/>
+                                  AdUnitID="{Static movies:App.InlineBannerAdUnitID1}" />
 
                     <views:SectionView Title="Summary"
                                        ext:ContentView.ItemSource="{Binding Description, TargetNullValue='No description provided'}"
@@ -134,7 +134,7 @@
                     </views:SectionView>
 
                     <forms:AdView Style="{StaticResource InlineBannerAdStyle}"
-                                  AdUnitID="{Static movies:App.InlineBannerAdUnitID2}"/>
+                                  AdUnitID="{Static movies:App.InlineBannerAdUnitID2}" />
 
                     <views:SectionView Title="Production"
                                        Style="{StaticResource InfoSectionStyle}">
@@ -148,10 +148,12 @@
                                                ext:ContentView.ItemSource="{Binding Networks, TargetNullValue={StaticResource EmptyCompanies}}"
                                                Style="{StaticResource InfoSubsectionStyle}" />
 
-                            <views:LabeledLabel Label="Budget"
+                            <views:LabeledLabel x:DataType="viewmodels:MovieViewModel"
+                                                Label="Budget"
                                                 Value="{Binding Budget, StringFormat='{0:C}'}" />
 
-                            <views:LabeledLabel Label="Revenue"
+                            <views:LabeledLabel x:DataType="viewmodels:MovieViewModel"
+                                                Label="Revenue"
                                                 Value="{Binding Revenue, StringFormat='{0:C}'}" />
                         </StackLayout>
                     </views:SectionView>
@@ -170,19 +172,17 @@
                     <ContentView x:DataType="viewmodels:MovieViewModel"
                                  ext:ContentView.ItemSource="{Binding ParentCollection}"
                                  HeightRequest="200"
-                                 Style="{StaticResource InfoSectionStyle}"
-                                 CompressedLayout.IsHeadless="False" />
+                                 Style="{StaticResource InfoSectionStyle}" />
 
                     <ContentView ext:ContentView.ItemSource="{Binding Recommended}"
                                  HeightRequest="200"
-                                 Style="{StaticResource InfoSectionStyle}"
-                                 CompressedLayout.IsHeadless="False" />
+                                 Style="{StaticResource InfoSectionStyle}" />
 
                     <views:LabeledLabel Label="Keywords"
                                         Value="{Binding Keywords, Converter={StaticResource ListToString}}" />
 
                     <forms:AdView Style="{StaticResource BannerAdStyle}"
-                                  AdUnitID="{Static movies:App.BottomBannerAdUnitID}"/>
+                                  AdUnitID="{Static movies:App.BottomBannerAdUnitID}" />
                 </StackLayout>
             </Frame>
         </ScrollView>

@@ -408,7 +408,6 @@
                      Orientation="Vertical"
                      Spacing="25">
             <ContentView HorizontalOptions="Center"
-                         CompressedLayout.IsHeadless="False"
                          IsVisible="{Binding Item, Converter={Static forms:FalseIfNullConverter.Instance}}"
                          Grid.ColumnSpan="2">
                 <TemplatedView.ControlTemplate>

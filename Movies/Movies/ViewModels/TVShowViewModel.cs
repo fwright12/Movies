@@ -9,7 +9,7 @@ namespace Movies.ViewModels
     {
         public string PosterPath => null;// RequestSingle(DataManager.TVShowService.PosterPathRequested);
 
-        public TVSeriesViewModel(DataManager dataManager, TVShow tvShow) : base(dataManager, tvShow.Name, Concat(tvShow))
+        public TVSeriesViewModel(TVShow tvShow) : base(tvShow.Name, Concat(tvShow))
         {
             //LoadMoreCommand.Execute(int.MaxValue);
         }
@@ -33,7 +33,7 @@ namespace Movies.ViewModels
         }
     }
 
-    public class TVShowViewModel : MediaViewModel<TVShow>
+    public class TVShowViewModel : MediaViewModel
     {
         public CollectionViewModel Seasons { get; }
 
@@ -45,9 +45,9 @@ namespace Movies.ViewModels
         protected override MultiProperty<Genre> GenresProperty => TVShow.GENRES;
         protected override MultiProperty<WatchProvider> WatchProvidersProperty => TVShow.WATCH_PROVIDERS;
 
-        public TVShowViewModel(DataManager dataManager, TVShow show) : base(dataManager, show)
+        public TVShowViewModel(TVShow show) : base(show)
         {
-            Seasons = new CollectionViewModel(dataManager, "Seasons", show);
+            Seasons = new CollectionViewModel("Seasons", show);
         }
     }
 
@@ -62,7 +62,7 @@ namespace Movies.ViewModels
 
         public override string PrimaryImagePath => (Item as Collection)?.PosterPath ?? base.PrimaryImagePath;
 
-        public TVSeasonViewModel(DataManager dataManager, TVSeason season) : base(dataManager, season)
+        public TVSeasonViewModel(TVSeason season) : base(season)
         {
             Number = season.SeasonNumber;
             DescriptionLabel = "Summary";
@@ -70,7 +70,7 @@ namespace Movies.ViewModels
         }
     }
 
-    public class TVEpisodeViewModel : MediaViewModel<TVEpisode>
+    public class TVEpisodeViewModel : MediaViewModel
     {
         //new public string Title => Name + " (The Office S" + Season + ""
         //public string Name => RequestSingle<string>("Title") ?? RequestSingle<string>();
@@ -84,7 +84,7 @@ namespace Movies.ViewModels
         protected override MultiProperty<Genre> GenresProperty => TVShow.GENRES;
         protected override MultiProperty<WatchProvider> WatchProvidersProperty => TVShow.WATCH_PROVIDERS;
 
-        public TVEpisodeViewModel(DataManager dataManager, TVEpisode episode) : base(dataManager, episode)
+        public TVEpisodeViewModel(TVEpisode episode) : base(episode)
         {
             Season = episode.Season?.SeasonNumber;
             Number = episode.EpisodeNumber;

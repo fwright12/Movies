@@ -41,7 +41,10 @@ namespace Movies
 
     /* Changelog:
      * 
-     * 
+     * Compiled bindings
+     * Clean up local database
+     * Language and region settings
+     * Fix autosizing
      * 
      */
 
@@ -49,12 +52,12 @@ namespace Movies
     {
         public static readonly string[] AdKeywords = "movie,tv,shows,tv show,series,streaming,entertainment,watch,list,film,actor,guide,library,theater".Split(',').ToArray();
 
-        public static readonly DataManager DataManager = new DataManager();
-
         public static readonly ImageSource TMDbAttribution = ImageSource.FromResource("Movies.Logos.TMDbAttribution.png");
         public static readonly ImageSource TraktAttributionLight = ImageSource.FromResource("Movies.Logos.TraktAttributionLight.png");
         public static readonly ImageSource TraktAttributionDark = ImageSource.FromResource("Movies.Logos.TraktAttributionDark.png");
         public static readonly ImageSource JustWatchAttribution = ImageSource.FromResource("Movies.Logos.JustWatchAttribution.png");
+
+        public UserPrefs Prefs { get; }
 
         //public IReadOnlyList<IDataSource> DataSources { get; }
         //public List<Group<CollectionViewModel>> Lists { get; private set; }
@@ -125,7 +128,7 @@ namespace Movies
                 _ = SavePropertiesAsync();
             }
 
-            if (Device.RuntimePlatform == Device.iOS)
+            if (Device.RuntimePlatform == Device.iOS && false)
             {
                 Properties[GetLoginCredentialsKey(ServiceName.TMDb)] = TMDB_LOGIN_INFO;
                 Properties[GetLoginCredentialsKey(ServiceName.Trakt)] = TRAKT_LOGIN_INFO;
@@ -138,10 +141,28 @@ namespace Movies
 
             TMDB tmdb = new TMDB(TMDB_API_KEY, TMDB_V4_BEARER, new AppPropertiesCache(this));
             Trakt trakt = new Trakt(tmdb, TRAKT_CLIENT_ID, TRAKT_CLIENT_SECRET);
-
+            
             TMDbGetPropertyValues = tmdb.GetPropertyValues;
             tmdb.Company.LogoPath ??= "file://Movies.Logos.TMDbLogo.png";
             trakt.Company.LogoPath ??= "file://Movies.Logos.TraktLogo.png";
+            
+            void TryGetUserPref<T>(string key, ref T tmdbVar)
+            {
+                if (Properties.TryGetValue(key, out var valueObj) && valueObj is T value)
+                {
+                    tmdbVar = value;
+                }
+                else
+                {
+                    Properties[key] = tmdbVar;
+                }
+            }
+
+            TryGetUserPref(UserPrefs.LANGUAGE_KEY, ref TMDbRequest.DEFAULT_LANGUAGE);
+            TryGetUserPref(UserPrefs.REGION_KEY, ref TMDbRequest.DEFAULT_REGION);
+
+            Prefs = new UserPrefs(Properties);
+            Prefs.PropertyChanged += async (sender, e) => await SavePropertiesAsync();
 
 #if DEBUG && false
             LocalDatabase = new Database(MockData.Instance, MockData.IDKey);
@@ -168,9 +189,9 @@ namespace Movies
 #if DEBUG
             MovieExplore = new List<object>
             {
-                new CollectionViewModel(DataManager, "Trending Movies", tmdb.GetTrendingMoviesAsync()),
-                new CollectionViewModel(DataManager, "Trending TV", tmdb.GetTrendingTVShowsAsync()),
-                new CollectionViewModel(DataManager, "Trending People", tmdb.GetTrendingPeopleAsync()),
+                new CollectionViewModel("Trending Movies", tmdb.GetTrendingMoviesAsync()),
+                new CollectionViewModel("Trending TV", tmdb.GetTrendingTVShowsAsync()),
+                new CollectionViewModel("Trending People", tmdb.GetTrendingPeopleAsync()),
             };
 #else
             MovieExplore = new ObservableCollection<object>
@@ -274,17 +295,22 @@ namespace Movies
             MainPage = new MainPage();
         }
 
+        private void Prefs_PropertyChanged(object sender, PropertyChangedEventArgs e)
+        {
+            throw new NotImplementedException();
+        }
+
         public static readonly BindableProperty AutoWireFromItemProperty = BindableProperty.CreateAttached("AutoWireFromItem", typeof(Item), typeof(BindableObject), null, propertyChanged: (bindable, oldValue, newValue) =>
         {
             Item item = (Item)newValue;
             object context = null;
 
-            if (item is Movie movie) context = new MovieViewModel(DataManager, movie);
-            else if (item is TVShow show) context = new TVShowViewModel(DataManager, show);
-            else if (item is TVSeason season) context = new TVSeasonViewModel(DataManager, season);
-            else if (item is TVEpisode episode) context = new TVEpisodeViewModel(DataManager, episode);
-            else if (item is Collection collection) context = new CollectionViewModel(DataManager, collection);
-            else if (item is Person person) context = new PersonViewModel(DataManager, person);
+            if (item is Movie movie) context = new MovieViewModel(movie);
+            else if (item is TVShow show) context = new TVShowViewModel(show);
+            else if (item is TVSeason season) context = new TVSeasonViewModel(season);
+            else if (item is TVEpisode episode) context = new TVEpisodeViewModel(episode);
+            else if (item is Collection collection) context = new CollectionViewModel(collection);
+            else if (item is Person person) context = new PersonViewModel(person);
 
             if (context != null)
             {
@@ -303,11 +329,11 @@ namespace Movies
                 {
                     yield break;
                 }
-                
+
 #if DEBUG && true
                 await System.Threading.Tasks.Task.CompletedTask;
 
-                foreach (var item in await System.Threading.Tasks.Task.FromResult(Enumerable.Repeat(new PersonViewModel(App.DataManager, MockData.Instance.MatthewM.WithID(TMDB.IDKey, 0)), 5)))
+                foreach (var item in await System.Threading.Tasks.Task.FromResult(Enumerable.Repeat(new PersonViewModel(MockData.Instance.MatthewM.WithID(TMDB.IDKey, 0)), 5)))
                 {
                     yield return item;
                 }
@@ -472,7 +498,7 @@ namespace Movies
 
         private CollectionViewModel GetPopular()
         {
-            var collection = new CollectionViewModel(DataManager, null, TMDB.Database.Instance, ItemType.Movie | ItemType.TVShow | ItemType.Person | ItemType.Collection, TMDB.Database.Instance)// | ItemType.Company)
+            var collection = new CollectionViewModel(null, TMDB.Database.Instance, ItemType.Movie | ItemType.TVShow | ItemType.Person | ItemType.Collection, TMDB.Database.Instance)// | ItemType.Company)
             {
                 ListLayout = ListLayouts.Grid,
                 SortOptions = new List<Property> { TMDB.POPULARITY, Movie.RELEASE_DATE, Movie.REVENUE, Media.ORIGINAL_TITLE, TMDB.SCORE, TMDB.VOTE_COUNT },

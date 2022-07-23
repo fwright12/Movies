@@ -3,20 +3,22 @@
               xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
               xmlns:forms="clr-namespace:Xamarin.Forms;assembly=Xamarin.Forms.Extensions"
               xmlns:views="clr-namespace:Movies.Views"
+              xmlns:viewmodels="clr-namespace:Movies.ViewModels"
               xmlns:models="clr-namespace:Movies.Models"
-              x:Class="Movies.Templates.DetailedCollectionTemplate">
+              x:Class="Movies.Templates.DetailedCollectionTemplate"
+              x:DataType="viewmodels:CollectionViewModel">
     <views:CollectionItemView Title="{Binding Name}"
                               ThumbnailTemplate="{StaticResource CompressedCollectionTemplate}">
         <StackLayout Orientation="Vertical">
             <Label Style="{StaticResource MultiPartLabel}">
                 <Label.FormattedText>
                     <FormattedString>
-                        <Span x:DataType="{x:Null}">
+                        <Span>
                             <Span.Text>
                                 <MultiBinding StringFormat="{}{0} {1}">
                                     <Binding Path="Count" />
                                     <Binding Path="ListLabel"
-                                             TargetNullValue="Items"/>
+                                             TargetNullValue="Items" />
                                 </MultiBinding>
                             </Span.Text>
                         </Span>
@@ -38,7 +40,8 @@
                 </Label.FormattedText>
             </Label>
 
-            <Label Text="{Binding Item.Description, Converter={Static forms:NullIfEmptyConverter.Instance}, TargetNullValue='No description provided'}"
+            <Label x:DataType="{x:Null}"
+                   Text="{Binding Item.Description, Converter={Static forms:NullIfEmptyConverter.Instance}, TargetNullValue='No description provided'}"
                    LineBreakMode="TailTruncation"
                    MaxLines="3" />
         </StackLayout>

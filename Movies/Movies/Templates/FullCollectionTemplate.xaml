@@ -2,28 +2,33 @@
 <DataTemplate xmlns="http://xamarin.com/schemas/2014/forms"
               xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
               xmlns:movies="clr-namespace:Movies"
+              xmlns:viewmodels="clr-namespace:Movies.ViewModels"
               xmlns:views="clr-namespace:Movies.Views"
-              x:Class="Movies.Views.FullCollectionTemplate">
+              x:Class="Movies.Views.FullCollectionTemplate"
+              x:DataType="viewmodels:CollectionViewModel">
     <ContentView>
         <ContentView.ControlTemplate>
             <movies:ListTemplate />
         </ContentView.ControlTemplate>
 
         <StackLayout Orientation="Vertical">
-            <views:LabeledLabel Label="Year"
+            <views:LabeledLabel x:DataType="viewmodels:TVSeasonViewModel"
+                                Label="Year"
                                 Value="{Binding Year, StringFormat='{0:yyyy}'}" />
 
             <views:LabeledLabel Label="{MultiBinding StringFormat='Number of {0}', Bindings={Binding ListLabel, TargetNullValue='Items'}}"
                                 Value="{Binding Count}" />
 
-            <views:LabeledLabel Label="Average Runtime"
+            <views:LabeledLabel x:DataType="viewmodels:TVSeasonViewModel"
+                                Label="Average Runtime"
                                 Value="{Binding AvgRuntime, Converter={Static movies:HrMinConverter.Instance}}" />
 
             <FlexLayout Direction="Row"
                         Style="{StaticResource EditingOnlyStyle}">
                 <Label Text="Public " />
 
-                <Switch IsToggled="{Binding Item.Public, Mode=TwoWay}" />
+                <Switch x:DataType="{x:Null}"
+                        IsToggled="{Binding Item.Public, Mode=TwoWay}" />
             </FlexLayout>
 
             <!--<ContentView views:EditView1.IsEditing="{Binding Editing}"

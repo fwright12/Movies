@@ -221,9 +221,8 @@ namespace Movies.ViewModels
             }
         }
 
-        public CollectionViewModel(DataManager dataManager, string name, IAsyncEnumerable<Item> items, ItemType? allowedTypes, Item item) : base(dataManager, item)
+        public CollectionViewModel(string name, IAsyncEnumerable<Item> items, ItemType? allowedTypes, Item item) : base(item)
         {
-            DataManager = dataManager;
             Name = name;
             ListLayout = ListLayouts.List;
 
@@ -364,19 +363,19 @@ namespace Movies.ViewModels
 
         private void Refresh() => Source.Refresh();
 
-        public CollectionViewModel(DataManager dataManager, Person person) : this(dataManager, person.Name, PersonViewModel.GetCredits(person), null, person) { }
-        public CollectionViewModel(DataManager dataManager, Collection collection) : this(dataManager, collection.Name, collection, null, collection) { }
+        public CollectionViewModel(Person person) : this(person.Name, PersonViewModel.GetCredits(person), null, person) { }
+        public CollectionViewModel(Collection collection) : this(collection.Name, collection, null, collection) { }
 
-        public CollectionViewModel(DataManager dataManager, string name, IAsyncEnumerable<Item> items, ItemType? allowedTypes = null) : this(dataManager, name, items, allowedTypes, null) { }
+        public CollectionViewModel(string name, IAsyncEnumerable<Item> items, ItemType? allowedTypes = null) : this(name, items, allowedTypes, null) { }
 
         protected ItemViewModel Map(Item item)
         {
-            if (item is Movie movie) return new MovieViewModel(DataManager, movie);
-            else if (item is TVShow show) return new TVShowViewModel(DataManager, show);
-            else if (item is TVSeason season) return new TVSeasonViewModel(DataManager, season);
-            else if (item is TVEpisode episode) return new TVEpisodeViewModel(DataManager, episode);
-            else if (item is Collection collection) return new CollectionViewModel(DataManager, collection) { ListLabel = "Movies" };
-            else if (item is Person person) return new PersonViewModel(DataManager, person);
+            if (item is Movie movie) return new MovieViewModel(movie);
+            else if (item is TVShow show) return new TVShowViewModel(show);
+            else if (item is TVSeason season) return new TVSeasonViewModel(season);
+            else if (item is TVEpisode episode) return new TVEpisodeViewModel(episode);
+            else if (item is Collection collection) return new CollectionViewModel(collection) { ListLabel = "Movies" };
+            else if (item is Person person) return new PersonViewModel(person);
             else return null;
         }
     }

@@ -294,7 +294,8 @@
                         Value="0.667" />
             </Style>
 
-            <DataTemplate x:Key="CompressedMovieTemplate">
+            <DataTemplate x:Key="CompressedMovieTemplate"
+                          x:DataType="viewmodels:MediaViewModel">
                 <views:ImageView AltText="{Binding Title}"
                                  Style="{StaticResource PosterStyle}">
                     <Image Source="{Binding PosterPath}"
@@ -349,7 +350,8 @@
                 </Setter>
             </Style>
 
-            <DataTemplate x:Key="CompressedPersonTemplate">
+            <DataTemplate x:Key="CompressedPersonTemplate"
+                          x:DataType="viewmodels:PersonViewModel">
                 <views:LabeledContentView Label="{Binding Name}"
                                           VerticalOptions="Start">
                     <VisualElement.Resources>
@@ -366,10 +368,12 @@
 
             <templates:PersonTemplate x:Key="PersonTemplate" />
 
-            <DataTemplate x:Key="CompressedCollectionTemplate">
+            <DataTemplate x:Key="CompressedCollectionTemplate"
+                          x:DataType="viewmodels:CollectionViewModel">
                 <views:ImageView AltText="{Binding Name}"
                                  Style="{StaticResource PosterStyle}">
-                    <Image Source="{Binding Item.PosterPath}"
+                    <Image x:DataType="{x:Null}"
+                           Source="{Binding Item.PosterPath}"
                            Aspect="AspectFill" />
                 </views:ImageView>
             </DataTemplate>
@@ -393,7 +397,8 @@
                                           ContentTemplate="{StaticResource CompressedListSelector}" />
             </DataTemplate>
 
-            <DataTemplate x:Key="ListPageTemplate">
+            <DataTemplate x:Key="ListPageTemplate"
+                          x:DataType="viewmodels:ListViewModel">
                 <ContentPage Title="{Binding Name}">
                     <Page.ToolbarItems>
                         <ToolbarItem Command="{Binding ToggleEditCommand}"
@@ -423,7 +428,8 @@
                         Value="{StaticResource ListPageTemplate}" />
             </Style>
 
-            <DataTemplate x:Key="CondensedListTemplate">
+            <DataTemplate x:Key="CondensedListTemplate"
+                          x:DataType="viewmodels:CollectionViewModel">
                 <views:SectionView Title="{Binding Name}">
                     <views:SectionView.Header>
                         <DataTemplate>
@@ -603,12 +609,13 @@
                                             Template="{StaticResource CompressedPersonTemplate}" />
                     <forms:TypeDataTemplate Type="{x:Type viewmodels:TVSeasonViewModel}">
                         <forms:TypeDataTemplate.Template>
-                            <DataTemplate>
+                            <DataTemplate x:DataType="viewmodels:TVSeasonViewModel">
                                 <views:LabeledContentView Label="{Binding Number, StringFormat='Season {0}'}">
                                     <views:ImageView AltText="{Binding Name}"
                                                      HorizontalOptions="Center"
                                                      Style="{StaticResource PosterStyle}">
-                                        <Image Source="{Binding Item.PosterPath}"
+                                        <Image x:DataType="{x:Null}"
+                                               Source="{Binding Item.PosterPath}"
                                                Aspect="AspectFill" />
                                     </views:ImageView>
                                 </views:LabeledContentView>

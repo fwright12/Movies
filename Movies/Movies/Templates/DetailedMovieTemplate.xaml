@@ -6,7 +6,8 @@
               xmlns:models="clr-namespace:Movies.Models"
               xmlns:viewmodels="clr-namespace:Movies.ViewModels"
               xmlns:views="clr-namespace:Movies.Views"
-              x:Class="Movies.Templates.DetailedMovieTemplate">
+              x:Class="Movies.Templates.DetailedMovieTemplate"
+              x:DataType="viewmodels:MovieViewModel">
     <views:CollectionItemView Title="{Binding Title}"
                               ThumbnailTemplate="{StaticResource CompressedMovieTemplate}">
         <VisualElement.Resources>

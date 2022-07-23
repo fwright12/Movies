@@ -126,7 +126,7 @@ namespace Movies.Views
 
             //Print.Log("batch property changed", bindable, newValue);
             Print.Log("\tbatch begin", bindable.GetType());//, (bindable as VisualElement)?.Style?.Behaviors.Count);
-            App.DataManager.BatchBegin();
+            DataService.Instance.BatchBegin();
 
             //bindable.BindingContextChanged -= EndBatch;
             //bindable.BindingContextChanged += EndBatch;
@@ -139,7 +139,7 @@ namespace Movies.Views
                 return;
             }
             Print.Log("\tbatch will end", sender.GetHashCode(), ((BindableObject)sender)?.BindingContext?.GetType(), ((BindableObject)sender)?.BindingContext);
-            App.DataManager.BatchEnd();
+            DataService.Instance.BatchEnd();
         }
 
         public static object GetBatch(this BindableObject bindable) => bindable.GetValue(BatchProperty);
@@ -488,15 +488,15 @@ namespace Movies.Views
         private void Update(object sender, EventArgs e)
         {
             var view = (View)sender;
-            if (view.Width < 0 && view.Height < 0)
+            if (!view.IsSet(VisualElement.HeightProperty) || !view.IsSet(VisualElement.WidthProperty))
             {
-                //return;
+                return;
             }
 
             //Print.Log("size changed", view.Bounds.Size);
-
-            bool autoWidth = Math.Max(0, view.Width) == view.WidthRequest;
-            bool autoHeight = Math.Max(0, view.Height) == view.HeightRequest;
+            
+            bool autoWidth = !view.IsSet(VisualElement.WidthRequestProperty) || view.Width == view.WidthRequest;
+            bool autoHeight = !view.IsSet(VisualElement.HeightRequestProperty) || view.Height == view.HeightRequest;
             Size size = default;
 
             RemoveHandlers(view);
@@ -531,6 +531,7 @@ namespace Movies.Views
             };
 
             view.IsVisible = true;
+            handler(view, null);
             view.BatchCommitted += handler;
             view.BatchCommit();
         }

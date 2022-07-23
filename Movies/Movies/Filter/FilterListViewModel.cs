@@ -163,6 +163,21 @@ namespace Movies.ViewModels
         }
     }
 
+    public class ForceParentMeasure : Behavior<Label>
+    {
+        protected override void OnAttachedTo(Label bindable)
+        {
+            base.OnAttachedTo(bindable);
+
+            bindable.SizeChanged += (sender, e) =>
+            {
+                Print.Log((sender as Label).Bounds.Size, (sender as Label).WidthRequest);
+                ((sender as Element)?.Parent as Layout)?.ForceLayout();
+                ;
+            };
+        }
+    }
+
     public interface IPredicateBuilder
     {
         public event EventHandler PredicateChanged;

@@ -27,7 +27,7 @@ namespace Movies.ViewModels
 
     public class NamedListViewModel : ListViewModel
     {
-        public NamedListViewModel(DataManager dataManager, string name, IEnumerable<SyncOptions> sources, ItemType? allowedTypes = null) : base(dataManager, sources, allowedTypes, true)
+        public NamedListViewModel(string name, IEnumerable<SyncOptions> sources, ItemType? allowedTypes = null) : base(sources, allowedTypes, true)
         {
             if (Item is List list)
             {
@@ -100,8 +100,8 @@ namespace Movies.ViewModels
             public IList<SyncOptions> NewSources { get; set; }
         }
 
-        public ListViewModel(DataManager manager, params SyncOptions[] sources) : this(manager, (IEnumerable<SyncOptions>)sources) { }
-        public ListViewModel(DataManager manager, IEnumerable<SyncOptions> sources, ItemType? allowedTypes = null, bool reverse = false) : base(manager, new SyncList(sources.Select(sync => sync.List), reverse))
+        public ListViewModel(params SyncOptions[] sources) : this((IEnumerable<SyncOptions>)sources) { }
+        public ListViewModel(IEnumerable<SyncOptions> sources, ItemType? allowedTypes = null, bool reverse = false) : base(new SyncList(sources.Select(sync => sync.List), reverse))
         {
             SyncWith = new ObservableCollection<SyncOptions>(sources);
             SyncBackup = new List<SyncOptions>(SyncWith);

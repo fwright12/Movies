@@ -182,8 +182,7 @@
                         </FlexLayout>
 
                         <ContentView ControlTemplate="{StaticResource BasicInfoTemplate}"
-                                     IsVisible="{TemplateBinding Content, Converter={Static forms:FalseIfNullConverter.Instance}}"
-                                     CompressedLayout.IsHeadless="False">
+                                     IsVisible="{TemplateBinding Content, Converter={Static forms:FalseIfNullConverter.Instance}}">
                             <ContentPresenter />
                         </ContentView>
 

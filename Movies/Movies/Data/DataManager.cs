@@ -73,9 +73,18 @@ namespace Movies
 
     public class DataService
     {
+        public static readonly DataService Instance = new DataService();
+
         public event EventHandler<ItemEventArgs> GetItemDetails;
 
+        public bool Batched { get; private set; }
+
         private Dictionary<Item, PropertyDictionary> Cache = new Dictionary<Item, PropertyDictionary>();
+
+        private DataService() { }
+
+        public void BatchBegin() => Batched = true;
+        public void BatchEnd() => Batched = false;
 
         //public Task<object> GetValue(Item item, Property property) => GetDetails(item).TryGetValue(property, out var value) ? value : Task.FromResult<object>(null);
 
@@ -90,13 +99,5 @@ namespace Movies
 
             return properties;
         }
-    }
-
-    public class DataManager
-    {
-        public bool Batched { get; private set; }
-
-        public void BatchBegin() => Batched = true;
-        public void BatchEnd() => Batched = false;
     }
 }

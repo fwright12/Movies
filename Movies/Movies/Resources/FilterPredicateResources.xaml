@@ -64,15 +64,18 @@
         </Style.Triggers>
     </Style>
 
-    <DataTemplate x:Key="TimeSpanTemplate">
+    <DataTemplate x:Key="TimeSpanTemplate"
+                  x:DataType="x:TimeSpan">
         <Label Text="{Binding Converter={Static movies:HrMinConverter.Instance}}" />
     </DataTemplate>
 
-    <DataTemplate x:Key="DateTimeTemplate">
+    <DataTemplate x:Key="DateTimeTemplate"
+                  x:DataType="sys:DateTime">
         <Label Text="{Binding StringFormat='{0:d}'}" />
     </DataTemplate>
 
-    <DataTemplate x:Key="TypeTemplate">
+    <DataTemplate x:Key="TypeTemplate"
+                  x:DataType="sys:Type">
         <Label>
             <VisualElement.Triggers>
                 <DataTrigger TargetType="Label"

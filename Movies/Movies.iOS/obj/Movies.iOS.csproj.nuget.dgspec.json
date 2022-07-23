@@ -77,7 +77,7 @@
           "dependencies": {
             "Xamarin.Forms": {
               "target": "Package",
-              "version": "[5.0.0.2291, )"
+              "version": "[5.0.0.2478, )"
             },
             "Xamarin.Google.iOS.MobileAds": {
               "target": "Package",
@@ -150,15 +150,15 @@
             },
             "System.Text.Json": {
               "target": "Package",
-              "version": "[6.0.2, )"
+              "version": "[6.0.5, )"
             },
             "Xamarin.Essentials": {
               "target": "Package",
-              "version": "[1.7.1, )"
+              "version": "[1.7.3, )"
             },
             "Xamarin.Forms": {
               "target": "Package",
-              "version": "[5.0.0.2291, )"
+              "version": "[5.0.0.2478, )"
             },
             "sqlite-net-pcl": {
               "target": "Package",
@@ -180,7 +180,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\6.0.300\\RuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\6.0.302\\RuntimeIdentifierGraph.json"
         }
       }
     }
