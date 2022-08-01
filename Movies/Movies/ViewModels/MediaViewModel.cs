@@ -31,8 +31,8 @@ namespace Movies.ViewModels
         public string ContentRating => RequestValue(ContentRatingProperty);
         public TimeSpan? Runtime => TryRequestValue(Media.RUNTIME, out var runtime) ? runtime : (TimeSpan?)null;
         public string OriginalTitle => RequestValue(Media.ORIGINAL_TITLE);
-        public string OriginalLanguage => RequestValue(Media.ORIGINAL_LANGUAGE);
-        public IEnumerable<string> Languages => RequestValue(Media.LANGUAGES);
+        public Language OriginalLanguage => RequestValue(Media.ORIGINAL_LANGUAGE);
+        public IEnumerable<Language> Languages => RequestValue(Media.LANGUAGES);
         public IEnumerable<string> Genres => RequestValue(GenresProperty) is IEnumerable<Genre> genres ? genres.Select(genre => genre.Name) : null;
 
         public override string PrimaryImagePath => RequestValue(Media.TRAILER_PATH);

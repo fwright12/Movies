@@ -1,7 +1,7 @@
 {
   "version": 2,
-  "dgSpecHash": "ENkVGGoUpwpgAha02y9ywIZLMBoUyrwxWKj+QZjp1eVrXzKqJ2BnE+cTHEBLsiEOGcZC+muFIv9oqIkR0PZKmQ==",
-  "success": false,
+  "dgSpecHash": "mwWdDPEMs2LZhJtli0fkDFGsN/ELA1EWzKRv9QkJQQhm1McPmqte92XtNk0FNH8aum8LJQlz/Q6rJOtlLy9dpA==",
+  "success": true,
   "projectFilePath": "C:\\Users\\Flint\\Documents\\MovieApp\\Movies\\Movies\\Movies.Android\\Movies.Android.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\Flint\\.nuget\\packages\\microsoft.bcl.asyncinterfaces\\6.0.0\\microsoft.bcl.asyncinterfaces.6.0.0.nupkg.sha512",
@@ -104,9 +104,10 @@
   ],
   "logs": [
     {
-      "code": "NU1107",
-      "level": "Error",
-      "message": "Version conflict detected for Xamarin.AndroidX.Lifecycle.LiveData. Install/reference Xamarin.AndroidX.Lifecycle.LiveData 2.4.1.1 directly to project Movies.Android to resolve this issue. \r\n Movies.Android -> Xamarin.GooglePlayServices.Ads.Lite 121.0.0 -> Xamarin.AndroidX.Work.Runtime 2.7.1.3 -> Xamarin.AndroidX.Lifecycle.LiveData (>= 2.4.1.1) \r\n Movies.Android -> Xamarin.Forms 5.0.0.2478 -> Xamarin.AndroidX.Lifecycle.LiveData (>= 2.3.1.1 && < 2.4.0).",
+      "code": "NU1608",
+      "level": "Warning",
+      "warningLevel": 1,
+      "message": "Detected package version outside of dependency constraint: Xamarin.Forms 5.0.0.2478 requires Xamarin.AndroidX.Lifecycle.LiveData (>= 2.3.1.1 && < 2.4.0) but version Xamarin.AndroidX.Lifecycle.LiveData 2.4.1.1 was resolved.",
       "libraryId": "Xamarin.AndroidX.Lifecycle.LiveData",
       "targetGraphs": [
         "MonoAndroid,Version=v12.0"

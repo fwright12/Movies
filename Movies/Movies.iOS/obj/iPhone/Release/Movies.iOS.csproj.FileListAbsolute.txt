@@ -63,10 +63,6 @@ C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhone\Release\Xa
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhone\Release\Xamarin.Forms.Extensions.dll.mdb
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhone\Release\Movies.pdb
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhone\Release\System.Extensions.pdb
-C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Release\Movies.iOS.csproj.AssemblyReference.cache
-C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Release\Movies.iOS.csproj.CoreCompileInputs.cache
-C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Release\Movies.iOS.csproj.CopyComplete
-C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Release\Movies.iOS.exe
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhone\Release\System.Extensions.dll.mdb
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Release\actool\_PartialAppManifest.items
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Release\actool\_BundleResourceWithLogicalName.items
@@ -98,6 +94,10 @@ C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Release\co
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Release\_ProcessedBundleResourcesPath.items
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Release\_ProcessedContentPath.items
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Release\optimized\
+C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Release\Movies.iOS.csproj.AssemblyReference.cache
+C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Release\Movies.iOS.csproj.CoreCompileInputs.cache
+C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Release\Movies.iOS.csproj.CopyComplete
+C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Release\Movies.iOS.exe
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Release\CopyFilesToMac\Microsoft.Bcl.AsyncInterfaces.dll.ReferenceCopyLocalPaths.stamp
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Release\CopyFilesToMac\SQLite-net.dll.ReferenceCopyLocalPaths.stamp
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Release\CopyFilesToMac\SQLitePCLRaw.batteries_v2.dll.ReferenceCopyLocalPaths.stamp

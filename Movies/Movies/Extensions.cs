@@ -455,9 +455,9 @@ namespace Movies.Views
 
         private void AddHandlers(View view)
         {
-            //view.SizeChanged += Update;
-            view.PropertyChanged += WidthChanged;
-            view.PropertyChanged += HeightChanged;
+            view.SizeChanged += Update;
+            //view.PropertyChanged += WidthChanged;
+            //view.PropertyChanged += HeightChanged;
             view.MeasureInvalidated += Update;
         }
 
@@ -465,6 +465,7 @@ namespace Movies.Views
         {
             if (e.PropertyName == VisualElement.WidthProperty.PropertyName && sender is VisualElement visualElement && (visualElement.Width != visualElement.WidthRequest || visualElement.WidthRequest == 0))
             {
+                Print.Log("width changed", visualElement.Width);
                 Update(sender, EventArgs.Empty);
             }
         }
@@ -473,6 +474,7 @@ namespace Movies.Views
         {
             if (e.PropertyName == VisualElement.HeightProperty.PropertyName && sender is VisualElement visualElement && (visualElement.Height != visualElement.HeightRequest || visualElement.HeightRequest == 0))
             {
+                Print.Log("height changed", visualElement.Height);
                 Update(sender, EventArgs.Empty);
             }
         }
@@ -480,9 +482,9 @@ namespace Movies.Views
         private void RemoveHandlers(View view)
         {
             view.MeasureInvalidated -= Update;
-            view.PropertyChanged -= HeightChanged;
-            view.PropertyChanged -= WidthChanged;
-            //view.SizeChanged -= Update;
+            //view.PropertyChanged -= HeightChanged;
+            //view.PropertyChanged -= WidthChanged;
+            view.SizeChanged -= Update;
         }
 
         private void Update(object sender, EventArgs e)
@@ -501,7 +503,7 @@ namespace Movies.Views
 
             RemoveHandlers(view);
             view.BatchBegin();
-            view.IsVisible = false;
+            //view.IsVisible = false;
 
             if (autoWidth || autoHeight)
             {
@@ -530,7 +532,7 @@ namespace Movies.Views
                 }
             };
 
-            view.IsVisible = true;
+            //view.IsVisible = true;
             handler(view, null);
             view.BatchCommitted += handler;
             view.BatchCommit();

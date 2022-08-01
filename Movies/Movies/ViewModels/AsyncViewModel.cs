@@ -70,15 +70,8 @@ namespace Movies.ViewModels
         }
     }
 
-    public interface IRequestInfo
+    public class AsyncDataViewModel : BindableViewModel
     {
-        event AsyncDataRequestEventHandler<object> InfoRequested;
-    }
-
-    public class AsyncDataViewModel : BindableViewModel, IRequestInfo
-    {
-        public event AsyncDataRequestEventHandler<object> InfoRequested;
-
         private Dictionary<string, object> CachedValues;
         private List<Task> BatchedTasks = new List<Task>();
 
@@ -106,82 +99,24 @@ namespace Movies.ViewModels
             }
         }
 
-        protected T GetValue<T>(Task<T> task, [CallerMemberName] string property = null)
+        protected bool TryGetValue<T>(Task<T> task, out T value, [CallerMemberName] string property = null)
         {
             if (task != null)
             {
                 if (task.Status == TaskStatus.RanToCompletion)
                 {
-                    return task.Result;
+                    value = task.Result;
+                    return true;
                 }
-                else
+                else if (!task.IsCompleted)
                 {
                     //_ = SetValueAsync(property, task);
                     _ = SetValueFromTask(task, property);
                 }
             }
 
-            return default;
-        }
-
-        public T RequestSingle<T>(string source = null, [CallerMemberName] string name = null) => (T)RequestSingle(InfoRequested, source, name);
-
-        public T RequestSingle<T>(AsyncDataRequestEventHandler<T> handler, string source = null, [CallerMemberName] string name = null)
-        {
-            object value;
-            if (CachedValues.TryGetValue(name, out object cachedValue))
-            {
-                value = cachedValue;
-            }
-            else
-            {
-                /*var args = new AsyncEventArgs<T>();
-
-                EventHandler<EventArgs<T>> temp = null;
-                temp = (sender, e) =>
-                {
-                    CachedValues[name] = e.Value;
-                    OnPropertyChanged(name);
-                    args.ValueChanged -= temp;
-                };
-
-                args.ValueChanged += temp;*/
-
-                AsyncEventArgs<T> args = new AsyncEventArgs<T>(name);
-                //handler?.GetInvocationList().FirstOrDefault()?.DynamicInvoke(this, args);
-                handler?.Invoke(this, args);
-                //OnInfoRequested(args);
-                value = args.Value;
-            }
-
-            T result = default;
-
-            if (value is T t)
-            {
-                result = t;
-            }
-            else if (value is Task<T> task)
-            {
-                if (task.Status == TaskStatus.Created)
-                {
-                    _ = SetValueAsync(name, task);
-                }
-                else if (task.Status == TaskStatus.RanToCompletion)
-                {
-                    value = result = task.Result;
-                }
-            }
-            else if (value != null)
-            {
-                System.Diagnostics.Debug.WriteLine("Request value: Could not convert type " + value.GetType() + " to " + typeof(T) + ", target property: '" + name + "'");
-            }
-
-            if (value != null && value != cachedValue)
-            {
-                CachedValues[name] = value;
-            }
-
-            return result;
+            value = default;
+            return false;
         }
 
         private async Task SetValueAsync<T>(string name, Task<T> task) => SetValue(name, await task);
@@ -206,11 +141,6 @@ namespace Movies.ViewModels
             {
                 BatchedTasks.Remove(await Task.WhenAny(BatchedTasks));
             }
-        }
-
-        protected virtual void OnInfoRequested(AsyncEventArgs<object> args)
-        {
-            InfoRequested?.Invoke(this, args);
         }
     }
 }

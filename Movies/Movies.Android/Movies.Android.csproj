@@ -76,6 +76,9 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="Xamarin.AndroidX.Lifecycle.LiveData">
+      <Version>2.4.1.1</Version>
+    </PackageReference>
     <PackageReference Include="Xamarin.Forms">
       <Version>5.0.0.2478</Version>
     </PackageReference>

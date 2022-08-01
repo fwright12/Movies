@@ -188,7 +188,7 @@ namespace Movies
             return false;
         }
 
-        protected async Task<T> Parse(Task<JsonNode> json) => JsonParser.TryGetValue(await json, out var value) ? value : default;
+        protected async Task<T> Parse(Task<JsonNode> json) => JsonParser.TryGetValue(await json, out var value) ? value : throw new FormatException();
     }
 
     public class MultiParser<T> : Parser<IEnumerable<T>>

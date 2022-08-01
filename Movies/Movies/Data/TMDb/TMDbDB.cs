@@ -340,7 +340,7 @@ namespace Movies
 
                             if (property == Movie.CONTENT_RATING)
                             {
-                                var certification_country = $"certification_country={TMDbRequest.DEFAULT_REGION}";
+                                var certification_country = $"certification_country={TMDB.ISO_3166_1}";
 
                                 if (!parameters.Contains(certification_country))
                                 {
@@ -349,7 +349,7 @@ namespace Movies
                             }
                             else if (property == Movie.WATCH_PROVIDERS || property == TVShow.WATCH_PROVIDERS || property == ViewModels.CollectionViewModel.MonetizationType)
                             {
-                                var watch_region = $"watch_region={TMDbRequest.DEFAULT_ISO_3166_1}";
+                                var watch_region = $"watch_region={TMDB.ISO_3166_1}";
 
                                 if (!parameters.Contains(watch_region))
                                 {

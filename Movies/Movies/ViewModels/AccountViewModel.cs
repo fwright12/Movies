@@ -84,7 +84,11 @@ namespace Movies.ViewModels
                 RedirectLink = null;
             }
             credentials = await Account.Login(credentials);
+
+#if DEBUG
             Print.Log(credentials);
+#endif
+
             if (credentials != null)
             {
                 IsLoggedIn = true;

@@ -22,6 +22,11 @@ namespace Movies
             };
         }
 
+        public static class CONFIGURATION
+        {
+            public static readonly TMDbRequest GET_COUNTRIES = "configuration/countries";
+        }
+
         public static class DISCOVER
         {
             public static readonly PagedTMDbRequest MOVIE_DISCOVER = new PagedTMDbRequest("discover/movie")
@@ -421,7 +426,18 @@ namespace Movies
         private static readonly Parser<string> TITLE_PARSER = Media.TITLE;
         private static readonly Parser<string> ORIGINAL_TITLE_PARSER = Media.ORIGINAL_TITLE;
 
-        private static readonly IJsonParser<TimeSpan> RUNTIME_PARSER = new JsonNodeParser<TimeSpan>(json => TimeSpan.FromMinutes(json.TryGetValue<int>()));
+        private static readonly JsonNodeParser<TimeSpan> RUNTIME_PARSER = new JsonNodeParser<TimeSpan>(json => TimeSpan.FromMinutes(json.TryGetValue<int>()));
+        private static readonly JsonNodeParser<Language> LANGUAGE_PARSER = new JsonNodeParser<Language>((JsonNode json, out Language lang) =>
+        {
+            if (json.TryGetValue(out string iso_639))
+            {
+                lang = new Language(iso_639);
+                return true;
+            }
+
+            lang = null;
+            return false;
+        });
         private static readonly IJsonParser<Rating> MOVIE_RATING_PARSER = new RatingParser
         {
             ReviewsEndpoint = API.MOVIES.GET_REVIEWS
@@ -439,13 +455,18 @@ namespace Movies
             new MultiParser<Credit>(Media.CAST, new JsonNodeParser<IEnumerable<Credit>>(TryParseCast)),
             new MultiParser<Credit>(Media.CREW, new JsonNodeParser<IEnumerable<Credit>>(TryParseCrew))
         };
+        private static readonly List<Parser> TV_CREDITS_PARSERS = new List<Parser>
+        {
+            new MultiParser<Credit>(Media.CAST, new JsonNodeParser<IEnumerable<Credit>>(TryParseTVCast)),
+            new MultiParser<Credit>(Media.CREW, new JsonNodeParser<IEnumerable<Credit>>(TryParseTVCrew))
+        };
 
         private static List<Parser> MEDIA_PARSERS = new ParserList
         {
             ["tagline"] = Parser.Create(Media.TAGLINE),
             ["overview"] = Parser.Create(Media.DESCRIPTION),
-            ["original_language"] = Parser.Create(Media.ORIGINAL_LANGUAGE),
-            ["spoken_languages"] = Parser.Create(Media.LANGUAGES, "name"),
+            ["original_language"] = new Parser<Language>(Media.ORIGINAL_LANGUAGE, LANGUAGE_PARSER),
+            ["spoken_languages"] = new MultiParser<Language>(Media.LANGUAGES, new JsonArrayParser<Language>(new JsonPropertyParser<Language>("iso_639_1", LANGUAGE_PARSER))),
             ["poster_path"] = Parser.Create(Media.POSTER_PATH, path => BuildImageURL(path.TryGetValue<string>(), POSTER_SIZE)),
             ["backdrop_path"] = Parser.Create(Media.BACKDROP_PATH, path => BuildImageURL(path.TryGetValue<string>())),
             ["production_companies"] = new MultiParser<Company>(Media.PRODUCTION_COMPANIES, COMPANIES_PARSER),
@@ -510,7 +531,7 @@ namespace Movies
             {
                 ["results"] = Parser.Create(TVShow.CONTENT_RATING, ParseTVCertification)
             },
-            [API.TV.GET_AGGREGATE_CREDITS] = CREDITS_PARSERS,
+            [API.TV.GET_AGGREGATE_CREDITS] = TV_CREDITS_PARSERS,
             [API.TV.GET_RECOMMENDATIONS] = new ParserList
             {
                 ["results"] = Parser.Create(Media.RECOMMENDED, json => ParseRecommended<TVShow>(json, TryParseTVShow))
@@ -542,8 +563,8 @@ namespace Movies
             },
             [API.TV_SEASONS.GET_AGGREGATE_CREDITS] = new List<Parser>
             {
-                new MultiParser<Credit>(TVSeason.CAST, new JsonNodeParser<IEnumerable<Credit>>(TryParseCast)),
-                new MultiParser<Credit>(TVSeason.CREW, new JsonNodeParser<IEnumerable<Credit>>(TryParseCrew))
+                new MultiParser<Credit>(TVSeason.CAST, new JsonNodeParser<IEnumerable<Credit>>(TryParseTVCast)),
+                new MultiParser<Credit>(TVSeason.CREW, new JsonNodeParser<IEnumerable<Credit>>(TryParseTVCrew))
             },
         });
 

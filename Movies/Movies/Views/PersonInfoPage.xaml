@@ -16,9 +16,10 @@
         <views:LabeledLabel Label="Born"
                             Value="{Binding Birthday, StringFormat='{0:MMMM d, yyyy}'}" />
 
-        <views:LabeledLabel Label="Birthplace"
-                            Value="{Binding Birthplace, TargetNullValue={Static x:String.Empty}}"
-                            StyleClass="AutoSize" />
+        <ScrollView Style="{StaticResource AutoWidth}">
+            <views:LabeledLabel Label="Birthplace"
+                                Value="{Binding Birthplace, TargetNullValue={Static x:String.Empty}}" />
+        </ScrollView>
 
         <views:LabeledLabel Label="Died"
                             Value="{Binding Deathday, StringFormat='{0:MMMM d, yyyy}'}">
@@ -35,8 +36,9 @@
         <views:LabeledLabel Label="Age"
                             Value="{Binding Age}" />
 
-        <views:LabeledLabel Label="Also Known As"
-                            Value="{Binding AlsoKnownAs, Converter={StaticResource ListToString}}"
-                            StyleClass="AutoSize" />
+        <ScrollView Style="{StaticResource AutoWidth}">
+            <views:LabeledLabel Label="Also Known As"
+                                Value="{Binding AlsoKnownAs, Converter={StaticResource ListToString}}" />
+        </ScrollView>
     </StackLayout>
 </ContentPage>

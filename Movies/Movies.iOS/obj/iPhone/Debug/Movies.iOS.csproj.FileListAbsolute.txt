@@ -61,7 +61,6 @@ C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhone\Debug\Xama
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhone\Debug\System.Extensions.dll
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhone\Debug\Xamarin.Forms.Extensions.pdb
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhone\Debug\Xamarin.Forms.Extensions.dll.config
-C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhone\Debug\Xamarin.Forms.Extensions.dll.mdb
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhone\Debug\Movies.pdb
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhone\Debug\System.Extensions.pdb
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhone\Debug\System.Extensions.dll.mdb
@@ -128,10 +127,11 @@ C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Debug\devi
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Debug\device-builds\iphone11.8-15.5\CopyFilesToMac\System.Extensions.dll.ReferenceCopyLocalPaths.stamp
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Debug\device-builds\iphone11.8-15.5\CopyFilesToMac\Xamarin.Forms.Extensions.pdb.ReferenceCopyLocalPaths.stamp
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Debug\device-builds\iphone11.8-15.5\CopyFilesToMac\Xamarin.Forms.Extensions.dll.config.ReferenceCopyLocalPaths.stamp
-C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Debug\device-builds\iphone11.8-15.5\CopyFilesToMac\Xamarin.Forms.Extensions.dll.mdb.ReferenceCopyLocalPaths.stamp
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Debug\device-builds\iphone11.8-15.5\CopyFilesToMac\Movies.pdb.ReferenceCopyLocalPaths.stamp
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Debug\device-builds\iphone11.8-15.5\CopyFilesToMac\System.Extensions.pdb.ReferenceCopyLocalPaths.stamp
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Debug\device-builds\iphone11.8-15.5\CopyFilesToMac\System.Extensions.dll.mdb.ReferenceCopyLocalPaths.stamp
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Debug\device-builds\iphone11.8-15.5\CopyFilesToMac\Movies.iOS.pdb.DebugSymbolsProjectOutputGroupOutput.stamp
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Debug\device-builds\iphone11.8-15.5\CopyFilesToMac\Entitlements.plist.NoneOutput.stamp
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Debug\device-builds\iphone11.8-15.5\CopyFilesToMac\Info.plist.NoneOutput.stamp
+C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhone\Debug\Xamarin.Forms.Extensions.dll.mdb
+C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Debug\device-builds\iphone11.8-15.5\CopyFilesToMac\Xamarin.Forms.Extensions.dll.mdb.ReferenceCopyLocalPaths.stamp

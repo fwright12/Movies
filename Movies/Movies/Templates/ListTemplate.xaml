@@ -101,7 +101,7 @@
                                                     EditTemplate="{OnPlatform iOS={StaticResource iOSEditListTemplate}, Android={StaticResource AndroidEditListTemplate}}" />
 
                     <views:EditDataTemplateSelector x:Key="EditGridSelector"
-                                                    Main="{StaticResource UniformGridTemplate}"
+                                                    Main="{StaticResource CompressedListSelector}"
                                                     EditTemplate="{StaticResource EditGridTemplate}" />
                 </VisualElement.Resources>
 
@@ -134,20 +134,35 @@
                                     <Binding Path="Editable">
                                         <Binding.Converter>
                                             <forms:BoolToObjectConverter TrueObject="{StaticResource EditGridSelector}"
-                                                                         FalseObject="{StaticResource UniformGridTemplate}" />
+                                                                         FalseObject="{StaticResource CompressedListSelector}" />
                                         </Binding.Converter>
                                     </Binding>
                                 </Setter>
 
-                                <Setter Property="ItemsLayout">
-                                    <GridItemsLayout Orientation="Vertical"
-                                                     Span="2"
-                                                     HorizontalItemSpacing="5"
-                                                     VerticalItemSpacing="5" />
+                                <Setter Property="Style">
+                                    <Style TargetType="CollectionView">
+                                        <Setter Property="ItemsLayout">
+                                            <GridItemsLayout Orientation="Vertical"
+                                                             Span="2"
+                                                             HorizontalItemSpacing="5"
+                                                             VerticalItemSpacing="5" />
+                                        </Setter>
+
+                                        <Style.Triggers>
+                                            <DataTrigger TargetType="CollectionView"
+                                                         Binding="{Binding Converter={Static forms:GetTypeConverter.Instance}}"
+                                                         Value="{x:Type viewmodels:TVSeasonViewModel}">
+                                                <Setter Property="ItemsLayout">
+                                                    <LinearItemsLayout Orientation="Vertical"
+                                                                       ItemSpacing="5" />
+                                                </Setter>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
                                 </Setter>
 
                                 <Setter Property="ItemSizingStrategy"
-                                        Value="MeasureFirstItem" />
+                                        Value="MeasureAllItems" />
                             </VisualState.Setters>
                         </VisualState>
                     </VisualStateGroup>

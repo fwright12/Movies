@@ -14,6 +14,10 @@ namespace Movies.Views
     [XamlCompilation(XamlCompilationOptions.Compile)]
     public partial class ImageView : Frame
     {
+        public const double ThreeToTwo = 3d / 2d;
+
+        public static readonly BindableProperty AspectRequestProperty = BindableProperty.Create(nameof(AspectRequest), typeof(double), typeof(ImageView), -1d);
+
         public static readonly BindableProperty MaximumWidthProperty = BindableProperty.Create(nameof(MaximumWidth), typeof(double), typeof(ImageView));
 
         public static readonly BindableProperty MaximumHeightProperty = BindableProperty.Create(nameof(MaximumHeight), typeof(double), typeof(ImageView));
@@ -21,6 +25,12 @@ namespace Movies.Views
         public static readonly BindableProperty ImageProperty = BindableProperty.Create(nameof(Image), typeof(Image), typeof(ImageView));
 
         public static readonly BindableProperty AltTextProperty = BindableProperty.Create(nameof(AltText), typeof(string), typeof(ImageView));
+
+        public double AspectRequest
+        {
+            get => (double)GetValue(AspectRequestProperty);
+            set => SetValue(AspectRequestProperty, value);
+        }
 
         public double MaximumWidth
         {
@@ -53,10 +63,30 @@ namespace Movies.Views
 
         protected override SizeRequest OnMeasure(double widthConstraint, double heightConstraint)
         {
+            SizeRequest request = Content?.Measure(widthConstraint, heightConstraint) ?? base.OnMeasure(widthConstraint, heightConstraint);
+
+            if (AspectRequest > 0 && !(double.IsPositiveInfinity(widthConstraint) && double.IsPositiveInfinity(heightConstraint)))
+            {
+                //if (!double.IsInfinity(widthConstraint) && double.IsInfinity(heightConstraint))
+                if (widthConstraint / heightConstraint < AspectRequest)
+                {
+                    request.Request = new Size(widthConstraint, widthConstraint / AspectRequest);
+                }
+                else //if (!double.IsInfinity(heightConstraint) && double.IsInfinity(widthConstraint))
+                {
+                    request.Request = new Size(heightConstraint * AspectRequest, heightConstraint);
+                }
+            }
+
+            return request;
+        }
+
+        /*protected override SizeRequest OnMeasure(double widthConstraint, double heightConstraint)
+        {
             //widthConstraint = Math.Min(widthConstraint, MaximumWidth);
             //heightConstraint = Math.Min(heightConstraint, MaximumHeight);
 
             return Content?.Measure(widthConstraint, heightConstraint) ?? base.OnMeasure(widthConstraint, heightConstraint);
-        }
+        }*/
     }
 }

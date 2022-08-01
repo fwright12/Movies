@@ -54,8 +54,11 @@
                     <StackLayout Orientation="Horizontal"
                                  Spacing="10">
                         <Image Source="{Binding Company.LogoPath, Converter={Static converters:UriToImageSourceConverter.Instance}}"
-                               Margin="0, 20, 0, 15"
-                               StyleClass="AutoSize" />
+                               Margin="0, 20, 0, 15">
+                            <VisualElement.Behaviors>
+                                <views:AutoSizeBehavior />
+                            </VisualElement.Behaviors>
+                        </Image>
 
                         <Label Text="{Binding Score}"
                                VerticalOptions="Center"

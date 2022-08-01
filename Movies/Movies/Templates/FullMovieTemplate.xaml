@@ -73,9 +73,10 @@
                             <views:LabeledLabel Label="Certification"
                                                 Value="{Binding ContentRating, TargetNullValue={Static x:String.Empty}}" />
 
-                            <views:LabeledLabel Label="Genres"
-                                                Value="{Binding Genres, Converter={StaticResource ListToString}, TargetNullValue={Static x:String.Empty}}"
-                                                StyleClass="AutoSize" />
+                            <ScrollView Style="{StaticResource AutoWidth}">
+                                <views:LabeledLabel Label="Genres"
+                                                    Value="{Binding Genres, Converter={StaticResource ListToString}, TargetNullValue={Static x:String.Empty}}" />
+                            </ScrollView>
                         </StackLayout>
                     </ContentView>
 

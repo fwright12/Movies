@@ -7,6 +7,104 @@ using System.Threading.Tasks;
 
 namespace Movies
 {
+    public partial class TMDB
+    {
+        public Task<JsonNode>[] Request(IEnumerable<TMDbRequest> requests, params string[] parameters)
+        {
+            var result = new Task<JsonNode>[requests.Count()];
+            var urls = new object[result.Length];
+            var itr = requests.GetEnumerator();
+
+            for (int i = 0; itr.MoveNext(); i++)
+            {
+                var request = itr.Current;
+                result[i] = null;
+
+                if (!request.SupportsAppendToResponse)
+                {
+                    continue;
+                }
+
+                var appended = new List<TMDbRequest>();
+
+                var itr1 = requests.GetEnumerator();
+                for (int j = 0; itr1.MoveNext(); j++)
+                {
+                    var append = itr1.Current;
+
+                    if (append.Endpoint.StartsWith(request.Endpoint))
+                    {
+                        appended.Add(append);
+                        urls[j] = i;
+                    }
+                }
+
+                var atr = appended.Select(other => other.Endpoint.Replace(request.Endpoint, string.Empty).TrimStart('/'));
+
+                var query = CombineQueries(appended.Prepend(request).Select(request => request.GetURL()));
+                var atrQuery = $"append_to_response={string.Join(',', atr)}";
+                var url = BuildApiCall(request.Endpoint, query, atrQuery);
+
+                urls[i] = url;
+            }
+
+            itr = requests.GetEnumerator();
+
+            for (int i = 0; itr.MoveNext(); i++)
+            {
+                var request = itr.Current;
+                var index = i;
+
+                IJsonParser<JsonNode> parser = new JsonNodeParser<JsonNode>();
+
+                if (urls[i] is int pointer)
+                {
+                    index = pointer;
+                    parser = new JsonPropertyParser<JsonNode>(request.Endpoint.Replace(requests.ElementAt(index).Endpoint, string.Empty));
+                }
+
+                var task = result[index] as Task<JsonNode>;
+
+                if (task == null)
+                {
+                    var url = string.Format(urls[index] as string ?? request.GetURL(), parameters);
+                    result[index] = task = GetAppendedJson(WebClient.TryGetAsync(url), parser);
+                }
+
+                result[i] = task;
+            }
+
+            return result;
+        }
+
+        public static string CombineQueries(IEnumerable<string> endpoints)
+        {
+            var parameters = new Dictionary<string, string>();
+
+            foreach (var endpoint in endpoints)
+            {
+                //var uri = new Uri(call.Endpoint, UriKind.RelativeOrAbsolute);
+                var parts = endpoint.Split('?');
+                var path = parts.ElementAtOrDefault(0) ?? string.Empty;
+                var query = parts.ElementAtOrDefault(1) ?? string.Empty;
+
+                foreach (var parameter in query.Split('&'))
+                {
+                    var temp = parameter.Split('=');
+
+                    if (temp.Length == 2)
+                    {
+                        parameters[temp[0]] = temp[1];
+                    }
+                }
+            }
+
+            return string.Join('&', parameters.Select(kvp => string.Join('=', kvp.Key, kvp.Value)));
+        }
+
+        private static async Task<JsonNode> GetAppendedJson(Task<System.Net.Http.HttpResponseMessage> response, IJsonParser<JsonNode> parse) => parse.TryGetValue(JsonNode.Parse(await (await response).Content.ReadAsStringAsync()), out var value) ? value : null;
+    }
+
     public class ItemProperties
     {
         public IReadOnlyDictionary<TMDbRequest, List<Parser>> Info { get; }

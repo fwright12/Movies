@@ -17,7 +17,7 @@
             <DataTemplate>
                 <StackLayout Orientation="Vertical"
                              VerticalOptions="Center">
-                    <views:ImageView views:Extensions.AspectRequest="1.778">
+                    <views:ImageView AspectRequest="1.778">
                         <Image Source="{Binding PosterPath}"
                                Aspect="AspectFill" />
                     </views:ImageView>

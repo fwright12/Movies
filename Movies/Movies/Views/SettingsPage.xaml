@@ -13,8 +13,10 @@
         </Style>
 
         <Style x:Key="ViewCellStyle"
-               TargetType="Layout">
-            <Setter Property="Padding"
+               TargetType="View">
+            <Setter Property="BindingContext"
+                    Value="{Binding}" />
+            <Setter Property="Margin"
                     Value="{OnPlatform iOS='20, 0', Android='15, 0'}" />
         </Style>
 
@@ -105,29 +107,6 @@
     <TableView Intent="Settings"
                HasUnevenRows="True">
         <TableRoot>
-            <TableSection Title="Localization"
-                          BindingContext="{Binding UserPrefs, Source={Static Application.Current}}">
-                <ViewCell>
-                    <FlexLayout Direction="Row"
-                                Style="{StaticResource ViewCellStyle}">
-                        <Label Text="Language: " />
-
-                        <Picker SelectedItem="{Binding Language}"
-                                FlexLayout.Grow="1" />
-                    </FlexLayout>
-                </ViewCell>
-
-                <ViewCell>
-                    <FlexLayout Direction="Row"
-                                Style="{StaticResource ViewCellStyle}">
-                        <Label Text="Region: " />
-
-                        <Picker SelectedItem="{Binding Region}"
-                                FlexLayout.Grow="1" />
-                    </FlexLayout>
-                </ViewCell>
-            </TableSection>
-
             <TableSection Title="My Accounts"
                           BindingContext="{Binding Source={Static Application.Current}}">
                 <ViewCell>
@@ -138,6 +117,45 @@
                 <ViewCell>
                     <ContentView BindingContext="{Binding Accounts[1]}"
                                  Style="{StaticResource AccountStyle}" />
+                </ViewCell>
+            </TableSection>
+
+            <TableSection Title="Localization"
+                          BindingContext="{Binding Prefs, Source={Static Application.Current}}"
+                          x:DataType="movies:UserPrefs">
+                <ViewCell>
+                    <FlexLayout Direction="Row"
+                                Style="{StaticResource ViewCellStyle}"
+                                Padding="0, 5">
+                        <Label Text="Language: " />
+
+                        <Picker ItemsSource="{Binding Languages}"
+                                ItemDisplayBinding="{Binding NativeName}"
+                                SelectedItem="{Binding Language}"
+                                FlexLayout.Grow="1" />
+                    </FlexLayout>
+                </ViewCell>
+
+                <ViewCell>
+                    <StackLayout Orientation="Vertical"
+                                 Padding="0, 5">
+                        <FlexLayout Direction="Row"
+                                    Style="{StaticResource ViewCellStyle}">
+                            <Label Text="Region: " />
+
+                            <Picker ItemsSource="{Binding Regions}"
+                                    ItemDisplayBinding="{Binding NativeName}"
+                                    SelectedItem="{Binding Region}"
+                                    FlexLayout.Grow="1" />
+                        </FlexLayout>
+
+                        <Label Text="Please restart the app for changes to take effect"
+                               TextColor="Red"
+                               FontSize="Small"
+                               HorizontalTextAlignment="Center"
+                               IsVisible="{Binding RestartRequired}"
+                               Style="{StaticResource ViewCellStyle}" />
+                    </StackLayout>
                 </ViewCell>
             </TableSection>
 

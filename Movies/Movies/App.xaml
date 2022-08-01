@@ -45,7 +45,7 @@
             </Style>
 
             <DataTemplate x:Key="InlineBannerTemplate">
-                <ContentView>
+                <ContentView CompressedLayout.IsHeadless="True">
                     <forms:AdView Style="{StaticResource InlineBannerAdStyle}"
                                   AdUnitID="{Static movies:App.ListInlineBannerAdUnitID}"
                                   AdSize="MediumRectangle"
@@ -111,10 +111,10 @@
             </Style>
 
             <Style TargetType="SearchBar">
-                <Setter Property="BackgroundColor"
-                        Value="Transparent" />
                 <Setter Property="CancelButtonColor"
                         Value="{StaticResource Primary}" />
+                <Setter Property="ios:SearchBar.SearchBarStyle"
+                        Value="Minimal" />
             </Style>
 
             <Style TargetType="ActivityIndicator">
@@ -290,7 +290,7 @@
                    BasedOn="{StaticResource ImageStyle}">
                 <Setter Property="CornerRadius"
                         Value="10" />
-                <Setter Property="views:Extensions.AspectRequest"
+                <Setter Property="AspectRequest"
                         Value="0.667" />
             </Style>
 
@@ -325,6 +325,37 @@
                 </Grid>
             </DataTemplate>
 
+            <DataTemplate x:Key="CompressedEpisodeTemplate"
+                          x:DataType="viewmodels:TVEpisodeViewModel">
+                <Grid>
+                    <views:ImageView AltText="{Binding Title}"
+                                     AspectRequest="1.5"
+                                     Style="{StaticResource PosterStyle}">
+                        <Image Source="{Binding PosterPath}"
+                               Aspect="AspectFill" />
+                    </views:ImageView>
+
+                    <Label Text="{Binding Title}"
+                           TextColor="White"
+                           FontSize="Title"
+                           VerticalOptions="End"
+                           HorizontalOptions="End"
+                           Padding="10"
+                           >
+                        <VisualElement.BackgroundColor>
+                            <Color>
+                                <x:Arguments>
+                                    <x:Double>0</x:Double>
+                                    <x:Double>0</x:Double>
+                                    <x:Double>0</x:Double>
+                                    <x:Double>0.2</x:Double>
+                                </x:Arguments>
+                            </Color>
+                        </VisualElement.BackgroundColor>
+                    </Label>
+                </Grid>
+            </DataTemplate>
+
             <Style x:Key="BatchStyle"
                    TargetType="BindableObject">
                 <Style.Setters>
@@ -354,6 +385,21 @@
                           x:DataType="viewmodels:PersonViewModel">
                 <views:LabeledContentView Label="{Binding Name}"
                                           VerticalOptions="Start">
+                    <TemplatedView.ControlTemplate>
+                        <ControlTemplate>
+                            <FlexLayout Direction="Column">
+                                <ContentPresenter x:Name="Content" />
+
+                                <Label x:Name="Label"
+                                       Text="{TemplateBinding Label}"
+                                       LineBreakMode="TailTruncation"
+                                       HorizontalTextAlignment="Center"
+                                       VerticalTextAlignment="Center"
+                                       FlexLayout.Shrink="0" />
+                            </FlexLayout>
+                        </ControlTemplate>
+                    </TemplatedView.ControlTemplate>
+
                     <VisualElement.Resources>
                         <Style TargetType="Label">
                             <Setter Property="MaxLines"
@@ -362,7 +408,8 @@
                     </VisualElement.Resources>
 
                     <views:ImageView Style="{StaticResource PersonImageStyle}"
-                                     HeightRequest="{Binding Parent.Width, Source={RelativeSource AncestorType={x:Type views:LabeledContentView}}}" />
+                                     AspectRequest="1" />
+                    <!--HeightRequest="{Binding Parent.Width, Source={RelativeSource AncestorType={x:Type views:LabeledContentView}}}"-->
                 </views:LabeledContentView>
             </DataTemplate>
 
@@ -380,7 +427,7 @@
 
             <templates:DetailedCollectionTemplate x:Key="CollectionTemplate" />
 
-            <Style x:Key="UniformGridStyle"
+            <Style x:Key="UniformGridStyle1"
                    TargetType="CollectionView">
                 <Setter Property="ItemTemplate">
                     <DataTemplate>
@@ -392,7 +439,7 @@
                         Value="MeasureFirstItem" />
             </Style>
 
-            <DataTemplate x:Key="UniformGridTemplate">
+            <DataTemplate x:Key="UniformGridTemplate1">
                 <movies:AspectContentView Ratio="1.5"
                                           ContentTemplate="{StaticResource CompressedListSelector}" />
             </DataTemplate>
@@ -449,7 +496,6 @@
                         <CollectionView ItemsSource="{Binding Items}"
                                         RemainingItemsThresholdReachedCommand="{Binding LoadMoreCommand}"
                                         RemainingItemsThreshold="0"
-                                        Style="{StaticResource UniformGridStyle}"
                                         HeightRequest="250"
                                         AbsoluteLayout.LayoutBounds="0.5,0.5,1,1"
                                         AbsoluteLayout.LayoutFlags="All">
@@ -457,6 +503,13 @@
                                 <LinearItemsLayout Orientation="Horizontal"
                                                    ItemSpacing="5" />
                             </CollectionView.ItemsLayout>
+
+                            <ItemsView.ItemTemplate>
+                                <DataTemplate>
+                                    <movies:AspectContentView Ratio="1.5"
+                                                              ContentTemplate="{StaticResource CompressedListSelector}" />
+                                </DataTemplate>
+                            </ItemsView.ItemTemplate>
 
                             <ItemsView.EmptyView>
                                 <Binding Path="Loading">
@@ -516,12 +569,14 @@
                 </Style.Triggers>
             </Style>
 
-            <Style TargetType="View"
-                   ApplyToDerivedTypes="True"
-                   Class="AutoSize">
-                <Style.Behaviors>
-                    <views:AutoSizeBehavior />
-                </Style.Behaviors>
+            <Style x:Key="AutoWidth"
+                   TargetType="ScrollView">
+                <Setter Property="Orientation"
+                        Value="Horizontal" />
+                <Setter Property="WidthRequest"
+                        Value="0" />
+                <Setter Property="Width"
+                        Value="{Binding Content.WidthRequest, Source={RelativeSource Self}, Mode=OneWayToSource}" />
             </Style>
 
             <Style TargetType="views:ListEditView">
@@ -603,6 +658,8 @@
             <movies:ListTemplateSelector x:Key="CompressedListSelector"
                                          OpenPageTemplateSelector="{StaticResource OpenPageSelector}">
                 <movies:ListTemplateSelector.Templates>
+                    <forms:TypeDataTemplate Type="{x:Type viewmodels:TVEpisodeViewModel}"
+                                            Template="{StaticResource CompressedEpisodeTemplate}" />
                     <forms:TypeDataTemplate Type="{x:Type viewmodels:MediaViewModel}"
                                             Template="{StaticResource CompressedMovieTemplate}" />
                     <forms:TypeDataTemplate Type="{x:Type viewmodels:PersonViewModel}"

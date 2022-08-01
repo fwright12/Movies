@@ -46,29 +46,34 @@ namespace Movies.ViewModels
 
         protected bool TryRequestValue<T>(Property<T> property, out T value, [CallerMemberName] string propertyName = null)
         {
-            if (Properties.TryGetValue(property, out var task))
+            var count = int.MaxValue;
+            Task<T> task = null;
+
+            while (Properties.TryGetValue(property, out task) && Invalidate(property, task) && count > 0)
             {
-                value = GetValue(task, propertyName);
-                return true;
+                count = Properties.ValueCount(property);
             }
 
-            value = default;
-            return false;
+            return TryGetValue(task, out value, propertyName);
         }
+
         protected bool TryRequestValue<T>(MultiProperty<T> property, out IEnumerable<T> value, [CallerMemberName] string propertyName = null)
         {
-            if (Properties.TryGetValue(property, out var task))
+            var count = int.MaxValue;
+            Task<IEnumerable<T>> task = null;
+
+            while (Properties.TryGetValue(property, out task) && Invalidate(property, task) && count > 0)
             {
-                value = GetValue(task, propertyName);
-                return true;
+                count = Properties.ValueCount(property);
             }
 
-            value = default;
-            return false;
+            return TryGetValue(task, out value, propertyName);
         }
 
         protected T RequestValue<T>(Property<T> property, [CallerMemberName] string propertyName = null) => TryRequestValue(property, out var value, propertyName) ? value : default;
         protected IEnumerable<T> RequestValue<T>(MultiProperty<T> property, [CallerMemberName] string propertyName = null) => TryRequestValue(property, out var value, propertyName) ? value : default;
+
+        private bool Invalidate(Property property, Task value) => value.Exception?.InnerExceptions.All(exception => exception is System.Net.Http.HttpRequestException) == true && Properties.Invalidate(property, value);
 
         public override string ToString() => Item?.ToString() ?? base.ToString();
     }

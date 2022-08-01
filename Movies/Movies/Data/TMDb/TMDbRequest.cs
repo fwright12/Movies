@@ -10,12 +10,11 @@ namespace Movies
 {
     public class TMDbRequest
     {
-        public static string DEFAULT_LANGUAGE = System.Globalization.CultureInfo.CurrentCulture.TwoLetterISOLanguageName;
-        public static string DEFAULT_REGION = System.Globalization.RegionInfo.CurrentRegion.TwoLetterISORegionName;
-        public static bool ADULT { get; set; } = false;
+        //public static string DEFAULT_LANGUAGE = System.Globalization.CultureInfo.CurrentCulture.TwoLetterISOLanguageName;
+        //public static string DEFAULT_REGION = System.Globalization.RegionInfo.CurrentRegion.TwoLetterISORegionName;
 
-        public static string DEFAULT_ISO_639_1 => DEFAULT_LANGUAGE;
-        public static string DEFAULT_ISO_3166_1 => DEFAULT_REGION;
+        //public static string DEFAULT_ISO_639_1 => DEFAULT_LANGUAGE;
+        //public static string DEFAULT_ISO_3166_1 => DEFAULT_REGION;
 
         public HttpMethod Method { get; set; }
         public string Endpoint { get; set; }
@@ -38,7 +37,7 @@ namespace Movies
         public static implicit operator TMDbRequest(string url) => new TMDbRequest(url);
 
 
-        public string GetURL(params string[] parameters) => GetURL(DEFAULT_LANGUAGE, DEFAULT_REGION, ADULT, parameters);
+        public string GetURL(params string[] parameters) => GetURL(TMDB.LANGUAGE.Name, TMDB.REGION.Name, TMDB.ADULT, parameters);
         public string GetURL(string language, string region, bool adult, params string[] otherParameters)
         {
             var parameters = new List<string>();

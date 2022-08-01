@@ -75,6 +75,10 @@
       "frameworks": {
         "monoandroid12.0": {
           "dependencies": {
+            "Xamarin.AndroidX.Lifecycle.LiveData": {
+              "target": "Package",
+              "version": "[2.4.1.1, )"
+            },
             "Xamarin.Forms": {
               "target": "Package",
               "version": "[5.0.0.2478, )"

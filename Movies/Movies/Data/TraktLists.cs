@@ -259,7 +259,9 @@ namespace Movies
                         credentials = "code=" + refreshToken;
                         tokenProperty = "refresh_token";
                         grantType = "refresh_token";
+#if !DEBUG
                         throw new JsonException("Access token expired");
+#endif
                     }
                 }
                 catch (JsonException)

@@ -51,7 +51,10 @@ namespace Movies
         {
             if (!Properties.TryGetValue(property, out var values))
             {
-                Properties.Add(property, values = new List<object>());
+                Properties.TryAdd(property, values = new List<object>());
+            }
+            if (values.Count == 0)
+            {
                 PropertyAdded?.Invoke(this, new PropertyEventArgs(property));
             }
 
@@ -83,6 +86,10 @@ namespace Movies
 
             values.Add(value);
         }
+
+        public int ValueCount(Property property) => Properties.TryGetValue(property, out var values) ? values.Count : 0;
+
+        public bool Invalidate(Property property, Task task) => Properties.TryGetValue(property, out var values) && values.Remove(task);
 
         public bool TryGetValue(Property key, out Task<object> value) => TryGetSingle(key, out value);
         public bool TryGetValue<T>(Property<T> key, out Task<T> value) => TryGetSingle(key, out value);

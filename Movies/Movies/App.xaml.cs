@@ -42,9 +42,16 @@ namespace Movies
     /* Changelog:
      * 
      * Compiled bindings
-     * Clean up local database
+     * Clean up user database
      * Language and region settings
      * Fix autosizing
+     * Character/job for tv show/season credits
+     * Throw error when failing to parse json
+     * Try api calls again
+     * Removed AspectContentView, added aspect request to ImageView
+     * Better template for tv episode grid view
+     * Allow more release types for certifications
+     * Order collection parts by release date
      * 
      */
 
@@ -110,59 +117,63 @@ namespace Movies
         public App()
         {
 #if DEBUG
-            if (!Properties.ContainsKey(API.GENRES.GET_MOVIE_LIST.GetURL()))
-            {
-                foreach (var kvp in new Dictionary<TMDbRequest, string>
-                {
-                    [API.GENRES.GET_MOVIE_LIST] = HttpClient.MOVIE_GENRE_VALUES,
-                    [API.GENRES.GET_TV_LIST] = HttpClient.TV_GENRE_VALUES,
-                    [API.CERTIFICATIONS.GET_MOVIE_CERTIFICATIONS] = HttpClient.MOVIE_CERTIFICATION_VALUES,
-                    [API.CERTIFICATIONS.GET_TV_CERTIFICATIONS] = HttpClient.TV_CERTIFICATION_VALUES,
-                    [API.WATCH_PROVIDERS.GET_MOVIE_PROVIDERS] = HttpClient.MOVIE_WATCH_PROVIDER_VALUES,
-                    [API.WATCH_PROVIDERS.GET_TV_PROVIDERS] = HttpClient.TV_WATCH_PROVIDER_VALUES,
-                })
-                {
-                    Properties[kvp.Key.GetURL()] = System.Text.Json.JsonSerializer.Serialize(new JsonResponse(kvp.Value));
-                }
+            bool update = false;
 
-                _ = SavePropertiesAsync();
+            var cachedWebRequests = new Dictionary<TMDbRequest, string>
+            {
+                [API.GENRES.GET_MOVIE_LIST] = HttpClient.MOVIE_GENRE_VALUES,
+                [API.GENRES.GET_TV_LIST] = HttpClient.TV_GENRE_VALUES,
+                [API.CERTIFICATIONS.GET_MOVIE_CERTIFICATIONS] = HttpClient.MOVIE_CERTIFICATION_VALUES,
+                [API.CERTIFICATIONS.GET_TV_CERTIFICATIONS] = HttpClient.TV_CERTIFICATION_VALUES,
+                [API.WATCH_PROVIDERS.GET_MOVIE_PROVIDERS] = HttpClient.MOVIE_WATCH_PROVIDER_VALUES,
+                [API.WATCH_PROVIDERS.GET_TV_PROVIDERS] = HttpClient.TV_WATCH_PROVIDER_VALUES,
+                [API.CONFIGURATION.GET_COUNTRIES] = HttpClient.COUNTRIES_VALUES,
+            }.Select(kvp => new KeyValuePair<string, object>(kvp.Key.GetURL(), System.Text.Json.JsonSerializer.Serialize(new JsonResponse(kvp.Value))));
+
+            foreach (var kvp in new Dictionary<string, object>(cachedWebRequests)
+            {
+                [GetLoginCredentialsKey(ServiceName.TMDb)] = TMDB_LOGIN_INFO,
+                [GetLoginCredentialsKey(ServiceName.Trakt)] = TRAKT_LOGIN_INFO,
+            })
+            {
+                if (!Properties.ContainsKey(kvp.Key))
+                {
+                    Properties[kvp.Key] = kvp.Value;
+                    update = true;
+                }
             }
 
-            if (Device.RuntimePlatform == Device.iOS && false)
+            if (update)
             {
-                Properties[GetLoginCredentialsKey(ServiceName.TMDb)] = TMDB_LOGIN_INFO;
-                Properties[GetLoginCredentialsKey(ServiceName.Trakt)] = TRAKT_LOGIN_INFO;
-
                 _ = SavePropertiesAsync();
             }
 
             //UserAppTheme = OSAppTheme.Dark;
 #endif
+            Prefs = new UserPrefs(Properties);
+            Prefs.PropertyChanged += async (sender, e) => await SavePropertiesAsync();
+
+            TMDB.LANGUAGE = Prefs.Language;
+            TMDB.REGION = Prefs.Region;
 
             TMDB tmdb = new TMDB(TMDB_API_KEY, TMDB_V4_BEARER, new AppPropertiesCache(this));
             Trakt trakt = new Trakt(tmdb, TRAKT_CLIENT_ID, TRAKT_CLIENT_SECRET);
-            
+
             TMDbGetPropertyValues = tmdb.GetPropertyValues;
             tmdb.Company.LogoPath ??= "file://Movies.Logos.TMDbLogo.png";
             trakt.Company.LogoPath ??= "file://Movies.Logos.TraktLogo.png";
-            
-            void TryGetUserPref<T>(string key, ref T tmdbVar)
+
+            _ = tmdb.SetValues(Prefs.Regions, API.CONFIGURATION.GET_COUNTRIES, new JsonArrayParser<Region>(new JsonPropertyParser<Region>("iso_3166_1", new JsonNodeParser<Region>((JsonNode json, out Region region) =>
             {
-                if (Properties.TryGetValue(key, out var valueObj) && valueObj is T value)
+                if (json.TryGetValue(out string iso_3166))
                 {
-                    tmdbVar = value;
+                    region = new Region(iso_3166);
+                    return true;
                 }
-                else
-                {
-                    Properties[key] = tmdbVar;
-                }
-            }
 
-            TryGetUserPref(UserPrefs.LANGUAGE_KEY, ref TMDbRequest.DEFAULT_LANGUAGE);
-            TryGetUserPref(UserPrefs.REGION_KEY, ref TMDbRequest.DEFAULT_REGION);
-
-            Prefs = new UserPrefs(Properties);
-            Prefs.PropertyChanged += async (sender, e) => await SavePropertiesAsync();
+                region = null;
+                return false;
+            }))));
 
 #if DEBUG && false
             LocalDatabase = new Database(MockData.Instance, MockData.IDKey);
@@ -196,25 +207,25 @@ namespace Movies
 #else
             MovieExplore = new ObservableCollection<object>
             {
-                new CollectionViewModel(DataManager, "Trending", tmdb.GetTrendingMoviesAsync()),
-                new CollectionViewModel(DataManager, "Most Anticipated", trakt.GetAnticpatedMoviesAsync()),
-                new CollectionViewModel(DataManager, "In Theaters", tmdb.GetNowPlayingMoviesAsync()),
-                new CollectionViewModel(DataManager, "Upcoming", tmdb.GetUpcomingMoviesAsync()),
-                new CollectionViewModel(DataManager, "Top Rated", tmdb.GetTopRatedMoviesAsync()),
+                new CollectionViewModel("Trending", tmdb.GetTrendingMoviesAsync()),
+                new CollectionViewModel("Most Anticipated", trakt.GetAnticpatedMoviesAsync()),
+                new CollectionViewModel("In Theaters", tmdb.GetNowPlayingMoviesAsync()),
+                new CollectionViewModel("Upcoming", tmdb.GetUpcomingMoviesAsync()),
+                new CollectionViewModel("Top Rated", tmdb.GetTopRatedMoviesAsync()),
             };
 
             TVExplore = new ObservableCollection<object>
             {
-                new CollectionViewModel(DataManager, "Trending", tmdb.GetTrendingTVShowsAsync()),
-                new CollectionViewModel(DataManager, "Most Anticipated", trakt.GetAnticipatedTVAsync()),
-                new CollectionViewModel(DataManager, "Currently Airing", tmdb.GetTVOnAirAsync()),
-                new CollectionViewModel(DataManager, "Airing Today", tmdb.GetTVAiringTodayAsync()),
-                new CollectionViewModel(DataManager, "Top Rated", tmdb.GetTopRatedTVShowsAsync()),
+                new CollectionViewModel("Trending", tmdb.GetTrendingTVShowsAsync()),
+                new CollectionViewModel("Most Anticipated", trakt.GetAnticipatedTVAsync()),
+                new CollectionViewModel("Currently Airing", tmdb.GetTVOnAirAsync()),
+                new CollectionViewModel("Airing Today", tmdb.GetTVAiringTodayAsync()),
+                new CollectionViewModel("Top Rated", tmdb.GetTopRatedTVShowsAsync()),
             };
 
             PeopleExplore = new ObservableCollection<object>
             {
-                new CollectionViewModel(DataManager, "Trending", tmdb.GetTrendingPeopleAsync()),
+                new CollectionViewModel("Trending", tmdb.GetTrendingPeopleAsync()),
                 //new CollectionViewModel(DataManager, "Popular", tmdb.GetPopularPeopleAsync())
             };
 #endif
@@ -295,11 +306,6 @@ namespace Movies
             MainPage = new MainPage();
         }
 
-        private void Prefs_PropertyChanged(object sender, PropertyChangedEventArgs e)
-        {
-            throw new NotImplementedException();
-        }
-
         public static readonly BindableProperty AutoWireFromItemProperty = BindableProperty.CreateAttached("AutoWireFromItem", typeof(Item), typeof(BindableObject), null, propertyChanged: (bindable, oldValue, newValue) =>
         {
             Item item = (Item)newValue;
@@ -340,7 +346,7 @@ namespace Movies
 #else
                 await foreach (var person in TMDB.Database.SearchPeople(search.Query))
                 {
-                    yield return new PersonViewModel(DataManager, person);
+                    yield return new PersonViewModel(person);
                 }
 #endif
             }
@@ -409,8 +415,8 @@ namespace Movies
 
                 if (account.Account is TMDB tmdb)
                 {
-                    AddFirst(MovieExplore, new CollectionViewModel(DataManager, recommended, tmdb.GetRecommendedMoviesAsync()));
-                    AddFirst(TVExplore, new CollectionViewModel(DataManager, recommended, tmdb.GetRecommendedTVShowsAsync()));
+                    AddFirst(MovieExplore, new CollectionViewModel(recommended, tmdb.GetRecommendedMoviesAsync()));
+                    AddFirst(TVExplore, new CollectionViewModel(recommended, tmdb.GetRecommendedTVShowsAsync()));
                 }
             };
 
@@ -440,8 +446,8 @@ namespace Movies
 
                 if (account.Account is Trakt trakt)
                 {
-                    AddFirst(MovieExplore, new CollectionViewModel(DataManager, recommended, trakt.GetRecommendedMoviesAsync()));
-                    AddFirst(TVExplore, new CollectionViewModel(DataManager, recommended, trakt.GetRecommendedTVAsync()));
+                    AddFirst(MovieExplore, new CollectionViewModel(recommended, trakt.GetRecommendedMoviesAsync()));
+                    AddFirst(TVExplore, new CollectionViewModel(recommended, trakt.GetRecommendedTVAsync()));
                 }
             };
 

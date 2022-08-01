@@ -173,7 +173,8 @@ namespace Movies
             {
                 if (json?.TryGetValue("parts", out IEnumerable<JsonNode> cached) == true)
                 {
-                    return AsAsync(ParseCollection(cached, new JsonNodeParser<Movie>(TryParseMovie)));
+                    var ordered = cached.OrderBy(part => part.TryGetValue("release_date", out DateTime date) ? date : DateTime.MaxValue);
+                    return AsAsync(ParseCollection(ordered, new JsonNodeParser<Movie>(TryParseMovie)));
                 }
 
                 //var request = string.Format(API.COLLECTIONS.GET_DETAILS.GetURL(), id);
@@ -186,6 +187,7 @@ namespace Movies
 
             return GetCollectionItems(item.ItemType, id);
         }
+
         private static async IAsyncEnumerable<Item> GetCollectionItems(ItemType type, int id)
         {
             await foreach (var item in (await GetItem(type, id) as Collection))
@@ -279,9 +281,9 @@ namespace Movies
                 {
                     if (regionalRelease["iso_3166_1"].TryGetValue<string>() == ISO_3166_1 && regionalRelease["release_dates"] is JsonArray releases)
                     {
-                        foreach (var release in releases)
+                        foreach (var release in releases.OrderBy(release => release.TryGetValue("type", out int type) ? type : int.MaxValue))
                         {
-                            if (release.TryGetValue("type", out int type) && type == 3 && release.TryGetValue("certification", out string certification))
+                            if (release.TryGetValue("certification", out string certification) && !string.IsNullOrEmpty(certification))
                             {
                                 return certification;
                             }
@@ -327,7 +329,7 @@ namespace Movies
                 var temp = new IEnumerable<JsonNode>[]
                 {
                     ForRegion(results, ISO_3166_1, ISO_639_1),
-                    ForRegion(results, FALLBACK_REGION, FALLBACK_LANGUAGE)
+                    ForRegion(results, FALLBACK_REGION.Iso_3166, FALLBACK_LANGUAGE.Iso_639)
                 };
 
                 foreach (var videos in temp)
@@ -362,7 +364,6 @@ namespace Movies
 
         public class RatingParser : IJsonParser<Rating>
         {
-            public static TMDB TMDb { get; set; }
             public PagedTMDbRequest ReviewsEndpoint { get; set; }
 
             public bool TryGetValue(JsonNode json, out Rating value)
@@ -416,7 +417,21 @@ namespace Movies
 
         public static bool TryParseCast(JsonNode json, out IEnumerable<Credit> credits) => TryParseCredits(json, "cast", out credits);
         public static bool TryParseCrew(JsonNode json, out IEnumerable<Credit> credits) => TryParseCredits(json, "crew", out credits);
+        public static bool TryParseTVCast(JsonNode json, out IEnumerable<Credit> credits) => TryParseTVCredits(json, "cast", out credits);
+        public static bool TryParseTVCrew(JsonNode json, out IEnumerable<Credit> credits) => TryParseTVCredits(json, "crew", out credits);
+
         public static bool TryParseCredits(JsonNode json, string property, out IEnumerable<Credit> credits) => TryParseCollection(json, new JsonPropertyParser<IEnumerable<JsonNode>>(property), out credits, new JsonNodeParser<Credit>(ParseCredit));
+        public static bool TryParseTVCredits(JsonNode json, string property, out IEnumerable<Credit> credits)
+        {
+            if (TryParseCollection(json, new JsonPropertyParser<IEnumerable<JsonNode>>(property), out var temp, new JsonNodeParser<IEnumerable<Credit>>(TryParseCredits)))
+            {
+                credits = temp.SelectMany(credits => credits);
+                return true;
+            }
+
+            credits = null;
+            return false;
+        }
 
         public static Credit ParseCredit(JsonNode json) => new Credit
         {
@@ -424,6 +439,28 @@ namespace Movies
             Role = json["character"]?.TryGetValue<string>() ?? json["job"]?.TryGetValue<string>(),
             Department = json["department"]?.TryGetValue<string>(),
         };
+
+        public static bool TryParseCredits(JsonNode json, out IEnumerable<Credit> credits)
+        {
+            if ((json["roles"] ?? json["jobs"]) is JsonArray array)
+            {
+                var result = new List<Credit>();
+
+                foreach (var node in array)
+                {
+                    var credit = ParseCredit(json);
+                    credit.Role = node["character"]?.TryGetValue<string>() ?? node["job"]?.TryGetValue<string>();
+
+                    result.Add(credit);
+                }
+
+                credits = result;
+                return true;
+            }
+
+            credits = null;
+            return false;
+        }
 
         public static bool TryParseTVEpisodeCast(JsonNode json, out IEnumerable<Credit> result)
         {

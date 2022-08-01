@@ -27,8 +27,8 @@ namespace Movies.Models
             Step = TimeSpan.FromMinutes(1)
         });
         public static readonly Property<string> ORIGINAL_TITLE = new Property<string>("Original Title");
-        public static readonly Property<string> ORIGINAL_LANGUAGE = new Property<string>("Original Language");
-        public static readonly MultiProperty<string> LANGUAGES = new MultiProperty<string>("Languages");
+        public static readonly Property<Language> ORIGINAL_LANGUAGE = new Property<Language>("Original Language");
+        public static readonly MultiProperty<Language> LANGUAGES = new MultiProperty<Language>("Languages");
 
         public static readonly Property<string> POSTER_PATH = new Property<string>("Poster Path");
         public static readonly Property<string> BACKDROP_PATH = new Property<string>("Backdrop Path");

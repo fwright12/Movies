@@ -2,6 +2,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
@@ -205,14 +206,14 @@ namespace Movies
 
     public partial class TMDB : IAccount, IAssignID<int>
     {
-        public static string LANGUAGE { get; set; } = System.Globalization.CultureInfo.CurrentCulture.TwoLetterISOLanguageName;
-        public static string FALLBACK_LANGUAGE { get; set; } = "en";
-        public static string REGION { get; set; } = System.Globalization.RegionInfo.CurrentRegion.TwoLetterISORegionName;
-        public static string FALLBACK_REGION { get; set; } = "US";
+        public static Language LANGUAGE = CultureInfo.CurrentCulture;
+        public static Language FALLBACK_LANGUAGE { get; set; } = new CultureInfo("en");
+        public static Region REGION = RegionInfo.CurrentRegion;
+        public static Region FALLBACK_REGION { get; set; } = new RegionInfo("US");
         public static bool ADULT { get; set; } = false;
 
-        public static string ISO_639_1 => LANGUAGE;
-        public static string ISO_3166_1 => REGION;
+        public static string ISO_639_1 => LANGUAGE.Iso_639;
+        public static string ISO_3166_1 => REGION.Iso_3166;
 
         public static readonly Models.Company TMDb = new Models.Company
         {
@@ -255,9 +256,8 @@ namespace Movies
             Auth = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", bearer);
             ResponseCache = cache;
 
-            RatingParser.TMDb = this;
+            HandleDataRequests(DataService.Instance);
 
-            Test(DataService.Instance);
             //Config = Client.GetConfigAsync();
             WebClient = new HttpClient
             {
@@ -453,6 +453,7 @@ namespace Movies
         }
 
         public static async Task<JsonNode> GetJson(HttpResponseMessage response) => JsonNode.Parse(await response.Content.ReadAsStringAsync());
+        public static async Task<JsonNode> GetJson(Task<HttpResponseMessage> response) => JsonNode.Parse(await (await response).Content.ReadAsStringAsync());
 
         private static readonly IJsonParser<IEnumerable<JsonNode>> PageParser = new JsonPropertyParser<IEnumerable<JsonNode>>("results");
 
@@ -545,30 +546,29 @@ namespace Movies
         }
 
         //private Task SetValues<T>(Property<T> property, TMDbRequest request, IJsonParser<T> parser) => SetValues(property, request, new JsonArrayParser<T>(parser));
-        private async Task SetValues<T>(Property<T> property, TMDbRequest request, IJsonParser<IEnumerable<T>> parser)
+        public Task SetValues<T>(Property<T> property, TMDbRequest request, IJsonParser<IEnumerable<T>> parser) => property.Values is ICollection<T> list ? SetValues(list, request, parser) : Task.CompletedTask;
+
+        public async Task SetValues<T>(ICollection<T> list, TMDbRequest request, IJsonParser<IEnumerable<T>> parser)
         {
-            if (property.Values is ICollection<T> list)
+            //var apiCall = new ApiCall<IEnumerable<T>>(endpoint, new JsonArrayParser<T>(parser));
+
+            var response = await WebClient.TryGetCachedAsync(request.GetURL(), ResponseCache);
+            
+            if (JsonParser.TryParse(response.Json, parser, out var values))
             {
-                //var apiCall = new ApiCall<IEnumerable<T>>(endpoint, new JsonArrayParser<T>(parser));
-
-                var response = await WebClient.TryGetCachedAsync(request.GetURL(), ResponseCache);
-
-                if (JsonParser.TryParse(response.Json, parser, out var values))
+                foreach (var value in values)
                 {
-                    foreach (var value in values)
-                    {
-                        list.Add(value);
-                    }
+                    list.Add(value);
                 }
             }
         }
 
         private static bool TryParseCertifications(JsonNode json, out IEnumerable<string> certifications) => TryParseCertifications(json, REGION, out certifications);
-        private static bool TryParseCertifications(JsonNode json, string region, out IEnumerable<string> certifications)
+        private static bool TryParseCertifications(JsonNode json, Region region, out IEnumerable<string> certifications)
         {
             if (json.TryGetValue("certifications", out json))
             {
-                if (json.TryGetValue(region, out JsonArray array))
+                if (json.TryGetValue(region.Iso_3166, out JsonArray array))
                 {
                     array = new JsonArray(array.OrderBy(json => json["order"]?.TryGetValue<int>() ?? int.MaxValue).Select(json => JsonNode.Parse(json.ToJsonString())).ToArray());
                     return new JsonArrayParser<string>(new JsonPropertyParser<string>("certification")).TryGetValue(array, out certifications);
@@ -634,7 +634,7 @@ namespace Movies
 
         private static DataService Data;
 
-        public void Test(DataService manager)
+        public void HandleDataRequests(DataService manager)
         {
             Data = manager;
 
@@ -663,15 +663,15 @@ namespace Movies
 
         public static async Task<Collection> GetCollection(int id)
         {
-            Collection cached = null;
+            Collection result = null;
 
             await CollectionCacheSemaphore.WaitAsync();
-            CollectionCache.TryGetValue(id, out cached);
+            CollectionCache.TryGetValue(id, out result);
             CollectionCacheSemaphore.Release();
 
-            if (cached != null)
+            if (result != null)
             {
-                return cached;
+                return result;
             }
 
             var url = string.Format(API.COLLECTIONS.GET_DETAILS.GetURL(), id);

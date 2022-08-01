@@ -59,7 +59,7 @@ namespace Movies
         {
             foreach (var kvp in Application.Properties)
             {
-                if (kvp.Key is string url && TryGetValue(url, out var response))
+                if (kvp.Key is string url && Uri.TryCreate(url, UriKind.RelativeOrAbsolute, out _) && TryGetValue(url, out var response))
                 {
                     yield return new KeyValuePair<string, JsonResponse>(url, response);
                 }
