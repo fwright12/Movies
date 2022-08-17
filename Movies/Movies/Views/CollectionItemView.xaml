@@ -4,21 +4,23 @@
        xmlns:views="clr-namespace:Movies.Views"
        x:Class="Movies.Views.CollectionItemView">
     <TemplatedView.ControlTemplate>
-        <ControlTemplate>
+        <ControlTemplate x:DataType="views:CollectionItemView">
             <Grid ColumnDefinitions="100, *"
+                  RowDefinitions="Auto,*"
                   Padding="10,0">
                 <ContentView Content="{TemplateBinding ThumbnailView}"
-                             HeightRequest="150"
                              VerticalOptions="Center"
-                             Grid.Column="0"/>
+                             Grid.Column="0"
+                             Grid.RowSpan="2" />
 
-                <StackLayout Orientation="Vertical"
-                             Grid.Column="1">
-                    <Label Text="{TemplateBinding Title}"
-                           LineBreakMode="TailTruncation"
-                           Style="{StaticResource PrimaryLabel}" />
-                    <ContentPresenter />
-                </StackLayout>
+                <Label Text="{TemplateBinding Title}"
+                       LineBreakMode="TailTruncation"
+                       Style="{StaticResource PrimaryLabel}"
+                       Grid.Row="0"
+                       Grid.Column="1" />
+
+                <ContentPresenter Grid.Row="1"
+                                  Grid.Column="1" />
             </Grid>
         </ControlTemplate>
     </TemplatedView.ControlTemplate>

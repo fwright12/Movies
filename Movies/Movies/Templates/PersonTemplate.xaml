@@ -7,6 +7,14 @@
               x:Class="Movies.Templates.PersonTemplate"
               x:DataType="viewmodels:PersonViewModel">
     <views:CollectionItemView Title="{Binding Name}">
+        <View.GestureRecognizers>
+            <TapGestureRecognizer CommandParameter="{Binding}">
+                <TapGestureRecognizer.Command>
+                    <views:PushPageCommand PageTemplate="{DataTemplate views:PersonInfoPage}" />
+                </TapGestureRecognizer.Command>
+            </TapGestureRecognizer>
+        </View.GestureRecognizers>
+        
         <views:CollectionItemView.ThumbnailTemplate>
             <DataTemplate>
                 <views:ImageView Style="{StaticResource PersonImageStyle}"

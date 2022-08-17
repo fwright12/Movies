@@ -3,6 +3,7 @@
                  xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
                  xmlns:views="clr-namespace:Movies.Views"
                  xmlns:forms="clr-namespace:Xamarin.Forms;assembly=Xamarin.Forms.Extensions"
+                 xmlns:templates="clr-namespace:Movies.Templates"
                  x:Class="Movies.Views.AddToListTemplate">
     <StackLayout Orientation="Vertical"
                  Spacing="0"
@@ -75,8 +76,11 @@
                         views:CollectionViewExt.IsEditing="True"
                         SelectionMode="Multiple">
             <ItemsView.ItemTemplate>
-                <views:EditDataTemplateSelector Main="{StaticResource CollectionTemplate}"
-                                                EditTemplate="{StaticResource EditListTemplate}" />
+                <views:EditDataTemplateSelector EditTemplate="{StaticResource EditListTemplate}">
+                    <views:EditDataTemplateSelector.Main>
+                        <templates:DetailedCollectionTemplate />
+                    </views:EditDataTemplateSelector.Main>
+                </views:EditDataTemplateSelector>
             </ItemsView.ItemTemplate>
         </CollectionView>
 

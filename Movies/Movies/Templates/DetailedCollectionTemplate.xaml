@@ -9,6 +9,14 @@
               x:DataType="viewmodels:CollectionViewModel">
     <views:CollectionItemView Title="{Binding Name}"
                               ThumbnailTemplate="{StaticResource CompressedCollectionTemplate}">
+        <View.GestureRecognizers>
+            <TapGestureRecognizer CommandParameter="{Binding}">
+                <TapGestureRecognizer.Command>
+                    <views:PushPageCommand PageTemplate="{StaticResource ListPageTemplate}" />
+                </TapGestureRecognizer.Command>
+            </TapGestureRecognizer>
+        </View.GestureRecognizers>
+        
         <StackLayout Orientation="Vertical">
             <Label Style="{StaticResource MultiPartLabel}">
                 <Label.FormattedText>

@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "GKARVQGaFt1hIdJfxyuTwNTQ7xtOcLMmdqOSngyS/ozsCW3hpa/fuY/Aab+gCDeVHEDVbE5OVVxgFPH6LUhnIw==",
+  "dgSpecHash": "kZ+Ofwu0VY617/gN6lwQfNASzZkQPmhdjpCKCO3L7NxgXXCbYd9txxj9tO1uns43Pip34KKr8dJ3fmVELIxKWw==",
   "success": true,
   "projectFilePath": "C:\\Users\\Flint\\Documents\\MovieApp\\Movies\\Movies\\Movies\\Movies.csproj",
   "expectedPackageFiles": [
@@ -19,6 +19,8 @@
     "C:\\Users\\Flint\\.nuget\\packages\\system.text.json\\6.0.5\\system.text.json.6.0.5.nupkg.sha512",
     "C:\\Users\\Flint\\.nuget\\packages\\system.threading.tasks.extensions\\4.5.4\\system.threading.tasks.extensions.4.5.4.nupkg.sha512",
     "C:\\Users\\Flint\\.nuget\\packages\\xamarin.essentials\\1.7.3\\xamarin.essentials.1.7.3.nupkg.sha512",
+    "C:\\Users\\Flint\\.nuget\\packages\\xamarin.ffimageloading\\2.4.11.982\\xamarin.ffimageloading.2.4.11.982.nupkg.sha512",
+    "C:\\Users\\Flint\\.nuget\\packages\\xamarin.ffimageloading.forms\\2.4.11.982\\xamarin.ffimageloading.forms.2.4.11.982.nupkg.sha512",
     "C:\\Users\\Flint\\.nuget\\packages\\xamarin.forms\\5.0.0.2478\\xamarin.forms.5.0.0.2478.nupkg.sha512"
   ],
   "logs": []

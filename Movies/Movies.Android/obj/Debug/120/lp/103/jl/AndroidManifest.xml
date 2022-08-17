@@ -15,7 +15,7 @@
   ~ limitations under the License.
 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="androidx.lifecycle.service" >
+    package="androidx.sqlite.db.framework" >
 
     <uses-sdk
         android:minSdkVersion="14"

@@ -41,17 +41,16 @@ namespace Movies
 
     /* Changelog:
      * 
-     * Compiled bindings
-     * Clean up user database
-     * Language and region settings
-     * Fix autosizing
-     * Character/job for tv show/season credits
-     * Throw error when failing to parse json
-     * Try api calls again
-     * Removed AspectContentView, added aspect request to ImageView
-     * Better template for tv episode grid view
-     * Allow more release types for certifications
-     * Order collection parts by release date
+     * Fix watch providers in list view
+     * Fix tv show/season credits not caching
+     * Vacuum db
+     * Ready tmdb info requests for caching
+     * FFImageLoading
+     * iOS collectionview optimizations (do tmdb requests on thread pool, hash on type in TypeTemplateSelector, move tap gestures into respective templates)
+     * Fix caching bug (web requests not expiring correctly)
+     * Names for all regions
+     * Return null when budget or revenue is 0
+     * Removed ads from lists (performance issues)
      * 
      */
 
@@ -111,8 +110,11 @@ namespace Movies
 
         private Dictionary<ServiceName, IService> Services;
         private Database LocalDatabase;
+        private Task DBInitialization { get; }
 
         private CollectionViewModel _Popular;
+        private const string DB_LAST_CLEANED_KEY = "last cleaned";
+        private static readonly TimeSpan DB_CLEANING_SCHEDULE = new TimeSpan(7, 0, 0, 0);
 
         public App()
         {
@@ -128,9 +130,10 @@ namespace Movies
                 [API.WATCH_PROVIDERS.GET_MOVIE_PROVIDERS] = HttpClient.MOVIE_WATCH_PROVIDER_VALUES,
                 [API.WATCH_PROVIDERS.GET_TV_PROVIDERS] = HttpClient.TV_WATCH_PROVIDER_VALUES,
                 [API.CONFIGURATION.GET_COUNTRIES] = HttpClient.COUNTRIES_VALUES,
-            }.Select(kvp => new KeyValuePair<string, object>(kvp.Key.GetURL(), System.Text.Json.JsonSerializer.Serialize(new JsonResponse(kvp.Value))));
+                [API.CONFIGURATION.GET_API_CONFIGURATION] = HttpClient.CONFIGURATION,
+            }.Select(kvp => new KeyValuePair<string, string>(kvp.Key.GetURL(), System.Text.Json.JsonSerializer.Serialize(new JsonResponse(kvp.Value))));
 
-            foreach (var kvp in new Dictionary<string, object>(cachedWebRequests)
+            foreach (var kvp in new Dictionary<string, string>(cachedWebRequests)
             {
                 [GetLoginCredentialsKey(ServiceName.TMDb)] = TMDB_LOGIN_INFO,
                 [GetLoginCredentialsKey(ServiceName.Trakt)] = TRAKT_LOGIN_INFO,
@@ -150,6 +153,7 @@ namespace Movies
 
             //UserAppTheme = OSAppTheme.Dark;
 #endif
+
             Prefs = new UserPrefs(Properties);
             Prefs.PropertyChanged += async (sender, e) => await SavePropertiesAsync();
 
@@ -163,17 +167,19 @@ namespace Movies
             tmdb.Company.LogoPath ??= "file://Movies.Logos.TMDbLogo.png";
             trakt.Company.LogoPath ??= "file://Movies.Logos.TraktLogo.png";
 
-            _ = tmdb.SetValues(Prefs.Regions, API.CONFIGURATION.GET_COUNTRIES, new JsonArrayParser<Region>(new JsonPropertyParser<Region>("iso_3166_1", new JsonNodeParser<Region>((JsonNode json, out Region region) =>
+            _ = tmdb.SetValues(Prefs.Regions, API.CONFIGURATION.GET_COUNTRIES, new JsonArrayParser<Region>(new JsonNodeParser<Region>((JsonNode json, out Region region) =>
             {
-                if (json.TryGetValue(out string iso_3166))
+                if (json.TryGetValue("iso_3166_1", out string iso_3166))
                 {
-                    region = new Region(iso_3166);
+                    region = new Region(iso_3166, json["english_name"]?.TryGetValue<string>());
                     return true;
                 }
 
                 region = null;
                 return false;
-            }))));
+            })));
+
+            //_ = TMDB.GetItem(ItemType.Movie, 453395);
 
 #if DEBUG && false
             LocalDatabase = new Database(MockData.Instance, MockData.IDKey);
@@ -195,6 +201,23 @@ namespace Movies
             }
 #else
             LocalDatabase = new Database(tmdb, TMDB.IDKey);
+            var lastCleaned = DateTime.MinValue;
+
+            if (Properties.TryGetValue(DB_LAST_CLEANED_KEY, out var dateObj) && dateObj is string dateStr && DateTime.TryParse(dateStr, out var tempLastCleaned))
+            {
+                lastCleaned = tempLastCleaned;
+            }
+            
+            if (DateTime.Now - lastCleaned > DB_CLEANING_SCHEDULE)
+            {
+                DBInitialization = LocalDatabase.Clean();
+                Properties[DB_LAST_CLEANED_KEY] = DateTime.Now.ToString();
+                _ = SavePropertiesAsync();
+            }
+            else
+            {
+                DBInitialization = LocalDatabase.Init;
+            }
             //DataManager.AddDataSource(tmdb);
 
 #if DEBUG

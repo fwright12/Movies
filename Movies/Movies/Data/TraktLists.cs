@@ -74,10 +74,10 @@ namespace Movies
         }
 
         public IAsyncEnumerable<Item> GetAnticpatedMoviesAsync() => FlattenPages(Client, "movies/anticipated").TrySelect<JsonNode, Movie>(TryParseListMovie);
-        public IAsyncEnumerable<Item> GetRecommendedMoviesAsync() => FlattenPages(Client, "recommendations/movies").TrySelect<JsonNode, Movie>(TryParseListMovie);
+        public IAsyncEnumerable<Item> GetRecommendedMoviesAsync() => FlattenPages(Client, "recommendations/movies").TrySelect<JsonNode, Movie>(TryParseMovie);
 
         public IAsyncEnumerable<Item> GetAnticipatedTVAsync() => FlattenPages(Client, "shows/anticipated").TrySelect<JsonNode, TVShow>(TryParseListShow);
-        public IAsyncEnumerable<Item> GetRecommendedTVAsync() => FlattenPages(Client, "recommendations/shows").TrySelect<JsonNode, TVShow>(TryParseListShow);
+        public IAsyncEnumerable<Item> GetRecommendedTVAsync() => FlattenPages(Client, "recommendations/shows").TrySelect<JsonNode, TVShow>((JsonNode json, out TVShow show) => TryParseTVShow(json, TMDb, out show));
 
         private static async IAsyncEnumerable<JsonNode> FlattenPages(HttpClient client, string apiCall, string accessToken = null, int? pageSize = null, bool reverse = false)
         {

@@ -63,22 +63,33 @@ namespace Movies.Views
 
         protected override SizeRequest OnMeasure(double widthConstraint, double heightConstraint)
         {
-            SizeRequest request = Content?.Measure(widthConstraint, heightConstraint) ?? base.OnMeasure(widthConstraint, heightConstraint);
-
             if (AspectRequest > 0 && !(double.IsPositiveInfinity(widthConstraint) && double.IsPositiveInfinity(heightConstraint)))
             {
+                Size size;
+
                 //if (!double.IsInfinity(widthConstraint) && double.IsInfinity(heightConstraint))
                 if (widthConstraint / heightConstraint < AspectRequest)
                 {
-                    request.Request = new Size(widthConstraint, widthConstraint / AspectRequest);
+                    size = new Size(widthConstraint, widthConstraint / AspectRequest);
                 }
                 else //if (!double.IsInfinity(heightConstraint) && double.IsInfinity(widthConstraint))
                 {
-                    request.Request = new Size(heightConstraint * AspectRequest, heightConstraint);
+                    size = new Size(heightConstraint * AspectRequest, heightConstraint);
                 }
-            }
 
-            return request;
+                // iOS seems to have trouble handling double precision in CollectionView
+                if (Device.RuntimePlatform == Device.iOS)
+                {
+                    size.Width = Math.Round(size.Width);
+                    size.Height = Math.Round(size.Height);
+                }
+
+                return new SizeRequest(size);
+            }
+            else
+            {
+                return Content?.Measure(widthConstraint, heightConstraint) ?? base.OnMeasure(widthConstraint, heightConstraint);
+            }
         }
 
         /*protected override SizeRequest OnMeasure(double widthConstraint, double heightConstraint)

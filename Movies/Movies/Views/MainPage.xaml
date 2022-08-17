@@ -8,6 +8,7 @@
        xmlns:views="clr-namespace:Movies.Views"
        xmlns:viewmodels="clr-namespace:Movies.ViewModels"
        xmlns:models="clr-namespace:Movies.Models"
+       xmlns:templates="clr-namespace:Movies.Templates"
        x:Class="Movies.Views.MainPage"
        BackgroundColor="{AppThemeBinding Light='White', Dark='#1B1B1B'}"
        TitleColor="{AppThemeBinding Light={StaticResource LightPrimaryText}, Dark={StaticResource DarkPrimaryText}}"
@@ -131,9 +132,12 @@
                             <CollectionView views:CollectionViewExt.IsEditing="False"
                                             Style="{StaticResource CustomListsStyle}">
                                 <CollectionView.ItemTemplate>
-                                    <views:EditDataTemplateSelector Main="{StaticResource ListSelector}"
-                                                                    SwipeTemplate="{StaticResource SwipeTemplate}"
-                                                                    EditTemplate="{OnPlatform iOS={StaticResource iOSEditListTemplate}, Android={StaticResource AndroidEditListTemplate}}" />
+                                    <views:EditDataTemplateSelector SwipeTemplate="{StaticResource SwipeTemplate}"
+                                                                    EditTemplate="{StaticResource EditListTemplate}">
+                                        <views:EditDataTemplateSelector.Main>
+                                            <templates:DetailedCollectionTemplate />
+                                        </views:EditDataTemplateSelector.Main>
+                                    </views:EditDataTemplateSelector>
                                 </CollectionView.ItemTemplate>
 
                                 <View.Margin>

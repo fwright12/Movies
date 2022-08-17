@@ -17,70 +17,63 @@ using Xamarin.Forms.Platform.iOS;
 [assembly: ExportRenderer(typeof(SearchBar), typeof(Movies.iOS.SearchBarRenderer))]
 [assembly: ExportRenderer(typeof(CollectionView), typeof(Movies.iOS.CollectionViewRenderer))]
 [assembly: ExportRenderer(typeof(CarouselView), typeof(Movies.iOS.CarouselViewRenderer))]
+[assembly: ResolutionGroupName("Movies")]
+[assembly: ExportEffect(typeof(Movies.iOS.FixiOSCollectionViewScrollsToTopPlatformEffect), nameof(Movies.iOS.FixiOSCollectionViewScrollsToTopPlatformEffect))]
 namespace Movies.iOS
 {
-    public class Test : ShellRenderer
+    public class FixiOSCollectionViewScrollsToTopPlatformEffect : PlatformEffect
     {
-        public override UINavigationController NavigationController
-        {
-            get
-            {
-                var a = base.NavigationController;
+        private UICollectionView _uiCollectionView;
+        public FixiOSCollectionViewScrollsToTopPlatformEffect()
+        { }
 
-                if (a?.NavigationBar is UINavigationBar bar)
+        protected override void OnAttached()
+        {
+            _uiCollectionView = Control.Subviews.FirstOrDefault() as UICollectionView;
+
+            if (_uiCollectionView == null)
+            {
+                return;
+            }
+
+            Element.PropertyChanged += ElementPropertyChanged;
+        }
+
+        protected override void OnDetached()
+        {
+            Element.PropertyChanged -= ElementPropertyChanged;
+        }
+
+        private void ElementPropertyChanged(object sender, PropertyChangedEventArgs e)
+        {
+            //When the Height is defined, the complete View Hierarchy is created
+            if (e.PropertyName == VisualElement.HeightProperty.PropertyName)
+            {
+                //Get the top parent View
+                var superView = _uiCollectionView.Superview;
+
+                while (superView.Superview != null)
                 {
-                    bar.PrefersLargeTitles = true;
+                    superView = superView.Superview;
                 }
 
-                return a;
-            }
-        }
-        protected override void OnElementSet(Shell element)
-        {
-            base.OnElementSet(element);
-
-            if (NavigationController?.NavigationBar is UINavigationBar bar)
-            {
-                bar.PrefersLargeTitles = true;
+                EnsureScrollsToTop(superView, _uiCollectionView);
             }
         }
 
-        protected override void OnElementPropertyChanged(object sender, PropertyChangedEventArgs e)
+        private void EnsureScrollsToTop(UIView topMostView, UICollectionView uiCollectionViewWithScrollToTop)
         {
-            base.OnElementPropertyChanged(sender, e);
-
-            return;
-            if (e.PropertyName == nameof(Xamarin.Forms.PlatformConfiguration.iOSSpecific.NavigationPage.PrefersLargeTitlesProperty.PropertyName))
+            foreach (var subview in topMostView.Subviews)
             {
-                NavigationController.NavigationBar.PrefersLargeTitles = Xamarin.Forms.PlatformConfiguration.iOSSpecific.NavigationPage.GetPrefersLargeTitles(Element);
-            }
-        }
-    }
-
-    public class PageRenderer : Xamarin.Forms.Platform.iOS.PageRenderer
-    {
-        public override UINavigationController NavigationController
-        {
-            get
-            {
-                var a = base.NavigationController;
-
-                if (a?.NavigationBar is UINavigationBar bar)
+                if (subview is UIScrollView uiScrollView)
                 {
-                    bar.PrefersLargeTitles = true;
+                    uiScrollView.ScrollsToTop = uiScrollView == uiCollectionViewWithScrollToTop;
                 }
 
-                return a;
-            }
-        }
-
-        protected override void OnElementChanged(VisualElementChangedEventArgs e)
-        {
-            base.OnElementChanged(e);
-
-            if (NavigationController?.NavigationBar is UINavigationBar bar)
-            {
-                bar.PrefersLargeTitles = true;
+                if (subview.Subviews.Any())
+                {
+                    EnsureScrollsToTop(subview, uiCollectionViewWithScrollToTop);
+                }
             }
         }
     }

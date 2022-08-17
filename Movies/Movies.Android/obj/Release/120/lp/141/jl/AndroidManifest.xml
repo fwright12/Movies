@@ -15,13 +15,14 @@
      limitations under the License.
 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.google.android.gms.ads_identifier" >
+    package="com.google.android.gms.measurement.sdk.api" >
 
-    <uses-sdk android:minSdkVersion="14" />
+    <uses-sdk android:minSdkVersion="19" />
 
-    <!-- Include required permissions for Advertising Id -->
+    <!-- Required permission for App measurement to run. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="com.google.android.gms.permission.AD_ID" />
-
-    <application />
 
 </manifest>

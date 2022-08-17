@@ -415,17 +415,23 @@ namespace Movies
             }
         }
 
-        public static bool TryParseCast(JsonNode json, out IEnumerable<Credit> credits) => TryParseCredits(json, "cast", out credits);
-        public static bool TryParseCrew(JsonNode json, out IEnumerable<Credit> credits) => TryParseCredits(json, "crew", out credits);
-        public static bool TryParseTVCast(JsonNode json, out IEnumerable<Credit> credits) => TryParseTVCredits(json, "cast", out credits);
-        public static bool TryParseTVCrew(JsonNode json, out IEnumerable<Credit> credits) => TryParseTVCredits(json, "crew", out credits);
-
-        public static bool TryParseCredits(JsonNode json, string property, out IEnumerable<Credit> credits) => TryParseCollection(json, new JsonPropertyParser<IEnumerable<JsonNode>>(property), out credits, new JsonNodeParser<Credit>(ParseCredit));
-        public static bool TryParseTVCredits(JsonNode json, string property, out IEnumerable<Credit> credits)
+        public static bool TryParseCredits(JsonNode json, out IEnumerable<Credit> credits)
         {
-            if (TryParseCollection(json, new JsonPropertyParser<IEnumerable<JsonNode>>(property), out var temp, new JsonNodeParser<IEnumerable<Credit>>(TryParseCredits)))
+            if (json is JsonArray array)
             {
-                credits = temp.SelectMany(credits => credits);
+                credits = ParseCollection(array, new JsonNodeParser<Credit>(ParseCredit));
+                return true;
+            }
+
+            credits = null;
+            return false;
+        }
+
+        public static bool TryParseTVCredits(JsonNode json, out IEnumerable<Credit> credits)
+        {
+            if (json is JsonArray array)
+            {
+                credits = ParseCollection(array, new JsonNodeParser<IEnumerable<Credit>>(TryParseMultiCredits)).SelectMany(credits => credits);
                 return true;
             }
 
@@ -440,18 +446,23 @@ namespace Movies
             Department = json["department"]?.TryGetValue<string>(),
         };
 
-        public static bool TryParseCredits(JsonNode json, out IEnumerable<Credit> credits)
+        public static bool TryParseMultiCredits(JsonNode json, out IEnumerable<Credit> credits)
         {
             if ((json["roles"] ?? json["jobs"]) is JsonArray array)
             {
                 var result = new List<Credit>();
+                var credit = ParseCredit(json);
+
+                CacheItem(credit.Person, json);
 
                 foreach (var node in array)
                 {
-                    var credit = ParseCredit(json);
-                    credit.Role = node["character"]?.TryGetValue<string>() ?? node["job"]?.TryGetValue<string>();
-
-                    result.Add(credit);
+                    result.Add(new Credit
+                    {
+                        Person = credit.Person,
+                        Role = node["character"]?.TryGetValue<string>() ?? node["job"]?.TryGetValue<string>(),
+                        Department = credit.Department
+                    });
                 }
 
                 credits = result;
@@ -464,7 +475,7 @@ namespace Movies
 
         public static bool TryParseTVEpisodeCast(JsonNode json, out IEnumerable<Credit> result)
         {
-            if (TryParseCredits(json, "cast", out var cast) && TryParseCredits(json, "guest_stars", out var guest))
+            if (json["cast"] is JsonArray castJson && TryParseCredits(castJson, out var cast) && json["guest_stars"] is JsonArray guestJson && TryParseCredits(guestJson, out var guest))
             //if (json["cast"] is JsonNode castNode && CREDITS_PARSER.TryGetValue(castNode, out var cast) && json["guest_stars"] is JsonNode guestNode && CREDITS_PARSER.TryGetValue(guestNode, out var guest))
             {
                 result = cast.Concat(guest);

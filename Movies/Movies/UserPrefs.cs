@@ -79,7 +79,7 @@ namespace Movies
 
         public override bool Equals(object obj) => obj is Language lang && lang.Iso_639 == Iso_639;
         public override int GetHashCode() => Iso_639.GetHashCode();
-        public override string ToString() => DisplayName;
+        public override string ToString() => NativeName ?? DisplayName ?? Iso_639;
     }
 
     public class Region
@@ -87,7 +87,7 @@ namespace Movies
         public RegionInfo RegionInfo { get; }
         public string Name => RegionInfo?.Name ?? Iso_3166;
         public string NativeName => RegionInfo?.NativeName ?? Iso_3166;
-        public string DisplayName => RegionInfo?.DisplayName ?? Iso_3166;
+        public string DisplayName { get; }
         public string Iso_3166 { get; }
 
         public Region(string iso_3166)
@@ -99,19 +99,30 @@ namespace Movies
                 RegionInfo = new RegionInfo(Iso_3166);
             }
             catch { }
+
+            DisplayName = RegionInfo?.DisplayName ?? Iso_3166;
+        }
+
+        public Region(string iso_3166, string name) : this(iso_3166)
+        {
+            if (RegionInfo == null)
+            {
+                DisplayName = name;
+            }
         }
 
         public Region(RegionInfo region)
         {
             RegionInfo = region;
             Iso_3166 = RegionInfo.TwoLetterISORegionName;
+            DisplayName = RegionInfo?.DisplayName ?? Iso_3166;
         }
 
         public static implicit operator Region(RegionInfo region) => new Region(region);
 
         public override bool Equals(object obj) => obj is Region region && region.Iso_3166 == Iso_3166;
         public override int GetHashCode() => Iso_3166.GetHashCode();
-        public override string ToString() => DisplayName;
+        public override string ToString() => DisplayName ?? Iso_3166;
     }
 
     public class UserPrefs : BindableDictionary<string, object>

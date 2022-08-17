@@ -11,6 +11,298 @@ using Xamarin.Forms;
 
 namespace Movies.Views
 {
+    public class FixiOSCollectionViewScrollsToTopPlatformEffect : RoutingEffect
+    {
+        public FixiOSCollectionViewScrollsToTopPlatformEffect() : base($"Movies.{nameof(FixiOSCollectionViewScrollsToTopPlatformEffect)}") { }
+    }
+
+    public class BetterAbsoluteLayout : AbsoluteLayout
+    {
+        protected override SizeRequest OnSizeRequest(double widthConstraint, double heightConstraint)
+        {
+            var bestFitSize = new Size();
+            var minimum = new Size();
+            foreach (View child in Children)
+            {
+                SizeRequest desiredSize = ComputeBoundingRegionDesiredSize(child);
+
+                bestFitSize.Width = Math.Max(bestFitSize.Width, desiredSize.Request.Width);
+                bestFitSize.Height = Math.Max(bestFitSize.Height, desiredSize.Request.Height);
+                minimum.Width = Math.Max(minimum.Width, desiredSize.Minimum.Width);
+                minimum.Height = Math.Max(minimum.Height, desiredSize.Minimum.Height);
+            }
+
+            return new SizeRequest(bestFitSize, minimum);
+        }
+
+        static SizeRequest ComputeBoundingRegionDesiredSize(View view)
+        {
+            AbsoluteLayoutFlags absFlags = GetLayoutFlags(view);
+
+            if (absFlags == AbsoluteLayoutFlags.All)
+            {
+                return new SizeRequest();
+            }
+
+            Rectangle bounds = GetLayoutBounds(view);
+            bool widthIsProportional = (absFlags & AbsoluteLayoutFlags.WidthProportional) != 0;
+            bool heightIsProportional = (absFlags & AbsoluteLayoutFlags.HeightProportional) != 0;
+            bool xIsProportional = (absFlags & AbsoluteLayoutFlags.XProportional) != 0;
+            bool yIsProportional = (absFlags & AbsoluteLayoutFlags.YProportional) != 0;
+
+            var width = 0.0;
+            var height = 0.0;
+
+            // add in required x values
+            if (!xIsProportional)
+            {
+                width += bounds.X;
+            }
+
+            if (!yIsProportional)
+            {
+                height += bounds.Y;
+            }
+
+            var sizeRequest = new Lazy<SizeRequest>(() => view.Measure(double.PositiveInfinity, double.PositiveInfinity, MeasureFlags.IncludeMargins));
+            double minWidth = width;
+            double minHeight = height;
+
+            if (!widthIsProportional)
+            {
+                if (bounds.Width != AutoSize)
+                {
+                    // fixed size
+                    width += bounds.Width;
+                    minWidth += bounds.Width;
+                }
+                else
+                {
+                    // auto size
+                    width += sizeRequest.Value.Request.Width;
+                    minWidth += sizeRequest.Value.Minimum.Width;
+                }
+            }
+            else
+            {
+                // proportional size
+                //width += sizeRequest.Value.Request.Width / Math.Max(0.25, bounds.Width);
+                //minWidth += 0;
+            }
+
+            if (!heightIsProportional)
+            {
+                if (bounds.Height != AutoSize)
+                {
+                    // fixed size
+                    height += bounds.Height;
+                    minHeight += bounds.Height;
+                }
+                else
+                {
+                    // auto size
+                    height += sizeRequest.Value.Request.Height;
+                    minHeight += sizeRequest.Value.Minimum.Height;
+                }
+            }
+            else
+            {
+                // proportional size
+                //height += sizeRequest.Value.Request.Height / Math.Max(0.25, bounds.Height);
+                //minHeight += 0;
+            }
+
+            return new SizeRequest(new Size(width, height), new Size(minWidth, minHeight));
+        }
+    }
+
+    public class UniformStack : Grid
+    {
+        public static readonly BindableProperty ItemsLayoutProperty = BindableProperty.Create(nameof(ItemsLayout), typeof(IItemsLayout), typeof(UniformStack), LinearItemsLayout.Vertical, propertyChanging: (bindable, oldValue, newValue) => ((UniformStack)bindable).ItemsLayoutChanging((IItemsLayout)oldValue, (IItemsLayout)newValue), propertyChanged: (bindable, oldValue, newValue) => ((UniformStack)bindable).ItemsLayoutChanged((IItemsLayout)oldValue, (IItemsLayout)newValue));
+
+        public IItemsLayout ItemsLayout
+        {
+            get => (IItemsLayout)GetValue(ItemsLayoutProperty);
+            set => SetValue(ItemsLayoutProperty, value);
+        }
+
+        public UniformStack()
+        {
+            ChildrenReordered += ReorderChildren;
+        }
+
+        protected override void OnChildMeasureInvalidated() { }
+
+        private void ItemsLayoutChanging(IItemsLayout oldValue, IItemsLayout newValue)
+        {
+            if (!(oldValue is ItemsLayout oldLayout) || !(newValue is ItemsLayout newLayout) || oldLayout.Orientation != newLayout.Orientation)
+            {
+                RepositionChildren(Enumerable.Repeat(0, Children.Count));
+            }
+        }
+
+        private void ItemsLayoutChanged(IItemsLayout oldValue, IItemsLayout newValue)
+        {
+            if (!(oldValue is ItemsLayout oldLayout) || !(newValue is ItemsLayout newLayout) || oldLayout.Orientation != newLayout.Orientation)
+            {
+                RepositionChildren();
+            }
+
+            InvalidateLayout();
+        }
+
+        protected override SizeRequest OnMeasure(double widthConstraint, double heightConstraint)
+        {
+            if (Children.Count == 0)
+            {
+                return base.OnMeasure(widthConstraint, heightConstraint);
+            }
+
+            var layout = ItemsLayout as ItemsLayout;
+            var sr = Children[0].Measure(widthConstraint, heightConstraint);
+
+            if (layout?.Orientation == ItemsLayoutOrientation.Vertical)
+            {
+                var spacing = RowSpacing;
+
+                if (ItemsLayout is LinearItemsLayout linear)
+                {
+                    spacing = linear.ItemSpacing;
+                }
+                else if (ItemsLayout is GridItemsLayout grid)
+                {
+                    spacing = grid.VerticalItemSpacing;
+                }
+
+                sr = new SizeRequest(new Size(widthConstraint, GetSize(sr.Request.Height, spacing)), new Size(widthConstraint, GetSize(sr.Minimum.Height, spacing)));
+            }
+            else if (layout?.Orientation == ItemsLayoutOrientation.Horizontal)
+            {
+                var spacing = ColumnSpacing;
+
+                if (ItemsLayout is LinearItemsLayout linear)
+                {
+                    spacing = linear.ItemSpacing;
+                }
+                else if (ItemsLayout is GridItemsLayout grid)
+                {
+                    spacing = grid.HorizontalItemSpacing;
+                }
+
+                sr = new SizeRequest(new Size(GetSize(sr.Request.Width, spacing), heightConstraint), new Size(GetSize(sr.Minimum.Width, spacing), heightConstraint));
+            }
+
+            return sr;
+        }
+
+        private double GetSize(double length, double spacing) => length * Children.Count + spacing * (Children.Count - 1);
+
+        protected override void OnChildAdded(Element child)
+        {
+            base.OnChildAdded(child);
+
+            if (Children.Count > 0 && Children[0] == child)
+            {
+                Children[0].MeasureInvalidated += InvalidateMeasure;
+
+                if (Children.Count > 1)
+                {
+                    Children[1].MeasureInvalidated -= InvalidateMeasure;
+                }
+            }
+
+            RepositionChildren();
+        }
+
+        protected override void OnChildRemoved(Element child, int oldLogicalIndex)
+        {
+            base.OnChildRemoved(child, oldLogicalIndex);
+
+            if (child is VisualElement ve)
+            {
+                ve.MeasureInvalidated -= InvalidateMeasure;
+            }
+
+            if (oldLogicalIndex == 0 && Children.Count > 0)
+            {
+                Children[0].MeasureInvalidated += InvalidateMeasure;
+            }
+
+            RepositionChildren();
+        }
+
+        private void ReorderChildren(object sender, EventArgs e)
+        {
+            for (int i = 0; i < Children.Count; i++)
+            {
+                var child = Children[i];
+
+                child.MeasureInvalidated -= InvalidateMeasure;
+                if (i == 0)
+                {
+                    child.MeasureInvalidated += InvalidateMeasure;
+                }
+            }
+
+            RepositionChildren();
+        }
+
+        private void InvalidateMeasure(object sender, EventArgs e) => base.OnChildMeasureInvalidated();
+
+        private void RepositionChildren() => RepositionChildren(Enumerable.Range(0, Children.Count));
+        private void RepositionChildren(IEnumerable<int> indices)
+        {
+            BatchBegin();
+
+            var positionProperty = GetPositionProperty(ItemsLayout);
+
+            var itr = indices.GetEnumerator();
+            for (int i = 0; i < Children.Count && itr.MoveNext(); i++)
+            {
+                Children[i].SetValue(positionProperty, itr.Current);
+            }
+
+            if ((ItemsLayout as ItemsLayout)?.Orientation == ItemsLayoutOrientation.Horizontal)
+            {
+                BalanceCollection(ColumnDefinitions, Children.Count);
+            }
+            else
+            {
+                BalanceCollection(RowDefinitions, Children.Count);
+            }
+
+            BatchCommit();
+        }
+
+        private void BalanceCollection<T>(IList<T> list, int count) where T : new()
+        {
+            while (list.Count != count)
+            {
+                if (list.Count > count)
+                {
+                    list.RemoveAt(list.Count - 1);
+                }
+                else
+                {
+                    list.Add(new T());
+                }
+            }
+        }
+
+        private DefinitionCollection<T> GetDefinition<T>(DefinitionCollection<T> collection) where T : IDefinition, new()
+        {
+            for (int i = 0; i < Children.Count; i++)
+            {
+                collection.Add(new T());
+            }
+
+            return collection;
+        }
+
+        private BindableProperty GetLayoutProperty(IItemsLayout layout) => (layout as ItemsLayout)?.Orientation == ItemsLayoutOrientation.Horizontal ? Grid.ColumnDefinitionsProperty : Grid.RowDefinitionsProperty;
+        private BindableProperty GetPositionProperty(IItemsLayout layout) => (layout as ItemsLayout)?.Orientation == ItemsLayoutOrientation.Horizontal ? Grid.ColumnProperty : Grid.RowProperty;
+    }
+
     public static class Extensions
     {
         public static readonly BindableProperty YearProperty = BindableProperty.CreateAttached(nameof(DateTime.Year), typeof(int), typeof(DatePicker), null, propertyChanged: (bindable, oldValue, newValue) =>
@@ -496,7 +788,7 @@ namespace Movies.Views
             }
 
             //Print.Log("size changed", view.Bounds.Size);
-            
+
             bool autoWidth = !view.IsSet(VisualElement.WidthRequestProperty) || view.Width == view.WidthRequest;
             bool autoHeight = !view.IsSet(VisualElement.HeightRequestProperty) || view.Height == view.HeightRequest;
             Size size = default;
@@ -811,7 +1103,7 @@ namespace Movies.Views
             {
                 return;
             }
-            Print.Log(sender.GetHashCode(), Children.Count, ((CollectionView)sender).SelectionMode);
+            
             UpdateTemplates();
         }
 

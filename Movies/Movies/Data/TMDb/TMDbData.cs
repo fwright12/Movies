@@ -242,9 +242,10 @@ namespace Movies
         private string ApiKey;
 
         private Lazy<Task<List<Models.List>>> LazyAllLists;
+        private Lazy<Task<HashSet<string>>> LazyChangesKeys;
 
 #if DEBUG
-        private static readonly string SECURE_BASE_IMAGE_URL = string.Empty;// = "https://image.tmdb.org/t/p";
+        private static readonly string SECURE_BASE_IMAGE_URL = string.Empty;
 #else
         private static readonly string SECURE_BASE_IMAGE_URL = "https://image.tmdb.org/t/p";
 #endif
@@ -272,9 +273,16 @@ namespace Movies
                 }
             };
 
+            CleanCacheTask = CleanCache(PROPERTY_VALUES_CACHE_DURATION);
             GetPropertyValues = InitValues();
 
-            LazyAllLists = new Lazy<Task<List<Models.List>>>(() => GetAllLists());
+            LazyAllLists = new Lazy<Task<List<Models.List>>>(GetAllLists);
+            LazyChangesKeys = new Lazy<Task<HashSet<string>>>(GetChangeKeys);
+
+            foreach (var properties in ITEM_PROPERTIES.Values)
+            {
+                properties.LazyChangeKeysTask = LazyChangesKeys;
+            }
         }
 
         private string RequestToken;
@@ -524,17 +532,65 @@ namespace Movies
         private static readonly IJsonParser<IEnumerable<WatchProvider>> PROVIDER_PARSER = new JsonPropertyParser<IEnumerable<WatchProvider>>("results", new JsonNodeParser<IEnumerable<WatchProvider>>(TryParseWatchProviders));
 
         public Task GetPropertyValues { get; }
+        private Task CleanCacheTask { get; }
         public static readonly TimeSpan PROPERTY_VALUES_CACHE_DURATION = new TimeSpan(7, 0, 0, 0);
 
-        private async Task InitValues()
+        private async Task CleanCache(TimeSpan olderThan)
         {
-            foreach (var kvp in ResponseCache.ToArray())
+            var cached = await ResponseCache.ReadAll();
+
+            foreach (var kvp in cached)
             {
-                if (DateTime.Now - kvp.Value.Timestamp > PROPERTY_VALUES_CACHE_DURATION)
+                if (DateTime.Now - kvp.Value.Timestamp > olderThan)
                 {
                     await ResponseCache.Expire(kvp.Key);
                 }
             }
+        }
+
+        private async Task<HashSet<string>> GetChangeKeys()
+        {
+            await CleanCacheTask;
+
+            var url = API.CONFIGURATION.GET_API_CONFIGURATION.GetURL();
+            var cached = ResponseCache.TryGetValueAsync(url);
+            JsonDocument json = null;
+            
+            if (cached != null)
+            {
+                var response = await cached;
+
+                if (DateTime.Now - response.Timestamp <= PROPERTY_VALUES_CACHE_DURATION)
+                {
+                    json = JsonDocument.Parse(response.Json);
+                }
+            }
+
+            if (json == null)
+            {
+                var response = await WebClient.TryGetAsync(url);
+
+                if (response?.IsSuccessStatusCode == true)
+                {
+                    var content = await response.Content.ReadAsStringAsync();
+                    await ResponseCache.AddAsync(url, new JsonResponse(content));
+                    json = JsonDocument.Parse(content);
+                }
+            }
+
+            if (json?.RootElement.TryGetProperty("change_keys", out var keysJson) == true && keysJson.ValueKind == JsonValueKind.Array)
+            {
+                return new HashSet<string>(keysJson.EnumerateArray().Select(element => element.GetString()));
+            }
+            else
+            {
+                return new HashSet<string>();
+            }
+        }
+
+        private async Task InitValues()
+        {
+            await CleanCacheTask;
 
             await Task.WhenAll(
                 SetValues(Movie.GENRES, API.GENRES.GET_MOVIE_LIST, GENRE_VALUES_PARSER),
@@ -551,7 +607,7 @@ namespace Movies
         public async Task SetValues<T>(ICollection<T> list, TMDbRequest request, IJsonParser<IEnumerable<T>> parser)
         {
             //var apiCall = new ApiCall<IEnumerable<T>>(endpoint, new JsonArrayParser<T>(parser));
-
+            
             var response = await WebClient.TryGetCachedAsync(request.GetURL(), ResponseCache);
             
             if (JsonParser.TryParse(response.Json, parser, out var values))
@@ -559,6 +615,35 @@ namespace Movies
                 foreach (var value in values)
                 {
                     list.Add(value);
+                }
+            }
+        }
+
+        private static readonly TimeSpan CHANGES_DURATION = new TimeSpan(14, 0, 0, 0);
+
+        public Task CleanCache(Movies.Views.ItemInfoCache cache, DateTime lastCleaned)
+        {
+            var requests = new PagedTMDbRequest[]
+            {
+                API.CHANGES.GET_MOVIE_CHANGE_LIST,
+                API.CHANGES.GET_TV_CHANGE_LIST,
+                API.CHANGES.GET_PERSON_CHANGE_LIST
+            };
+
+            return Task.WhenAll(requests.Select(request => CleanCache(cache, request, lastCleaned)));
+        }
+
+        private async Task CleanCache(Movies.Views.ItemInfoCache cache, PagedTMDbRequest request, DateTime lastCleaned)
+        {
+            for (var start = lastCleaned; start < DateTime.Now; start += CHANGES_DURATION)
+            {
+                var end = start + CHANGES_DURATION;
+
+                //var response = await WebClient.TryGetAsync(request.GetURL($"{end}", $"{start}"));
+
+                await foreach (var id in Request<int>(request, new JsonPropertyParser<int>("id").TryGetValue, false, $"start_date={start}", $"end_date={end}"))
+                {
+                    await cache.Expire(id);
                 }
             }
         }
@@ -623,7 +708,23 @@ namespace Movies
 
             foreach (var parser in parsers)
             {
-                if (parser is IJsonParser<PropertyValuePair> pvp && pvp.TryGetValue(json, out var pair))
+                if (parser.Property == TVShow.SEASONS)
+                {
+                    if (item is TVShow show && json["seasons"] is JsonArray array)
+                    {
+                        var items = ParseCollection(array, new JsonNodeParser<TVSeason>((JsonNode json, out TVSeason season) => TMDB.TryParseTVSeason(json, show, out season)));
+                        dict.Add(TVShow.SEASONS, Task.FromResult(items));
+                    }
+                }
+                else if (parser.Property == TVSeason.EPISODES)
+                {
+                    if (item is TVSeason season && json["episodes"] is JsonArray array)
+                    {
+                        var items = ParseCollection(array, new JsonNodeParser<TVEpisode>((JsonNode json, out TVEpisode episode) => TMDB.TryParseTVEpisode(json, season, out episode)));
+                        dict.Add(TVSeason.EPISODES, Task.FromResult(items));
+                    }
+                }
+                else if (parser is IJsonParser<PropertyValuePair> pvp && pvp.TryGetValue(json, out var pair))
                 {
                     dict.Add(pair);
                     //dict.Add(parser.GetPair(Task.FromResult(property.Value)));
@@ -702,33 +803,27 @@ namespace Movies
             }
             else if (ITEM_PROPERTIES.TryGetValue(type, out var properties))
             {
-                var details = new PropertyDictionary();
-                var handler = new ItemProperties.RequestHandler(properties, null)
-                {
-                    Parameters = new object[] { id }
-                };
-
-                details.PropertyAdded += handler.PropertyRequested;
-
                 Item item = null;
+                var requests = properties.Info.Keys.ToList();
+                var responses = Request(requests, new object[] { id });
 
                 if (type == ItemType.Movie)
                 {
-                    item = await handler.GetItem<Movie>(details, new JsonNodeParser<Movie>(TryParseMovie));
+                    int index = requests.IndexOf(API.MOVIES.GET_DETAILS);
 
-                    /*if (details.TryGetValue(Media.TITLE, out var title) && details.TryGetValue(Movie.RELEASE_DATE, out var year))
+                    if (index != -1 && TryParseMovie(await responses[index], out var movie))
                     {
-                        item = new Movie(await title, (await year).Year).WithID(IDKey, id);
-                    }*/
+                        item = movie;
+                    }
                 }
                 else if (type == ItemType.TVShow)
                 {
-                    item = await handler.GetItem<TVShow>(details, new JsonNodeParser<TVShow>(TryParseTVShow));
+                    int index = requests.IndexOf(API.TV.GET_DETAILS);
 
-                    /*if (details.TryGetValue(Media.TITLE, out var title))
+                    if (index != -1 && TryParseTVShow(await responses[index], out var show))
                     {
-                        item = new TVShow(await title).WithID(IDKey, id);
-                    }*/
+                        item = show;
+                    }
                 }
                 else if (type == ItemType.TVSeason)
                 {
@@ -740,7 +835,12 @@ namespace Movies
                 }
                 else if (type == ItemType.Person)
                 {
-                    item = await handler.GetItem<Person>(details, new JsonNodeParser<Person>(TryParsePerson));
+                    int index = requests.IndexOf(API.PEOPLE.GET_DETAILS);
+
+                    if (index != -1 && TryParsePerson(await responses[index], out var person))
+                    {
+                        item = person;
+                    }
 
                     /*if (details.TryGetValue(Person.NAME, out var name))
                     {
@@ -756,8 +856,16 @@ namespace Movies
                 {
                     item.SetID(IDKey, id);
 
-                    var cached = Data.GetDetails(item);
-                    cached.Add(details);
+                    for (int i = 0; i < requests.Count; i++)
+                    {
+                        if (properties.Info.TryGetValue(requests[i], out var parsers))
+                        {
+                            CacheItem(item, await responses[i], parsers);
+                        }
+                    }
+
+                    //var cached = Data.GetDetails(item);
+                    //cached.Add(details);
 
                     //handler.Item = item;
                 }

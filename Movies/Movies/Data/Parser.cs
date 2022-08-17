@@ -84,16 +84,24 @@ namespace Movies
         }
     }
 
-    public class JsonPropertyParser<T> : IJsonParser<T>
+    public abstract class JsonPropertyParser
     {
         public string Property { get; }
+
+        public JsonPropertyParser(string property)
+        {
+            Property = property;
+        }
+    }
+
+    public class JsonPropertyParser<T> : JsonPropertyParser, IJsonParser<T>
+    {
         public IJsonParser<T> Parser { get; }
 
         public JsonPropertyParser(string property) : this(property, new JsonNodeParser<T>()) { }
 
-        public JsonPropertyParser(string property, IJsonParser<T> parser)
+        public JsonPropertyParser(string property, IJsonParser<T> parser) : base(property)
         {
-            Property = property;
             Parser = parser;
         }
 

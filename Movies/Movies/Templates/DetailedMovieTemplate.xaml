@@ -1,6 +1,8 @@
 ﻿<?xml version="1.0" encoding="UTF-8"?>
 <DataTemplate xmlns="http://xamarin.com/schemas/2014/forms"
               xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+              xmlns:forms="clr-namespace:Xamarin.Forms;assembly=Xamarin.Forms.Extensions"
+              xmlns:ffil="clr-namespace:FFImageLoading.Forms;assembly=FFImageLoading.Forms"
               xmlns:movies="clr-namespace:Movies"
               xmlns:converters="clr-namespace:Movies.Converters"
               xmlns:models="clr-namespace:Movies.Models"
@@ -16,43 +18,54 @@
                         Value="TailTruncation" />
             </Style>
         </VisualElement.Resources>
-        
-        <StackLayout Orientation="Vertical">
-            <VisualElement.Behaviors>
-                <movies:BatchBehavior />
-            </VisualElement.Behaviors>
 
-            <Label Style="{StaticResource MultiPartLabel}"
-                   LineBreakMode="NoWrap">
-                <Label.FormattedText>
-                    <FormattedString>
-                        <Span x:DataType="viewmodels:TVShowViewModel">
-                            <Span.Text>
-                                <MultiBinding StringFormat="{}{0}{1}">
-                                    <Binding Path="FirstAirDate"
-                                             StringFormat="{}{0:yyyy}-"
-                                             TargetNullValue=""
-                                             FallbackValue="" />
-                                    <Binding Path="LastAirDate"
-                                             StringFormat="{}{0:yyyy}" />
-                                </MultiBinding>
-                            </Span.Text>
-                        </Span>
+        <View.GestureRecognizers>
+            <TapGestureRecognizer CommandParameter="{Binding}">
+                <TapGestureRecognizer.Command>
+                    <views:PushPageCommand PageTemplate="{StaticResource MediaPageTemplate}" />
+                </TapGestureRecognizer.Command>
+            </TapGestureRecognizer>
+        </View.GestureRecognizers>
 
-                        <Span Text="{Binding Year, StringFormat='{0:yyyy}', FallbackValue=''}"
-                              x:DataType="viewmodels:MovieViewModel" />
+        <views:UniformStack>
+            <views:UniformStack.ItemsLayout>
+                <LinearItemsLayout Orientation="Vertical"
+                                   ItemSpacing="6" />
+            </views:UniformStack.ItemsLayout>
 
-                        <!--<Span Text="{Binding Item.Items.Count, StringFormat='{0} seasons', FallbackValue=''}"
+            <Label LineBreakMode="NoWrap">
+                <Label.Text>
+                    <MultiBinding Converter="{Static forms:StringJoinConverter.Instance}"
+                                  ConverterParameter=" &#183; ">
+                        <MultiBinding.Bindings>
+                            <MultiBinding x:DataType="viewmodels:TVShowViewModel"
+                                          StringFormat="{}{0}{1}">
+                                <Binding Path="FirstAirDate"
+                                         StringFormat="{}{0:yyyy}-"
+                                         TargetNullValue=""
+                                         FallbackValue="" />
+                                <Binding Path="LastAirDate"
+                                         StringFormat="{}{0:yyyy}" />
+                            </MultiBinding>
+
+                            <Binding x:DataType="viewmodels:MovieViewModel"
+                                     Path="Year"
+                                     StringFormat="{}{0:yyyy}"
+                                     FallbackValue="" />
+
+                            <!--<Span Text="{Binding Item.Items.Count, StringFormat='{0} seasons', FallbackValue=''}"
                               x:DataType="{x:Null}" />-->
 
-                        <Span Text="{Binding Runtime, Converter={Static movies:HrMinConverter.Instance}}" />
+                            <Binding Path="Runtime"
+                                     Converter="{Static movies:HrMinConverter.Instance}" />
 
-                        <Span Text="{Binding ContentRating}" />
-                    </FormattedString>
-                </Label.FormattedText>
+                            <Binding Path="ContentRating" />
+                        </MultiBinding.Bindings>
+                    </MultiBinding>
+                </Label.Text>
             </Label>
 
-            <Label Text="{Binding Genres, Converter={StaticResource ListToString}}" />
+            <Label Text="{Binding Genres, Converter={Static forms:StringJoinConverter.Instance}}" />
 
             <StackLayout Orientation="Horizontal"
                          BindableLayout.ItemsSource="{Binding Ratings}"
@@ -60,32 +73,30 @@
                 <BindableLayout.ItemTemplate>
                     <DataTemplate x:DataType="models:Rating">
                         <StackLayout Orientation="Horizontal">
-                            <Image Source="{Binding Company.LogoPath, Converter={Static converters:UriToImageSourceConverter.Instance}}"
-                                   HeightRequest="{Binding Height, Source={x:Reference score}}" />
+                            <ffil:CachedImage Source="{Binding Company.LogoPath, Converter={Static converters:UriToImageSourceConverter.Instance}}"
+                                              WidthRequest="{Binding Height, Source={RelativeSource Self}}" />
 
                             <Label Text="{Binding Score}"
-                                   VerticalOptions="Start"
-                                   x:Name="score" />
+                                   VerticalOptions="Center" />
                         </StackLayout>
                     </DataTemplate>
                 </BindableLayout.ItemTemplate>
             </StackLayout>
 
             <views:LabeledContentView BindingContext="{Binding WatchProviders[0]}"
-                                      Label="{Binding Name, StringFormat='{0}:', FallbackValue='Not available to stream'}"
+                                      Label="{Binding BindingContext.Name, Source={RelativeSource Self}, StringFormat='{0}:', FallbackValue='Not available to stream'}"
                                       LabelPosition="Left">
-                <StackLayout Orientation="Horizontal"
-                             BindableLayout.ItemsSource="{Binding}"
-                             HeightRequest="0">
+                <StackLayout x:DataType="{x:Null}"
+                             Orientation="Horizontal"
+                             BindableLayout.ItemsSource="{Binding}">
                     <BindableLayout.ItemTemplate>
                         <DataTemplate x:DataType="models:WatchProvider">
-                            <views:ImageView WidthRequest="{Binding Height, Source={RelativeSource Self}}">
-                                <Image Source="{Binding Company.LogoPath}" />
-                            </views:ImageView>
+                            <ffil:CachedImage Source="{Binding Company.LogoPath}"
+                                              WidthRequest="{Binding Height, Source={RelativeSource Self}}" />
                         </DataTemplate>
                     </BindableLayout.ItemTemplate>
                 </StackLayout>
             </views:LabeledContentView>
-        </StackLayout>
+        </views:UniformStack>
     </views:CollectionItemView>
 </DataTemplate>

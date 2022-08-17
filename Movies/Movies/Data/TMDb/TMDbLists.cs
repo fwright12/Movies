@@ -9,11 +9,13 @@ using System.Threading.Tasks;
 
 namespace Movies
 {
-    public interface IJsonCache : IEnumerable<KeyValuePair<string, JsonResponse>>
+    public interface IJsonCache : IAsyncEnumerable<KeyValuePair<string, JsonResponse>>
     {
-        Task<JsonResponse> TryGetValueAsync(string url);
         Task AddAsync(string url, JsonResponse response);
+        Task Clear();
         Task<bool> Expire(string url);
+        Task<bool> IsCached(string url);
+        Task<JsonResponse> TryGetValueAsync(string url);
     }
 
     public class JsonResponse
@@ -56,7 +58,10 @@ namespace Movies
             }
 
             var response = new JsonResponse(await TryGetContentAsync(client, request));
-            await cache.AddAsync(url, response);
+            if (response.Json != null)
+            {
+                await cache.AddAsync(url, response);
+            }
 
             return response;
         }

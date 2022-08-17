@@ -1,14 +1,75 @@
 ﻿using Movies.Models;
 using SQLite;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Test = Movies;
 
 namespace Movies.Views
 {
+    public class SQLJsonCache : IJsonCache
+    {
+        public SQLiteAsyncConnection DB { get; }
+        public Table Table { get; }
+
+        public static readonly Table.Column URL = new Table.Column("url", "text", "primary key not null unique");
+        public static readonly Table.Column RESPONSE = new Table.Column("json", "text");
+        public static readonly Table.Column TIMESTAMP = new Table.Column("timestamp", "text");
+
+        public SQLJsonCache(SQLiteAsyncConnection db)
+        {
+            DB = db;
+
+            Table = new Table(URL, RESPONSE, TIMESTAMP);
+        }
+
+        public Task AddAsync(string url, JsonResponse response) => DB.ExecuteAsync($"insert into {Table} (?,?,?)", url, response.Json, response.Timestamp);
+
+        public Task Clear() => DB.ExecuteAsync($"delete from {Table}");
+
+        public async Task<bool> IsCached(string url) => (await DB.QueryScalarsAsync<int>($"select count(*) from {Table} where {URL} = ?", url)).FirstOrDefault() == 1;
+
+        public async Task<bool> Expire(string url) => await DB.ExecuteAsync($"remove from {Table} where {URL} = ?", url) == 1;
+
+        public async Task<JsonResponse> TryGetValueAsync(string url)
+        {
+            var rows = await DB.QueryAsync<(string, DateTime)>($"select ({RESPONSE}, {TIMESTAMP}) from {Table} where {URL} = ?", url);
+
+            if (rows.Count == 1)
+            {
+                return new JsonResponse(rows[0].Item1, rows[0].Item2);
+            }
+            else
+            {
+                return null;
+            }
+        }
+
+        public async IAsyncEnumerator<KeyValuePair<string, JsonResponse>> GetAsyncEnumerator(CancellationToken cancellationToken = default)
+        {
+            foreach (var row in await DB.QueryAsync<(string, string, DateTime)>($"select * from {Table}"))
+            {
+                yield return new KeyValuePair<string, JsonResponse>(row.Item1, new JsonResponse(row.Item2, row.Item3));
+            }
+        }
+    }
+
+    public class ItemInfoCache : SQLJsonCache
+    {
+        public static readonly Table.Column ID = new Table.Column("id", "integer");
+
+        public ItemInfoCache(SQLiteAsyncConnection db) : base(db)
+        {
+
+        }
+
+        public async Task<bool> Expire(int id) => (await DB.ExecuteAsync($"delete from {Table} where {ID} = ?", id)) > 1;
+    }
+
     public class Database : IListProvider, IAssignID<int>
     {
         private static class SyncListsCols
@@ -61,6 +122,7 @@ namespace Movies.Views
         private SQLiteAsyncConnection ItemInfo;
 
         public Task Init { get; }
+        public ItemInfoCache ItemCache { get; }
         public string Name { get; } = "Local";
 
         private Table SyncLists = new Table(SyncListsCols.ID, SyncListsCols.SOURCE, SyncListsCols.SYNC_ID, SyncListsCols.SYNC_SOURCE)
@@ -76,6 +138,7 @@ namespace Movies.Views
 
         private IAssignID<int> IDSystem;
         private ID<int>.Key IDKey;
+        private readonly Dictionary<ItemType, Table> ItemTables;
 
         public Database(IAssignID<int> tmdb, ID<int>.Key idKey)
         {
@@ -89,6 +152,16 @@ namespace Movies.Views
             path = GetFilePath(ItemInfoDBFilename);
             //File.Delete(path);
             ItemInfo = new SQLiteAsyncConnection(path, SQLiteOpenFlags.ReadWrite | SQLiteOpenFlags.Create | SQLiteOpenFlags.SharedCache);
+
+            ItemCache = new ItemInfoCache(ItemInfo);
+
+            ItemTables = new Dictionary<ItemType, Table>
+            {
+                [ItemType.Movie] = Movies,
+                [ItemType.TVShow] = TVShows,
+                [ItemType.Person] = People,
+                [ItemType.Collection] = Collections
+            };
 
             Init = Setup();
         }
@@ -126,28 +199,13 @@ namespace Movies.Views
                 LocalList.ItemsTable,
             }.Select(table => UserInfo.CreateTable(table)));
 
-            var itemTables = new Dictionary<ItemType, Table>
-            {
-                [ItemType.Movie] = Movies,
-                [ItemType.TVShow] = TVShows,
-                [ItemType.Person] = People,
-                [ItemType.Collection] = Collections
-            };
-            await Task.WhenAll(itemTables.Values.Select(table => ItemInfo.CreateTable(table)));
+            await Task.WhenAll(ItemTables.Values.Select(table => ItemInfo.CreateTable(table)));
 
             //await Task.WhenAll(SQL.CreateTable(SyncLists), SQL.CreateTable(LocalList.DetailsTable), SQL.CreateTable(LocalList.ItemsTable));//, SQL.CreateTable(Movies));
             if ((await UserInfo.QueryScalarsAsync<int>(string.Format("select count(*) from {0}", LocalList.DetailsTable))).First() == 0)
             {
                 await UserInfo.ExecuteAsync(string.Format("insert into {0} ({1}) values (?), (?), (?)", LocalList.DetailsTable, LocalList.DetailsCols.ID), 0, 1, 2);
                 //await SQL.ExecuteAsync(string.Format("insert into {0} values (?), (?), (?)", SyncLists, 0, 1, 2);
-            }
-
-            await ItemInfo.ExecuteAsync($"attach database '{GetFilePath(UserInfoDBFilename)}' as items");
-            foreach (var kvp in itemTables)
-            {
-                //Print.Log(string.Join(',', await ItemInfo.QueryAsync<ValueTuple<string>>($"select {LocalList.ItemsCols.ITEM_ID} from items.{LocalList.ItemsTable} where {LocalList.ItemsCols.ITEM_TYPE} = ?", kvp.Key)));
-                //Print.Log($"delete from {kvp.Value} where {kvp.Value.Columns[0]} not in (select {LocalList.ItemsCols.ITEM_ID} from items.{LocalList.ItemsTable} where {LocalList.ItemsCols.ITEM_TYPE} = ?)");
-                _ = ItemInfo.ExecuteAsync($"delete from {kvp.Value} where {kvp.Value.Columns[0]} not in (select {LocalList.ItemsCols.ITEM_ID} from items.{LocalList.ItemsTable} where {LocalList.ItemsCols.ITEM_TYPE} = ?)", kvp.Key);
             }
 
 #if DEBUG
@@ -182,6 +240,25 @@ namespace Movies.Views
                 Print.Log(row);
             }
 #endif
+        }
+
+        public async Task Clean()
+        {
+            await Init;
+            await ItemInfo.ExecuteAsync($"attach database '{GetFilePath(UserInfoDBFilename)}' as items");
+
+            foreach (var kvp in ItemTables)
+            {
+                //Print.Log(string.Join(',', await ItemInfo.QueryAsync<ValueTuple<string>>($"select {LocalList.ItemsCols.ITEM_ID} from items.{LocalList.ItemsTable} where {LocalList.ItemsCols.ITEM_TYPE} = ?", kvp.Key)));
+                //Print.Log($"delete from {kvp.Value} where {kvp.Value.Columns[0]} not in (select {LocalList.ItemsCols.ITEM_ID} from items.{LocalList.ItemsTable} where {LocalList.ItemsCols.ITEM_TYPE} = ?)");
+                var rows = await ItemInfo.ExecuteAsync($"delete from {kvp.Value} where {kvp.Value.Columns[0]} not in (select {LocalList.ItemsCols.ITEM_ID} from items.{LocalList.ItemsTable} where {LocalList.ItemsCols.ITEM_TYPE} = ?)", kvp.Key);
+
+#if DEBUG
+                Print.Log($"cleaned {rows} rows for {kvp.Key}");
+#endif
+            }
+
+            await Task.WhenAll(new SQLiteAsyncConnection[] { ItemInfo, UserInfo }.Select(db => db.ExecuteAsync("vacuum")));
         }
 
         private class Query<T> { public T Value { get; set; } }

@@ -4,6 +4,7 @@
              xmlns:ios="clr-namespace:Xamarin.Forms.PlatformConfiguration.iOSSpecific;assembly=Xamarin.Forms.Core"
              xmlns:forms="clr-namespace:Xamarin.Forms;assembly=Xamarin.Forms.Extensions"
              xmlns:ext="clr-namespace:Xamarin.Forms.Extensions;assembly=Xamarin.Forms.Extensions"
+             xmlns:ffil="clr-namespace:FFImageLoading.Forms;assembly=FFImageLoading.Forms"
              xmlns:views="clr-namespace:Movies.Views"
              xmlns:viewmodels="clr-namespace:Movies.ViewModels"
              xmlns:models="clr-namespace:Movies.Models"
@@ -45,7 +46,9 @@
             </Style>
 
             <DataTemplate x:Key="InlineBannerTemplate">
-                <ContentView CompressedLayout.IsHeadless="True">
+                <ContentView WidthRequest="300"
+                             HeightRequest="250"
+                             CompressedLayout.IsHeadless="True">
                     <forms:AdView Style="{StaticResource InlineBannerAdStyle}"
                                   AdUnitID="{Static movies:App.ListInlineBannerAdUnitID}"
                                   AdSize="MediumRectangle"
@@ -255,28 +258,34 @@
                         Value="40" />
             </Style>
 
+            <Style TargetType="ffil:CachedImage">
+                <Setter Property="DownsampleToViewSize"
+                        Value="True" />
+                <Setter Property="MinimumWidthRequest"
+                        Value="40" />
+                <Setter Property="MinimumHeightRequest"
+                        Value="40" />
+            </Style>
+
             <Style x:Key="ImageStyle"
                    TargetType="views:ImageView"
                    BasedOn="{StaticResource FrameStyle}">
                 <Style.Setters>
                     <Setter Property="ControlTemplate">
-                        <ControlTemplate>
-                            <AbsoluteLayout>
+                        <ControlTemplate x:DataType="views:ImageView">
+                            <Grid>
                                 <Frame BorderColor="{AppThemeBinding Light={StaticResource LightPrimaryText}, Dark={StaticResource DarkPrimaryText}}"
                                        CornerRadius="{Binding CornerRadius, Source={RelativeSource AncestorType={x:Type Frame}}}"
                                        WidthRequest="0"
-                                       HeightRequest="0"
-                                       AbsoluteLayout.LayoutBounds="0.5,0.5,1,1"
-                                       AbsoluteLayout.LayoutFlags="All">
+                                       HeightRequest="0">
                                     <Label Text="{TemplateBinding AltText}"
                                            Padding="10"
-                                           HorizontalTextAlignment="Center"
-                                           VerticalTextAlignment="Center" />
+                                           VerticalOptions="Center"
+                                           HorizontalTextAlignment="Center" />
                                 </Frame>
 
-                                <ContentPresenter AbsoluteLayout.LayoutBounds="0.5,0.5,1,1"
-                                                  AbsoluteLayout.LayoutFlags="All" />
-                            </AbsoluteLayout>
+                                <ContentPresenter />
+                            </Grid>
                         </ControlTemplate>
                     </Setter>
                 </Style.Setters>
@@ -298,8 +307,16 @@
                           x:DataType="viewmodels:MediaViewModel">
                 <views:ImageView AltText="{Binding Title}"
                                  Style="{StaticResource PosterStyle}">
-                    <Image Source="{Binding PosterPath}"
-                           Aspect="AspectFill" />
+                    <View.GestureRecognizers>
+                        <TapGestureRecognizer CommandParameter="{Binding}">
+                            <TapGestureRecognizer.Command>
+                                <views:PushPageCommand PageTemplate="{StaticResource MediaPageTemplate}" />
+                            </TapGestureRecognizer.Command>
+                        </TapGestureRecognizer>
+                    </View.GestureRecognizers>
+
+                    <ffil:CachedImage Source="{Binding PosterPath}"
+                                      Aspect="AspectFill" />
                 </views:ImageView>
             </DataTemplate>
 
@@ -328,6 +345,14 @@
             <DataTemplate x:Key="CompressedEpisodeTemplate"
                           x:DataType="viewmodels:TVEpisodeViewModel">
                 <Grid>
+                    <View.GestureRecognizers>
+                        <TapGestureRecognizer CommandParameter="{Binding}">
+                            <TapGestureRecognizer.Command>
+                                <views:PushPageCommand PageTemplate="{StaticResource MediaPageTemplate}" />
+                            </TapGestureRecognizer.Command>
+                        </TapGestureRecognizer>
+                    </View.GestureRecognizers>
+
                     <views:ImageView AltText="{Binding Title}"
                                      AspectRequest="1.5"
                                      Style="{StaticResource PosterStyle}">
@@ -338,10 +363,10 @@
                     <Label Text="{Binding Title}"
                            TextColor="White"
                            FontSize="Title"
+                           HorizontalTextAlignment="End"
                            VerticalOptions="End"
                            HorizontalOptions="End"
-                           Padding="10"
-                           >
+                           Padding="10">
                         <VisualElement.BackgroundColor>
                             <Color>
                                 <x:Arguments>
@@ -363,8 +388,6 @@
                             Value="{Binding BindingContext, Source={RelativeSource Self}}" />
                 </Style.Setters>
             </Style>
-
-            <templates:EpisodeTemplate x:Key="EpisodeTemplate" />
 
             <Style x:Key="PersonImageStyle"
                    TargetType="views:ImageView"
@@ -407,25 +430,37 @@
                         </Style>
                     </VisualElement.Resources>
 
+                    <View.GestureRecognizers>
+                        <TapGestureRecognizer CommandParameter="{Binding}">
+                            <TapGestureRecognizer.Command>
+                                <views:PushPageCommand PageTemplate="{DataTemplate views:PersonInfoPage}" />
+                            </TapGestureRecognizer.Command>
+                        </TapGestureRecognizer>
+                    </View.GestureRecognizers>
+
                     <views:ImageView Style="{StaticResource PersonImageStyle}"
                                      AspectRequest="1" />
                     <!--HeightRequest="{Binding Parent.Width, Source={RelativeSource AncestorType={x:Type views:LabeledContentView}}}"-->
                 </views:LabeledContentView>
             </DataTemplate>
 
-            <templates:PersonTemplate x:Key="PersonTemplate" />
-
             <DataTemplate x:Key="CompressedCollectionTemplate"
                           x:DataType="viewmodels:CollectionViewModel">
                 <views:ImageView AltText="{Binding Name}"
                                  Style="{StaticResource PosterStyle}">
+                    <View.GestureRecognizers>
+                        <TapGestureRecognizer CommandParameter="{Binding}">
+                            <TapGestureRecognizer.Command>
+                                <views:PushPageCommand PageTemplate="{StaticResource ListPageTemplate}" />
+                            </TapGestureRecognizer.Command>
+                        </TapGestureRecognizer>
+                    </View.GestureRecognizers>
+
                     <Image x:DataType="{x:Null}"
                            Source="{Binding Item.PosterPath}"
                            Aspect="AspectFill" />
                 </views:ImageView>
             </DataTemplate>
-
-            <templates:DetailedCollectionTemplate x:Key="CollectionTemplate" />
 
             <Style x:Key="UniformGridStyle1"
                    TargetType="CollectionView">
@@ -604,70 +639,61 @@
                 </Setter>
             </Style>
 
-            <ControlTemplate x:Key="AndroidEditListTemplate">
-                <StackLayout Orientation="Horizontal"
-                             InputTransparent="True">
-                    <ContentPresenter HorizontalOptions="FillAndExpand" />
+            <ControlTemplate x:Key="EditListTemplate">
+                <FlexLayout Direction="{OnPlatform iOS=RowReverse, Android=Row}"
+                            InputTransparent="True">
+                    <ContentPresenter FlexLayout.Grow="1" />
 
-                    <CheckBox IsChecked="{TemplateBinding Selected, Mode=TwoWay}" />
-                </StackLayout>
+                    <CheckBox IsChecked="{TemplateBinding Selected, Mode=TwoWay}"
+                              FlexLayout.Shrink="0" />
+                </FlexLayout>
             </ControlTemplate>
 
-            <ControlTemplate x:Key="iOSEditListTemplate">
-                <StackLayout Orientation="Horizontal"
-                             InputTransparent="True">
-                    <CheckBox IsChecked="{TemplateBinding Selected, Mode=TwoWay}" />
-
-                    <ContentPresenter />
-                </StackLayout>
-            </ControlTemplate>
+            <DataTemplate x:Key="MediaPageTemplate">
+                <ContentPage Style="{StaticResource InfoPageStyle}">
+                    <ext:ContentPage.ContentTemplate>
+                        <templates:FullMovieTemplate />
+                    </ext:ContentPage.ContentTemplate>
+                </ContentPage>
+            </DataTemplate>
 
             <forms:TypeTemplateSelector x:Key="OpenPageSelector">
                 <forms:TypeTemplateSelector.Templates>
-                    <forms:TypeDataTemplate Type="{x:Type viewmodels:MediaViewModel}">
-                        <DataTemplate>
-                            <ContentPage Style="{StaticResource InfoPageStyle}">
-                                <ext:ContentPage.ContentTemplate>
-                                    <templates:FullMovieTemplate />
-                                </ext:ContentPage.ContentTemplate>
-                            </ContentPage>
-                        </DataTemplate>
-                    </forms:TypeDataTemplate>
+                    <forms:TypeDataTemplate Type="{x:Type viewmodels:MovieViewModel}"
+                                            Template="{StaticResource MediaPageTemplate}" />
+                    <forms:TypeDataTemplate Type="{x:Type viewmodels:TVShowViewModel}"
+                                            Template="{StaticResource MediaPageTemplate}" />
                     <forms:TypeDataTemplate Type="{x:Type viewmodels:PersonViewModel}"
                                             Template="{DataTemplate views:PersonInfoPage}" />
+                    <forms:TypeDataTemplate Type="{x:Type viewmodels:TVEpisodeViewModel}"
+                                            Template="{StaticResource MediaPageTemplate}" />
                     <forms:TypeDataTemplate Type="{x:Type viewmodels:CollectionViewModel}"
                                             Template="{StaticResource ListPageTemplate}" />
                 </forms:TypeTemplateSelector.Templates>
             </forms:TypeTemplateSelector>
 
-            <movies:ListTemplateSelector x:Key="ListSelector"
-                                         OpenPageTemplateSelector="{StaticResource OpenPageSelector}">
-                <movies:ListTemplateSelector.Templates>
-                    <forms:TypeDataTemplate Type="{x:Type viewmodels:TVEpisodeViewModel}"
-                                            Template="{StaticResource EpisodeTemplate}" />
-                    <forms:TypeDataTemplate Type="{x:Type viewmodels:MediaViewModel}">
-                        <templates:DetailedMovieTemplate />
-                    </forms:TypeDataTemplate>
-                    <forms:TypeDataTemplate Type="{x:Type viewmodels:PersonViewModel}"
-                                            Template="{StaticResource PersonTemplate}" />
-                    <forms:TypeDataTemplate Type="{x:Type viewmodels:CollectionViewModel}"
-                                            Template="{StaticResource CollectionTemplate}" />
-                </movies:ListTemplateSelector.Templates>
-            </movies:ListTemplateSelector>
-
-            <movies:ListTemplateSelector x:Key="CompressedListSelector"
-                                         OpenPageTemplateSelector="{StaticResource OpenPageSelector}">
-                <movies:ListTemplateSelector.Templates>
+            <forms:TypeTemplateSelector x:Key="CompressedListSelector">
+                <forms:TypeTemplateSelector.Templates>
+                    <forms:TypeDataTemplate Type="{x:Type viewmodels:MovieViewModel}"
+                                            Template="{StaticResource CompressedMovieTemplate}" />
+                    <forms:TypeDataTemplate Type="{x:Type viewmodels:TVShowViewModel}"
+                                            Template="{StaticResource CompressedMovieTemplate}" />
                     <forms:TypeDataTemplate Type="{x:Type viewmodels:TVEpisodeViewModel}"
                                             Template="{StaticResource CompressedEpisodeTemplate}" />
-                    <forms:TypeDataTemplate Type="{x:Type viewmodels:MediaViewModel}"
-                                            Template="{StaticResource CompressedMovieTemplate}" />
                     <forms:TypeDataTemplate Type="{x:Type viewmodels:PersonViewModel}"
                                             Template="{StaticResource CompressedPersonTemplate}" />
                     <forms:TypeDataTemplate Type="{x:Type viewmodels:TVSeasonViewModel}">
                         <forms:TypeDataTemplate.Template>
                             <DataTemplate x:DataType="viewmodels:TVSeasonViewModel">
                                 <views:LabeledContentView Label="{Binding Number, StringFormat='Season {0}'}">
+                                    <View.GestureRecognizers>
+                                        <TapGestureRecognizer CommandParameter="{Binding}">
+                                            <TapGestureRecognizer.Command>
+                                                <views:PushPageCommand PageTemplate="{StaticResource ListPageTemplate}" />
+                                            </TapGestureRecognizer.Command>
+                                        </TapGestureRecognizer>
+                                    </View.GestureRecognizers>
+
                                     <views:ImageView AltText="{Binding Name}"
                                                      HorizontalOptions="Center"
                                                      Style="{StaticResource PosterStyle}">
@@ -681,8 +707,8 @@
                     </forms:TypeDataTemplate>
                     <forms:TypeDataTemplate Type="{x:Type viewmodels:CollectionViewModel}"
                                             Template="{StaticResource CompressedCollectionTemplate}" />
-                </movies:ListTemplateSelector.Templates>
-            </movies:ListTemplateSelector>
+                </forms:TypeTemplateSelector.Templates>
+            </forms:TypeTemplateSelector>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

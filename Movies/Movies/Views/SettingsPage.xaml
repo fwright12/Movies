@@ -144,7 +144,6 @@
                             <Label Text="Region: " />
 
                             <Picker ItemsSource="{Binding Regions}"
-                                    ItemDisplayBinding="{Binding NativeName}"
                                     SelectedItem="{Binding Region}"
                                     FlexLayout.Grow="1" />
                         </FlexLayout>

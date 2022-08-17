@@ -4,6 +4,10 @@ public class MonoPackageManager_Resources {
 		/* We need to ensure that "Movies.Android.dll" comes first in this list. */
 		"Movies.Android.dll",
 		"System.Extensions.dll",
+		"FFImageLoading.dll",
+		"FFImageLoading.Forms.dll",
+		"FFImageLoading.Forms.Platform.dll",
+		"FFImageLoading.Platform.dll",
 		"FormsViewGroup.dll",
 		"Microsoft.Bcl.AsyncInterfaces.dll",
 		"Movies.dll",

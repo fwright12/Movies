@@ -22,7 +22,7 @@ namespace Movies
 
         private async Task<List<ListViewModel.SyncOptions>> GetSyncOptionsAsync(ServiceName name, object id)
         {
-            await LocalDatabase.Init;
+            await DBInitialization;
 
             var result = new List<ListViewModel.SyncOptions>();
 

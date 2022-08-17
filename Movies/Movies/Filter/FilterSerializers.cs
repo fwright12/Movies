@@ -6,11 +6,12 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Movies
 {
-    public class AppPropertiesCache : IJsonCache
+    public class AppPropertiesCache : IJsonCache, IEnumerable<KeyValuePair<string, JsonResponse>>
     {
         public Xamarin.Forms.Application Application { get; }
 
@@ -24,6 +25,16 @@ namespace Movies
             Application.Properties[url] = JsonSerializer.Serialize(response);
             return Application.SavePropertiesAsync();
         }
+
+        public async Task Clear()
+        {
+            foreach (var kvp in System.Linq.Enumerable.ToList(this))
+            {
+                await Expire(kvp.Key);
+            }
+        }
+
+        public Task<bool> IsCached(string url) => Task.FromResult(Application.Properties.ContainsKey(url));
 
         public Task<JsonResponse> TryGetValueAsync(string url) => TryGetValue(url, out var response) ? Task.FromResult(response) : null;
 
@@ -53,6 +64,18 @@ namespace Movies
             bool success = Application.Properties.Remove(url);
             await Application.SavePropertiesAsync();
             return success;
+        }
+
+        public async IAsyncEnumerator<KeyValuePair<string, JsonResponse>> GetAsyncEnumerator(CancellationToken cancellationToken = default)
+        {
+            var itr = GetEnumerator();
+
+            while (itr.MoveNext())
+            {
+                yield return itr.Current;
+            }
+
+            await Task.CompletedTask;
         }
 
         public IEnumerator<KeyValuePair<string, JsonResponse>> GetEnumerator()

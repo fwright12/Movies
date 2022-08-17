@@ -61,7 +61,7 @@
             </DataTrigger>
         </Style.Triggers>
     </Style>
-    
+
     <DataTemplate x:Key="SearchTemplate"
                   x:DataType="viewmodels:SearchPredicateBuilder">
         <SearchBar Text="{Binding Query, Mode=TwoWay}"
@@ -294,7 +294,7 @@
             <views:DeluxeDatePicker.DatePicker>
                 <DatePicker Date="{Binding Parent.Parent.BindingContext.Selected.Value.RHS, Source={RelativeSource Self}, Mode=TwoWay}"
                             Format="d"
-                            WidthRequest="100"/>
+                            WidthRequest="100" />
             </views:DeluxeDatePicker.DatePicker>
 
             <views:NumberPicker Content="{Binding DatePicker, Source={RelativeSource AncestorType={x:Type views:DeluxeDatePicker}}}"
@@ -403,12 +403,13 @@
                 <LinearItemsLayout Orientation="Horizontal"
                                    ItemSpacing="10" />
             </CollectionView.ItemsLayout>
-            
+
             <ItemsView.ItemTemplate>
-                <DataTemplate>
+                <DataTemplate x:DataType="viewmodels:PersonViewModel">
                     <ContentView ext:ContentView.ItemSource="{Binding}"
                                  ext:ContentView.ContentTemplate="{StaticResource CompressedPersonTemplate}"
-                                 WidthRequest="100"/>
+                                 WidthRequest="100"
+                                 InputTransparent="True" />
                 </DataTemplate>
             </ItemsView.ItemTemplate>
         </CollectionView>

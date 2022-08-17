@@ -377,7 +377,27 @@ assembly_store_bundled_assemblies:
 	.quad	0x0	# config_data
 	.quad	0x0	# descriptor
 
-	.size	assembly_store_bundled_assemblies, 2112
+	.quad	0x0	# image_data
+	.quad	0x0	# debug_info_data
+	.quad	0x0	# config_data
+	.quad	0x0	# descriptor
+
+	.quad	0x0	# image_data
+	.quad	0x0	# debug_info_data
+	.quad	0x0	# config_data
+	.quad	0x0	# descriptor
+
+	.quad	0x0	# image_data
+	.quad	0x0	# debug_info_data
+	.quad	0x0	# config_data
+	.quad	0x0	# descriptor
+
+	.quad	0x0	# image_data
+	.quad	0x0	# debug_info_data
+	.quad	0x0	# config_data
+	.quad	0x0	# descriptor
+
+	.size	assembly_store_bundled_assemblies, 2240
 	# Assembly store data
 
 	.type	assembly_stores, @object
@@ -573,7 +593,7 @@ application_config:
 	.long	0x3	# package_naming_policy
 	.long	0xa	# environment_variable_count
 	.long	0x0	# system_property_count
-	.long	0x42	# number_of_assemblies_in_apk
+	.long	0x46	# number_of_assemblies_in_apk
 	.long	0x0	# bundled_assembly_name_width
 	.long	0x2	# number_of_assembly_store_files
 	.long	0x18	# number_of_dso_cache_entries
@@ -606,7 +626,7 @@ application_config:
 
 	.type	.L.autostr.4, @object
 .L.autostr.4:
-	.asciz	"f062065f-4a56-4029-b4b7-b1333bf5abf5"
+	.asciz	"bbb3b907-59b3-41c2-a890-f13e43e1d87c"
 	.size	.L.autostr.4, 37
 
 	.type	.L.autostr.5, @object

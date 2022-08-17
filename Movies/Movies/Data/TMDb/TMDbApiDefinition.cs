@@ -14,6 +14,13 @@ namespace Movies
             public static readonly TMDbRequest GET_TV_CERTIFICATIONS = "certification/tv/list";
         }
 
+        public static class CHANGES
+        {
+            public static readonly PagedTMDbRequest GET_MOVIE_CHANGE_LIST = "movie/changes";
+            public static readonly PagedTMDbRequest GET_TV_CHANGE_LIST = "tv/changes";
+            public static readonly PagedTMDbRequest GET_PERSON_CHANGE_LIST = "person/changes";
+        }
+
         public static class COLLECTIONS
         {
             public static readonly TMDbRequest GET_DETAILS = new TMDbRequest("collection/{0}")
@@ -25,6 +32,7 @@ namespace Movies
         public static class CONFIGURATION
         {
             public static readonly TMDbRequest GET_COUNTRIES = "configuration/countries";
+            public static readonly TMDbRequest GET_API_CONFIGURATION = "configuration";
         }
 
         public static class DISCOVER
@@ -110,13 +118,13 @@ namespace Movies
 
         public static class PEOPLE
         {
-            public static readonly TMDbRequest DETAILS = new TMDbRequest("person/{0}")
+            public static readonly TMDbRequest GET_DETAILS = new TMDbRequest("person/{0}")
             {
                 SupportsAppendToResponse = true,
                 HasLanguageParameter = true,
             };
 
-            public static readonly TMDbRequest COMBINED_CREDITS = new TMDbRequest("person/{0}/combined_credits")
+            public static readonly TMDbRequest GET_COMBINED_CREDITS = new TMDbRequest("person/{0}/combined_credits")
             {
                 HasLanguageParameter = true
             };
@@ -427,6 +435,7 @@ namespace Movies
         private static readonly Parser<string> ORIGINAL_TITLE_PARSER = Media.ORIGINAL_TITLE;
 
         private static readonly JsonNodeParser<TimeSpan> RUNTIME_PARSER = new JsonNodeParser<TimeSpan>(json => TimeSpan.FromMinutes(json.TryGetValue<int>()));
+        private static readonly JsonNodeParser<long> MONEY_PARSER = new JsonNodeParser<long>((JsonNode json, out long value) => json.TryGetValue<long>(out value) && value > 0);
         private static readonly JsonNodeParser<Language> LANGUAGE_PARSER = new JsonNodeParser<Language>((JsonNode json, out Language lang) =>
         {
             if (json.TryGetValue(out string iso_639))
@@ -450,15 +459,25 @@ namespace Movies
         private static readonly IJsonParser<IEnumerable<Genre>> GENRES_PARSER = new JsonArrayParser<Genre>(new JsonNodeParser<Genre>(TryParseGenre));
         private static readonly MultiParser<Keyword> KEYWORDS_PARSER = new MultiParser<Keyword>(Media.KEYWORDS, new JsonArrayParser<Keyword>(new JsonNodeParser<Keyword>(TryParseKeyword)));
 
-        private static readonly List<Parser> CREDITS_PARSERS = new List<Parser>
+        private static readonly List<Parser> CREDITS_PARSERS = new ParserList
         {
-            new MultiParser<Credit>(Media.CAST, new JsonNodeParser<IEnumerable<Credit>>(TryParseCast)),
-            new MultiParser<Credit>(Media.CREW, new JsonNodeParser<IEnumerable<Credit>>(TryParseCrew))
+            ["cast"] = new MultiParser<Credit>(Media.CAST, new JsonNodeParser<IEnumerable<Credit>>(TryParseCredits)),
+            ["crew"] = new MultiParser<Credit>(Media.CREW, new JsonNodeParser<IEnumerable<Credit>>(TryParseCredits))
         };
-        private static readonly List<Parser> TV_CREDITS_PARSERS = new List<Parser>
+        private static readonly List<Parser> TV_CREDITS_PARSERS = new ParserList
         {
-            new MultiParser<Credit>(Media.CAST, new JsonNodeParser<IEnumerable<Credit>>(TryParseTVCast)),
-            new MultiParser<Credit>(Media.CREW, new JsonNodeParser<IEnumerable<Credit>>(TryParseTVCrew))
+            ["cast"] = new MultiParser<Credit>(Media.CAST, new JsonNodeParser<IEnumerable<Credit>>(TryParseTVCredits)),
+            ["crew"] = new MultiParser<Credit>(Media.CREW, new JsonNodeParser<IEnumerable<Credit>>(TryParseTVCredits))
+        };
+        private static readonly List<Parser> CREDITS_PARSERS1 = new List<Parser>
+        {
+            //new MultiParser<Credit>(Media.CAST, new JsonNodeParser<IEnumerable<Credit>>(TryParseCast)),
+            //new MultiParser<Credit>(Media.CREW, new JsonNodeParser<IEnumerable<Credit>>(TryParseCrew))
+        };
+        private static readonly List<Parser> TV_CREDITS_PARSERS1 = new List<Parser>
+        {
+            //new MultiParser<Credit>(Media.CAST, new JsonNodeParser<IEnumerable<Credit>>(TryParseTVCast)),
+            //new MultiParser<Credit>(Media.CREW, new JsonNodeParser<IEnumerable<Credit>>(TryParseTVCrew))
         };
 
         private static List<Parser> MEDIA_PARSERS = new ParserList
@@ -483,8 +502,10 @@ namespace Movies
                 ["runtime"] = new Parser<TimeSpan>(Media.RUNTIME, RUNTIME_PARSER),
                 ["original_title"] = ORIGINAL_TITLE_PARSER,
                 ["release_date"] = Parser.Create(Movie.RELEASE_DATE),
-                ["budget"] = Parser.Create(Movie.BUDGET),
-                ["revenue"] = Parser.Create(Movie.REVENUE),
+                ["budget"] = new Parser<long>(Movie.BUDGET, MONEY_PARSER),
+                ["revenue"] = new Parser<long>(Movie.REVENUE, MONEY_PARSER),
+                //["budget"] = Parser.Create(Movie.BUDGET),
+                //["revenue"] = Parser.Create(Movie.REVENUE),
                 ["belongs_to_collection"] = new CollectionParser(Movie.PARENT_COLLECTION),
                 [""] = new Parser<Rating>(Media.RATING, MOVIE_RATING_PARSER)
             },
@@ -561,10 +582,10 @@ namespace Movies
                 ["episodes"] = new MultiParser<TVEpisode>(TVSeason.EPISODES, null),
                 //[""] = new MultiParser<TVEpisode>(TVSeason.EPISODES, new TVItemsParser<TVSeason, TVEpisode>("episodes", TryParseTVEpisode)),
             },
-            [API.TV_SEASONS.GET_AGGREGATE_CREDITS] = new List<Parser>
+            [API.TV_SEASONS.GET_AGGREGATE_CREDITS] = new ParserList
             {
-                new MultiParser<Credit>(TVSeason.CAST, new JsonNodeParser<IEnumerable<Credit>>(TryParseTVCast)),
-                new MultiParser<Credit>(TVSeason.CREW, new JsonNodeParser<IEnumerable<Credit>>(TryParseTVCrew))
+                ["cast"] = new MultiParser<Credit>(TVSeason.CAST, new JsonNodeParser<IEnumerable<Credit>>(TryParseTVCredits)),
+                ["crew"] = new MultiParser<Credit>(TVSeason.CREW, new JsonNodeParser<IEnumerable<Credit>>(TryParseTVCredits))
             },
         });
 
@@ -576,16 +597,16 @@ namespace Movies
                 ["still_path"] = Parser.Create(Media.POSTER_PATH, path => BuildImageURL(path.TryGetValue<string>(), STILL_SIZE)),
                 ["overview"] = Parser.Create(Media.DESCRIPTION),
             },
-            [API.TV_EPISODES.GET_CREDITS] = new List<Parser>
+            [API.TV_EPISODES.GET_CREDITS] = new ParserList
             {
-                new MultiParser<Credit>(Media.CAST, new JsonNodeParser<IEnumerable<Credit>>(TryParseTVEpisodeCast)),
-                new MultiParser<Credit>(Media.CREW, new JsonNodeParser<IEnumerable<Credit>>(TryParseCrew))
+                [""] = new MultiParser<Credit>(Media.CAST, new JsonNodeParser<IEnumerable<Credit>>(TryParseTVEpisodeCast)),
+                ["crew"] = new MultiParser<Credit>(Media.CREW, new JsonNodeParser<IEnumerable<Credit>>(TryParseCredits))
             },
         });
 
         private static readonly ItemProperties PERSON_PROPERTIES = new ItemProperties(new Dictionary<TMDbRequest, List<Parser>>
         {
-            [API.PEOPLE.DETAILS] = new ParserList
+            [API.PEOPLE.GET_DETAILS] = new ParserList
             {
                 ["name"] = Parser.Create(Person.NAME),
                 ["birthday"] = Parser.Create(Person.BIRTHDAY),
@@ -597,7 +618,7 @@ namespace Movies
                 ["place_of_birth"] = Parser.Create(Person.BIRTHPLACE),
                 ["profile_path"] = Parser.Create(Person.PROFILE_PATH, path => BuildImageURL(path.TryGetValue<string>(), PROFILE_SIZE))
             },
-            [API.PEOPLE.COMBINED_CREDITS] = new List<Parser>
+            [API.PEOPLE.GET_COMBINED_CREDITS] = new List<Parser>
             {
                 new MultiParser<Item>(Person.CREDITS, new JsonNodeParser<IEnumerable<Item>>(TryParsePersonCredits))
             }

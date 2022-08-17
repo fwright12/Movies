@@ -25,6 +25,8 @@ namespace Movies.iOS
             global::Xamarin.Forms.Forms.Init();
             LoadApplication(new App());
 
+            FFImageLoading.Forms.Platform.CachedImageRenderer.Init();
+            FFImageLoading.Forms.Platform.CachedImageRenderer.InitImageSourceHandler();
             Google.MobileAds.MobileAds.SharedInstance.Start(CompletionHandler);
 
             return base.FinishedLaunching(app, options);
