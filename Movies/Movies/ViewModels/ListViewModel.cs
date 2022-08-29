@@ -135,7 +135,15 @@ namespace Movies.ViewModels
             {
                 observable.CollectionChanged += ListChanged;
             }
+
+            FilterHelpers.AddFilters(this, FilterHelpers.PreferredFilterOrder.Except(UnavailableFilters));
         }
+
+        private static readonly HashSet<Property> UnavailableFilters = new HashSet<Property>
+        {
+            Movie.RELEASE_DATE,
+            TMDB.SCORE
+        };
 
         public void AddSync(SyncOptions options)
         {

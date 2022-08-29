@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json.Nodes;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Movies
@@ -112,18 +113,24 @@ namespace Movies
     public class ItemProperties
     {
         public IReadOnlyDictionary<TMDbRequest, List<Parser>> Info { get; }
-        public IJsonCache Cache { get; set; }
-        public Lazy<Task<HashSet<string>>> LazyChangeKeysTask { get; set; }
+        public IReadOnlyDictionary<Property, TMDbRequest> PropertyLookup { get; }
 
-        private readonly Dictionary<Property, TMDbRequest> PropertyLookup = new Dictionary<Property, TMDbRequest>();
+        public ItemInfoCache Cache { get; set; }
+        public HashSet<string> ChangeKeys { get; set; }
+        public Task ChangeKeysLoaded { get; set; }
+
         private List<TMDbRequest> SupportsAppendToResponse = new List<TMDbRequest>();
-        private List<TMDbRequest> AllRequests { get; }
+        private Dictionary<TMDbRequest, List<Property>> AllRequests { get; }
+        private Dictionary<Property, string> ChangeKeyLookup { get; }
 
-        public ItemProperties(Dictionary<TMDbRequest, List<Parser>> info)
+        private SemaphoreSlim CacheSemaphore = new SemaphoreSlim(1, 1);
+
+        public ItemProperties(Dictionary<TMDbRequest, List<Parser>> requests)
         {
-            var test = new Dictionary<TMDbRequest, List<Parser>>();
+            var info = new Dictionary<TMDbRequest, List<Parser>>();
+            var propertyLookup = new Dictionary<Property, TMDbRequest>();
 
-            foreach (var kvp in info)
+            foreach (var kvp in requests)
             {
                 if (kvp.Key.SupportsAppendToResponse)
                 {
@@ -132,14 +139,34 @@ namespace Movies
 
                 foreach (var parser in kvp.Value)
                 {
-                    PropertyLookup[parser.Property] = kvp.Key;
+                    propertyLookup[parser.Property] = kvp.Key;
                 }
 
-                test.Add(kvp);
+                info.Add(kvp);
             }
 
-            Info = test;
-            AllRequests = Info.Keys.ToList();
+            Info = info;
+            PropertyLookup = propertyLookup;
+            //AllRequests = Info.Keys.ToList();
+            AllRequests = new Dictionary<TMDbRequest, List<Property>>(Info.Select(kvp => new KeyValuePair<TMDbRequest, List<Property>>(kvp.Key, kvp.Value.Select(parser => parser.Property).ToList())));
+            ChangeKeyLookup = new Dictionary<Property, string>();
+
+            foreach (var parser in Info.SelectMany(kvp => kvp.Value))
+            {
+                var property = parser.Property;
+                string changeKey;
+
+                if (property == Media.KEYWORDS) changeKey = "plot_keywords";
+                else if (property == Media.TRAILER_PATH) changeKey = "videos";
+                else if (property == Movie.CONTENT_RATING || property == TVShow.CONTENT_RATING) changeKey = "releases";
+                else if (parser is ParserWrapper wrapper && wrapper.JsonParser is JsonPropertyParser jpp)
+                {
+                    changeKey = jpp.Property;
+                }
+                else continue;
+
+                ChangeKeyLookup[property] = changeKey;
+            }
         }
 
         public bool HasProperty(Property property)
@@ -153,26 +180,6 @@ namespace Movies
             }
 
             return false;
-        }
-
-        public void Add(TMDbRequest request, IEnumerable<Parser> parsers)
-        {
-            if (request.SupportsAppendToResponse)
-            {
-                SupportsAppendToResponse.Add(request);
-            }
-
-            foreach (var parser in parsers)
-            {
-                PropertyLookup[parser.Property] = request;
-            }
-
-            if (!Info.TryGetValue(request, out var list))
-            {
-                //Info.Add(request, list = new List<Parser>());
-            }
-
-            //list.AddRange(parsers);
         }
 
         public void HandleRequests(Item item, PropertyDictionary properties, TMDB tmdb)
@@ -214,103 +221,53 @@ namespace Movies
                 Item = item;
             }
 
-            private string GetChangeKey(Property property)
-            {
-                if (property == Media.KEYWORDS) return "plot_keywords";
-                else if (property == Media.TRAILER_PATH) return "videos";
-                else if (property == Movie.CONTENT_RATING || property == TVShow.CONTENT_RATING) return "releases";
-                else return null;
-            }
-
             public void PropertyRequested(object sender, PropertyEventArgs e) => PropertyRequested((PropertyDictionary)sender, e.Properties);
 
             public void PropertyRequested(PropertyDictionary dict, IEnumerable<Property> properties)
             {
-                var requests = new List<TMDbRequest>();
+                var requests = new Dictionary<TMDbRequest, List<Property>>();
 
                 foreach (var property in properties)
                 {
-                    if (Context.PropertyLookup.TryGetValue(property, out var request) && !requests.Contains(request))
+                    if (Context.PropertyLookup.TryGetValue(property, out var request))
                     {
-                        requests.Add(request);
+                        if (property != Movie.WATCH_PROVIDERS && property != TVShow.WATCH_PROVIDERS && !IsCacheValid(request, property))
+                        {
+                            PropertyRequested(dict, Context.AllRequests);
+                            return;
+                        }
+                        if (!requests.TryGetValue(request, out var list))
+                        {
+                            requests[request] = list = new List<Property>();
+                        }
+
+                        list.Add(property);
                     }
                 }
 
-                if (requests.Count == 0)
+                if (requests.Count > 0)
                 {
-                    return;
+                    PropertyRequested(dict, requests);
                 }
+            }
 
-                //requests = Context.Info.Select(kvp => kvp.Key).ToList();
-                requests = Context.AllRequests;
+            public void PropertyRequested(PropertyDictionary dict, Dictionary<TMDbRequest, List<Property>> requests) => CacheInMemory(dict, requests.Keys, MakeRequests(dict, requests));
 
-                var requested = Task.Run(() =>
+            private void CacheInMemory(PropertyDictionary dict, IEnumerable<TMDbRequest> requests, Task<List<Task<JsonNode>>> responses)
+            {
+                var itr = requests.GetEnumerator();
+
+                for (int i = 0; itr.MoveNext(); i++)
                 {
-                    if (Context.Cache != null)
-                    {
-                        //await ExpireResponses(properties);
-                    }
-
-                    var responses = new List<Task<JsonNode>>();
-                    var atr = new int[Context.SupportsAppendToResponse.Count];
-
-                    for (int i = 0; i < requests.Count; i++)
-                    {
-                        var request = requests[i];
-                        var response = Context.Cache?.TryGetValueAsync(request.GetURL());
-
-                        if (response != null)
-                        {
-                            if (i != responses.Count)
-                            {
-                                requests.RemoveAt(i);
-                                requests.Insert(responses.Count, request);
-                            }
-
-                            responses.Add(GetCachedResponse(response));
-                        }
-                        else if (!request.SupportsAppendToResponse)
-                        {
-                            int index = Context.SupportsAppendToResponse.FindIndex(temp => request.Endpoint.StartsWith(temp.Endpoint));
-
-                            if (index != -1)
-                            {
-                                atr[index]++;
-                            }
-                        }
-                    }
-
-                    for (int i = 0; i < Context.SupportsAppendToResponse.Count; i++)
-                    {
-                        var request = Context.SupportsAppendToResponse[i];
-
-                        if (atr[i] > 1 && !requests.Contains(request))
-                        {
-                            requests.Insert(responses.Count, request);
-                        }
-                    }
-
-                    responses.Clear();
-
-                    var requested = TMDB.Request(requests.Skip(responses.Count), Parameters);
-                    _ = CacheResponses(responses.Count, requests, requested);
-
-                    responses.AddRange(requested);
-                    return responses;
-                });
-
-                //responses.AddRange(requested);
-
-                for (int i = 0; i < requests.Count; i++)
-                {
-                    var request = requests[i];
-                    //var response = responses[i];
-                    var response = GetResponse(requested, i);
+                    var request = itr.Current;
 
                     if (!Context.Info.TryGetValue(request, out var parsers))
                     {
                         continue;
                     }
+
+                    //var response = responses[i];
+                    var response = GetResponse(responses, i);
 
                     if (request is PagedTMDbRequest pagedRequest)
                     {
@@ -339,53 +296,153 @@ namespace Movies
             }
 
             private async Task<JsonNode> GetResponse(Task<List<Task<JsonNode>>> responses, int index) => await (await responses)[index];
-            private async Task<JsonNode> GetCachedResponse(Task<JsonResponse> response) => JsonNode.Parse((await response).Json);
 
-            private async Task ExpireResponses(IEnumerable<Property> properties)
+            private string GetFullURL(TMDbRequest request) => string.Format(request.GetURL(), Parameters);
+
+            private async Task<List<Task<JsonNode>>> MakeRequests(PropertyDictionary dict, Dictionary<TMDbRequest, List<Property>> properties)
             {
-                foreach (var property in properties)
+                // Virtually guaranteed to execute syncronously
+                await Context.ChangeKeysLoaded;
+                await Context.CacheSemaphore.WaitAsync();
+
+                var requests = new Dictionary<TMDbRequest, int>();
+                var cached = new Dictionary<TMDbRequest, int>();
+
+                var itr = properties.GetEnumerator();
+
+                for (int i = 0; itr.MoveNext(); i++)
                 {
-                    if (Context.PropertyLookup.TryGetValue(property, out var request) && Context.Info.TryGetValue(request, out var parsers))
+                    var request = itr.Current.Key;
+
+                    foreach (var property in itr.Current.Value)
                     {
-                        int index = parsers.FindIndex(parser => parser.Property == property);
+                        var list = Context.Cache != null && IsCacheValid(request, property) ? cached : requests;
 
-                        if (index != -1 && parsers[index] is ParserWrapper wrapper && wrapper.JsonParser is JsonPropertyParser jpp && !(await Context.LazyChangeKeysTask.Value).Contains(GetChangeKey(property) ?? jpp.Property))
+                        if (!list.ContainsKey(request))
                         {
-                            var url = request.GetURL();
-
-                            if (property == Movie.WATCH_PROVIDERS || property == TVShow.WATCH_PROVIDERS)
-                            {
-                                var response = await Context.Cache.TryGetValueAsync(url);
-
-                                if (DateTime.Now - response?.Timestamp < new TimeSpan(1, 0, 0, 0))
-                                {
-                                    continue;
-                                }
-                            }
-
-                            await Context.Cache.Expire(url);
+                            list.Add(request, i);
                         }
                     }
                 }
-            }
 
-            private async Task CacheResponses(int startIndex, List<TMDbRequest> requests, Task<JsonNode>[] responses)
-            {
-                if (Context.Cache == null)
+                var atr = new int[Context.SupportsAppendToResponse.Count];
+
+                // Check if we can make fewer requests by appending to some (not already included) request
+                foreach (var request in requests.Keys.Where(request => !request.SupportsAppendToResponse))
                 {
-                    return;
+                    int index = Context.SupportsAppendToResponse.FindIndex(temp => request.Endpoint.StartsWith(temp.Endpoint));
+
+                    if (index != -1)
+                    {
+                        atr[index]++;
+                    }
                 }
 
+                for (int i = 0; i < Context.SupportsAppendToResponse.Count; i++)
+                {
+                    var request = Context.SupportsAppendToResponse[i];
+
+                    if (atr[i] > 1 && !requests.ContainsKey(request))
+                    {
+                        requests.Add(request, -1);
+                    }
+                }
+
+                var responses = Enumerable.Repeat<Task<JsonNode>>(null, properties.Count).ToList();// new List<Task<JsonNode>>();
+
+                foreach (var kvp in cached)
+                {
+                    var request = kvp.Key;
+
+                    // We have to make the request again anyway, get the newer data
+                    if (requests.ContainsKey(request))
+                    {
+                        continue;
+                    }
+
+                    var response = await Context.Cache.TryGetValueAsync(GetFullURL(request));
+
+                    // not cached, we'll have to make the request
+                    if (response == null)
+                    {
+                        requests.Add(request, kvp.Value);
+                    }
+                    else
+                    {
+                        responses[kvp.Value] = Task.FromResult(JsonNode.Parse(response.Json));
+                    }
+                }
+
+                if (requests.Count > 0)
+                {
+                    IEnumerable<TMDbRequest> requesting = requests.Keys;
+                    requesting = Context.AllRequests.Keys;
+                    var requested = TMDB.Request(requesting, Parameters);
+
+                    var extraRequests = new List<TMDbRequest>();
+                    var extraResponses = new List<Task<JsonNode>>();
+
+                    var itr1 = requesting.GetEnumerator();
+                    for (int i = 0; itr1.MoveNext(); i++)
+                    {
+                        var request = itr1.Current;
+
+                        if (requests.TryGetValue(request, out var index) && index != -1)
+                        {
+                            responses[index] = requested[i];
+                        }
+                        else
+                        {
+                            extraRequests.Add(request);
+                            extraResponses.Add(requested[i]);
+                        }
+                    }
+
+                    CacheInMemory(dict, extraRequests, Task.FromResult(extraResponses));
+
+                    if (Context.Cache != null && Item != null && Parameters.Length > 0 && Parameters[0] is int id)
+                    {
+                        await CachePersistent(Context.Cache, Item.ItemType, id, requesting, requested);
+                    }
+                }
+
+                Context.CacheSemaphore.Release();
+
+                return responses;
+            }
+
+            private bool IsCacheValid(TMDbRequest request, Property property) => property == Movie.WATCH_PROVIDERS || property == TVShow.WATCH_PROVIDERS || (Context.ChangeKeyLookup.TryGetValue(property, out var changeKey) && Context.ChangeKeys.Contains(changeKey));
+
+            private static int IndexOf<T>(IEnumerable<T> source, T value)
+            {
+                var itr = source.GetEnumerator();
+
+                for (int i = 0; itr.MoveNext(); i++)
+                {
+                    if (Equals(itr.Current, value))
+                    {
+                        return i;
+                    }
+                }
+
+                return -1;
+            }
+
+            private async Task CachePersistent(ItemInfoCache cache, ItemType type, int id, IEnumerable<TMDbRequest> requests1, IEnumerable<Task<JsonNode>> responses)
+            {
+                var requests = requests1.ToList();
                 var remaining = responses.ToList<Task<JsonNode>>();
 
                 while (remaining.Count > 0)
                 {
                     var ready = await Task.WhenAny(remaining);
-                    int index = Array.IndexOf(responses, ready);
+                    int index = IndexOf(responses, ready);
 
                     if (index != -1)
                     {
-                        await Context.Cache.AddAsync(requests[startIndex + index].GetURL(), new JsonResponse((await ready).ToJsonString()));
+                        var url = GetFullURL(requests[index]);
+                        await cache.Expire(url);
+                        await cache.AddAsync(type, id, url, new JsonResponse((await ready).ToJsonString()));
                     }
 
                     remaining.Remove(ready);

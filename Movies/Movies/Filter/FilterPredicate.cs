@@ -15,11 +15,16 @@ namespace Movies
     public abstract class FilterPredicate
     {
         public static readonly FilterPredicate TAUTOLOGY = new Tautology();
-        public static readonly FilterPredicate CONTRADICTION = new Tautology();
+        public static readonly FilterPredicate CONTRADICTION = new Contradiction();
 
         private class Tautology : FilterPredicate
         {
-            public override bool Evaluate(object item) => true;
+            public override bool Evaluate() => true;
+        }
+
+        private class Contradiction : FilterPredicate
+        {
+            public override bool Evaluate() => false;
         }
 
         //public static bool operator true(FilterPredicate<T> predicate) => predicate.Evaluate
@@ -34,7 +39,35 @@ namespace Movies
             }
         };
 
-        public virtual bool Evaluate(object item) => true;
+        public static FilterPredicate operator |(FilterPredicate first, FilterPredicate second)
+        {
+            if (first == FilterPredicate.TAUTOLOGY)
+            {
+                return first;
+            }
+            else if (first == FilterPredicate.CONTRADICTION)
+            {
+                return second;
+            }
+            else
+            {
+                return Operate(first, second, (a, b) => a | b);
+            }
+        }
+
+        private static FilterPredicate Operate(FilterPredicate first, FilterPredicate second, Func<FilterPredicate, FilterPredicate, FilterPredicate> operate)
+        {
+            if (first is BooleanExpression expression)
+            {
+                return expression | second;
+            }
+            else
+            {
+                return null;
+            }
+        }
+
+        public abstract bool Evaluate();
     }
 
     public class ExpressionPredicate : FilterPredicate
@@ -48,7 +81,7 @@ namespace Movies
             Predicates = predicates;
         }
 
-        //public override bool Evaluate(T item) => Predicates.OfType<FilterPredicate<T>>().All(predicate => predicate.Evaluate(item));
+        public override bool Evaluate() => true;
     }
 
     public class OperatorPredicate : FilterPredicate
@@ -57,46 +90,42 @@ namespace Movies
         public Operators Operator { get; set; }
         public object RHS { get; set; }
 
-        public override bool Evaluate(object item)
+        public override bool Evaluate()
         {
-            if (Operator == Operators.LessThan || Operator == Operators.GreaterThan)
+            var value = LHS;
+
+            if (Operator == Operators.GreaterThan || Operator == Operators.LessThan)
             {
-                int compare;
-
-                if (LHS is IComparable lhs)
+                if (!(value is IComparable comparable) || comparable.CompareTo(RHS) != (int)Operator)
                 {
-                    compare = lhs.CompareTo(RHS);
+                    return false;
                 }
-                else if (RHS is IComparable rhs)
-                {
-                    compare = rhs.CompareTo(LHS) * -1;
-                }
-                else
-                {
-                    return true;
-                }
-
-                return compare == (int)Operator;
             }
-            else
+            else if (Operator == Operators.Equal || Operator == Operators.NotEqual)
             {
-                var equal = Equals(LHS, RHS);
+                bool result = Equals(value, RHS);
 
                 if (Operator == Operators.NotEqual)
                 {
-                    equal = !equal;
+                    result = !result;
                 }
 
-                return equal;
+                if (!result)
+                {
+                    return false;
+                }
             }
+
+            return true;
         }
     }
 
     public class BooleanExpression : FilterPredicate
     {
         public IList<FilterPredicate> Predicates { get; } = new List<FilterPredicate>();
+        public bool IsAnd { get; set; } = true;
 
-        //public override bool Evaluate(T item) => true;// Predicates.All(predicate => predicate.Evaluate(item));
+        public override bool Evaluate() => IsAnd ? Predicates.All(predicate => predicate.Evaluate()) : Predicates.Any(predicate => predicate.Evaluate());
 
         public static BooleanExpression operator &(BooleanExpression expression, FilterPredicate predicate)
         {
@@ -108,5 +137,7 @@ namespace Movies
     public class SearchPredicate : FilterPredicate
     {
         public string Query { get; set; }
+
+        public override bool Evaluate() => true;
     }
 }

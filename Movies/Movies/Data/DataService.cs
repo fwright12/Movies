@@ -76,6 +76,8 @@ namespace Movies
         public static readonly DataService Instance = new DataService();
 
         public event EventHandler<ItemEventArgs> GetItemDetails;
+        public event EventHandler BatchBegan;
+        public event EventHandler BatchCommitted;
 
         public bool Batched { get; private set; }
 
@@ -83,8 +85,17 @@ namespace Movies
 
         private DataService() { }
 
-        public void BatchBegin() => Batched = true;
-        public void BatchEnd() => Batched = false;
+        public void BatchBegin()
+        {
+            Batched = true;
+            BatchBegan?.Invoke(this, EventArgs.Empty);
+        }
+
+        public void BatchEnd()
+        {
+            Batched = false;
+            BatchCommitted?.Invoke(this, EventArgs.Empty);
+        }
 
         //public Task<object> GetValue(Item item, Property property) => GetDetails(item).TryGetValue(property, out var value) ? value : Task.FromResult<object>(null);
 

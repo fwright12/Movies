@@ -33,6 +33,10 @@
                                    ItemSpacing="6" />
             </views:UniformStack.ItemsLayout>
 
+            <VisualElement.Behaviors>
+                <movies:BatchBehavior />
+            </VisualElement.Behaviors>
+
             <Label LineBreakMode="NoWrap">
                 <Label.Text>
                     <MultiBinding Converter="{Static forms:StringJoinConverter.Instance}"

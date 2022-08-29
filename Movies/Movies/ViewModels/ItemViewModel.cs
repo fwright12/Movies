@@ -44,12 +44,63 @@ namespace Movies.ViewModels
             });
         }
 
-        protected bool TryRequestValue<T>(Property<T> property, out T value, [CallerMemberName] string propertyName = null)
+        private Dictionary<string, Property> Batched = new Dictionary<string, Property>();
+
+        private async void BatchEnded(object sender, EventArgs e)
         {
+            Properties.RequestValues(Batched.Values);
+
+            var tasks = new Dictionary<Task, string>();
+
+            foreach (var kvp in Batched)
+            {
+                var property = kvp.Value;
+                var count = int.MaxValue;
+                Task<object> task = null;
+
+                while (Properties.TryGetValue(property, out task) && Invalidate(property, task) && count > 0)
+                {
+                    count = Properties.ValueCount(property);
+                }
+
+                if (task != null)
+                {
+                    tasks[task] = kvp.Key;
+                }
+            }
+
+            Batched.Clear();
+
+            while (tasks.Count > 0)
+            {
+                var ready = await Task.WhenAny(tasks.Keys);
+
+                if (tasks.TryGetValue(ready, out var propertyName))
+                {
+                    tasks.Remove(ready);
+                    OnPropertyChanged(propertyName);
+                }
+            }
+        }
+
+        protected delegate bool TryGet<T>(out T value);
+
+        protected bool TryRequestValue<T>(TryGet<Task<T>> getTask, Property property, out T value, [CallerMemberName] string propertyName = null)
+        {
+            if (DataService.Instance.Batched)
+            {
+                Batched[propertyName] = property;
+                DataService.Instance.BatchCommitted -= BatchEnded;
+                DataService.Instance.BatchCommitted += BatchEnded;
+
+                value = default;
+                return false;
+            }
+
             var count = int.MaxValue;
             Task<T> task = null;
 
-            while (Properties.TryGetValue(property, out task) && Invalidate(property, task) && count > 0)
+            while (getTask(out task) && Invalidate(property, task) && count > 0)
             {
                 count = Properties.ValueCount(property);
             }
@@ -57,18 +108,9 @@ namespace Movies.ViewModels
             return TryGetValue(task, out value, propertyName);
         }
 
-        protected bool TryRequestValue<T>(MultiProperty<T> property, out IEnumerable<T> value, [CallerMemberName] string propertyName = null)
-        {
-            var count = int.MaxValue;
-            Task<IEnumerable<T>> task = null;
+        protected bool TryRequestValue<T>(Property<T> property, out T value, [CallerMemberName] string propertyName = null) => TryRequestValue((out Task<T> task) => Properties.TryGetValue(property, out task), property, out value, propertyName);
 
-            while (Properties.TryGetValue(property, out task) && Invalidate(property, task) && count > 0)
-            {
-                count = Properties.ValueCount(property);
-            }
-
-            return TryGetValue(task, out value, propertyName);
-        }
+        protected bool TryRequestValue<T>(MultiProperty<T> property, out IEnumerable<T> value, [CallerMemberName] string propertyName = null) => TryRequestValue((out Task<IEnumerable<T>> task) => Properties.TryGetValues(property, out task), property, out value, propertyName);
 
         protected T RequestValue<T>(Property<T> property, [CallerMemberName] string propertyName = null) => TryRequestValue(property, out var value, propertyName) ? value : default;
         protected IEnumerable<T> RequestValue<T>(MultiProperty<T> property, [CallerMemberName] string propertyName = null) => TryRequestValue(property, out var value, propertyName) ? value : default;

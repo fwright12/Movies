@@ -5,6 +5,7 @@ using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Movies
@@ -602,6 +603,23 @@ namespace Movies
                 await foreach (var show in Request<Models.TVShow>(request, TryParseTVShow))
                 {
                     yield return show;
+                }
+            }
+
+            public override IAsyncEnumerable<Models.Item> GetAsyncEnumerator(FilterPredicate filter, CancellationToken cancellationToken = default)
+            {
+                var types = Models.ItemHelpers.RemoveTypes(filter, out filter);
+                var movie = types.Contains(typeof(Models.Movie));
+                var tv = types.Contains(typeof(Models.TVShow));
+
+                if (types.Count == 1)
+                {
+                    var items = types[0] == typeof(Models.TVShow) ? GetItems() : Movies;
+                    return items.WhereAsync(item => Models.ItemHelpers.Evaluate(item, filter));
+                }
+                else
+                {
+                    return base.GetAsyncEnumerator(filter, cancellationToken);
                 }
             }
 

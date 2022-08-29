@@ -62,7 +62,7 @@ namespace Movies.ViewModels
         {
             //var credits = await service.CreditsRequested.GetSingle(person);
 
-            if (!DataService.Instance.GetDetails(person).TryGetValue(Person.CREDITS, out var task) || !(await task is IEnumerable<Item> credits))
+            if (!DataService.Instance.GetDetails(person).TryGetValues(Person.CREDITS, out var task) || !(await task is IEnumerable<Item> credits))
             {
                 yield break;
             }

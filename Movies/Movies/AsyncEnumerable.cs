@@ -18,6 +18,12 @@ namespace System.Linq
             }
         }
 
+        public static async IAsyncEnumerable<T> Empty<T>()
+        {
+            await Task.CompletedTask;
+            yield break;
+        }
+
         public static async Task<List<T>> ReadAll<T>(this IAsyncEnumerable<T> items)
         {
             var result = new List<T>();
@@ -86,6 +92,17 @@ namespace System.Linq
             await foreach (var item in source)
             {
                 if (predicate(item))
+                {
+                    yield return item;
+                }
+            }
+        }
+
+        public static async IAsyncEnumerable<TSource> WhereAsync<TSource>(this IAsyncEnumerable<TSource> source, Func<TSource, Task<bool>> predicate)
+        {
+            await foreach (var item in source)
+            {
+                if (await predicate(item))
                 {
                     yield return item;
                 }

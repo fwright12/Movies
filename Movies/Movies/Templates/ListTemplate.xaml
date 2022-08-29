@@ -21,15 +21,15 @@
             </ResourceDictionary>
         </VisualElement.Resources>
 
+        <forms:DrawerView.SnapPoints>
+            <viewmodels:ItemTypeSnapPoint Alignment="End" />
+
+            <forms:SnapPoint Value="{Binding Height, Source={RelativeSource AncestorType={x:Type forms:DrawerView}}, Converter={Static forms:ArithmeticConverter.SUBTRACT}, ConverterParameter=25}" />
+        </forms:DrawerView.SnapPoints>
+
         <forms:DrawerView.DrawerTemplate>
             <views:FilterTemplate />
         </forms:DrawerView.DrawerTemplate>
-
-        <forms:DrawerView.SnapPoints>
-            <forms:ElementSnapPoint Element="{Binding Parent.Children[1].Content.Content.Children[1], Source={RelativeSource Self}}"
-                                    Alignment="End" />
-            <forms:SnapPoint Value="{Binding Height, Source={RelativeSource AncestorType={x:Type forms:DrawerView}}, Converter={Static forms:ArithmeticConverter.SUBTRACT}, ConverterParameter=25}" />
-        </forms:DrawerView.SnapPoints>
 
         <!--<VisualElement.Triggers>
             <DataTrigger TargetType="forms:DrawerView"
@@ -351,7 +351,8 @@
                                          Grid.Column="1">
                                 <Button BindingContext="{Binding Source={RelativeSource AncestorType={x:Type forms:DrawerView}}}"
                                         Text="{OnPlatform Android=&#xf38b;, iOS=&#xf31b;}"
-                                        Command="{Binding NextSnapPointCommand}"
+                                        Command="{Binding OpenFiltersCommand, Source={Static Application.Current}}"
+                                        CommandParameter="{Binding}"
                                         IsVisible="{Binding Drawer, Converter={Static forms:FalseIfNullConverter.Instance}}" />
 
                                 <Button Command="{Binding ToggleListLayoutCommand}">

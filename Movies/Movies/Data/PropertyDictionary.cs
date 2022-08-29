@@ -46,8 +46,36 @@ namespace Movies
 
         private Dictionary<Property, IList<object>> Properties = new Dictionary<Property, IList<object>>();
 
-        public void AddProperty<T>(Property<T> property) => AddProperty((Property)property);
-        private IList<object> AddProperty(Property property)
+        public Task[] RequestValues(params Property[] properties) => RequestValues((IEnumerable<Property>)properties);
+        public Task[] RequestValues(IEnumerable<Property> properties)
+        {
+            var added = new List<Property>();
+            var values = new List<IList<object>>();
+
+            foreach (var property in properties)
+            {
+                var list = new List<object>();
+
+                if (Properties.TryAdd(property, list))
+                {
+                    added.Add(property);
+                    values.Add(list);
+                }
+            }
+
+            PropertyAdded?.Invoke(this, new PropertyEventArgs(added));
+
+            var result = new Task[added.Count];
+
+            for (int i = 0; i < result.Length; i++)
+            {
+                result[i] = values[i].FirstOrDefault() as Task;
+            }
+
+            return result;
+        }
+
+        private IList<object> GetValues(Property property)
         {
             if (!Properties.TryGetValue(property, out var values))
             {
@@ -69,14 +97,6 @@ namespace Movies
             Add(pair.Property, pair.Value);
         }
 
-        public void Add(PropertyDictionary dict)
-        {
-            foreach (var kvp in dict.Properties)
-            {
-                Properties.TryAdd(kvp.Key, kvp.Value);
-            }
-        }
-
         private void Add(Property property, object value)
         {
             if (!Properties.TryGetValue(property, out var values))
@@ -93,7 +113,7 @@ namespace Movies
 
         public bool TryGetValue(Property key, out Task<object> value) => TryGetSingle(key, out value);
         public bool TryGetValue<T>(Property<T> key, out Task<T> value) => TryGetSingle(key, out value);
-        public bool TryGetValue<T>(MultiProperty<T> key, out Task<IEnumerable<T>> value) => TryGetMultiple(key, out value);
+        public bool TryGetValues<T>(MultiProperty<T> key, out Task<IEnumerable<T>> value) => TryGetMultiple(key, out value);
 
         //public Task<IEnumerable<T>> GetMultiple<T>(Property<T> key, string source = null) => TryGetMultiple(key, out Task<IEnumerable<T>> result, source) ? result : Task.FromResult(Enumerable.Empty<T>());
 
@@ -101,7 +121,7 @@ namespace Movies
 
         private bool TryGetSingle<T>(Property key, out Task<T> result, string source = null)
         {
-            var values = AddProperty(key);
+            var values = GetValues(key);
 
             foreach (var value in values)
             {
@@ -118,7 +138,7 @@ namespace Movies
 
         private bool TryGetMultiple<T>(Property key, out Task<IEnumerable<T>> result, string source = null)
         {
-            var values = AddProperty(key);
+            var values = GetValues(key);
 
             foreach (var value in values)
             {

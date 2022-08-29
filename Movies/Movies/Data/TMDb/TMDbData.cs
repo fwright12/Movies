@@ -9,6 +9,7 @@ using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -242,7 +243,6 @@ namespace Movies
         private string ApiKey;
 
         private Lazy<Task<List<Models.List>>> LazyAllLists;
-        private Lazy<Task<HashSet<string>>> LazyChangesKeys;
 
 #if DEBUG
         private static readonly string SECURE_BASE_IMAGE_URL = string.Empty;
@@ -262,7 +262,7 @@ namespace Movies
             //Config = Client.GetConfigAsync();
             WebClient = new HttpClient
             {
-#if DEBUG && true
+#if DEBUG && false
                 BaseAddress = new Uri("https://mockTMDb"),
 #else
                 BaseAddress = new Uri("https://api.themoviedb.org/"),
@@ -277,12 +277,52 @@ namespace Movies
             GetPropertyValues = InitValues();
 
             LazyAllLists = new Lazy<Task<List<Models.List>>>(GetAllLists);
-            LazyChangesKeys = new Lazy<Task<HashSet<string>>>(GetChangeKeys);
 
             foreach (var properties in ITEM_PROPERTIES.Values)
             {
-                properties.LazyChangeKeysTask = LazyChangesKeys;
+                properties.ChangeKeys = ChangeKeys;
+                properties.ChangeKeysLoaded = GetChangeKeys();
             }
+        }
+
+        public ItemInfoCache ItemCache
+        {
+            set
+            {
+                _ = CleanWatchProviders(value);
+
+                foreach (var properties in ITEM_PROPERTIES.Values)
+                {
+                    properties.Cache = value;
+                }
+            }
+        }
+
+        private const int WATCH_PROVIDERS_EXPIRED_AFTER_DAY_OF_MONTH = 3;
+
+        private async Task CleanWatchProviders(ItemInfoCache cache)
+        {
+            var pattern = "{\\d+}";
+            var pattern1 = "\\d+";
+            var movieRegex = new Regex(pattern).Replace(API.MOVIES.GET_WATCH_PROVIDERS.GetURL(), pattern1);
+            var tvRegex = new Regex(pattern).Replace(API.TV.GET_WATCH_PROVIDERS.GetURL(), pattern1);
+
+            var values = await cache.ReadAll();
+            var expired = new List<Task>();
+            var offset = DateTime.Now.AddDays(-WATCH_PROVIDERS_EXPIRED_AFTER_DAY_OF_MONTH + 1);
+            var date = new DateTime(offset.Year, offset.Month, WATCH_PROVIDERS_EXPIRED_AFTER_DAY_OF_MONTH);
+
+            foreach (var kvp in values)
+            {
+                var url = kvp.Key;
+
+                if (kvp.Value.Timestamp < date && (Regex.Match(url, movieRegex).Success || Regex.Match(url, tvRegex).Success))
+                {
+                    expired.Add(cache.Expire(url));
+                }
+            }
+
+            await Task.WhenAll(expired);
         }
 
         private string RequestToken;
@@ -548,7 +588,9 @@ namespace Movies
             }
         }
 
-        private async Task<HashSet<string>> GetChangeKeys()
+        private readonly HashSet<string> ChangeKeys = new HashSet<string>();
+
+        private async Task GetChangeKeys()
         {
             await CleanCacheTask;
 
@@ -580,11 +622,10 @@ namespace Movies
 
             if (json?.RootElement.TryGetProperty("change_keys", out var keysJson) == true && keysJson.ValueKind == JsonValueKind.Array)
             {
-                return new HashSet<string>(keysJson.EnumerateArray().Select(element => element.GetString()));
-            }
-            else
-            {
-                return new HashSet<string>();
+                foreach (var key in keysJson.EnumerateArray().Select(element => element.GetString()))
+                {
+                    ChangeKeys.Add(key);
+                }
             }
         }
 
@@ -621,7 +662,7 @@ namespace Movies
 
         private static readonly TimeSpan CHANGES_DURATION = new TimeSpan(14, 0, 0, 0);
 
-        public Task CleanCache(Movies.Views.ItemInfoCache cache, DateTime lastCleaned)
+        public Task CleanCache(ItemInfoCache cache, DateTime lastCleaned)
         {
             var requests = new PagedTMDbRequest[]
             {
@@ -633,7 +674,7 @@ namespace Movies
             return Task.WhenAll(requests.Select(request => CleanCache(cache, request, lastCleaned)));
         }
 
-        private async Task CleanCache(Movies.Views.ItemInfoCache cache, PagedTMDbRequest request, DateTime lastCleaned)
+        private async Task CleanCache(ItemInfoCache cache, PagedTMDbRequest request, DateTime lastCleaned)
         {
             for (var start = lastCleaned; start < DateTime.Now; start += CHANGES_DURATION)
             {
@@ -643,7 +684,7 @@ namespace Movies
 
                 await foreach (var id in Request<int>(request, new JsonPropertyParser<int>("id").TryGetValue, false, $"start_date={start}", $"end_date={end}"))
                 {
-                    await cache.Expire(id);
+                    await cache.Expire(ItemType.Movie, id);
                 }
             }
         }

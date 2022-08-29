@@ -22,16 +22,269 @@ namespace Movies.Models
 
     public interface IAsyncFilterable<T> : IAsyncEnumerable<T>
     {
-        IAsyncEnumerable<T> GetItems(FilterPredicate predicate, CancellationToken cancellationToken = default);
+        IAsyncEnumerable<T> GetAsyncEnumerator(FilterPredicate predicate, CancellationToken cancellationToken = default);
     }
 
     public abstract class AsyncFilterable<T> : IAsyncFilterable<T>
     {
-        public abstract IAsyncEnumerable<T> GetItems(FilterPredicate predicate, CancellationToken cancellationToken = default);
-        public IAsyncEnumerator<T> GetAsyncEnumerator(CancellationToken cancellationToken = default) => GetItems(FilterPredicate.TAUTOLOGY).GetAsyncEnumerator();
+        public abstract IAsyncEnumerable<T> GetAsyncEnumerator(FilterPredicate predicate, CancellationToken cancellationToken = default);
+        public IAsyncEnumerator<T> GetAsyncEnumerator(CancellationToken cancellationToken = default) => GetAsyncEnumerator(FilterPredicate.TAUTOLOGY).GetAsyncEnumerator();
     }
 
-    public class Collection : Item, IAsyncEnumerable<Item>
+    public static class ItemHelpers
+    {
+        public static List<Type> RemoveTypes(FilterPredicate predicate, out FilterPredicate remaining)
+        {
+            var predicates = (predicate as BooleanExpression)?.Predicates ?? new List<FilterPredicate> { predicate };
+            var expression = new BooleanExpression();
+            var types = new List<Type>();
+
+            foreach (var value in predicates)
+            {
+                if (value is OperatorPredicate op && Equals(op.LHS, ViewModels.CollectionViewModel.ITEM_TYPE) && op.RHS is Type type)
+                {
+                    types.Add(type);
+                }
+                else
+                {
+                    expression.Predicates.Add(predicate);
+                }
+            }
+
+            remaining = expression;
+            return types;
+        }
+
+        public static async Task<bool> Evaluate(Item item, FilterPredicate filter, PropertyDictionary properties = null, ItemInfoCache cache = null)
+        {
+            var details = new Lazy<PropertyDictionary>(() => DataService.Instance.GetDetails(item));
+            var predicates = DefferedPredicates(filter).GetAsyncEnumerator();
+
+            object lhs = ViewModels.CollectionViewModel.ITEM_TYPE;
+            object value = item.GetType();
+
+            var types = RemoveTypes(filter, out filter);
+            if (types.Count > 0)
+            {
+                var typeExpression = new BooleanExpression
+                {
+                    IsAnd = false
+                };
+                var expression = filter as BooleanExpression ?? new BooleanExpression { Predicates = { filter } };
+                expression.Predicates.Insert(0, typeExpression);
+
+                foreach (var type in types)
+                {
+                    typeExpression.Predicates.Add(new OperatorPredicate
+                    {
+                        LHS = ViewModels.CollectionViewModel.ITEM_TYPE,
+                        Operator = Operators.Equal,
+                        RHS = type
+                    });
+                }
+
+                filter = expression;
+            }
+
+            while (true)
+            {
+                filter = Reduce(filter as BooleanExpression ?? new BooleanExpression { Predicates = { filter } }, lhs, value);
+
+                if (filter == FilterPredicate.TAUTOLOGY)
+                {
+                    return true;
+                }
+                else if (filter == FilterPredicate.CONTRADICTION)
+                {
+                    return false;
+                }
+
+                if (await predicates.MoveNextAsync() && predicates.Current.LHS is Property property && details.Value.TryGetValue(property, out var task))
+                {
+                    lhs = property;
+                    try
+                    {
+                        value = await task;
+                    }
+                    catch
+                    {
+                        return false;
+                    }
+                }
+                else
+                {
+                    return false;
+                }
+            }
+        }
+
+        private static async IAsyncEnumerable<OperatorPredicate> DefferedPredicates(FilterPredicate predicate, PropertyDictionary properties = null, ItemProperties lookup = null, ItemInfoCache cache = null)
+        {
+            var cachedInMemory = new Queue<OperatorPredicate>();
+            var cachedPersistent = new Queue<OperatorPredicate>();
+            var notCached = new Queue<OperatorPredicate>();
+
+            foreach (var child in Flatten(predicate))
+            {
+                if (child is OperatorPredicate op && op.LHS is Property property)
+                {
+                    if (properties != null && properties.ValueCount(property) > 0)
+                    {
+                        cachedInMemory.Enqueue(op);
+                    }
+                    else
+                    {
+                        cachedPersistent.Enqueue(op);
+                    }
+                }
+                else
+                {
+                    yield break;
+                }
+            }
+
+            foreach (var value in cachedInMemory)
+            {
+                yield return value;
+            }
+
+            foreach (var value in cachedPersistent)
+            {
+                if (value.LHS is Property property && cache != null && lookup?.PropertyLookup.TryGetValue(property, out var request) == true && await cache.IsCached(request.GetURL()))
+                {
+                    yield return value;
+                }
+                else
+                {
+                    notCached.Enqueue(value);
+                }
+            }
+
+            foreach (var value in notCached)
+            {
+                yield return value;
+            }
+        }
+
+        private static IEnumerable<FilterPredicate> Flatten(FilterPredicate predicate)
+        {
+            if (predicate is BooleanExpression expression)
+            {
+                foreach (var child in expression.Predicates.SelectMany(predicate => Flatten(predicate)))
+                {
+                    yield return child;
+                }
+            }
+            else
+            {
+                yield return predicate;
+            }
+        }
+
+        private static FilterPredicate Reduce(BooleanExpression expression, object lhs = null, object value = null)
+        {
+            var result = new BooleanExpression();
+            var and = expression.IsAnd;
+
+            foreach (var predicate in expression.Predicates)
+            {
+                var reduced = predicate;
+
+                if (predicate is BooleanExpression inner)
+                {
+                    reduced = Reduce(inner, lhs, value);
+                }
+                else if (predicate is OperatorPredicate op)
+                {
+                    FilterPredicate current = null;
+
+                    if (Equals(op.LHS, lhs))
+                    {
+                        IEnumerable values;
+
+                        if (lhs is Property property && property.AllowsMultiple && value is IEnumerable collection)
+                        {
+                            values = collection;
+                        }
+                        else
+                        {
+                            values = new List<object> { value };
+                        }
+
+                        BooleanExpression exp = new BooleanExpression
+                        {
+                            IsAnd = false
+                        };
+
+                        foreach (var temp in values)
+                        {
+                            exp.Predicates.Add(new OperatorPredicate
+                            {
+                                LHS = temp,
+                                Operator = op.Operator,
+                                RHS = op.RHS
+                            });
+                        }
+
+                        current = exp;
+                    }
+                    else if (!(op.LHS is Property))
+                    {
+                        current = op;
+                    }
+
+                    if (current != null)
+                    {
+                        reduced = current.Evaluate() ? FilterPredicate.TAUTOLOGY : FilterPredicate.CONTRADICTION;
+                    }
+                }
+
+                if (reduced == FilterPredicate.CONTRADICTION)
+                {
+                    if (and)
+                    {
+                        return reduced;
+                    }
+                }
+                else if (reduced == FilterPredicate.TAUTOLOGY)
+                {
+                    if (!and)
+                    {
+                        return reduced;
+                    }
+                }
+                else
+                {
+                    result.Predicates.Add(reduced);
+                }
+            }
+
+            if (result.Predicates.Count == 0)
+            {
+                return and ? FilterPredicate.TAUTOLOGY : FilterPredicate.CONTRADICTION;
+            }
+            else
+            {
+                return result;
+            }
+        }
+
+        public class FilterableWrapper<T> : IAsyncEnumerable<T>, IAsyncFilterable<T> where T : Item
+        {
+            private IAsyncEnumerable<T> Items { get; }
+
+            public FilterableWrapper(IAsyncEnumerable<T> items)
+            {
+                Items = items;
+            }
+
+            public IAsyncEnumerator<T> GetAsyncEnumerator(CancellationToken cancellationToken = default) => Items.GetAsyncEnumerator();
+
+            public IAsyncEnumerable<T> GetAsyncEnumerator(FilterPredicate predicate, CancellationToken cancellationToken = default) => Items.WhereAsync(item => ItemHelpers.Evaluate(item, predicate));
+        }
+    }
+
+    public class Collection : Item, IAsyncEnumerable<Item>, IAsyncFilterable<Item>
     {
         public string Description { get; set; }
         public string PosterPath { get; set; }
@@ -194,6 +447,17 @@ namespace Movies.Models
                 }
 
                 node = Reverse ? node.Previous : node.Next;
+            }
+        }
+
+        public virtual async IAsyncEnumerable<Item> GetAsyncEnumerator(FilterPredicate predicate, CancellationToken cancellationToken = default)
+        {
+            await foreach (var item in this)
+            {
+                if (await ItemHelpers.Evaluate(item, predicate))
+                {
+                    yield return item;
+                }
             }
         }
     }

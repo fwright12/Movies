@@ -238,7 +238,7 @@ namespace Movies
 
         private static async IAsyncEnumerable<T> GetTVItems<T>(Item tv, MultiProperty<T> property)
         {
-            if (Data.GetDetails(tv).TryGetValue(property, out var items))
+            if (Data.GetDetails(tv).TryGetValues(property, out var items))
             {
                 foreach (var item in await items)
                 {

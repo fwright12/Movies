@@ -17,6 +17,7 @@ namespace Movies
         public ICommand CreateListCommand { get; }
         public ICommand DeleteListCommand { get; }
         public ICommand LoadListsCommand { get; }
+        public ICommand OpenFiltersCommand { get; }
 
         private async Task AddSyncSource(ListViewModel model)
         {

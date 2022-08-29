@@ -4,6 +4,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
+using System.ComponentModel;
 using System.Globalization;
 using System.Linq;
 using System.Text.Json;
@@ -163,6 +164,191 @@ namespace Movies.ViewModels
         }
     }
 
+    public static class FilterHelpers
+    {
+        public static readonly IEnumerable<Property> PreferredFilterOrder = new List<Property>
+        {
+            Movie.RELEASE_DATE,
+            Media.RUNTIME,
+            Movie.CONTENT_RATING,// TVShow.CONTENT_RATING),
+            Movie.GENRES,
+            TVShow.GENRES,
+            TMDB.SCORE,
+            Movie.WATCH_PROVIDERS,
+            TVShow.WATCH_PROVIDERS,
+            ViewModels.CollectionViewModel.MonetizationType,
+            ViewModels.CollectionViewModel.People,
+            Movie.BUDGET,
+            Movie.REVENUE,
+            Media.KEYWORDS,
+        };
+
+        private static readonly HashSet<Property> ComparableProperties = new HashSet<Property>
+        {
+            Movie.RELEASE_DATE,
+            Media.RUNTIME,
+            TMDB.SCORE,
+            Movie.BUDGET,
+            Movie.REVENUE
+        };
+
+        private static readonly HashSet<Property> EqualityProperties = new HashSet<Property>
+        {
+            Movie.CONTENT_RATING,
+            Movie.GENRES,
+            TVShow.GENRES,
+            Movie.WATCH_PROVIDERS,
+            TVShow.WATCH_PROVIDERS,
+            ViewModels.CollectionViewModel.MonetizationType,
+            ViewModels.CollectionViewModel.People,
+            Media.KEYWORDS
+        };
+
+        private static readonly Dictionary<Property, object> DefaultValues = new Dictionary<Property, object>
+        {
+            [Movie.RELEASE_DATE] = new DateTime(1900, 1, 1)
+        };
+
+        public static bool IsComparable(Property property) => ComparableProperties.Contains(property);
+        public static bool IsEquality(Property property) => EqualityProperties.Contains(property);
+
+        public static bool TryGetDefaultValue(Property property, out object value) => DefaultValues.TryGetValue(property, out value);
+
+        public static OperatorEditor GetComparableEditor(params Property[] properties) => GetComparableEditor(properties.FirstOrDefault()?.Values.OfType<object>().FirstOrDefault(), properties);
+        public static OperatorEditor GetComparableEditor(object defaultValue, params Property[] properties) => GetEditor(properties, defaultValue, null, Operators.GreaterThan, Operators.Equal, Operators.LessThan);
+
+        public static OperatorEditor GetEqualityEditor(params Property[] properties) => GetEqualityEditor(null, properties);
+        public static OperatorEditor GetEqualityEditor(ObservableNode<object> selected, params Property[] properties) => GetEditor(properties, null, selected, Operators.Equal);
+
+        public static OperatorEditor GetEditor(IEnumerable<Property> properties, object defaultValue, ObservableNode<object> selected, params Operators[] operators)
+        {
+            var editor = new OperatorEditor
+            {
+                LHSOptions = new ObservableCollection<object>(properties),
+                OperatorOptions = operators.ToList<Operators>(),
+                RHSOptions = !properties.Skip(1).Any() ? properties.FirstOrDefault()?.Values : properties.SelectMany(property => property.Values.OfType<object>()),
+                DefaultLHS = properties.FirstOrDefault(),
+                DefaultOperator = operators?.FirstOrDefault() ?? Operators.Equal,
+                DefaultRHS = defaultValue
+            };
+
+            if (selected != null)
+            {
+                editor.Select(selected);
+            }
+            else
+            {
+                editor.AddNew();
+            }
+
+            return editor;
+        }
+
+        public static void AddFilters(this CollectionViewModel collection, params Property[] properties) => AddFilters(collection, (IEnumerable<Property>)properties);
+
+        public static void AddFilters(this CollectionViewModel collection, IEnumerable<Property> properties)
+        {
+            var list = properties.ToList();
+
+            for (int i = 0; i < list.Count; i++)
+            {
+                var property = list[i];
+
+                if ((property == Movie.WATCH_PROVIDERS && list.Remove(TVShow.WATCH_PROVIDERS)) || (property == TVShow.WATCH_PROVIDERS && list.Remove(Movie.WATCH_PROVIDERS)))
+                {
+                    collection.AddFilter(Movie.WATCH_PROVIDERS, TVShow.WATCH_PROVIDERS);
+                }
+                else if ((property == Movie.GENRES && list.Remove(TVShow.GENRES)) || (property == TVShow.GENRES && list.Remove(Movie.GENRES)))
+                {
+                    collection.AddFilter(Movie.GENRES, TVShow.GENRES);
+                }
+                else
+                {
+                    collection.AddFilter(property);
+                }
+            }
+        }
+
+        public static void AddFilter(this CollectionViewModel collection, params Property[] properties) => AddFilter(collection, (IEnumerable<Property>)properties);
+        public static void AddFilter(this CollectionViewModel collection, IEnumerable<Property> properties)
+        {
+            var filters = collection.Filters;
+
+            if (properties.All(property => FilterHelpers.IsComparable(property)))
+            {
+                if (!properties.Skip(1).Any() && properties.FirstOrDefault() is Property property && FilterHelpers.TryGetDefaultValue(property, out var value))
+                {
+                    filters.Add(FilterHelpers.GetComparableEditor(value, property));
+                }
+                else
+                {
+                    filters.Add(FilterHelpers.GetComparableEditor(properties.ToArray()));
+                }
+            }
+            else if (properties.All(property => FilterHelpers.IsEquality(property)))
+            {
+                var array = properties.ToArray();
+
+                if (collection.Source.Predicate is ExpressionBuilder builder)
+                {
+                    filters.Add(FilterHelpers.GetEqualityEditor(builder.Root, array));
+                }
+                else
+                {
+                    filters.Add(FilterHelpers.GetEqualityEditor(array));
+                }
+            }
+        }
+
+        /*
+         *  GetComparableEditor(new DateTime(1900, 1, 1), Movie.RELEASE_DATE),
+            GetComparableEditor(Media.RUNTIME),
+            GetEqualityEditor(Movie.CONTENT_RATING),// TVShow.CONTENT_RATING),
+            GetEqualityEditor(predicate.Root, Movie.GENRES, TVShow.GENRES),
+            GetComparableEditor(TMDB.SCORE),
+            GetEqualityEditor(predicate.Root, Movie.WATCH_PROVIDERS, TVShow.WATCH_PROVIDERS),
+            GetEqualityEditor(predicate.Root, MonetizationType),
+            GetEqualityEditor(People),
+            GetComparableEditor(Movie.BUDGET),
+            GetComparableEditor(Movie.REVENUE),
+            GetEqualityEditor(Media.KEYWORDS),
+         */
+    }
+
+    public class ItemTypeSnapPoint : ElementSnapPoint
+    {
+        public ItemTypeSnapPoint()
+        {
+            PropertyChanging += ParentWillChange;
+            PropertyChanged += ParentDidChange;
+        }
+
+        private void ParentWillChange(object sender, Xamarin.Forms.PropertyChangingEventArgs e)
+        {
+            if (e.PropertyName == nameof(Parent) && Parent != null)
+            {
+                Parent.DescendantAdded -= OnDescendantAdded;
+            }
+        }
+
+        private void ParentDidChange(object sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(Parent) && Parent != null)
+            {
+                Parent.DescendantAdded += OnDescendantAdded;
+            }
+        }
+
+        private void OnDescendantAdded(object sender, ElementEventArgs e)
+        {
+            if (e.Element is VisualElement ve && ve.BindingContext is OperatorEditor op && op.RHSOptions is Type[])
+            {
+                Parent.DescendantAdded -= OnDescendantAdded;
+                Element = ve;
+            }
+        }
+    }
+
     public interface IPredicateBuilder
     {
         public event EventHandler PredicateChanged;
@@ -229,7 +415,7 @@ namespace Movies.ViewModels
                 Items = items;
             }
 
-            public IAsyncEnumerator<T> GetAsyncEnumerator(CancellationToken cancellationToken = default) => ((Items as IAsyncFilterable<T>)?.GetItems(Filter ?? FilterPredicate.TAUTOLOGY, cancellationToken) ?? Items).GetAsyncEnumerator(cancellationToken);
+            public IAsyncEnumerator<T> GetAsyncEnumerator(CancellationToken cancellationToken = default) => ((Items as IAsyncFilterable<T>)?.GetAsyncEnumerator(Filter ?? FilterPredicate.TAUTOLOGY, cancellationToken) ?? Items).GetAsyncEnumerator(cancellationToken);
         }
     }
 }

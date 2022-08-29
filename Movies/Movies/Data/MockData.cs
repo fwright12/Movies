@@ -317,7 +317,7 @@ namespace Movies
 
         public class DB : Collection, IAsyncFilterable<Item>
         {
-            public IAsyncEnumerable<Item> GetItems(FilterPredicate predicate, CancellationToken cancellationToken = default)
+            public IAsyncEnumerable<Item> GetAsyncEnumerator(FilterPredicate predicate, CancellationToken cancellationToken = default)
             {
                 return Instance.GetTrending();
             }

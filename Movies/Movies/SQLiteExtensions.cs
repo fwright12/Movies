@@ -16,6 +16,22 @@ namespace SQLite
             await MigrateTable(database, table);
         }
 
+        public static async Task AddColumns(this SQLiteAsyncConnection database, Table table, params Table.Column[] columns)
+        {
+            var cols = new HashSet<string>((await database.GetTableInfoAsync(table.Name)).Select(col => col.Name));
+            var additions = new List<Task>();
+
+            foreach (var col in columns)
+            {
+                if (!cols.Contains(col.Name))
+                {
+                    additions.Add(database.ExecuteAsync($"alter table {table} add column {col} {col.SQLType}"));
+                }
+            }
+
+            await Task.WhenAll(additions);
+        }
+
         public static async Task MigrateTable(this SQLiteAsyncConnection database, Table table)
         {
             var cols = (await database.GetTableInfoAsync(table.Name)).Select(col => col.Name).ToList();

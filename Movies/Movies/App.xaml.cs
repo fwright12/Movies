@@ -41,17 +41,6 @@ namespace Movies
 
     /* Changelog:
      * 
-     * Fix watch providers in list view
-     * Fix tv show/season credits not caching
-     * Vacuum db
-     * Ready tmdb info requests for caching
-     * FFImageLoading
-     * iOS collectionview optimizations (do tmdb requests on thread pool, hash on type in TypeTemplateSelector, move tap gestures into respective templates)
-     * Fix caching bug (web requests not expiring correctly)
-     * Names for all regions
-     * Return null when budget or revenue is 0
-     * Removed ads from lists (performance issues)
-     * 
      */
 
     public partial class App : Application
@@ -62,6 +51,20 @@ namespace Movies
         public static readonly ImageSource TraktAttributionLight = ImageSource.FromResource("Movies.Logos.TraktAttributionLight.png");
         public static readonly ImageSource TraktAttributionDark = ImageSource.FromResource("Movies.Logos.TraktAttributionDark.png");
         public static readonly ImageSource JustWatchAttribution = ImageSource.FromResource("Movies.Logos.JustWatchAttribution.png");
+
+        public static readonly IReadOnlyDictionary<ItemType, Type> TypeMap = new Dictionary<ItemType, Type>
+        {
+            [ItemType.Movie] = typeof(Movie),
+            [ItemType.TVShow] = typeof(TVShow),
+            [ItemType.TVSeason] = typeof(TVSeason),
+            [ItemType.TVEpisode] = typeof(TVEpisode),
+            [ItemType.Person] = typeof(Person),
+            [ItemType.Collection] = typeof(Collection),
+            [ItemType.List] = typeof(List),
+            [ItemType.Company] = typeof(Company),
+            [ItemType.Network] = typeof(Company),
+            [ItemType.WatchProvider] = typeof(WatchProvider),
+        };
 
         public UserPrefs Prefs { get; }
 
@@ -136,7 +139,7 @@ namespace Movies
             foreach (var kvp in new Dictionary<string, string>(cachedWebRequests)
             {
                 [GetLoginCredentialsKey(ServiceName.TMDb)] = TMDB_LOGIN_INFO,
-                [GetLoginCredentialsKey(ServiceName.Trakt)] = TRAKT_LOGIN_INFO,
+                //[GetLoginCredentialsKey(ServiceName.Trakt)] = TRAKT_LOGIN_INFO,
             })
             {
                 if (!Properties.ContainsKey(kvp.Key))
@@ -207,7 +210,7 @@ namespace Movies
             {
                 lastCleaned = tempLastCleaned;
             }
-            
+
             if (DateTime.Now - lastCleaned > DB_CLEANING_SCHEDULE)
             {
                 DBInitialization = LocalDatabase.Clean();
@@ -219,6 +222,8 @@ namespace Movies
                 DBInitialization = LocalDatabase.Init;
             }
             //DataManager.AddDataSource(tmdb);
+
+            tmdb.ItemCache = LocalDatabase.ItemCache;
 
 #if DEBUG
             MovieExplore = new List<object>
@@ -305,6 +310,16 @@ namespace Movies
             CreateListCommand = new Command<ElementTemplate>(template => _ = CreateList(template));
             AddSyncSourceCommand = new Command<ListViewModel>(model => _ = AddSyncSource(model), list => list != null && list.SyncWith.Count != LoggedInListProviders().Count());
             DeleteListCommand = new Command<ListViewModel>(list => _ = DeleteList(list));
+            OpenFiltersCommand = new Command<DrawerView>(async drawer =>
+            {
+                if (drawer?.BindingContext is ListViewModel list && !list.SyncWith.Any(sync => sync.Provider == LocalDatabase))
+                {
+                    await Shell.Current.CurrentPage.DisplayAlert("Feature not available", "You must sync this list locally to access this feature. To do this go to Edit -> Add Source and select \"Local\"", "Ok");
+                    return;
+                }
+
+                drawer.NextSnapPointCommand.Execute(null);
+            });
 
             PageDisappearing += (sender, e) =>
             {
@@ -352,7 +367,7 @@ namespace Movies
 
         public class PeopleSearch : AsyncFilterable<PersonViewModel>
         {
-            public override async IAsyncEnumerable<PersonViewModel> GetItems(FilterPredicate predicate, CancellationToken cancellationToken = default)
+            public override async IAsyncEnumerable<PersonViewModel> GetAsyncEnumerator(FilterPredicate predicate, CancellationToken cancellationToken = default)
             {
                 if (!(predicate is SearchPredicate search) || string.IsNullOrEmpty(search.Query))
                 {
@@ -377,7 +392,7 @@ namespace Movies
 
         public class KeywordsSearch : AsyncFilterable<Keyword>
         {
-            public override async IAsyncEnumerable<Keyword> GetItems(FilterPredicate predicate, CancellationToken cancellationToken = default)
+            public override async IAsyncEnumerable<Keyword> GetAsyncEnumerator(FilterPredicate predicate, CancellationToken cancellationToken = default)
             {
                 if (!(predicate is SearchPredicate search) || string.IsNullOrEmpty(search.Query))
                 {
@@ -542,10 +557,13 @@ namespace Movies
                 search.AddNew();
                 editor.Editors.Insert(0, search);
 
-                if (Properties.TryGetValue(POPULAR_FILTERS, out var value) && value is string filters)
+                var exclude = new List<Property> { Movie.BUDGET, Movie.REVENUE };
+                collection.AddFilters(FilterHelpers.PreferredFilterOrder.Except(exclude));
+
+                if (Properties.TryGetValue(POPULAR_FILTERS, out var value) && value is string savedFilters)
                 {
 #if !DEBUG || true
-                    _ = DeserializeFilters(builder, filters);
+                    _ = DeserializeFilters(builder, savedFilters);
 #endif
                 }
             }
@@ -617,7 +635,7 @@ namespace Movies
 
         public async Task Login(IAccount account, object credentials = null)
         {
-#if !DEBUG
+#if !DEBUG || true
             if (account is IListProvider listProvider)
             {
                 QueuedProviders.Enqueue((listProvider, listProvider.GetAllListsAsync().GetAsyncEnumerator()));

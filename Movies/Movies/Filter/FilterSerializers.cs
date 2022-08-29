@@ -36,7 +36,7 @@ namespace Movies
 
         public Task<bool> IsCached(string url) => Task.FromResult(Application.Properties.ContainsKey(url));
 
-        public Task<JsonResponse> TryGetValueAsync(string url) => TryGetValue(url, out var response) ? Task.FromResult(response) : null;
+        public Task<JsonResponse> TryGetValueAsync(string url) => Task.FromResult(TryGetValue(url, out var response) ? response : null);
 
         public bool TryGetValue(string url, out JsonResponse response)
         {
