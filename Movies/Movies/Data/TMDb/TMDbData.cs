@@ -207,6 +207,8 @@ namespace Movies
 
     public partial class TMDB : IAccount, IAssignID<int>
     {
+        public const string BASE_ADDRESS = "https://api.themoviedb.org/";
+
         public static Language LANGUAGE = CultureInfo.CurrentCulture;
         public static Language FALLBACK_LANGUAGE { get; set; } = new CultureInfo("en");
         public static Region REGION = RegionInfo.CurrentRegion;
@@ -262,10 +264,10 @@ namespace Movies
             //Config = Client.GetConfigAsync();
             WebClient = new HttpClient
             {
-#if DEBUG && false
-                BaseAddress = new Uri("https://mockTMDb"),
+#if DEBUG && true
+                BaseAddress = new Uri("https://mock.themoviedb/"),
 #else
-                BaseAddress = new Uri("https://api.themoviedb.org/"),
+                BaseAddress = new Uri(BASE_ADDRESS),
 #endif
                 DefaultRequestHeaders =
                 {
@@ -791,7 +793,9 @@ namespace Movies
             };
         }
 
-        public bool TryGetID(Models.Item item, out int id)
+        bool IAssignID<int>.TryGetID(Models.Item item, out int id) => TryGetID(item, out id);
+
+        public static bool TryGetID(Models.Item item, out int id)
         {
             // Use search to guess ID if not assigned
 

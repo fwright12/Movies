@@ -108,6 +108,30 @@ namespace Movies
         }
 
         private static async Task<JsonNode> GetAppendedJson(Task<System.Net.Http.HttpResponseMessage> response, IJsonParser<JsonNode> parse) => parse.TryGetValue(JsonNode.Parse(await (await response).Content.ReadAsStringAsync()), out var value) ? value : null;
+
+        public static bool TryGetParameters(Item item, out List<object> parameters)
+        {
+            parameters = new List<object>();
+
+            if (item is TVSeason season)
+            {
+                parameters.Add(season.SeasonNumber);
+                item = season.TVShow;
+            }
+            else if (item is TVEpisode episode)
+            {
+                parameters.Add(episode.Season.SeasonNumber, episode.EpisodeNumber);
+                item = episode.Season?.TVShow;
+            }
+
+            if (item == null || !TryGetID(item, out var id))
+            {
+                return false;
+            }
+
+            parameters.Insert(0, id);
+            return true;
+        }
     }
 
     public class ItemProperties
@@ -184,29 +208,14 @@ namespace Movies
 
         public void HandleRequests(Item item, PropertyDictionary properties, TMDB tmdb)
         {
-            var handler = new RequestHandler(this, item);
-            var parameters = new List<object>();
-
-            if (item is TVSeason season)
+            if (TMDB.TryGetParameters(item, out var parameters))
             {
-                parameters.Add(season.SeasonNumber);
-                item = season.TVShow;
+                var handler = new RequestHandler(this, item)
+                {
+                    Parameters = parameters.ToArray()
+                };
+                properties.PropertyAdded += handler.PropertyRequested;
             }
-            else if (item is TVEpisode episode)
-            {
-                parameters.Add(episode.Season.SeasonNumber, episode.EpisodeNumber);
-                item = episode.Season?.TVShow;
-            }
-
-            if (item == null || !tmdb.TryGetID(item, out var id))
-            {
-                return;
-            }
-
-            parameters.Insert(0, id);
-            handler.Parameters = parameters.ToArray();
-
-            properties.PropertyAdded += handler.PropertyRequested;
         }
 
         public class RequestHandler

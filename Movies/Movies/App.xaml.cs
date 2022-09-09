@@ -367,7 +367,7 @@ namespace Movies
 
         public class PeopleSearch : AsyncFilterable<PersonViewModel>
         {
-            public override async IAsyncEnumerable<PersonViewModel> GetAsyncEnumerator(FilterPredicate predicate, CancellationToken cancellationToken = default)
+            public override async IAsyncEnumerator<PersonViewModel> GetAsyncEnumerator(FilterPredicate predicate, CancellationToken cancellationToken = default)
             {
                 if (!(predicate is SearchPredicate search) || string.IsNullOrEmpty(search.Query))
                 {
@@ -392,7 +392,7 @@ namespace Movies
 
         public class KeywordsSearch : AsyncFilterable<Keyword>
         {
-            public override async IAsyncEnumerable<Keyword> GetAsyncEnumerator(FilterPredicate predicate, CancellationToken cancellationToken = default)
+            public override async IAsyncEnumerator<Keyword> GetAsyncEnumerator(FilterPredicate predicate, CancellationToken cancellationToken = default)
             {
                 if (!(predicate is SearchPredicate search) || string.IsNullOrEmpty(search.Query))
                 {

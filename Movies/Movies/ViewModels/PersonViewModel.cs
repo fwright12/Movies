@@ -41,7 +41,7 @@ namespace Movies.ViewModels
             {
                 if (e.PropertyName == nameof(Bio))
                 {
-                    OnPropertyChanged(nameof(Item));
+                    OnPropertyChanged(nameof(Description));
                 }
                 else if (e.PropertyName == nameof(ProfilePath))
                 {

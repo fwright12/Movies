@@ -22,18 +22,114 @@ namespace Movies.Models
 
     public interface IAsyncFilterable<T> : IAsyncEnumerable<T>
     {
-        IAsyncEnumerable<T> GetAsyncEnumerator(FilterPredicate predicate, CancellationToken cancellationToken = default);
+        IAsyncEnumerator<T> GetAsyncEnumerator(FilterPredicate predicate, CancellationToken cancellationToken = default);
     }
 
     public abstract class AsyncFilterable<T> : IAsyncFilterable<T>
     {
-        public abstract IAsyncEnumerable<T> GetAsyncEnumerator(FilterPredicate predicate, CancellationToken cancellationToken = default);
-        public IAsyncEnumerator<T> GetAsyncEnumerator(CancellationToken cancellationToken = default) => GetAsyncEnumerator(FilterPredicate.TAUTOLOGY).GetAsyncEnumerator();
+        public abstract IAsyncEnumerator<T> GetAsyncEnumerator(FilterPredicate predicate, CancellationToken cancellationToken = default);
+        public IAsyncEnumerator<T> GetAsyncEnumerator(CancellationToken cancellationToken = default) => GetAsyncEnumerator(FilterPredicate.TAUTOLOGY);
     }
 
     public static class ItemHelpers
     {
+        public static FilterPredicate FormatFilters(FilterPredicate filter)
+        {
+            if (!(filter is BooleanExpression expression))
+            {
+                return filter;
+            }
+
+            var sorted = new Dictionary<object, List<OperatorPredicate>>();
+            var predicates = expression.Predicates;
+            expression = new BooleanExpression();
+
+            foreach (var predicate in predicates)
+            {
+                if (predicate is OperatorPredicate op)
+                {
+                    if (!sorted.TryGetValue(op.LHS, out var values))
+                    {
+                        sorted[op.LHS] = values = new List<OperatorPredicate>();
+                    }
+
+                    values.Add(op);
+                }
+                else
+                {
+                    expression.Predicates.Add(predicate);
+                }
+            }
+
+            foreach (var kvp in sorted)
+            {
+                if (kvp.Value.Count == 1)
+                {
+                    expression.Predicates.Add(kvp.Value[0]);
+                }
+                else
+                {
+                    var inner = new BooleanExpression
+                    {
+                        IsAnd = false
+                    };
+
+                    foreach (var value in kvp.Value)
+                    {
+                        inner.Predicates.Add(value);
+                    }
+
+                    expression.Predicates.Add(inner);
+                }
+            }
+
+            return expression;
+        }
+
         public static List<Type> RemoveTypes(FilterPredicate predicate, out FilterPredicate remaining)
+        {
+            var predicates = predicate is BooleanExpression temp && temp.IsAnd ? temp.Predicates : new List<FilterPredicate> { predicate };
+            var expression = new BooleanExpression();
+            var types = new List<Type>();
+
+            foreach (var value in predicates)
+            {
+                var inner = value is BooleanExpression temp1 && !temp1.IsAnd ? temp1.Predicates : new List<FilterPredicate> { value };
+                var innerTypes = new List<Type>();
+                var itr = inner.GetEnumerator();
+
+                while (itr.MoveNext() && itr.Current is OperatorPredicate op && Equals(op.LHS, ViewModels.CollectionViewModel.ITEM_TYPE) && op.RHS is Type type)
+                {
+                    innerTypes.Add(type);
+                }
+
+                if (inner.Count == innerTypes.Count)
+                {
+                    types.AddRange(innerTypes);
+                }
+                else
+                {
+                    expression.Predicates.Add(value);
+                }
+            }
+
+            if (types.Count == 0)
+            {
+                remaining = predicate;
+            }
+            else if (expression.Predicates.Count == 0)
+            {
+                remaining = FilterPredicate.TAUTOLOGY;
+            }
+            else
+            {
+                remaining = expression;
+            }
+
+            return types;
+        }
+
+        public static List<Type> RemoveTypes1(FilterPredicate predicate, out FilterPredicate remaining)
         {
             var predicates = (predicate as BooleanExpression)?.Predicates ?? new List<FilterPredicate> { predicate };
             var expression = new BooleanExpression();
@@ -63,28 +159,8 @@ namespace Movies.Models
             object lhs = ViewModels.CollectionViewModel.ITEM_TYPE;
             object value = item.GetType();
 
-            var types = RemoveTypes(filter, out filter);
-            if (types.Count > 0)
-            {
-                var typeExpression = new BooleanExpression
-                {
-                    IsAnd = false
-                };
-                var expression = filter as BooleanExpression ?? new BooleanExpression { Predicates = { filter } };
-                expression.Predicates.Insert(0, typeExpression);
-
-                foreach (var type in types)
-                {
-                    typeExpression.Predicates.Add(new OperatorPredicate
-                    {
-                        LHS = ViewModels.CollectionViewModel.ITEM_TYPE,
-                        Operator = Operators.Equal,
-                        RHS = type
-                    });
-                }
-
-                filter = expression;
-            }
+            filter = FormatFilters(filter);
+            //var types = RemoveTypes(filter, out filter);
 
             while (true)
             {
@@ -126,18 +202,21 @@ namespace Movies.Models
 
             foreach (var child in Flatten(predicate))
             {
-                if (child is OperatorPredicate op && op.LHS is Property property)
+                if (child is OperatorPredicate op)
                 {
-                    if (properties != null && properties.ValueCount(property) > 0)
+                    if (op.LHS is Property property)
                     {
-                        cachedInMemory.Enqueue(op);
-                    }
-                    else
-                    {
-                        cachedPersistent.Enqueue(op);
+                        if (properties != null && properties.ValueCount(property) > 0)
+                        {
+                            cachedInMemory.Enqueue(op);
+                        }
+                        else
+                        {
+                            cachedPersistent.Enqueue(op);
+                        }
                     }
                 }
-                else
+                else //if (!Equals(op.LHS, ViewModels.CollectionViewModel.ITEM_TYPE))
                 {
                     yield break;
                 }
@@ -183,7 +262,10 @@ namespace Movies.Models
 
         private static FilterPredicate Reduce(BooleanExpression expression, object lhs = null, object value = null)
         {
-            var result = new BooleanExpression();
+            var result = new BooleanExpression
+            {
+                IsAnd = expression.IsAnd
+            };
             var and = expression.IsAnd;
 
             foreach (var predicate in expression.Predicates)
@@ -280,11 +362,11 @@ namespace Movies.Models
 
             public IAsyncEnumerator<T> GetAsyncEnumerator(CancellationToken cancellationToken = default) => Items.GetAsyncEnumerator();
 
-            public IAsyncEnumerable<T> GetAsyncEnumerator(FilterPredicate predicate, CancellationToken cancellationToken = default) => Items.WhereAsync(item => ItemHelpers.Evaluate(item, predicate));
+            public IAsyncEnumerator<T> GetAsyncEnumerator(FilterPredicate predicate, CancellationToken cancellationToken = default) => Items.WhereAsync(item => ItemHelpers.Evaluate(item, predicate)).GetAsyncEnumerator();
         }
     }
 
-    public class Collection : Item, IAsyncEnumerable<Item>, IAsyncFilterable<Item>
+    public class Collection : Item, IAsyncEnumerable<Item>
     {
         public string Description { get; set; }
         public string PosterPath { get; set; }
@@ -393,8 +475,6 @@ namespace Movies.Models
 
         protected bool Contains(Item item) => Cache.Contains(item);
 
-        public virtual Task<List<Item>> GetAdditionsAsync(List list) => Task.FromResult(new List<Item>());
-
         private SemaphoreSlim ItrSemaphore = new SemaphoreSlim(1, 1);
         public bool Reverse { get; set; } = false;
 
@@ -449,20 +529,14 @@ namespace Movies.Models
                 node = Reverse ? node.Previous : node.Next;
             }
         }
-
-        public virtual async IAsyncEnumerable<Item> GetAsyncEnumerator(FilterPredicate predicate, CancellationToken cancellationToken = default)
-        {
-            await foreach (var item in this)
-            {
-                if (await ItemHelpers.Evaluate(item, predicate))
-                {
-                    yield return item;
-                }
-            }
-        }
     }
 
-    public abstract class List : Collection
+    public interface IAsyncCollection<T> : IAsyncEnumerable<T>
+    {
+        Task<bool?> ContainsAsync(T item);
+    }
+
+    public abstract class List : Collection, IAsyncCollection<Item>, IAsyncFilterable<Item>
     {
         public abstract string ID { get; }
 
@@ -562,6 +636,19 @@ namespace Movies.Models
             else
             {
                 return Cache[item] = ContainsAsyncInternal(item);
+            }
+        }
+
+        public virtual Task<List<Item>> GetAdditionsAsync(List list) => Task.FromResult(new List<Item>());
+
+        public virtual async IAsyncEnumerator<Item> GetAsyncEnumerator(FilterPredicate predicate, CancellationToken cancellationToken = default)
+        {
+            await foreach (var item in this)
+            {
+                if (await ItemHelpers.Evaluate(item, predicate))
+                {
+                    yield return item;
+                }
             }
         }
     }

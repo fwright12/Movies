@@ -65,7 +65,7 @@ namespace Movies
                 content = HARRY_POTTER_COLLECTION_RESPONSE;
                 //content = null;
             }
-            else if (BaseAddress.ToString().StartsWith("https://api.themoviedb.org/"))
+            else if (BaseAddress.ToString().Contains("themoviedb"))
             {
                 if (endpoint.StartsWith("4/account"))
                 {
@@ -82,7 +82,7 @@ namespace Movies
                         content = TMDB_ACCOUNT_LISTS_RESPONSE;
                     }
                 }
-                else if (endpoint.StartsWith("list"))
+                else if (endpoint.StartsWith("4/list"))
                 {
                     content = TMDB_WATCHED_LIST_RESPONSE;
                 }

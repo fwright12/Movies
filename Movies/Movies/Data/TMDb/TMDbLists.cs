@@ -207,6 +207,7 @@ namespace Movies
                 _ID = id;
                 Client = new HttpClient
                 {
+                    BaseAddress = new Uri(BASE_ADDRESS),
                     DefaultRequestHeaders =
                     {
                         Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", bearer)
@@ -225,7 +226,7 @@ namespace Movies
             //public IAsyncEnumerable<JsonNode> FlattenPages(string apiCall, params string[] parameters) => Request(Client.GetPagesAsync(new PagedTMDbRequest(apiCall), Helpers.LazyRange(1, 1), default, parameters).SelectAsync(GetJson), new JsonNodeParser<JsonNode>());
             //public IAsyncEnumerable<JsonNode> FlattenPages(string apiCall) => TMDB.FlattenPages(Client, apiCall);
 
-            protected bool TryGetId(Models.Item item, out int id) => IDSystem.TryGetID(item, out id);
+            protected bool TryGetId(Models.Item item, out int id) => ((IAssignID<int>)IDSystem).TryGetID(item, out id);
 
             protected bool TryGetMediaType(Models.Item item, out string type)
             {
@@ -270,10 +271,7 @@ namespace Movies
 
             public List(string token, TMDB idSystem) : this(null, token, idSystem) { }
 
-            private List(object id, string token, TMDB idSystem) : base(id, idSystem, token)
-            {
-                Client.BaseAddress = new Uri("https://api.themoviedb.org/4/");
-            }
+            private List(object id, string token, TMDB idSystem) : base(id, idSystem, token) { }
 
             public static bool TryParse(JsonNode json, string token, TMDB idSystem, out Models.List list)
             {
@@ -315,7 +313,7 @@ namespace Movies
                 }
 
                 //var content = new StringContent(json, Encoding.UTF8, "application/json");
-                var response = await Client.TryPostAsync(string.Format("list/{0}/items", ID), json);
+                var response = await Client.TryPostAsync(string.Format(API.LIST.ADD_ITEMS.GetURL(), ID), json);
                 //var response = await Client.PostAsync(string.Format("https://api.themoviedb.org/4/list/{0}/items", ID), content);
 
                 return response?.IsSuccessStatusCode == true && JsonNode.Parse(await response.Content.ReadAsStringAsync())["success"]?.GetValue<bool>() == true;
@@ -326,7 +324,7 @@ namespace Movies
                 if (TryGetMediaType(item, out var type) && TryGetId(item, out var itemId))
                 {
                     //var response = await Client.GetAsync(string.Format("https://api.themoviedb.org/4/list/{0}/item_status?api_key=f0e327cdf818a4e5b6df2cbde7095c60&media_id={1}&media_type={2}", ID, itemId, type));
-                    var response = await Client.TryGetAsync(string.Format("list/{0}/item_status?media_id={1}&media_type={2}", ID, itemId, type));
+                    var response = await Client.TryGetAsync(string.Format(API.LIST.CHECK_ITEM_STATUS.GetURL(), ID, itemId, type));
 
                     if (response != null)
                     {
@@ -339,14 +337,14 @@ namespace Movies
 
             public override async Task<int> CountAsync()
             {
-                var response = await Client.TryGetAsync(string.Format("list/{0}", ID));
+                var response = await Client.TryGetAsync(string.Format(API.LIST.GET_LIST.GetURL(), ID));
                 //var response = await Client.GetAsync(string.Format("https://api.themoviedb.org/4/list/{0}?page=1", ID));
                 return response == null ? -1 : (JsonNode.Parse(await response.Content.ReadAsStringAsync())["total_results"]?.GetValue<int>() ?? -1);
             }
 
             public override async Task Delete()
             {
-                var response = await Client.TrySendAsync(string.Format("list/{0}", ID), method: HttpMethod.Delete);
+                var response = await Client.TrySendAsync(string.Format(API.LIST.DELETE_LIST.GetURL(), ID), method: HttpMethod.Delete);
                 //var response = await Client.DeleteAsync(string.Format("https://api.themoviedb.org/4/list/{0}", ID));
 
                 //return JsonNode.Parse(await response.Content.ReadAsStringAsync())["success"].GetValue<bool>();
@@ -359,7 +357,7 @@ namespace Movies
                     return false;
                 }
 
-                var response = await Client.TrySendAsync(string.Format("list/{0}/items", ID), json, HttpMethod.Delete);
+                var response = await Client.TrySendAsync(string.Format(API.LIST.REMOVE_ITEMS.GetURL(), ID), json, HttpMethod.Delete);
                 //var response = await Client.SendAsync(request);
 
                 return response?.IsSuccessStatusCode == true && JsonNode.Parse(await response.Content.ReadAsStringAsync())["success"]?.GetValue<bool>() == true;
@@ -381,7 +379,7 @@ namespace Movies
                 {
                     var iso = JsonExtensions.FormatJson("iso_639_1", LANGUAGE) + ", ";
                     //var response = await Client.TryPostAsync(".", json.Insert(1, iso));
-                    var response = await Client.TryPostAsync("list", json.Insert(1, iso));
+                    var response = await Client.TryPostAsync(API.LIST.CREATE_LIST.GetURL(), json.Insert(1, iso));
                     //var response = await Client.PostAsync("https://api.themoviedb.org/4/list", new StringContent(json.Insert(1, iso), Encoding.UTF8, "application/json"));
 
                     if (response?.IsSuccessStatusCode == true && JsonNode.Parse(await response.Content.ReadAsStringAsync()) is JsonNode parsed && parsed["success"]?.GetValue<bool>() == true && parsed["id"]?.GetValue<int>() is int id)
@@ -396,7 +394,7 @@ namespace Movies
                 else if (json != DetailsBackup)
                 {
                     //var content = new StringContent(json, Encoding.UTF8, "application/json");
-                    var response = await Client.TrySendAsync(string.Format("list/{0}", ID), json, HttpMethod.Put);
+                    var response = await Client.TrySendAsync(string.Format(API.LIST.UPDATE_LIST.GetURL(), ID), json, HttpMethod.Put);
                     //var response = await Client.PutAsync(string.Format("https://api.themoviedb.org/4/list/{0}", ID), content);
 
                     if (!(response?.IsSuccessStatusCode == true && JsonNode.Parse(await response.Content.ReadAsStringAsync())["success"]?.GetValue<bool>() == true))
@@ -453,12 +451,7 @@ namespace Movies
                     yield break;
                 }
 
-                var request = new PagedTMDbRequest($"list/{ID}")
-                {
-                    Version = -1
-                };
-
-                await foreach (var item in Request<Models.Item>(request, TMDB.TryParse, $"sort_by=original_order.{(Reverse ? "desc" : "asc")}"))
+                await foreach (var item in Request<Models.Item>(new ParameterizedPagedRequest(API.LIST.GET_LIST, ID), TMDB.TryParse, $"sort_by=original_order.{(Reverse ? "desc" : "asc")}"))
                 {
                     yield return item;
                 }
@@ -473,13 +466,12 @@ namespace Movies
             private string AccountID;
             private string SessionID;
             private Models.Collection Movies;
+            private Models.Collection TV;
 
             public NamedList(string itemsPath, string statusPath, string bearer, string accountID, string sessionId, TMDB idSystem) : base(itemsPath, idSystem, bearer)
             {
                 AccountID = accountID;
                 SessionID = sessionId;
-
-                Client.BaseAddress = new Uri("https://api.themoviedb.org/");
 
                 ItemsPath = itemsPath;
                 StatusPath = statusPath;
@@ -489,9 +481,13 @@ namespace Movies
                 Movies = new Models.Collection
                 {
                     Reverse = true,
-                    Items = GetMovies()
+                    Items = Request<Models.Movie>(new ParameterizedPagedRequest(API.V4.ACCOUNT.GET_MOVIES, AccountID, ID), TryParseMovie)
                 };
-                Items = Items.Concat(Movies);
+                TV = new Models.Collection
+                {
+                    Reverse = true,
+                    Items = Request<Models.TVShow>(new ParameterizedPagedRequest(API.V4.ACCOUNT.GET_TV_SHOWS, AccountID, ID), TryParseTVShow)
+                };
             }
 
             private async Task<bool> UpdateStatus(bool status, IEnumerable<Models.Item> items)
@@ -505,7 +501,7 @@ namespace Movies
                             JsonExtensions.FormatJson("media_id", id),
                             JsonExtensions.FormatJson(StatusPath, status));
                         //var content = new StringContent(json, Encoding.UTF8, "application/json");
-                        await Client.TryPostAsync(string.Format("3/account/{0}/" + StatusPath + "?session_id={1}", AccountID, SessionID), json);
+                        await Client.TryPostAsync(string.Format(API.V3.ACCOUNT.ADD_TO_LIST.GetURL(), AccountID, StatusPath, SessionID), json);
                         //await Client.PostAsync(string.Format("https://api.themoviedb.org/3/account/{0}/" + StatusPath + "?session_id={1}", AccountID, SessionID), content);
                     }
                 }
@@ -533,7 +529,7 @@ namespace Movies
 
             public override async Task<int> CountAsync()
             {
-                var responses = await Task.WhenAll(Client.TryGetAsync(string.Format("4/account/{0}/movie/" + ID.ToString(), AccountID)), Client.TryGetAsync(string.Format("4/account/{0}/tv/" + ID.ToString(), AccountID)));
+                var responses = await Task.WhenAll(Client.TryGetAsync(string.Format(API.V4.ACCOUNT.GET_MOVIES.GetURL(), AccountID, ID)), Client.TryGetAsync(string.Format(API.V4.ACCOUNT.GET_TV_SHOWS.GetURL(), AccountID, ID)));
                 //var responses = await Task.WhenAll(Client.GetAsync(string.Format("https://api.themoviedb.org/4/account/{0}/movie/" + ID.ToString() + "?page=1", AccountID)), Client.GetAsync(string.Format("https://api.themoviedb.org/4/account/{0}/tv/" + ID.ToString() + "?page=1", AccountID)));
 
                 if (responses[0]?.IsSuccessStatusCode == true && responses[1]?.IsSuccessStatusCode == true)
@@ -595,44 +591,30 @@ namespace Movies
 
             protected override async IAsyncEnumerable<Models.Item> GetItems()
             {
-                var request = new PagedTMDbRequest($"account/{AccountID}/tv/{ID}")
+                await foreach (var tv in TV)
                 {
-                    Version = 4
-                };
-
-                await foreach (var show in Request<Models.TVShow>(request, TryParseTVShow))
+                    yield return tv;
+                }
+                await foreach (var movie in Movies)
                 {
-                    yield return show;
+                    yield return movie;
                 }
             }
 
-            public override IAsyncEnumerable<Models.Item> GetAsyncEnumerator(FilterPredicate filter, CancellationToken cancellationToken = default)
+            public override IAsyncEnumerator<Models.Item> GetAsyncEnumerator(FilterPredicate filter, CancellationToken cancellationToken = default)
             {
                 var types = Models.ItemHelpers.RemoveTypes(filter, out filter);
                 var movie = types.Contains(typeof(Models.Movie));
                 var tv = types.Contains(typeof(Models.TVShow));
 
-                if (types.Count == 1)
+                if (movie ^ tv)
                 {
-                    var items = types[0] == typeof(Models.TVShow) ? GetItems() : Movies;
-                    return items.WhereAsync(item => Models.ItemHelpers.Evaluate(item, filter));
+                    var items = tv ? TV : Movies;
+                    return items.WhereAsync(item => Models.ItemHelpers.Evaluate(item, filter)).GetAsyncEnumerator();
                 }
                 else
                 {
                     return base.GetAsyncEnumerator(filter, cancellationToken);
-                }
-            }
-
-            private async IAsyncEnumerable<Models.Movie> GetMovies()
-            {
-                var request = new PagedTMDbRequest($"account/{AccountID}/movie/{ID}")
-                {
-                    Version = 4,
-                };
-
-                await foreach (var movie in Request<Models.Movie>(request, TryParseMovie))
-                {
-                    yield return movie;
                 }
             }
         }

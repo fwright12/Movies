@@ -24,8 +24,6 @@ namespace Movies
                 }
             }
 
-            //IComparable[] values = await Task.WhenAll(itrs.Select(itr => byValue(itr.Current)));
-
             async Task<object> Wrap(Task<Rating> result, bool score)
             {
                 var rating = await result;
@@ -100,7 +98,7 @@ namespace Movies
                 SortBy = POPULARITY;
             }
 
-            public IAsyncEnumerable<Item> GetAsyncEnumerator(FilterPredicate predicate, CancellationToken cancellationToken = default)
+            public IAsyncEnumerator<Item> GetAsyncEnumerator(FilterPredicate predicate, CancellationToken cancellationToken = default)
             {
                 var expression = predicate as BooleanExpression ?? new BooleanExpression { Predicates = { predicate } };
                 var types = expression.Predicates
@@ -111,15 +109,15 @@ namespace Movies
 
                 if (expression.Predicates.OfType<SearchPredicate>().FirstOrDefault() is SearchPredicate search && !string.IsNullOrEmpty(search.Query))
                 {
-                    return Search(search.Query, expression, types);
+                    return Search(search.Query, expression, types).GetAsyncEnumerator();
                 }
                 else if (typeof(IComparable).IsAssignableFrom(SortBy.Type))
                 {
-                    return Discover(predicate, types);
+                    return Discover(predicate, types).GetAsyncEnumerator();
                 }
                 else
                 {
-                    return Empty<Item>();
+                    return Empty<Item>().GetAsyncEnumerator();
                 }
             }
 
@@ -202,11 +200,6 @@ namespace Movies
                 //var filterType = types.Count > 0;
                 //var types = (filterType ? itemType.Value : ItemType.Movie | ItemType.TVShow | ItemType.Person).ToString();
 
-                /*
-                 * Convert to cnf
-                 */
-                var cnf = filter is BooleanExpression exp ? new List<FilterPredicate>(exp.Predicates) : new List<FilterPredicate> { filter };
-
                 var sources = new List<IAsyncEnumerable<Item>>();
                 var sortParameter = SortOptions.TryGetValue(SortBy, out var sort) ? $"sort_by={sort}.{(SortAscending ? "asc" : "desc")}" : null;
 
@@ -214,7 +207,7 @@ namespace Movies
 
                 if (Contains(typeof(Movie)) && MOVIE_PROPERTIES.HasProperty(SortBy))
                 {
-                    var parameters = GetDiscoverParameters( ItemType.Movie, cnf, DiscoverMovieParameters)?.Prepend(sortParameter).ToArray();
+                    var parameters = GetDiscoverParameters(filter, DiscoverMovieParameters)?.Prepend(sortParameter).ToArray();
 
                     if (parameters != null)
                     {
@@ -223,7 +216,7 @@ namespace Movies
                 }
                 if (Contains(typeof(TVShow)) && TVSHOW_PROPERTIES.HasProperty(SortBy))
                 {
-                    var parameters = GetDiscoverParameters(ItemType.TVShow, cnf, DiscoverTVParameters)?.Prepend(sortParameter).ToArray();
+                    var parameters = GetDiscoverParameters(filter, DiscoverTVParameters)?.Prepend(sortParameter).ToArray();
 
                     if (parameters != null)
                     {
@@ -232,38 +225,23 @@ namespace Movies
                 }
                 if (Contains(typeof(Person)) && PERSON_PROPERTIES.HasProperty(SortBy))
                 {
-                    //var expression = cnf as BooleanExpression ?? new BooleanExpression { Predicates = { cnf } };
+                    var expression = filter as BooleanExpression ?? new BooleanExpression { Predicates = { filter } };
 
-                    if (!cnf.Any(predicate => (predicate as OperatorPredicate)?.LHS is Property))
+                    if (!expression.Predicates.Any(predicate => (predicate as OperatorPredicate)?.LHS is Property))
                     {
                         var pages = SortAscending ? Helpers.LazyRange(-1, -1) : Helpers.LazyRange(1, 1);
                         sources.Add(Request<Person>(API.PEOPLE.GET_POPULAR, pages, TryParsePerson, SortAscending));
                     }
                 }
 
-                if (cnf.Count > 0)
-                {
-                    BooleanExpression temp = new BooleanExpression();
-
-                    foreach (var predicate in cnf)
-                    {
-                        temp.Predicates.Add(predicate);
-                    }
-
-                    for (int i = 0; i < sources.Count; i++)
-                    {
-                        sources[i] = sources[i].WhereAsync(item => ItemHelpers.Evaluate(item, temp));
-                    }
-                }
-
                 return sources.Count == 1 ? sources[0] : Merge(sources, SortBy, SortAscending ? -1 : 1);
             }
 
-            private List<string> GetDiscoverParameters(ItemType type, IList<FilterPredicate> filters, IDictionary<Property, Dictionary<Operators, Parameter>> endpoints)
+            private List<string> GetDiscoverParameters(FilterPredicate predicate, IDictionary<Property, Dictionary<Operators, Parameter>> endpoints)
             {
                 var parameters = new List<string>();
-                //var expression = predicate as BooleanExpression ?? new BooleanExpression { Predicates = { predicate } };
-                //var filters = expression.Predicates;
+                var expression = predicate as BooleanExpression ?? new BooleanExpression { Predicates = { predicate } };
+                var filters = expression.Predicates;
 
                 var values = new Dictionary<Property, Dictionary<Operators, List<object>>>();
 
@@ -329,8 +307,6 @@ namespace Movies
                     }
                 }
 
-                var unhandled = new List<KeyValuePair<Property, Dictionary<Operators, List<object>>>>();
-
                 foreach (var value in values)
                 {
                     var property = value.Key;
@@ -341,18 +317,7 @@ namespace Movies
                         else if (property == TVShow.GENRES) property = Movie.GENRES;
                         else if (property == Movie.WATCH_PROVIDERS) property = TVShow.WATCH_PROVIDERS;
                         else if (property == TVShow.WATCH_PROVIDERS) property = Movie.WATCH_PROVIDERS;
-                        else
-                        {
-                            if (ITEM_PROPERTIES.TryGetValue(type, out var properties) && properties.PropertyLookup.ContainsKey(value.Key))
-                            {
-                                unhandled.Add(value);
-                                continue;
-                            }
-                            else
-                            {
-                                return null;
-                            }
-                        }
+                        else return null;
 
                         if (!values.ContainsKey(property))
                         {
@@ -398,26 +363,8 @@ namespace Movies
                                     parameters.Add(watch_region);
                                 }
                             }
-                        }
 
-                        //filters.remove(i--);
-                    }
-                }
-
-                filters.Clear();
-
-                foreach (var kvp in unhandled)
-                {
-                    foreach (var pair in kvp.Value)
-                    {
-                        foreach (var value in pair.Value)
-                        {
-                            filters.Add(new OperatorPredicate
-                            {
-                                LHS = kvp.Key,
-                                Operator = pair.Key,
-                                RHS = value
-                            });
+                            //filters.RemoveAt(i--);
                         }
                     }
                 }

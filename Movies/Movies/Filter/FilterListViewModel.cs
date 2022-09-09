@@ -415,7 +415,7 @@ namespace Movies.ViewModels
                 Items = items;
             }
 
-            public IAsyncEnumerator<T> GetAsyncEnumerator(CancellationToken cancellationToken = default) => ((Items as IAsyncFilterable<T>)?.GetAsyncEnumerator(Filter ?? FilterPredicate.TAUTOLOGY, cancellationToken) ?? Items).GetAsyncEnumerator(cancellationToken);
+            public IAsyncEnumerator<T> GetAsyncEnumerator(CancellationToken cancellationToken = default) => ((Items as IAsyncFilterable<T>)?.GetAsyncEnumerator(Filter ?? FilterPredicate.TAUTOLOGY, cancellationToken) ?? Items.GetAsyncEnumerator(cancellationToken));
         }
     }
 }

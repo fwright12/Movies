@@ -1,9 +1,11 @@
 ﻿using Movies.Models;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Movies
@@ -24,29 +26,67 @@ namespace Movies
 
         public override string ID => Sources.FirstOrDefault()?.ID;
         private IList<List> Sources;
+        private Task InitialSync { get; }
 
         public SyncList(IEnumerable<List> sources, bool reverse = false)
         {
             Sources = new List<List>(sources);
-            Items = GetItems(Sources);
+            Items = GetItemsAsync(FilterPredicate.TAUTOLOGY);
+            //Items = GetItems(Sources);
             Count = Sources.FirstOrDefault()?.Count;
             Reverse = reverse;
 
-            _ = Sync();
+            //Items = SyncEnumerator(Sources.Select(source => new FilteredList(source)), 1, Reverse);
+
+            InitialSync = Sync1();
         }
 
         private string CleanString(string value) => (value ?? string.Empty).Trim();
+        private bool HasNewerUpdates(List master, List remote) => remote.LastUpdated > master.LastUpdated;
 
-        private async Task Sync()
+        private async Task Sync1()
         {
-            var changed = false;
+            var main = Sources.FirstOrDefault();
+            var secondary = Sources.Where(source => source != main);
 
-            if (Sources.Skip(1).Any(source => source.LastUpdated > Sources[0].LastUpdated))
+            var add = new List<Task<List<Item>>>();
+            var remove = new List<Task<List<Item>>>();
+
+            foreach (var source in secondary)
             {
-                changed = true;
-                await GetAsyncEnumerator().MoveNextAsync();
+                if (HasNewerUpdates(main, source))
+                {
+                    var all = source.ReadAll();
+
+                    add.Add(all);
+                    remove.Add(all);
+                }
+                else
+                {
+                    //collections.Add(new LazyCollection<Item>(Wrap(source.GetAdditionsAsync(main)))));
+                    add.Add(source.GetAdditionsAsync(main));
+                }
             }
 
+            var tasks = new List<Task<List<Item>[]>> { Task.WhenAll(add), Task.WhenAll(remove) };
+
+            if (remove.Count > 0)
+            {
+                tasks.Add(Task.WhenAll(main.ReadAll()));
+            }
+
+            var loaded = await Task.WhenAll(tasks);
+            var masterItems = loaded.Length == 3 ? loaded[2][0].ToHashSet() : new HashSet<Item>();
+            var addItems = loaded[0];
+            var removeItems = loaded[1];
+
+            var added = addItems.Select(list => removeItems.Contains(list) ? list.Except(masterItems) : list).SelectMany(list => list);
+            var removed = removeItems.SelectMany(list => masterItems.Except(list.ToHashSet()));
+
+            await Sync(added, removed, secondary);
+            await Sync(added, removed, main);
+
+            var changed = false;
             var values = new object[Properties.Count];//.Select(property => property.GetValue(main)).ToArray();
 
             for (int i = 0; i < Properties.Count; i++)
@@ -56,7 +96,7 @@ namespace Movies
                 foreach (var list in Sources)
                 {
                     var other = property.GetValue(list);
-                    
+
                     if (!Equals(values[i], other) && !(property.PropertyType == typeof(string) && Equals(CleanString((string)values[i]), CleanString((string)other))))
                     {
                         values[i] = other;
@@ -77,6 +117,48 @@ namespace Movies
                 await Update();
             }
         }
+
+        private async Task Sync()
+        {
+            var changed = false;
+
+            if (Sources.Skip(1).Any(source => source.LastUpdated > Sources[0].LastUpdated))
+            {
+                changed = true;
+                await GetAsyncEnumerator().MoveNextAsync();
+            }
+
+            var values = new object[Properties.Count];//.Select(property => property.GetValue(main)).ToArray();
+
+            for (int i = 0; i < Properties.Count; i++)
+            {
+                var property = Properties[i];
+
+                foreach (var list in Sources)
+                {
+                    var other = property.GetValue(list);
+
+                    if (!Equals(values[i], other) && !(property.PropertyType == typeof(string) && Equals(CleanString((string)values[i]), CleanString((string)other))))
+                    {
+                        values[i] = other;
+
+                        if (list != Sources[0])
+                        {
+                            changed = true;
+                            break;
+                        }
+                    }
+                }
+
+                property.SetValue(this, values[i]);
+            }
+
+            if (changed)
+            {
+                await Update();
+            }
+        }
+
 
         private void CopyChanges(IEnumerable<PropertyInfo> changes, List from, params List[] to) => CopyChanges(changes, from, (IEnumerable<List>)to);
         private void CopyChanges(IEnumerable<PropertyInfo> changes, List from, IEnumerable<List> to)
@@ -199,6 +281,11 @@ namespace Movies
 
         private const int PageSize = 20;
 
+        private static async Task<List<T>> Buffer<T>(int? count, IAsyncEnumerable<T> source)
+        {
+            throw new NotImplementedException();
+        }
+
         private async Task Buffer(int? count, Cached source)
         {
             try
@@ -282,7 +369,7 @@ namespace Movies
             {
                 yield break;
             }
-            
+
             List main = sources[0];
             List<Cached> itrs = sources.Where(source => source != main && !(source.LastUpdated <= main.LastUpdated)).Prepend(main).Select(source =>
             {
@@ -446,6 +533,415 @@ namespace Movies
                     break;
                 }
             }
+        }
+
+        private class OrderedSet<T> : ICollection<T>
+        {
+            private List<T> List { get; }
+            private HashSet<T> Cache { get; }
+
+            public int Count => List.Count;
+
+            public bool IsReadOnly => ((ICollection<T>)List).IsReadOnly;
+
+            public OrderedSet()
+            {
+                List = new List<T>();
+                Cache = new HashSet<T>();
+            }
+
+            public void Add(T item)
+            {
+                List.Add(item);
+                Cache.Add(item);
+            }
+
+            public void Clear()
+            {
+                List.Clear();
+                Cache.Clear();
+            }
+
+            public bool Contains(T item)
+            {
+                return ((ICollection<T>)List).Contains(item);
+            }
+
+            public void CopyTo(T[] array, int arrayIndex)
+            {
+                ((ICollection<T>)List).CopyTo(array, arrayIndex);
+            }
+
+            public bool Remove(T item)
+            {
+                return ((ICollection<T>)List).Remove(item);
+            }
+
+            public IEnumerator<T> GetEnumerator()
+            {
+                return ((IEnumerable<T>)List).GetEnumerator();
+            }
+
+            IEnumerator IEnumerable.GetEnumerator()
+            {
+                return ((IEnumerable)List).GetEnumerator();
+            }
+        }
+
+
+        private class LazyCollection<T> : IEnumerable<T>, IAsyncCollection<T>
+        {
+            public IAsyncEnumerable<T> Source { get; }
+
+            private IAsyncEnumerator<T> Itr { get; }
+            private ICollection<T> Collection { get; }
+
+            public LazyCollection(IAsyncEnumerable<T> items) : this(items, new List<T>()) { }
+
+            public LazyCollection(IAsyncEnumerable<T> items, ICollection<T> collection)
+            {
+                Source = items;
+                Collection = collection;
+                Itr = items.GetAsyncEnumerator();
+            }
+
+            public bool Contains(T item) => Collection.Contains(item);
+
+            public Task<bool?> ContainsAsync(T item) => (Source as IAsyncCollection<T>)?.ContainsAsync(item);
+
+            public async Task<List<T>> LoadMore(int? count = 1)
+            {
+                var buffer = new List<T>();
+
+                for (int i = 0; !(i >= count) && await Itr.MoveNextAsync(); i++)
+                {
+                    buffer.Add(Itr.Current);
+                    Collection.Add(Itr.Current);
+                }
+
+                return buffer;
+            }
+
+            public IAsyncEnumerator<T> GetAsyncEnumerator(CancellationToken cancellationToken = default) => Source.GetAsyncEnumerator(cancellationToken);
+
+            public IEnumerator<T> GetEnumerator()
+            {
+                return Collection.GetEnumerator();
+            }
+
+            IEnumerator IEnumerable.GetEnumerator()
+            {
+                return ((IEnumerable)Collection).GetEnumerator();
+            }
+        }
+
+        private static async Task<bool?> Contains<T>(IAsyncEnumerable<T> source, T item, Queue<T> buffer = null)
+        {
+            if (source is LazyCollection<T> lazy)
+            {
+                if (lazy.Contains(item))
+                {
+                    return true;
+                }
+
+                var buffered = await lazy.LoadMore(PageSize);
+
+                if (buffer != null)
+                {
+                    foreach (var value in buffered)
+                    {
+                        buffer.Enqueue(value);
+                    }
+                }
+
+                if (lazy.Contains(item))
+                {
+                    return true;
+                }
+            }
+
+            try
+            {
+                return await (source as IAsyncCollection<T>)?.ContainsAsync(item);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private static async Task<bool?> Contains<T>(IAsyncCollection<T> source, ICollection<T> batch, T item, Queue<T> buffer = null)
+        {
+            if (source is LazyCollection<T> lazy)
+            {
+                if (lazy.Contains(item))
+                {
+                    return true;
+                }
+
+                var buffered = await lazy.LoadMore(PageSize);
+
+                if (buffer != null)
+                {
+                    foreach (var value in buffered)
+                    {
+                        buffer.Enqueue(value);
+                    }
+                }
+
+                if (lazy.Contains(item))
+                {
+                    return true;
+                }
+            }
+
+            try
+            {
+                return await (source as IAsyncCollection<T>)?.ContainsAsync(item);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private class FilteredList : IAsyncCollection<Item>
+        {
+            public List List { get; }
+            public IAsyncEnumerator<Item> Items { get; }
+
+            public FilteredList(List list)
+            {
+                List = list;
+                Items = list.GetAsyncEnumerator();
+            }
+
+            public FilteredList(List list, FilterPredicate filter) : this(list)
+            {
+                Items = list.GetAsyncEnumerator(filter);
+            }
+
+            public Task<bool?> ContainsAsync(Item item) => List.ContainsAsync(item);
+
+            public IAsyncEnumerator<Item> GetAsyncEnumerator(CancellationToken cancellationToken = default) => Items;
+        }
+
+        public override IAsyncEnumerator<Item> GetAsyncEnumerator(FilterPredicate predicate, CancellationToken cancellationToken = default) => GetItemsAsync(predicate, cancellationToken).GetAsyncEnumerator();
+
+        public async IAsyncEnumerable<Item> GetItemsAsync(FilterPredicate predicate, CancellationToken cancellationToken = default)
+        {
+            await InitialSync;
+
+            var masterSource = Sources.FirstOrDefault();
+            var secondarySources = Sources.Where(source => source != masterSource && !HasNewerUpdates(masterSource, source));
+
+            var filtered = secondarySources.Prepend(masterSource).Select(source => new LazyCollection<Item>(new FilteredList(source, predicate), new HashSet<Item>()));
+
+            var master = filtered.FirstOrDefault();
+            var secondary = filtered.Skip(1).ToList();
+
+            Queue<Item> masterBuffer = new Queue<Item>();
+            Queue<Item> batch;
+            var defferedAdditions = new List<Item>();
+            int? count = 1;
+
+            do
+            {
+                batch = new Queue<Item>();
+
+                for (int i = 0; !(i >= count) && masterBuffer.TryDequeue(out var item); i++)
+                {
+                    batch.Enqueue(item);
+                }
+
+                foreach (var item in await master.LoadMore(count - batch.Count))
+                {
+                    batch.Enqueue(item);
+                }
+
+                var add = new LinkedList<Item>();
+                var remove = new LinkedList<Item>();
+
+                if (batch.Count != count)
+                {
+                    //await Task.WhenAll(secondary.Select(list => list.LoadMore(null)));
+                    await Task.WhenAll(secondary.Select(list => LoadFromRemote(master, list, add, masterBuffer, null)));
+                }
+
+                foreach (var item in batch)
+                {
+                    foreach (var collection in secondary)
+                    {
+                        bool contains;
+                        int total;
+
+                        do
+                        {
+                            contains = collection.Contains(item);
+                            total = add.Count;
+
+                            if (!contains)
+                            {
+                                await LoadFromRemote(master, collection, add, masterBuffer);
+                            }
+                        }
+                        while (add.Count - total == PageSize);
+
+                        if (!collection.Contains(item) && (await (collection.Source as IAsyncCollection<Item>)?.ContainsAsync(item) == false))
+                        {
+                            remove.Add(item);
+                            break;
+                        }
+                    }
+                }
+
+                /*foreach (var item in batch)
+                {
+                    foreach (var collection in secondary)
+                    {
+                        var buffer = new Queue<Item>();
+                        bool contains = await Contains(collection, item, buffer) != false;
+
+                        while (buffer.TryDequeue(out var buffered))
+                        {
+                            if (!add.Contains(buffered) && await Contains(master, buffered) == false)
+                            {
+                                add.Enqueue(buffered);
+                            }
+                        }
+
+                        if (!contains)
+                        {
+                            remove.Add(item);
+                            break;
+                        }
+                    }
+                }*/
+
+                await Sync(add, remove, secondarySources);
+                await Sync(add, remove, masterSource);
+
+                var items = batch.ToList<Item>().Except(remove);
+
+                if (Reverse)
+                {
+                    items = add.Concat(items);
+                }
+                else
+                {
+                    defferedAdditions.AddRange(add);
+                }
+
+                //Count = sources[0].Count;
+
+                foreach (var item in items)
+                {
+                    yield return item;
+                }
+            }
+            while (batch.Count == count);
+
+            foreach (var item in defferedAdditions)
+            {
+                yield return item;
+            }
+        }
+
+        private static async Task LoadMaster()
+        {
+
+        }
+
+        private static async Task LoadFromRemote(LazyCollection<Item> master, LazyCollection<Item> remote, LinkedList<Item> add, Queue<Item> masterBuffer = null, int? pageSize = PageSize)
+        {
+            foreach (var item in await remote.LoadMore(pageSize))
+            {
+                if (!add.Contains(item) && !master.Contains(item))
+                {
+                    foreach (var buffered in await master.LoadMore(pageSize))
+                    {
+                        masterBuffer?.Enqueue(buffered);
+                    }
+
+                    if (!master.Contains(item) && (await (master.Source as IAsyncCollection<Item>)?.ContainsAsync(item) == false))
+                    {
+                        add.AddLast(item);
+                    }
+                }
+            }
+        }
+
+        private static async Task GetAsyncEnumerator(Queue<Item> batch, LazyCollection<Item> master, List<LazyCollection<Item>> secondary)
+        {
+            var buffers = new List<Item>[secondary.Count];
+            var add = new List<Item>();
+            var remove = await Except(batch, secondary, buffers);
+
+            foreach (var buffer in buffers)
+            {
+                var temp = new List<Item>[1];
+                add.AddRange(await Except(buffer, temp, master));
+
+                foreach (var item in temp[0])
+                {
+                    batch.Enqueue(item);
+                }
+            }
+        }
+
+        private static Task<List<Item>> Except(IEnumerable<Item> master, List<Item>[] buffers = null, params LazyCollection<Item>[] secondary) => Except(master, secondary, buffers);
+
+        private static async Task<List<Item>> Except(IEnumerable<Item> master, IEnumerable<LazyCollection<Item>> secondary, List<Item>[] buffers = null)
+        {
+            var result = new List<Item>();
+            //var removed = secondary.Select(list => master.Except(list));
+
+            var itr = secondary.GetEnumerator();// removed.Where(items => items.Any()).GetEnumerator();
+
+            for (int i = 0; itr.MoveNext(); i++)
+            {
+                var removed = master.Except(itr.Current);
+
+                if (removed.Any())
+                {
+                    var buffer = await itr.Current.LoadMore(PageSize);
+
+                    if (buffer.Count > 0)
+                    {
+                        removed = master.Except(itr.Current);
+                    }
+
+                    if (buffers != null && buffers.Length > i)
+                    {
+                        buffers[i] = buffer;
+                    }
+                }
+
+                foreach (var item in removed)
+                {
+                    if (await itr.Current.ContainsAsync(item) == false)
+                    {
+                        result.Add(item);
+                    }
+                }
+            }
+
+            return result;
+        }
+
+        private static Task Sync(IEnumerable<Item> add, IEnumerable<Item> remove, params List[] sources) => Sync(add, remove, (IEnumerable<List>)sources);
+
+        private static Task Sync(IEnumerable<Item> add, IEnumerable<Item> remove, IEnumerable<List> sources)
+        {
+            var updates = new List<Task>();
+
+            foreach (var source in sources)
+            {
+                updates.Add(source.AddAsync(source.Reverse ? System.Linq.Enumerable.Reverse(add) : add));
+                updates.Add(source.RemoveAsync(remove));
+            }
+
+            return Task.WhenAll(updates);
         }
     }
 }

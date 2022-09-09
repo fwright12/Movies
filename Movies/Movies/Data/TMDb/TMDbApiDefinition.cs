@@ -8,6 +8,69 @@ namespace Movies
 {
     public static class API
     {
+        /*
+         * v4
+         */
+
+        public static class V4
+        {
+            public static class ACCOUNT
+            {
+                public static readonly PagedTMDbRequest GET_MOVIES = new PagedTMDbRequest("account/{0}/movie/{1}")
+                {
+                    Version = 4,
+                };
+                public static readonly PagedTMDbRequest GET_TV_SHOWS = new PagedTMDbRequest("account/{0}/tv/{1}")
+                {
+                    Version = 4
+                };
+            }
+        }
+
+        public static class LIST
+        {
+            public static readonly PagedTMDbRequest GET_LIST = new PagedTMDbRequest("list/{0}")
+            {
+                Version = 4
+            };
+            public static readonly TMDbRequest CREATE_LIST = new TMDbRequest("list")
+            {
+                Version = 4
+            };
+            public static readonly TMDbRequest UPDATE_LIST = new TMDbRequest("list/{0}")
+            {
+                Version = 4
+            };
+            public static readonly TMDbRequest DELETE_LIST = new TMDbRequest("list/{0}")
+            {
+                Version = 4
+            };
+            public static readonly TMDbRequest ADD_ITEMS = new TMDbRequest("list/{0}/items")
+            {
+                Version = 4
+            };
+            public static readonly TMDbRequest REMOVE_ITEMS = new TMDbRequest("list/{0}/items")
+            {
+                Version = 4
+            };
+            public static readonly TMDbRequest CHECK_ITEM_STATUS = new TMDbRequest("list/{0}/item_status?media_id={1}&media_type={2}")
+            {
+                Version = 4
+            };
+        }
+
+        /*
+         * v3
+         */
+
+        public static class V3
+        {
+            public static class ACCOUNT
+            {
+                public static readonly TMDbRequest ADD_TO_LIST = "account/{0}/{1}?session_id={2}";
+            }
+        }
+
         public static class CERTIFICATIONS
         {
             public static readonly TMDbRequest GET_MOVIE_CERTIFICATIONS = "certification/movie/list";

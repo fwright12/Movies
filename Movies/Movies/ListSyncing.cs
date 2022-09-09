@@ -127,6 +127,11 @@ namespace Movies
 
         private async Task LoadLists(int? count = null)
         {
+            if (CustomLists.Count > 0)
+            {
+                return;
+            }
+
             if (LoadingLists)
             {
                 return;

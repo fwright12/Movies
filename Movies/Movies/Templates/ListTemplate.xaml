@@ -11,7 +11,7 @@
     <forms:DrawerView x:Name="root"
                       BackgroundColor="{Binding BackgroundColor, Source={RelativeSource AncestorType={x:Type Page}}}"
                       BindingContext="{TemplateBinding BindingContext}"
-                      Drawer="{Binding Source}">
+                      Drawer="{Binding Source.Predicate}">
         <VisualElement.Resources>
             <ResourceDictionary>
                 <Style Class="EditingOnly"
@@ -226,7 +226,7 @@
                         </ContentView>
 
                         <views:SectionView Title="{Binding DescriptionLabel}"
-                                           ext:ContentView.ItemSource="{Binding Item.Description}"
+                                           ext:ContentView.ItemSource="{Binding Description}"
                                            Style="{StaticResource OptionalContentViewStyle}"
                                            StyleClass="EditingOnly"
                                            views:EditView1.IsEditing="{Binding Editing}"
@@ -349,11 +349,14 @@
                                          Orientation="Horizontal"
                                          Spacing="0"
                                          Grid.Column="1">
-                                <Button BindingContext="{Binding Source={RelativeSource AncestorType={x:Type forms:DrawerView}}}"
-                                        Text="{OnPlatform Android=&#xf38b;, iOS=&#xf31b;}"
+                                <VisualElement.Resources>
+                                    <x:Int32 x:Key="zero">0</x:Int32>
+                                </VisualElement.Resources>
+                                
+                                <Button Text="{OnPlatform Android=&#xf38b;, iOS=&#xf31b;}"
                                         Command="{Binding OpenFiltersCommand, Source={Static Application.Current}}"
-                                        CommandParameter="{Binding}"
-                                        IsVisible="{Binding Drawer, Converter={Static forms:FalseIfNullConverter.Instance}}" />
+                                        CommandParameter="{Binding Source={RelativeSource AncestorType={x:Type forms:DrawerView}}}"
+                                        IsVisible="{Binding Filters.Editors.Count, Converter={Static forms:ObjectToFalseConverter.Instance}, ConverterParameter={StaticResource zero}}" />
 
                                 <Button Command="{Binding ToggleListLayoutCommand}">
                                     <VisualStateManager.VisualStateGroups>

@@ -180,15 +180,15 @@ namespace Movies.ViewModels
                 Collection = collection;
             }
 
-            public IAsyncEnumerator<object> GetAsyncEnumerator(CancellationToken cancellationToken = default) => GetAsyncEnumerator(FilterPredicate.TAUTOLOGY, cancellationToken).GetAsyncEnumerator();
+            public IAsyncEnumerator<object> GetAsyncEnumerator(CancellationToken cancellationToken = default) => GetAsyncEnumerator(FilterPredicate.TAUTOLOGY, cancellationToken);
 
-            public async IAsyncEnumerable<object> GetAsyncEnumerator(FilterPredicate predicate, CancellationToken cancellationToken = default)
+            public async IAsyncEnumerator<object> GetAsyncEnumerator(FilterPredicate predicate, CancellationToken cancellationToken = default)
             {
-                var filtered = (Items as IAsyncFilterable<Item>)?.GetAsyncEnumerator(predicate) ?? Items;
+                var itr = (Items as IAsyncFilterable<Item>)?.GetAsyncEnumerator(predicate) ?? Items.GetAsyncEnumerator();
 
-                await foreach (var item in filtered)
+                while (await itr.MoveNextAsync())
                 {
-                    yield return Collection.Map(item);
+                    yield return Collection.Map(itr.Current);
                 }
             }
         }
@@ -214,15 +214,11 @@ namespace Movies.ViewModels
             });
             ToggleListLayoutCommand = new Command(() => ListLayout = ListLayout == ListLayouts.Grid ? ListLayouts.List : ListLayouts.Grid);
 
-            var predicate = new ExpressionBuilder();
             var wrapper = new ItemWrapper(items, this);
-            Source = new FilterListViewModel<object>(wrapper)
-            {
-                Predicate = predicate
-            };
-
+            Source = new FilterListViewModel<object>(wrapper);
             Filters = new MultiEditor();//(types)
 
+            var predicate = new ExpressionBuilder();
             // Not currently allowing these types
             allowedTypes &= ~(ItemType.TVSeason | ItemType.TVEpisode | ItemType.List | ItemType.AllCompanies);
             var types = Enum.GetValues(typeof(ItemType))
@@ -238,10 +234,20 @@ namespace Movies.ViewModels
                 propertyEditor.TypeSelector.Select(predicate.Root);
 
                 predicate.Editor = propertyEditor;
+                Source.Predicate = predicate;
             }
             else
             {
                 predicate.Editor = Filters;
+
+                if (Filters.Editors is INotifyCollectionChanged observable)
+                {
+                    observable.CollectionChanged += (sender, e) =>
+                    {
+                        var filters = (IList)sender;
+                        Source.Predicate = filters.Count == 0 ? null : predicate;
+                    };
+                }
             }
 
             Items = Source.Items;
