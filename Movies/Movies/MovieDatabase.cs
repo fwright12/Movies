@@ -7,6 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using static Movies.API;
 using Test = Movies;
 
 namespace Movies
@@ -103,7 +104,7 @@ namespace Movies
             Print.Log(rows.Count + " items in cache");
             foreach (var row in rows)
             {
-                Print.Log(row.Item1, row.Item3, row.Item4, row.Item5, row.Item2);
+                Print.Log(row.Item1, row.Item3, row.Item4, row.Item5);//, row.Item2);
             }
 #endif
 
@@ -313,8 +314,8 @@ namespace Movies.Views
             }
 
             var history = await GetHistory();
-            await UserInfo.ExecuteAsync($"delete from {LocalList.ItemsTable} where {LocalList.ItemsCols.LIST_ID} = ?", history.ID);
-            return;
+            //await UserInfo.ExecuteAsync($"delete from {LocalList.ItemsTable} where {LocalList.ItemsCols.LIST_ID} = ?", history.ID);
+            //return;
             if (history.Count > 0)
             {
                 Print.Log("not adding");
@@ -565,7 +566,7 @@ namespace Movies.Views
                 SQLDB = database;
                 Id = id;
 
-                Items = GetItems();
+                Items = GetItemsAsync(FilterPredicate.TAUTOLOGY);// GetItems();
 #if DEBUG
                 if (id == 1)
                 {
@@ -691,7 +692,54 @@ namespace Movies.Views
                 await Task.WhenAll(details, items);
             }
 
-            private async IAsyncEnumerable<Item> GetItems()
+            public override IAsyncEnumerator<Item> GetAsyncEnumerator(FilterPredicate filter, CancellationToken cancellationToken = default) => GetItemsAsync(filter, cancellationToken).GetAsyncEnumerator();
+
+            private async IAsyncEnumerable<Item> GetItemsAsync(FilterPredicate filter, CancellationToken cancellationToken = default)
+            {
+                var types = Models.ItemHelpers.RemoveTypes(filter, out filter);
+
+                var cols = SQLiteExtensions.SelectFrom(ItemsCols.ITEM_ID.Name, ItemsCols.ITEM_TYPE.Name, ItemsCols.DATE_ADDED.Name);
+                var query = $"select {cols} from {ItemsTable} where {ItemsCols.LIST_ID} = ?";
+
+                if (types.Count > 0)
+                {
+                    var typeFilter = types.TrySelect<Type, Test.ItemType>(App.TypeMap.TryGetValue).Select(type => (int)AppItemTypeToDatabaseItemType(type));
+                    query += $" and {ItemsCols.ITEM_TYPE} in ({string.Join(',', typeFilter)})";
+                }
+
+                IEnumerable<(int?, int?, string)> items = await SQLDB.QueryAsync<(int?, int?, string)>(query, Id);
+
+                if (Reverse)
+                {
+                    // items must be reversed to properly order items that were added at the same time
+                    items = items.Reverse().OrderByDescending(item => item.Item3);
+                }
+                else
+                {
+                    items = items.OrderBy(item => item.Item3);
+                }
+
+                //for (int i = items.Count - 1; i >= 0; i--)
+                //for (int i = 0; i < items.Count; i++)
+                foreach (var row in items)
+                {
+                    //var row = items[Reverse ? items.Count - 1 - i : i];
+                    //var row = items[i];
+                    if (!row.Item1.HasValue || !row.Item2.HasValue)
+                    {
+                        continue;
+                    }
+
+                    Item item = await IDSystem.GetItem(DatabaseItemTypeToAppItemType((ItemType)row.Item2), row.Item1.Value);
+
+                    if (item != null && await ItemHelpers.Evaluate(item, filter))
+                    {
+                        yield return item;
+                    }
+                }
+            }
+
+            private async IAsyncEnumerable<Item> GetItems1()
             {
                 /*var knownAddDate = await SQLDB.QueryAsync<(int?, int?)>(string.Format("select {0} from {1} where {3} is not null and {2} = ? order by {3} {4}", SQLiteExtensions.SelectFrom(ItemsCols.ITEM_ID.Name, ItemsCols.ITEM_TYPE.Name), ItemsTable, ItemsCols.LIST_ID, ItemsCols.DATE_ADDED, Reverse ? "desc" : "asc"), Id);
                 var unknownAddDate = await SQLDB.QueryAsync<(int?, int?)>(string.Format("select {0} from {1} where {3} is null and {2} = ?", SQLiteExtensions.SelectFrom(ItemsCols.ITEM_ID.Name, ItemsCols.ITEM_TYPE.Name), ItemsTable, ItemsCols.LIST_ID, ItemsCols.DATE_ADDED), Id);

@@ -20,8 +20,9 @@ public class LRUCache
 	public LRUCache (int p0)
 	{
 		super (p0);
-		if (getClass () == LRUCache.class)
+		if (getClass () == LRUCache.class) {
 			mono.android.TypeManager.Activate ("FFImageLoading.Cache.LRUCache, FFImageLoading.Platform", "System.Int32, mscorlib", this, new java.lang.Object[] { p0 });
+		}
 	}
 
 

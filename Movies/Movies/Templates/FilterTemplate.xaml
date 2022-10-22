@@ -18,24 +18,24 @@
                 <Style TargetType="Button"
                        CanCascade="True">
                     <Setter Property="FontSize"
-                            Value="{OnPlatform iOS=Medium, Android={Static NamedSize.Default}}" />
+                            Value="{OnPlatform iOS=Medium, Android=Small}" />
                 </Style>
 
                 <Style x:Key="FilterExpressionStyle"
                        TargetType="Layout">
                     <Setter Property="BindingContext"
-                            Value="{TemplateBinding BindingContext}" />
+                            Value="{TemplateBinding BindingContext, Converter={Static viewmodels:CollectionViewModel.TreeToListConverter}}" />
                     <Setter Property="BindableLayout.ItemsSource"
                             Value="{Binding}" />
                     <Setter Property="BindableLayout.ItemTemplateSelector"
                             Value="{StaticResource NodeSelector}" />
                     <Setter Property="BindableLayout.EmptyView"
-                            Value="No filters" />
+                            Value="No additional filters" />
                 </Style>
 
                 <ControlTemplate x:Key="CompactFiltersTemplate">
                     <StackLayout Orientation="Horizontal">
-                        <ContentPresenter />
+                        <ContentPresenter Style="{StaticResource ContentPresenterFix}" />
 
                         <ScrollView Orientation="Horizontal"
                                     VerticalOptions="Center">
@@ -48,7 +48,8 @@
                 <ControlTemplate x:Key="FullFiltersTemplate">
                     <StackLayout Orientation="Vertical">
                         <StackLayout Orientation="Horizontal">
-                            <ContentPresenter HorizontalOptions="StartAndExpand" />
+                            <ContentPresenter Style="{StaticResource ContentPresenterFix}"
+                                              HorizontalOptions="StartAndExpand" />
 
                             <Button Text="Done"
                                     Command="{Binding NextSnapPointCommand, Source={RelativeSource AncestorType={x:Type forms:DrawerView}}}"
@@ -82,7 +83,7 @@
                                 Value="{StaticResource CompactFiltersTemplate}" />
                         <Setter TargetName="filters"
                                 Property="ContentView.IsVisible"
-                                Value="{Binding Count, Converter={Static forms:ObjectToFalseConverter.Instance}, ConverterParameter={StaticResource zero}}" />
+                                Value="{Binding Children.Count, Converter={Static forms:ObjectToFalseConverter.Instance}, ConverterParameter={StaticResource zero}}" />
 
                         <!--<MultiBinding>
                                             <MultiBinding.Converter>
@@ -133,7 +134,7 @@
         </Layout.Padding>
 
         <ContentView x:Name="filters"
-                     BindingContext="{Binding Root, Converter={Static viewmodels:CollectionViewModel.TreeToListConverter}}">
+                     BindingContext="{Binding Root}">
             <VisualElement.Resources>
                 <Style TargetType="Frame"
                        BasedOn="{StaticResource FrameStyle}">

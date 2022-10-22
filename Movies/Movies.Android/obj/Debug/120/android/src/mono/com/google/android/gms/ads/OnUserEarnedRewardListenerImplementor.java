@@ -20,8 +20,9 @@ public class OnUserEarnedRewardListenerImplementor
 	public OnUserEarnedRewardListenerImplementor ()
 	{
 		super ();
-		if (getClass () == OnUserEarnedRewardListenerImplementor.class)
+		if (getClass () == OnUserEarnedRewardListenerImplementor.class) {
 			mono.android.TypeManager.Activate ("Android.Gms.Ads.IOnUserEarnedRewardListenerImplementor, Xamarin.GooglePlayServices.Ads.Lite", "", this, new java.lang.Object[] {  });
+		}
 	}
 
 

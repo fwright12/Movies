@@ -18,24 +18,27 @@ public class AdRenderer
 	public AdRenderer (android.content.Context p0)
 	{
 		super (p0);
-		if (getClass () == AdRenderer.class)
+		if (getClass () == AdRenderer.class) {
 			mono.android.TypeManager.Activate ("Movies.Droid.AdRenderer, Movies.Android", "Android.Content.Context, Mono.Android", this, new java.lang.Object[] { p0 });
+		}
 	}
 
 
 	public AdRenderer (android.content.Context p0, android.util.AttributeSet p1)
 	{
 		super (p0, p1);
-		if (getClass () == AdRenderer.class)
+		if (getClass () == AdRenderer.class) {
 			mono.android.TypeManager.Activate ("Movies.Droid.AdRenderer, Movies.Android", "Android.Content.Context, Mono.Android:Android.Util.IAttributeSet, Mono.Android", this, new java.lang.Object[] { p0, p1 });
+		}
 	}
 
 
 	public AdRenderer (android.content.Context p0, android.util.AttributeSet p1, int p2)
 	{
 		super (p0, p1, p2);
-		if (getClass () == AdRenderer.class)
+		if (getClass () == AdRenderer.class) {
 			mono.android.TypeManager.Activate ("Movies.Droid.AdRenderer, Movies.Android", "Android.Content.Context, Mono.Android:Android.Util.IAttributeSet, Mono.Android:System.Int32, mscorlib", this, new java.lang.Object[] { p0, p1, p2 });
+		}
 	}
 
 	private java.util.ArrayList refList;

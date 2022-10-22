@@ -26,8 +26,9 @@ public class MediationInterstitialListenerImplementor
 	public MediationInterstitialListenerImplementor ()
 	{
 		super ();
-		if (getClass () == MediationInterstitialListenerImplementor.class)
+		if (getClass () == MediationInterstitialListenerImplementor.class) {
 			mono.android.TypeManager.Activate ("Android.Gms.Ads.Mediation.IMediationInterstitialListenerImplementor, Xamarin.GooglePlayServices.Ads.Lite", "", this, new java.lang.Object[] {  });
+		}
 	}
 
 

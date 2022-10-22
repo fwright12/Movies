@@ -20,8 +20,9 @@ public class UnifiedNativeAd_OnUnifiedNativeAdLoadedListenerImplementor
 	public UnifiedNativeAd_OnUnifiedNativeAdLoadedListenerImplementor ()
 	{
 		super ();
-		if (getClass () == UnifiedNativeAd_OnUnifiedNativeAdLoadedListenerImplementor.class)
+		if (getClass () == UnifiedNativeAd_OnUnifiedNativeAdLoadedListenerImplementor.class) {
 			mono.android.TypeManager.Activate ("Android.Gms.Ads.Formats.UnifiedNativeAd+IOnUnifiedNativeAdLoadedListenerImplementor, Xamarin.GooglePlayServices.Ads.Lite", "", this, new java.lang.Object[] {  });
+		}
 	}
 
 

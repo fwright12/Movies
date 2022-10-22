@@ -18,8 +18,9 @@ public class IShouldDelayBannerRenderingListenerInvoker
 	public IShouldDelayBannerRenderingListenerInvoker ()
 	{
 		super ();
-		if (getClass () == IShouldDelayBannerRenderingListenerInvoker.class)
+		if (getClass () == IShouldDelayBannerRenderingListenerInvoker.class) {
 			mono.android.TypeManager.Activate ("Android.Gms.Ads.Formats.IShouldDelayBannerRenderingListenerInvoker, Xamarin.GooglePlayServices.Ads.Lite", "", this, new java.lang.Object[] {  });
+		}
 	}
 
 	private java.util.ArrayList refList;

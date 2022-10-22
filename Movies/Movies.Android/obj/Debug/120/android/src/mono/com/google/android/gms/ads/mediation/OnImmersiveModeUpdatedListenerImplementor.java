@@ -20,8 +20,9 @@ public class OnImmersiveModeUpdatedListenerImplementor
 	public OnImmersiveModeUpdatedListenerImplementor ()
 	{
 		super ();
-		if (getClass () == OnImmersiveModeUpdatedListenerImplementor.class)
+		if (getClass () == OnImmersiveModeUpdatedListenerImplementor.class) {
 			mono.android.TypeManager.Activate ("Android.Gms.Ads.Mediation.IOnImmersiveModeUpdatedListenerImplementor, Xamarin.GooglePlayServices.Ads.Lite", "", this, new java.lang.Object[] {  });
+		}
 	}
 
 

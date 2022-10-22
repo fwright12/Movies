@@ -127,11 +127,6 @@ namespace Movies
 
         private async Task LoadLists(int? count = null)
         {
-            if (CustomLists.Count > 0)
-            {
-                return;
-            }
-
             if (LoadingLists)
             {
                 return;
@@ -232,6 +227,8 @@ namespace Movies
                     list.SyncChanged += (sender, e) => CoerceSyncList(((ListViewModel)sender).SyncWith);
                     list.SyncWith.CollectionChanged += (sender, e) => (AddSyncSourceCommand as Command)?.ChangeCanExecute();
                     CoerceSyncList(list.SyncWith);
+
+                    await RestoreFilters(list);
                 }
             }
         }

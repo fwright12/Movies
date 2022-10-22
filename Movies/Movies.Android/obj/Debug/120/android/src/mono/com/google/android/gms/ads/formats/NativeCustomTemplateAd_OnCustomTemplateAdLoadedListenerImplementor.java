@@ -20,8 +20,9 @@ public class NativeCustomTemplateAd_OnCustomTemplateAdLoadedListenerImplementor
 	public NativeCustomTemplateAd_OnCustomTemplateAdLoadedListenerImplementor ()
 	{
 		super ();
-		if (getClass () == NativeCustomTemplateAd_OnCustomTemplateAdLoadedListenerImplementor.class)
+		if (getClass () == NativeCustomTemplateAd_OnCustomTemplateAdLoadedListenerImplementor.class) {
 			mono.android.TypeManager.Activate ("Android.Gms.Ads.Formats.INativeCustomTemplateAdOnCustomTemplateAdLoadedListenerImplementor, Xamarin.GooglePlayServices.Ads.Lite", "", this, new java.lang.Object[] {  });
+		}
 	}
 
 

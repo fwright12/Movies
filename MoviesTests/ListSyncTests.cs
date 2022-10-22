@@ -1,65 +1,10 @@
+using Microsoft.VisualStudio.TestPlatform.CommunicationUtilities;
+using Movies;
+using Movies.Models;
+using System.Collections;
+
 namespace MoviesTests
 {
-    public class TestList : List
-    {
-        public override string ID { get; }
-
-        public List<Item> ItemList { get; }
-        public int CallsToContains { get; private set; }
-
-        public TestList(string id) : this(id, new List<Item>()) { }
-
-        public TestList(string id, List<Item> itemList)
-        {
-            ID = id;
-            ItemList = itemList;
-            Items = AsyncEnumerable.ToAsyncEnumerable(Task.FromResult<IEnumerable<Item>>(ItemList.ToList<Item>()));
-        }
-
-        public override Task<int> CountAsync() => Task.FromResult(ItemList.Count);
-
-        public override Task Delete() => Task.CompletedTask;
-
-        public override Task Update() => Task.CompletedTask;
-
-        protected override Task<bool> AddAsyncInternal(IEnumerable<Item> items)
-        {
-            ItemList.AddRange(items);
-            return Task.FromResult(true);
-        }
-
-        protected override Task<bool?> ContainsAsyncInternal(Item item)
-        {
-            CallsToContains++;
-            return Task.FromResult<bool?>(ItemList.Contains(item));
-        }
-
-        protected override Task<bool> RemoveAsyncInternal(IEnumerable<Item> items)
-        {
-            foreach (var item in items)
-            {
-                ItemList.Remove(item);
-            }
-
-            return Task.FromResult(true);
-        }
-
-        public override async Task<List<Item>> GetAdditionsAsync(List list)
-        {
-            var add = new List<Item>();
-
-            foreach (var item in ItemList)
-            {
-                if (await list.ContainsAsync(item) == false)
-                {
-                    add.Add(item);
-                }
-            }
-
-            return add;
-        }
-    }
-
     [TestClass]
     public class ListSyncTests
     {
@@ -81,35 +26,41 @@ namespace MoviesTests
         private static Movie MovieFromId(int id) => new Movie(id.ToString()).WithID(TMDB.IDKey, id);
 
         [TestMethod]
+        public async Task NoLists()
+        {
+            Assert.AreEqual(0, (await new SyncList(Enumerable.Empty<List>()).ReadAll()).Count());
+        }
+
+        [TestMethod]
         public async Task SingleList()
         {
-            await AssertEqualAfterSync(SmallList, (SmallList, 0));
-            await AssertEqualAfterSync(BigList, (BigList, 0));
+            await AssertEqualAfterSync(SmallList, SmallList);
+            await AssertEqualAfterSync(BigList, BigList);
         }
 
         [TestMethod]
         public async Task MultipleSmallListsNoChanges()
         {
-            await AssertEqualAfterSync(SmallList, (SmallList, 0), (SmallList, 0));
-            await AssertEqualAfterSync(SmallList, (SmallList, 0), (SmallList.Reverse(), 0));
-            await AssertEqualAfterSync(SmallList, (SmallList, 0), (SmallList, 0), (SmallList, 0));
+            await AssertEqualAfterSync(SmallList, SmallList, SmallList);
+            await AssertEqualAfterSync(SmallList, SmallList, SmallList.Reverse());
+            await AssertEqualAfterSync(SmallList, SmallList, SmallList, SmallList);
         }
 
         [TestMethod]
         public async Task MultipleSmallScrambledListsNoChanges()
         {
-            var scrambledSmallList = SmallList.Skip(1).SkipLast(1).Prepend(SmallList.First()).Append(SmallList.Last());
+            var scrambledSmallList = (ItemList)"41230";
 
-            await AssertEqualAfterSync(SmallList, (SmallList, 0), (scrambledSmallList, 0));
-            await AssertEqualAfterSync(SmallList, (SmallList, 0), (scrambledSmallList, 0), (SmallList.Reverse(), 0));
+            await AssertEqualAfterSync(SmallList, SmallList, scrambledSmallList);
+            await AssertEqualAfterSync(SmallList, SmallList, scrambledSmallList, SmallList.Reverse());
         }
 
         [TestMethod]
         public async Task MultipleLargeListsNoChanges()
         {
-            await AssertEqualAfterSync(BigList, (BigList, 0), (BigList, 0));
+            await AssertEqualAfterSync(BigList, BigList, BigList);
             await AssertEqualAfterSync(BigList, BigList, BigList.Reverse());
-            await AssertEqualAfterSync(BigList, (BigList, 0), (BigList, 0), (BigList, 0));
+            await AssertEqualAfterSync(BigList, BigList, BigList, BigList);
             await AssertEqualAfterSync(BigList, BigList, BigList.Reverse(), BigList);
         }
 
@@ -127,20 +78,6 @@ namespace MoviesTests
             await AssertEqualAfterSync(BigList, BigList, chunkScrambledBigList, end.Concat(start).Concat(middle));
             await AssertEqualAfterSync(BigList, BigList, chunkScrambledBigList, end.Concat(middle).Concat(start));
             await AssertEqualAfterSync(BigList, BigList, scrambledBigList);
-        }
-
-        private static IEnumerable<T> Scramble<T>(Random generator, IEnumerable<T> source)
-        {
-            var list = source.ToList();
-
-            foreach (var _ in source)
-            {
-                int index = generator.Next(0, list.Count - 1);
-                var item = list[index];
-                list.RemoveAt(index);
-
-                yield return item;
-            }
         }
 
         [TestMethod]
@@ -161,7 +98,7 @@ namespace MoviesTests
                 {
                     items.Remove(item);
 
-                    await AssertEqualAfterSync(items, (SmallList, 0), (items, 0));
+                    await AssertEqualAfterSync(items, SmallList, items);
                     //await AssertEqualAfterSync(items, ": remove order " + string.Join(',', removeOrder), SmallList, items);
                 }
             }
@@ -172,9 +109,9 @@ namespace MoviesTests
         {
             var remove = new List<Item> { SmallList[1], SmallList.Last() };
 
-            await AssertEqualAfterSync(EmptyList, (SmallList, 0), (SmallList.Take(2), 0), (SmallList.Skip(2), 0));
-            await AssertEqualAfterSync(SmallList.Except(remove), (SmallList, 0), (SmallList.Except(remove.Take(1)), 0), (SmallList.Except(remove.Skip(1)), 0));
-            await AssertEqualAfterSync(EmptyList, (SmallList, 0), (SmallList, 0), (EmptyList, 0));
+            await AssertEqualAfterSync(EmptyList, SmallList, SmallList.Take(2), SmallList.Skip(2));
+            await AssertEqualAfterSync(SmallList.Except(remove), SmallList, SmallList.Except(remove.Take(1)), SmallList.Except(remove.Skip(1)));
+            await AssertEqualAfterSync(EmptyList, SmallList, SmallList, EmptyList);
         }
 
         [TestMethod]
@@ -182,16 +119,27 @@ namespace MoviesTests
         {
             var remove = new List<Item> { SmallList[1], SmallList.Last() };
 
-            await AssertEqualAfterSync(EmptyList, (SmallList, 0), (SmallList.Skip(3), 0), (SmallList.Take(2), 0));
-            await AssertEqualAfterSync(EmptyList, (SmallList, 0), (EmptyList, 0), (EmptyList, 0));
-            await AssertEqualAfterSync(SmallList.Except(remove), (SmallList, 0), (SmallList.Except(remove), 0), (SmallList.Except(remove), 0));
-            await AssertEqualAfterSync(SmallList.Take(1).Append(SmallList.Last()), (SmallList, 0), (SmallList.Except(SmallList.Skip(1).Take(2)), 0), (SmallList.Except(SmallList.Skip(2).Take(2)), 0));
+            await AssertEqualAfterSync(EmptyList, SmallList, SmallList.Skip(3), SmallList.Take(2));
+            await AssertEqualAfterSync(EmptyList, SmallList, EmptyList, EmptyList);
+            await AssertEqualAfterSync(SmallList.Except(remove), SmallList, SmallList.Except(remove), SmallList.Except(remove));
+            await AssertEqualAfterSync(SmallList.Take(1).Append(SmallList.Last()), SmallList, SmallList.Except(SmallList.Skip(1).Take(2)), SmallList.Except(SmallList.Skip(2).Take(2)));
+        }
+
+        [TestMethod]
+        public async Task MultipleLargeScrambledListsRemovals()
+        {
+            var scrambledBigList = Scramble(new Random(21), BigList);
+
+            await AssertEqualAfterSync(BigList.Skip(1), BigList, scrambledBigList, BigList.Skip(1), BigList.Skip(1).Append(BigList.First()));
+            await AssertEqualAfterSync(BigList.Skip(33), BigList, scrambledBigList, BigList.Skip(33), BigList.Skip(33).Concat(BigList.Take(33)));
         }
 
         [TestMethod]
         public async Task Removals()
         {
             var bigList = BigList.ToList<Item>();
+            var random = new Random(320);
+            var sync = new List<IEnumerable<Item>> { BigList, BigList.Reverse().ToList(), bigList, Scramble(random, BigList).ToList() };
 
             // Random removals throughout the list
             bigList.RemoveAt(97);
@@ -199,50 +147,30 @@ namespace MoviesTests
             bigList.RemoveAt(0);
             bigList.Remove(bigList.Last());
             bigList.RemoveAt(45);
-            await AssertEqualAfterSync(bigList, BigList, bigList);
+            await AssertEqualAfterSync(bigList, sync);
 
             // Random chunks of removals
             bigList.RemoveRange(34, 4);
             bigList.RemoveRange(0, 2);
-            await AssertEqualAfterSync(bigList, BigList, bigList);
+            await AssertEqualAfterSync(bigList, sync);
 
             // Remove multiple pages from end
-            bigList = bigList.Take(66).ToList();
-            await AssertEqualAfterSync(bigList, BigList, bigList);
+            //bigList = bigList.Take(66).ToList();
+            bigList.RemoveRange(66, bigList.Count - 66);
+            await AssertEqualAfterSync(bigList, sync);
 
             // Remove multiple pages from beginning
-            bigList = bigList.Skip(33).ToList();
-            await AssertEqualAfterSync(bigList, BigList, bigList);
+            //bigList = bigList.Skip(33).ToList();
+            bigList.RemoveRange(0, 33);
+            await AssertEqualAfterSync(bigList, sync);
 
             // Clear list
             bigList.Clear();
-            await AssertEqualAfterSync(bigList, BigList, bigList);
+            await AssertEqualAfterSync(bigList, sync);
         }
 
         [TestMethod]
-        public async Task RandomStressTestRemovals()
-        {
-            var random = new Random(34);
-            var lists = Enumerable.Range(0, 5).Select(i => VeryBigList.ToList<Item>()).ToList();
-            var removed = new HashSet<Item>();
-            return;
-            while (!lists.Any(list => list.Count < 100))
-            {
-                foreach (var list in lists)
-                {
-                    int count = random.Next(1, 100);
-                    int index = random.Next(0, list.Count - 1 - count);
-                    
-                    for (int i = 0; i < count; i++)
-                    {
-                        removed.Add(list[index + i]);
-                    }
-                    list.RemoveRange(index, count);
-                }
-
-                await AssertEqualAfterSync(VeryBigList.Except(removed), lists.Prepend(VeryBigList).ToArray());
-            }
-        }
+        public Task RandomStressTestRemovals() => RandomChanges(new Random(34), VeryBigList, false, true);
 
         [TestMethod]
         public async Task BasicAdditions()
@@ -262,116 +190,357 @@ namespace MoviesTests
                 {
                     items.Add(item);
 
-                    await AssertEqualAfterSync(items, (EmptyList, 0), (items, 0));
+                    await AssertEqualAfterSyncAdditions(items, items.Reverse<Item>(), new List<IEnumerable<Item>> { EmptyList, items });
                 }
             }
         }
 
+        private IEnumerable<IEnumerable<Item>> ListsFromIds(params string[] ids) => ids.Select(id => (ItemList)id);
+
         [TestMethod]
         public async Task MultipleListsSeparateAdditions()
         {
-            var firstAndLast = SmallList.Take(1).Append(SmallList.Last());
+            await AssertEqualAfterSyncAdditions(SmallList, (ItemList)"43210", ListsFromIds("", "01", "234"));
+            await AssertEqualAfterSyncAdditions((ItemList)"12304", (ItemList)"04321", ListsFromIds("123", "0123", "1234"));
+            await AssertEqualAfterSyncAdditions(SmallList, SmallList.Reverse(), ListsFromIds("", "01234", ""));
 
-            await AssertEqualAfterSync(SmallList, (EmptyList, 0), (SmallList.Take(2), 0), (SmallList.Skip(2), 0));
-            await AssertEqualAfterSync(SmallList.Except(firstAndLast).Concat(firstAndLast), (SmallList.Except(firstAndLast), 0), (SmallList.Except(firstAndLast.Skip(1)), 0), (SmallList.Except(firstAndLast.Take(1)), 0));
-            await AssertEqualAfterSync(SmallList, (EmptyList, 0), (SmallList, 0), (EmptyList, 0));
+            var sync = ListsFromIds("13", "2314", "013");
+            await AssertEqualAfterSync((ItemList)"13204", sync, reverse: false, upToDate: null);
+            await AssertEqualAfterSync((ItemList)"13240", sync, reverse: false, upToDate: false);
+            await AssertEqualAfterSync((ItemList)"20431", sync, reverse: true, upToDate: null);
+            await AssertEqualAfterSync((ItemList)"04231", sync, reverse: true, upToDate: false);
         }
 
         [TestMethod]
         public async Task MultipleListsDuplicateAdditions()
         {
-            var firstAndLast = SmallList.Take(1).Append(SmallList.Last());
+            await AssertEqualAfterSyncAdditions(SmallList, (ItemList)"21043", ListsFromIds("", "012", "234"));
+            await AssertEqualAfterSyncAdditions(SmallList, SmallList.Reverse(), new List<IEnumerable<Item>> { EmptyList, SmallList, SmallList });
 
-            await AssertEqualAfterSync(SmallList, (EmptyList, 0), (SmallList.Take(3), 0), (SmallList.Skip(2), 0));
-            await AssertEqualAfterSync(SmallList, (EmptyList, 0), (SmallList, 0), (SmallList, 0));
-            await AssertEqualAfterSync(SmallList.Except(firstAndLast).Concat(firstAndLast),
-                (SmallList.Except(firstAndLast), 0),
-                (SmallList, 0),
-                (SmallList, 0));
-            await AssertEqualAfterSync(firstAndLast.Concat(SmallList.Except(firstAndLast)),
-                (firstAndLast, 0),
-                (SmallList.Take(3).Append(SmallList.Last()), 0),
-                (SmallList.TakeLast(3).Prepend(SmallList.First()), 0));
+            var sync = ListsFromIds("123", "01234", "01234");
+            await AssertEqualAfterSync((ItemList)"12304", sync);
+            await AssertEqualAfterSync((ItemList)"04321", sync, reverse: true, upToDate: null);
+            await AssertEqualAfterSync((ItemList)"40321", sync, reverse: true, upToDate: false);
+
+            sync = ListsFromIds("04", "0124", "0234");
+            await AssertEqualAfterSyncAdditions((ItemList)"04123", (ItemList)"21340", sync);
+        }
+
+        [TestMethod]
+        public async Task MultipleLargeScrambledListsAdditions()
+        {
+            var scrambledBigList = Scramble(new Random(72), BigList);
+
+            var sync = new List<IEnumerable<Item>> { BigList, scrambledBigList, BigList.Prepend(SmallList.First()) };
+            await AssertEqualAfterSync(BigList.Concat(SmallList.Take(1)), sync);
+            await AssertEqualAfterSync(BigList.Reverse().Concat(SmallList.Take(1)), sync, reverse: true, upToDate: null);
+            await AssertEqualAfterSync(SmallList.Take(1).Concat(BigList.Reverse()), sync, reverse: true, upToDate: false);
+
+            sync = new List<IEnumerable<Item>> { BigList, scrambledBigList, VeryBigList.Take(33).Concat(BigList) };
+            await AssertEqualAfterSync(BigList.Concat(VeryBigList.Take(33)), sync);
+            await AssertEqualAfterSync(BigList.Reverse().Concat(VeryBigList.Take(33).Reverse()), sync, reverse: true, upToDate: null);
+            await AssertEqualAfterSync(VeryBigList.Take(33).Reverse().Concat(BigList.Reverse()), sync, reverse: true, upToDate: false);
         }
 
         [TestMethod]
         public async Task Additions()
         {
             var bigList = BigList.ToList<Item>();
+            var random = new Random(562);
+            var sync = new List<IEnumerable<Item>> { BigList, BigList.Reverse().ToList(), bigList, Scramble(random, BigList).ToList() };
 
             // Random additions throughout the list
+            bigList.Insert(45, SmallList[2]);
+            await AssertEqualAfterSync(BigList.Reverse().Take(40).Append(SmallList[2]).Concat(BigList.Take(60).Reverse()), sync, reverse: true, upToDate: null);
+            await AssertEqualAfterSync(BigList.Append(SmallList[2]).Reverse(), sync, reverse: true, upToDate: false);
+
             bigList.Insert(0, SmallList[0]);
             bigList.Insert(12, SmallList[1]);
-            bigList.Insert(45, SmallList[2]);
             bigList.Insert(97, SmallList[3]);
             bigList.Add(SmallList[4]);
-            await AssertEqualAfterSync(BigList.Concat(SmallList), BigList, bigList);
+            await AssertEqualAfterSync(BigList.Concat(SmallList), sync);
 
             // Random chunks of additions
-            bigList = BigList.ToList<Item>();
+            bigList.Clear();
+            bigList.AddRange(BigList);
             bigList.InsertRange(0, SmallList.Take(3));
             bigList.InsertRange(34, SmallList.Skip(3));
-            await AssertEqualAfterSync(BigList.Concat(SmallList), BigList, bigList);
+            await AssertEqualAfterSync(BigList.Concat(SmallList), sync);
 
             // Insert multiple pages beginning, middle, and end
-            bigList = BigList.ToList<Item>();
+            //bigList = BigList.ToList<Item>();
+            bigList.Clear();
+            bigList.AddRange(BigList);
+
             var insertPoints = new int?[] { 0, 78, null };
             for (int i = 0; i < insertPoints.Length; i++)
             {
                 var index = insertPoints[i] ?? bigList.Count;
                 bigList.InsertRange(index, VeryBigList.Skip(i * 50).Take(50));
 
-                await AssertEqualAfterSync(BigList.Concat(VeryBigList.Take((i + 1) * 50)), BigList, bigList);
+                var added = VeryBigList.Take((i + 1) * 50);
+                await AssertEqualAfterSync(BigList.Concat(added), sync);
             }
 
             // Add new list
-            await AssertEqualAfterSync(BigList, EmptyList, BigList);
+            sync.Remove(bigList);
+            await AssertEqualAfterSync(BigList, sync.Prepend(EmptyList));
         }
 
         [TestMethod]
-        public async Task RandomStressTestAdditions()
-        {
-            var random = new Random(34);
-            var lists = Enumerable.Range(0, 1).Select(i => VeryBigList.ToList<Item>()).ToList();
-            var ans = VeryBigList.ToList<Item>();
-            return;
-            while (!lists.Any(list => list.Count < 100))
-            {
-                foreach (var list in lists)
-                {
-                    int count = random.Next(0, 100);
-                    int index = random.Next(0, list.Count - 1 - count);
+        public Task RandomStressTestAdditions() => RandomChanges(new Random(93), BigList, true, false);
 
-                    list.GetRange(index, count).ForEach(item => ans.Remove(item));
-                    list.RemoveRange(index, count);
+        //[TestMethod]
+        public async Task AdditionsAndRemovals()
+        {
+
+        }
+
+        [TestMethod]
+        public Task RandomStressTests() => RandomChanges(new Random(591), Enumerable.Range(2000, 1000).Select(MovieFromId).ToList<Item>(), true, true);
+
+        public async Task RandomChanges(Random random, IEnumerable<Item> startList, bool add = true, bool remove = true)
+        {
+            var lists = Enumerable.Range(0, 5).Select(i => startList.ToList()).ToList();
+            var ans = startList.ToList();
+
+            //while (ans.Count / VeryBigList.Count < 0.9)
+            for (int i = 0; i < 10; i++)
+            {
+                var added = new HashSet<Item>();
+                var removed = new HashSet<Item>();
+
+                if (remove)
+                {
+                    foreach (var list in lists)
+                    {
+                        var removals = RandomChunks(list, random).SelectMany(items => items).ToList();
+
+                        foreach (var item in removals)
+                        {
+                            list.Remove(item);
+                            removed.Add(item);
+                        }
+                    }
                 }
 
-                await AssertEqualAfterSync(ans, lists.Prepend(VeryBigList).ToArray());
+                if (add)
+                {
+                    foreach (var list in lists)
+                    {
+                        foreach (var additions in RandomChunks(Scramble(random, VeryBigList.Concat(startList.Except(list.ToHashSet())).Except(removed).ToList()).ToList(), random))
+                        {
+                            list.InsertRange(random.Next(list.Count), additions);
+                            added.AddRange(additions);
+                        }
+
+                        var temp = list.Distinct().ToList();
+                        list.Clear();
+                        list.AddRange(temp);
+                    }
+                }
+
+                if (removed.Overlaps(added))
+                {
+                    //Assert.Fail($"Bad test case\n{PrintList(removed)}\n{PrintList(added)}");
+                    throw new Exception($"Bad test case\n{PrintList(removed.Intersect(added))}");
+                }
+
+                var all = lists.Prepend(ans).ToArray();
+                // Too hard to predict order for added items
+                await AssertEqualAfterSync(!add ? ans.Except(removed).ToList() : null, all);
+
+                foreach (var list in all)
+                {
+                    var set = list.ToHashSet();
+
+                    foreach (var item in removed)
+                    {
+                        if (set.Contains(item))
+                        {
+                            list.Remove(item);
+                        }
+                    }
+
+                    foreach (var item in added)
+                    {
+                        if (!set.Contains(item))
+                        {
+                            list.Add(item);
+                        }
+                    }
+                }
             }
         }
 
-        private Task AssertEqualAfterSync(IEnumerable<Item> original, params IEnumerable<Item>[] sync) => AssertEqualAfterSync(original, sync.Select(list => (list, (int?)null)), null, string.Empty);
-        private Task AssertEqualAfterSync(IEnumerable<Item> original, params (IEnumerable<Item>, int?)[] sync) => AssertEqualAfterSync(original, sync, null, string.Empty);
-        //private Task AssertEqualAfterSync(IEnumerable<Item> original, bool? reverse, params IEnumerable<Item>[] sync) => AssertEqualAfterSync(original, sync, reverse, null);
-        //private Task AssertEqualAfterSync(IEnumerable<Item> original, string message, params IEnumerable<Item>[] sync) => AssertEqualAfterSync(original, sync, null, message);
-        //private Task AssertEqualAfterSync(IEnumerable<Item> original, bool? reverse, string message, params IEnumerable<Item>[] sync) => AssertEqualAfterSync(original, sync, reverse, message);
-
-        private Task AssertEqualAfterSync(IEnumerable<Item> original, IEnumerable<(IEnumerable<Item>, int?)> sync, bool? reverse = null, string message = null)
+        [TestMethod]
+        public async Task TMDbAndTrakt()
         {
-            var lists = sync.Select(temp => temp.Item1);
-            var calls = sync.Select(temp => temp.Item2);
+            var initial = new List<Item>((ItemList)"123");
+            List<Item> localItems = new List<Item>(initial), tmdbItems = new List<Item>(initial), traktItems = new List<Item>(initial);
+            var reverse = true;
 
+            var date = DateTime.Now;
+
+            async Task<(Checklist Local, Checklist TMDb, Checklist Trakt)> AssertEqualAfterSync(IEnumerable<Item> expected, bool checkLocal = true, bool checkTMDb = true, bool checkTrakt = true)
+            {
+                var localTest = new Checklist(new TestList("local", localItems) { LastUpdated = date }, expected);
+                var tmdbTest = new Checklist(new TestList("tmdb", tmdbItems) { LastUpdated = null }, expected);
+                var traktTest = new Checklist(new TestList("trakt", traktItems) { LastUpdated = date.AddDays(localItems.ToHashSet().SetEquals(traktItems) ? -1 : 1) }, expected);
+
+                await this.AssertEqualAfterSync(expected, new List<TestList> { localTest.List, traktTest.List, tmdbTest.List }, reverse);
+
+                localItems = localTest.List.ItemList.ToList<Item>();
+                tmdbItems = tmdbTest.List.ItemList.ToList<Item>();
+                traktItems = traktTest.List.ItemList.ToList<Item>();
+
+                if (checkLocal) localTest.AssertAll();
+                if (checkTMDb) tmdbTest.AssertAll();
+                if (checkLocal) localTest.AssertAll();
+
+                return (localTest, tmdbTest, traktTest);
+            }
+
+            var result = await AssertEqualAfterSync(initial.Reverse<Item>());
+            // Add only to tmdb
+            tmdbItems.AddRange((ItemList)"4567");
+            result = await AssertEqualAfterSync((ItemList)"7654321");
+
+            // Remove non contiguous items
+            tmdbItems.RemoveAll(item => ((ItemList)"64").Contains(item));
+            result = await AssertEqualAfterSync((ItemList)"75321");
+
+            // Remove remaining added items
+            tmdbItems.RemoveAll(item => ((ItemList)"75").Contains(item));
+            result = await AssertEqualAfterSync((ItemList)"321");
+
+            // Separate additions
+            traktItems.AddRange((ItemList)"45");
+            tmdbItems.AddRange((ItemList)"67");
+            result = await AssertEqualAfterSync((ItemList)"7654321");
+
+            // Separate removals
+            traktItems.RemoveAll(item => ((ItemList)"67").Contains(item));
+            tmdbItems.RemoveAll(item => ((ItemList)"45").Contains(item));
+            result = await AssertEqualAfterSync((ItemList)"321");
+
+            // Duplicate additions
+            tmdbItems.AddRange((ItemList)"45");
+            traktItems.AddRange((ItemList)"45");
+            result = await AssertEqualAfterSync((ItemList)"54321");
+
+            // Duplicate removals
+            tmdbItems.RemoveAll(item => ((ItemList)"45").Contains(item));
+            traktItems.RemoveAll(item => ((ItemList)"45").Contains(item));
+            result = await AssertEqualAfterSync((ItemList)"321", checkTMDb: false);
+            
+            result.Local.AssertAll(addCalls: 0, removeCalls: 1);
+            // TMDb needs extra removes here because removals from trakt are processed during SyncList creation, then pushed to tmdb without checking for contains (not worth it)
+            result.TMDb.AssertAll(numRemoved: 2, addCalls: 0, removeCalls: 1);
+            result.Trakt.AssertAll(addCalls: 0, removeCalls: 0);
+        }
+
+        private class Checklist
+        {
+            public TestList List { get; }
+
+            private IEnumerable<Item> Expected;
+            private HashSet<Item> ActualSet;
+
+            public Checklist(TestList list)
+            {
+                List = list;
+                ActualSet = List.ItemList.ToHashSet();
+            }
+
+            public Checklist(TestList list, IEnumerable<Item> expected) : this(list)
+            {
+                Expected = expected;
+            }
+
+            public void AssertAll(int? contains = null, int? numAdded = null, int? numRemoved = null, int? addCalls = null, int? removeCalls = null)
+            {
+                var lazyExpectedSet = new Lazy<HashSet<Item>>(() => Expected as HashSet<Item> ?? Expected.ToHashSet());
+                var lazyAdded = new Lazy<int>(() => lazyExpectedSet.Value.Except(ActualSet).Count());
+                var lazyRemoved = new Lazy<int>(() => ActualSet.Except(lazyExpectedSet.Value).Count());
+
+                if (numAdded.HasValue || Expected != null)
+                {
+                    Assert.AreEqual(numAdded ?? lazyAdded.Value, List.NumAdded);
+                }
+                if (numRemoved.HasValue || Expected != null)
+                {
+                    Assert.AreEqual(numRemoved ?? lazyRemoved.Value, List.NumRemoved);
+                }
+
+                var lazyContains = new Lazy<int>(() => (int)Math.Ceiling(Math.Max(ActualSet.Count, ActualSet.Count + lazyAdded.Value - lazyRemoved.Value) / 20d));
+
+                if ((contains.HasValue || Expected != null) && List.CallsToContains > (contains ?? lazyContains.Value))
+                {
+                    Assert.Inconclusive($"{List.CallsToContains} calls to contains method for a list with {List.ItemList.Count} items\n");
+                }
+
+                if (addCalls.HasValue)
+                {
+                    Assert.AreEqual(addCalls.Value, List.CallsToAdd);
+                }
+                if (removeCalls.HasValue)
+                {
+                    Assert.AreEqual(removeCalls.Value, List.CallsToRemove);
+                }
+            }
+        }
+
+        private class ItemList : IEnumerable<Item>
+        {
+            private IEnumerable<Item> Items { get; }
+
+            public ItemList(IEnumerable<Item> items)
+            {
+                Items = items;
+            }
+
+            public static implicit operator ItemList(string ids) => new ItemList(ids.Select(id => MovieFromId(int.Parse(id.ToString()))).ToList<Item>());
+
+            public static ItemList operator +(IEnumerable<Item> items, ItemList list) => new ItemList(items.Concat(list.Items));
+
+            public static ItemList operator -(IEnumerable<Item> items, ItemList list) => new ItemList(items.Except(list.Items));
+
+            //public void Add(int id) => Items.Add(MovieFromId(id));
+
+            public IEnumerator<Item> GetEnumerator() => Items.GetEnumerator();
+
+            IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+        }
+
+        private Task AssertEqualAfterSync(IEnumerable<Item> expected, params IEnumerable<Item>[] sync) => AssertEqualAfterSync(expected, sync, null, string.Empty);
+
+        private async Task AssertEqualAfterSyncAdditions(IEnumerable<Item> forward, IEnumerable<Item> backward, IEnumerable<IEnumerable<Item>> sync)
+        {
+            var first = Enumerable.Repeat(sync.First(), sync.Count());
+            await AssertEqualAfterSync(forward, sync, reverse: false, upToDate: false);
+            await AssertEqualAfterSync(forward, sync, reverse: false, upToDate: null);
+            await AssertEqualAfterSync(sync.First(), first, reverse: false, upToDate: true);
+            await AssertEqualAfterSync(backward, sync, reverse: true, upToDate: false);
+            await AssertEqualAfterSync(backward, sync, reverse: true, upToDate: null);
+            await AssertEqualAfterSync(sync.First().Reverse(), first, reverse: true, upToDate: true);
+        }
+
+        private async Task AssertEqualAfterSync(IEnumerable<Item> expected, IEnumerable<IEnumerable<Item>> sync, bool? reverse = null, string message = null)
+        {
             if (reverse.HasValue)
             {
-                return AssertEqualAfterSync(original, lists, calls, reverse.Value, true, message);
+                await AssertEqualAfterSync(expected, sync, reverse.Value, true, message);
             }
             else
             {
-                return Task.WhenAll(
-                    AssertEqualAfterSync(original, lists, calls, false, true, message),
-                    AssertEqualAfterSync(original, lists, calls, false, false, message),
-                    AssertEqualAfterSync(original, lists, calls, true, true, message),
-                    AssertEqualAfterSync(original, lists, calls, true, false, message));
+                var first = Enumerable.Repeat(sync.First(), sync.Count());
+                await AssertEqualAfterSync(expected, sync, reverse: false, upToDate: false, message);
+                await AssertEqualAfterSync(expected, sync, reverse: false, upToDate: null, message);
+                await AssertEqualAfterSync(first.First(), first, reverse: false, upToDate: true, message);
+                await AssertEqualAfterSync(null, sync, reverse: true, upToDate: false, message);
+                await AssertEqualAfterSync(null, sync, reverse: true, upToDate: null, message);
+                await AssertEqualAfterSync(null, first, reverse: true, upToDate: true, message);
             }
         }
 
@@ -386,7 +555,11 @@ namespace MoviesTests
             All = ~0
         }
 
-        private async Task AssertEqualAfterSync(IEnumerable<Item> expected, IEnumerable<IEnumerable<Item>> sync, IEnumerable<int?> callsToContains, bool reverse = false, bool upToDate = true, string message = null)
+        private static string PrintList<T>(IEnumerable<T> list) => "[" + string.Join(',', list) + "]";
+
+        //private Task AssertEqualAfterSync(string expected, IEnumerable<IEnumerable<Item>> sync, bool reverse, bool? upToDate, string message = null) => AssertEqualAfterSync((ItemList)expected, sync, reverse, upToDate, message);
+
+        private async Task AssertEqualAfterSync(IEnumerable<Item> expected, IEnumerable<IEnumerable<Item>> sync, bool reverse, bool? upToDate, string message = null)
         {
             var now = DateTime.Now;
             var lists = sync.Select(items => new TestList(string.Empty, items.ToList())
@@ -394,33 +567,100 @@ namespace MoviesTests
                 LastUpdated = now
             }).ToList();
 
-            if (upToDate)
+            if (!upToDate.HasValue)
             {
                 lists[0].LastUpdated = null;
+            }
+            else if (upToDate.Value)
+            {
+                lists[0].LastUpdated = DateTime.Now.AddDays(1);
             }
             else
             {
                 lists[0].LastUpdated = DateTime.Now.AddDays(-1);
             }
 
-            var actual = await new SyncList(lists).ReadAll();
-            var info = $"Synced {(reverse ? "Backward" : "Forward")}, {(upToDate ? "Up to date" : "Not up to date")}";
-            //Assert.IsTrue(original.SequenceEqual(synced), (reverse ? "Reverse" : "Regular") + message);
-            Assert.IsTrue(expected.SequenceEqual(actual), $"\n{string.Join("\n\t", sync.Select(list => "[" + string.Join(',', list) + "]").Prepend(info))}\nExpected: {string.Join(',', expected)}\nActual: {string.Join(',', actual)}");
+            List<(int AddedOffset, int RemovedOffset)> changesOffsets = lists.Select(list => expected == null ? (0, 0) : (list.NumAdded, list.NumRemoved)).ToList();
+            var expectedSet = expected?.ToHashSet();
+            var checklists = lists.Select(list => expectedSet == null ? new Checklist(list) : new Checklist(list, expectedSet)).ToArray();
+            //var inferred = lists.Select(list => expectedSet == null ? default : InferExpectedValues(expectedSet, list.ItemList)).ToArray();
 
-            var itr = callsToContains.GetEnumerator();
-            itr?.MoveNext();
+            message += $"Synced {(reverse ? "Backward" : "Forward")}, {(upToDate == null ? "unknown" : (upToDate.Value ? "Up to date" : "Not up to date"))}";
+            await AssertEqualAfterSync(expected, lists, reverse, message);
 
-            for (int i = 1; itr?.MoveNext() == true; i++)
+            for (int i = 0; i < lists.Count; i++)
             {
-                if (itr.Current.HasValue)
+                var list = lists[i];
+                var checklist = checklists[i];
+
+                var added = list.NumAdded - changesOffsets[i].AddedOffset;
+                var removed = list.NumRemoved - changesOffsets[i].RemovedOffset;
+
+                try
                 {
-                    Assert.AreEqual(itr.Current.Value, lists[i].CallsToContains, reverse.ToString());
+                    checklist.AssertAll(numAdded: added, numRemoved: removed);
                 }
-                else if (lists[i].CallsToContains > Math.Ceiling(lists[i].ItemList.Count / 20d))
+                catch (UnitTestAssertException e)
                 {
-                    Assert.Inconclusive($"{lists[i].CallsToContains} calls to contains method for a list with {lists[i].ItemList.Count} items");
+                    Print.Log(message);
+                    throw e;
                 }
+            }
+        }
+
+        private async Task AssertEqualAfterSync(IEnumerable<Item> expected, IEnumerable<TestList> tests, bool reverse, string message = null)
+        {
+            var lists = tests.ToList();
+
+            message += string.Join("\n\t", lists.Select(list => "[" + string.Join(',', list.ItemList) + "]").Prepend(string.Empty));
+            var actual = await new SyncList(lists, reverse).ReadAll();
+            //Assert.IsTrue(original.SequenceEqual(synced), (reverse ? "Reverse" : "Regular") + message);
+            if (expected != null)
+            {
+                Assert.IsTrue(expected.SequenceEqual(actual), message + $"\nExpected: {string.Join(',', expected)}\nActual: {string.Join(',', actual)}");
+            }
+
+            // Assert set equality against first list
+            var first = lists.First().ItemList.ToHashSet();
+            foreach (var list in lists.Skip(1))
+            {
+                var set = list.ItemList.ToHashSet();
+
+                if (!set.SetEquals(first))
+                {
+                    var added = set.Except(first);
+                    var removed = first.Except(set);
+
+                    Assert.Fail(message + string.Join("\n\t", lists.Take(1).Append(list).Select(list => PrintList(list.ItemList)).Prepend(string.Empty)) + $"\nFailed to add: {PrintList(added)}\nFailed to remove: {PrintList(removed)}");
+                }
+            }
+        }
+
+        private static IEnumerable<T> Scramble<T>(Random generator, IEnumerable<T> source)
+        {
+            var list = source.ToList();
+
+            foreach (var _ in source)
+            {
+                int index = generator.Next(0, list.Count - 1);
+                var item = list[index];
+                list.RemoveAt(index);
+
+                yield return item;
+            }
+        }
+
+        private static IEnumerable<IEnumerable<T>> NoisyLists<T>(Random random, IEnumerable<IEnumerable<T>> lists) => Scramble(random, lists.SelectMany(list => new List<IEnumerable<T>> { list, list.Reverse(), Scramble(random, list) }));
+
+        private IEnumerable<IEnumerable<T>> RandomChunks<T>(IReadOnlyList<T> list, Random random) => RandomChunks(random.Next(0, 5), list, random);
+        private IEnumerable<IEnumerable<T>> RandomChunks<T>(int iterations, IReadOnlyList<T> list, Random random)
+        {
+            for (int i = 0; i < iterations; i++)
+            {
+                int count = random.Next(0, Math.Min(list.Count, 33));
+                int index = random.Next(0, list.Count - count);
+
+                yield return Enumerable.Range(0, count).Select(j => list[index + j]);
             }
         }
     }

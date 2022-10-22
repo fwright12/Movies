@@ -20,8 +20,9 @@ public class ConstraintListenerImplementor
 	public ConstraintListenerImplementor ()
 	{
 		super ();
-		if (getClass () == ConstraintListenerImplementor.class)
+		if (getClass () == ConstraintListenerImplementor.class) {
 			mono.android.TypeManager.Activate ("AndroidX.Work.Impl.Constraints.IConstraintListenerImplementor, Xamarin.AndroidX.Work.Runtime", "", this, new java.lang.Object[] {  });
+		}
 	}
 
 

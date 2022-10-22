@@ -21,15 +21,69 @@
             </ResourceDictionary>
         </VisualElement.Resources>
 
+        <VisualStateManager.VisualStateGroups>
+            <VisualStateGroup>
+                <VisualState Name="Editing">
+                    <VisualState.StateTriggers>
+                        <StateTrigger IsActive="{Binding Editing}" />
+                    </VisualState.StateTriggers>
+
+                    <VisualState.Setters>
+                        <Setter Property="ControlTemplate">
+                            <ControlTemplate>
+                                <StackLayout BindingContext="{TemplateBinding BindingContext}"
+                                             Orientation="Vertical">
+                                    <ContentPresenter x:Name="content" />
+
+                                    <StackLayout Orientation="Horizontal"
+                                                 Padding="10, 5"
+                                                 StyleClass="SecondaryBackground">
+                                        <Button Text="Delete"
+                                                HorizontalOptions="EndAndExpand"
+                                                Command="{Binding RemoveMultipleCommand}"
+                                                CommandParameter="{Binding Content.Children[0].SelectedItems, Source={x:Reference content}}" />
+                                    </StackLayout>
+                                </StackLayout>
+                            </ControlTemplate>
+                        </Setter>
+                    </VisualState.Setters>
+                </VisualState>
+
+                <VisualState Name="Regular">
+                    <VisualState.StateTriggers>
+                        <StateTrigger IsActive="True" />
+                    </VisualState.StateTriggers>
+
+                    <VisualState.Setters>
+                        <Setter Property="ControlTemplate">
+                            <ControlTemplate>
+                                <AbsoluteLayout>
+                                    <ContentPresenter AbsoluteLayout.LayoutBounds="0,0,1,1"
+                                                      AbsoluteLayout.LayoutFlags="All" />
+
+                                    <Frame Content="{TemplateBinding DrawerContentView}"
+                                           IsVisible="{Binding Content.IsVisible, Source={RelativeSource Self}}"
+                                           CornerRadius="10"
+                                           IsClippedToBounds="True"
+                                           AbsoluteLayout.LayoutBounds="0.5, 1, 1, -1"
+                                           AbsoluteLayout.LayoutFlags="PositionProportional, WidthProportional" />
+                                </AbsoluteLayout>
+                            </ControlTemplate>
+                        </Setter>
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+        </VisualStateManager.VisualStateGroups>
+
+        <forms:DrawerView.DrawerTemplate>
+            <views:FilterTemplate />
+        </forms:DrawerView.DrawerTemplate>
+
         <forms:DrawerView.SnapPoints>
             <viewmodels:ItemTypeSnapPoint Alignment="End" />
 
             <forms:SnapPoint Value="{Binding Height, Source={RelativeSource AncestorType={x:Type forms:DrawerView}}, Converter={Static forms:ArithmeticConverter.SUBTRACT}, ConverterParameter=25}" />
         </forms:DrawerView.SnapPoints>
-
-        <forms:DrawerView.DrawerTemplate>
-            <views:FilterTemplate />
-        </forms:DrawerView.DrawerTemplate>
 
         <!--<VisualElement.Triggers>
             <DataTrigger TargetType="forms:DrawerView"
@@ -56,10 +110,10 @@
               RowSpacing="0">
             <CollectionView x:Name="collectionView"
                             ext:VisualStateManager.VisualState="{Binding ListLayout}"
-                            ItemsSource="{Binding Items}"
+                            ItemsSource="{Binding Source.Items}"
                             views:CollectionViewExt.IsEditing="{Binding Editing}"
                             SelectionMode="{Binding Editing, Converter={Static views:BoolToSelectionModeConverter.Instance}}"
-                            RemainingItemsThresholdReachedCommand="{Binding LoadMoreCommand}"
+                            RemainingItemsThresholdReachedCommand="{Binding Source.LoadMoreCommand}"
                             RemainingItemsThreshold="4"
                             VerticalScrollBarVisibility="Default"
                             Grid.Row="0">
@@ -352,7 +406,7 @@
                                 <VisualElement.Resources>
                                     <x:Int32 x:Key="zero">0</x:Int32>
                                 </VisualElement.Resources>
-                                
+
                                 <Button Text="{OnPlatform Android=&#xf38b;, iOS=&#xf31b;}"
                                         Command="{Binding OpenFiltersCommand, Source={Static Application.Current}}"
                                         CommandParameter="{Binding Source={RelativeSource AncestorType={x:Type forms:DrawerView}}}"
@@ -458,21 +512,10 @@
                 </CollectionView.EmptyView>
             </CollectionView>
 
-            <ActivityIndicator IsRunning="{Binding Loading}"
+            <ActivityIndicator IsRunning="{Binding Source.Loading}"
                                HorizontalOptions="Center"
                                VerticalOptions="Center"
                                Grid.Row="0" />
-
-            <StackLayout Orientation="Horizontal"
-                         Padding="10, 5"
-                         IsVisible="{Binding Editing, FallbackValue='False'}"
-                         StyleClass="SecondaryBackground"
-                         Grid.Row="1">
-                <Button Text="Delete"
-                        HorizontalOptions="EndAndExpand"
-                        Command="{Binding RemoveMultipleCommand}"
-                        CommandParameter="{Binding SelectedItems, Source={x:Reference collectionView}}" />
-            </StackLayout>
         </Grid>
     </forms:DrawerView>
 </ControlTemplate>

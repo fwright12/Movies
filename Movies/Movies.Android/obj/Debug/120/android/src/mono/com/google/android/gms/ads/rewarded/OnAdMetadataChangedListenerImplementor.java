@@ -20,8 +20,9 @@ public class OnAdMetadataChangedListenerImplementor
 	public OnAdMetadataChangedListenerImplementor ()
 	{
 		super ();
-		if (getClass () == OnAdMetadataChangedListenerImplementor.class)
+		if (getClass () == OnAdMetadataChangedListenerImplementor.class) {
 			mono.android.TypeManager.Activate ("Android.Gms.Ads.Rewarded.IOnAdMetadataChangedListenerImplementor, Xamarin.GooglePlayServices.Ads.Lite", "", this, new java.lang.Object[] {  });
+		}
 	}
 
 

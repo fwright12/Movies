@@ -20,8 +20,9 @@ public class OnAdInspectorClosedListenerImplementor
 	public OnAdInspectorClosedListenerImplementor ()
 	{
 		super ();
-		if (getClass () == OnAdInspectorClosedListenerImplementor.class)
+		if (getClass () == OnAdInspectorClosedListenerImplementor.class) {
 			mono.android.TypeManager.Activate ("Android.Gms.Ads.IOnAdInspectorClosedListenerImplementor, Xamarin.GooglePlayServices.Ads.Lite", "", this, new java.lang.Object[] {  });
+		}
 	}
 
 

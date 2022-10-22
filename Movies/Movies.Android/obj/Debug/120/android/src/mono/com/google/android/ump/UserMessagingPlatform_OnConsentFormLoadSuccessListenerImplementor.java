@@ -20,8 +20,9 @@ public class UserMessagingPlatform_OnConsentFormLoadSuccessListenerImplementor
 	public UserMessagingPlatform_OnConsentFormLoadSuccessListenerImplementor ()
 	{
 		super ();
-		if (getClass () == UserMessagingPlatform_OnConsentFormLoadSuccessListenerImplementor.class)
+		if (getClass () == UserMessagingPlatform_OnConsentFormLoadSuccessListenerImplementor.class) {
 			mono.android.TypeManager.Activate ("Xamarin.Google.UserMesssagingPlatform.UserMessagingPlatform+IOnConsentFormLoadSuccessListenerImplementor, Xamarin.Google.UserMessagingPlatform", "", this, new java.lang.Object[] {  });
+		}
 	}
 
 

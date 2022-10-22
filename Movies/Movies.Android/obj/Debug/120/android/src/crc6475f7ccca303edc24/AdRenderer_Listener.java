@@ -19,8 +19,9 @@ public class AdRenderer_Listener
 	public AdRenderer_Listener ()
 	{
 		super ();
-		if (getClass () == AdRenderer_Listener.class)
+		if (getClass () == AdRenderer_Listener.class) {
 			mono.android.TypeManager.Activate ("Movies.Droid.AdRenderer+Listener, Movies.Android", "", this, new java.lang.Object[] {  });
+		}
 	}
 
 

@@ -21,8 +21,9 @@ public class UnifiedNativeAd_UnconfirmedClickListenerImplementor
 	public UnifiedNativeAd_UnconfirmedClickListenerImplementor ()
 	{
 		super ();
-		if (getClass () == UnifiedNativeAd_UnconfirmedClickListenerImplementor.class)
+		if (getClass () == UnifiedNativeAd_UnconfirmedClickListenerImplementor.class) {
 			mono.android.TypeManager.Activate ("Android.Gms.Ads.Formats.UnifiedNativeAd+IUnconfirmedClickListenerImplementor, Xamarin.GooglePlayServices.Ads.Lite", "", this, new java.lang.Object[] {  });
+		}
 	}
 
 

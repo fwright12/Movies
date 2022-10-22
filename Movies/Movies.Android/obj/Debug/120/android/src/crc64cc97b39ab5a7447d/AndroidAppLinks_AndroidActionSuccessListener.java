@@ -20,8 +20,9 @@ public class AndroidAppLinks_AndroidActionSuccessListener
 	public AndroidAppLinks_AndroidActionSuccessListener ()
 	{
 		super ();
-		if (getClass () == AndroidAppLinks_AndroidActionSuccessListener.class)
+		if (getClass () == AndroidAppLinks_AndroidActionSuccessListener.class) {
 			mono.android.TypeManager.Activate ("Xamarin.Forms.Platform.Android.AppLinks.AndroidAppLinks+AndroidActionSuccessListener, Xamarin.Forms.Platform.Android.AppLinks", "", this, new java.lang.Object[] {  });
+		}
 	}
 
 

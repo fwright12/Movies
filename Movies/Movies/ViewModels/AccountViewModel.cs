@@ -65,15 +65,19 @@ namespace Movies.ViewModels
 
         public async Task Login()
         {
-            Application.Current.AppLinks.RegisterLink(RedirectLink = new AppLinkEntry
+            if (Device.RuntimePlatform == Device.iOS)
             {
-                AppLinkUri = RedirectUri,
-                Title = "Nexus OAuth Redirect",
-                Description = "Use this as a callback for services that authenticate with OAuth 2.0",
-                IsLinkActive = true,
-                Thumbnail = ImageSource.FromResource("Movies.Logos.TMDbLogo.png")
-            });
-            await Xamarin.Essentials.Browser.OpenAsync(await Account.GetOAuthURL(RedirectLink.AppLinkUri));
+                Application.Current.AppLinks.RegisterLink(RedirectLink = new AppLinkEntry
+                {
+                    AppLinkUri = RedirectUri,
+                    Title = "Nexus OAuth Redirect",
+                    Description = "Use this as a callback for services that authenticate with OAuth 2.0",
+                    IsLinkActive = true,
+                    Thumbnail = ImageSource.FromResource("Movies.Logos.TMDbLogo.png")
+                });
+            }
+
+            await Xamarin.Essentials.Browser.OpenAsync(await Account.GetOAuthURL(RedirectUri));
         }
 
         public async Task Login(object credentials)
@@ -100,7 +104,7 @@ namespace Movies.ViewModels
         {
             if (!await Account.Logout())
             {
-                return;
+                await Application.Current.MainPage.DisplayAlert("Issue logging out", "It's probably safe to ignore this message, but you may want to visit your account online to be sure this session is terminated", "OK");
             }
 
             IsLoggedIn = false;

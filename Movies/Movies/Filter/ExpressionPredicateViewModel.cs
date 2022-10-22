@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Linq;
@@ -91,8 +92,8 @@ namespace Movies.ViewModels
                 return;
             }
 
-            OnPropertyChanged(nameof(Selected));
             SelectedChanged((Editor)sender, e.OldValue as ObservableNode<object>, e.NewValue as ObservableNode<object>);
+            OnPropertyChanged(nameof(Selected));
         }
 
         private void SelectedChanged(Editor sender, ObservableNode<object> oldValue, ObservableNode<object> newValue)
@@ -178,6 +179,8 @@ namespace Movies.ViewModels
             }
             else
             {
+                //Predicate = FormatFilters(Root.Children.Select<ObservableNode<object>, FilterPredicate>(child => (child.Value as IPredicateBuilder)?.Predicate).Where(child => child != null));
+
                 var exp = new BooleanExpression();
 
                 foreach (var child in Root.Children)
@@ -193,6 +196,53 @@ namespace Movies.ViewModels
 
             PredicateChanged?.Invoke(this, EventArgs.Empty);
             OnPropertyChanged(nameof(Predicate));
+        }
+
+        public static FilterPredicate FormatFilters(IEnumerable<FilterPredicate> predicates)
+        {
+            var sorted = new Dictionary<object, List<OperatorPredicate>>();
+            var expression = new BooleanExpression();
+
+            foreach (var predicate in predicates)
+            {
+                if (predicate is OperatorPredicate op)
+                {
+                    if (!sorted.TryGetValue(op.LHS, out var values))
+                    {
+                        sorted[op.LHS] = values = new List<OperatorPredicate>();
+                    }
+
+                    values.Add(op);
+                }
+                else
+                {
+                    expression.Predicates.Add(predicate);
+                }
+            }
+
+            foreach (var kvp in sorted)
+            {
+                if (kvp.Value.Count == 1)
+                {
+                    expression.Predicates.Add(kvp.Value[0]);
+                }
+                else
+                {
+                    var inner = new BooleanExpression
+                    {
+                        IsAnd = false
+                    };
+
+                    foreach (var value in kvp.Value)
+                    {
+                        inner.Predicates.Add(value);
+                    }
+
+                    expression.Predicates.Add(inner);
+                }
+            }
+
+            return expression;
         }
     }
 }

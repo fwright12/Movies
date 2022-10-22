@@ -204,6 +204,15 @@ namespace Movies.ViewModels
             Media.KEYWORDS
         };
 
+        private static readonly HashSet<Property> MultiSelectableProperties = new HashSet<Property>
+        {
+            Movie.GENRES,
+            TVShow.GENRES,
+            Movie.WATCH_PROVIDERS,
+            TVShow.WATCH_PROVIDERS,
+            ViewModels.CollectionViewModel.MonetizationType,
+        };
+
         private static readonly Dictionary<Property, object> DefaultValues = new Dictionary<Property, object>
         {
             [Movie.RELEASE_DATE] = new DateTime(1900, 1, 1)
@@ -217,7 +226,6 @@ namespace Movies.ViewModels
         public static OperatorEditor GetComparableEditor(params Property[] properties) => GetComparableEditor(properties.FirstOrDefault()?.Values.OfType<object>().FirstOrDefault(), properties);
         public static OperatorEditor GetComparableEditor(object defaultValue, params Property[] properties) => GetEditor(properties, defaultValue, null, Operators.GreaterThan, Operators.Equal, Operators.LessThan);
 
-        public static OperatorEditor GetEqualityEditor(params Property[] properties) => GetEqualityEditor(null, properties);
         public static OperatorEditor GetEqualityEditor(ObservableNode<object> selected, params Property[] properties) => GetEditor(properties, null, selected, Operators.Equal);
 
         public static OperatorEditor GetEditor(IEnumerable<Property> properties, object defaultValue, ObservableNode<object> selected, params Operators[] operators)
@@ -288,15 +296,9 @@ namespace Movies.ViewModels
             else if (properties.All(property => FilterHelpers.IsEquality(property)))
             {
                 var array = properties.ToArray();
+                var selected = collection.Source.Predicate is ExpressionBuilder builder && properties.All(property => MultiSelectableProperties.Contains(property)) ? builder.Root : null;
 
-                if (collection.Source.Predicate is ExpressionBuilder builder)
-                {
-                    filters.Add(FilterHelpers.GetEqualityEditor(builder.Root, array));
-                }
-                else
-                {
-                    filters.Add(FilterHelpers.GetEqualityEditor(array));
-                }
+                filters.Add(FilterHelpers.GetEqualityEditor(selected, array));
             }
         }
 

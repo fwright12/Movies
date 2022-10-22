@@ -20,8 +20,9 @@ public class OnContextChangedListenerImplementor
 	public OnContextChangedListenerImplementor ()
 	{
 		super ();
-		if (getClass () == OnContextChangedListenerImplementor.class)
+		if (getClass () == OnContextChangedListenerImplementor.class) {
 			mono.android.TypeManager.Activate ("Android.Gms.Ads.Mediation.IOnContextChangedListenerImplementor, Xamarin.GooglePlayServices.Ads.Lite", "", this, new java.lang.Object[] {  });
+		}
 	}
 
 

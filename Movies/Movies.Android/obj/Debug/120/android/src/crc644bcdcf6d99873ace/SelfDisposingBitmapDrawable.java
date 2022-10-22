@@ -19,64 +19,72 @@ public class SelfDisposingBitmapDrawable
 	public SelfDisposingBitmapDrawable ()
 	{
 		super ();
-		if (getClass () == SelfDisposingBitmapDrawable.class)
+		if (getClass () == SelfDisposingBitmapDrawable.class) {
 			mono.android.TypeManager.Activate ("FFImageLoading.Drawables.SelfDisposingBitmapDrawable, FFImageLoading.Platform", "", this, new java.lang.Object[] {  });
+		}
 	}
 
 
 	public SelfDisposingBitmapDrawable (android.content.res.Resources p0)
 	{
 		super (p0);
-		if (getClass () == SelfDisposingBitmapDrawable.class)
+		if (getClass () == SelfDisposingBitmapDrawable.class) {
 			mono.android.TypeManager.Activate ("FFImageLoading.Drawables.SelfDisposingBitmapDrawable, FFImageLoading.Platform", "Android.Content.Res.Resources, Mono.Android", this, new java.lang.Object[] { p0 });
+		}
 	}
 
 
 	public SelfDisposingBitmapDrawable (android.content.res.Resources p0, android.graphics.Bitmap p1)
 	{
 		super (p0, p1);
-		if (getClass () == SelfDisposingBitmapDrawable.class)
+		if (getClass () == SelfDisposingBitmapDrawable.class) {
 			mono.android.TypeManager.Activate ("FFImageLoading.Drawables.SelfDisposingBitmapDrawable, FFImageLoading.Platform", "Android.Content.Res.Resources, Mono.Android:Android.Graphics.Bitmap, Mono.Android", this, new java.lang.Object[] { p0, p1 });
+		}
 	}
 
 
 	public SelfDisposingBitmapDrawable (android.content.res.Resources p0, java.io.InputStream p1)
 	{
 		super (p0, p1);
-		if (getClass () == SelfDisposingBitmapDrawable.class)
+		if (getClass () == SelfDisposingBitmapDrawable.class) {
 			mono.android.TypeManager.Activate ("FFImageLoading.Drawables.SelfDisposingBitmapDrawable, FFImageLoading.Platform", "Android.Content.Res.Resources, Mono.Android:System.IO.Stream, mscorlib", this, new java.lang.Object[] { p0, p1 });
+		}
 	}
 
 
 	public SelfDisposingBitmapDrawable (android.content.res.Resources p0, java.lang.String p1)
 	{
 		super (p0, p1);
-		if (getClass () == SelfDisposingBitmapDrawable.class)
+		if (getClass () == SelfDisposingBitmapDrawable.class) {
 			mono.android.TypeManager.Activate ("FFImageLoading.Drawables.SelfDisposingBitmapDrawable, FFImageLoading.Platform", "Android.Content.Res.Resources, Mono.Android:System.String, mscorlib", this, new java.lang.Object[] { p0, p1 });
+		}
 	}
 
 
 	public SelfDisposingBitmapDrawable (android.graphics.Bitmap p0)
 	{
 		super (p0);
-		if (getClass () == SelfDisposingBitmapDrawable.class)
+		if (getClass () == SelfDisposingBitmapDrawable.class) {
 			mono.android.TypeManager.Activate ("FFImageLoading.Drawables.SelfDisposingBitmapDrawable, FFImageLoading.Platform", "Android.Graphics.Bitmap, Mono.Android", this, new java.lang.Object[] { p0 });
+		}
 	}
 
 
 	public SelfDisposingBitmapDrawable (java.io.InputStream p0)
 	{
 		super (p0);
-		if (getClass () == SelfDisposingBitmapDrawable.class)
+		if (getClass () == SelfDisposingBitmapDrawable.class) {
 			mono.android.TypeManager.Activate ("FFImageLoading.Drawables.SelfDisposingBitmapDrawable, FFImageLoading.Platform", "System.IO.Stream, mscorlib", this, new java.lang.Object[] { p0 });
+		}
 	}
 
 
 	public SelfDisposingBitmapDrawable (java.lang.String p0)
 	{
 		super (p0);
-		if (getClass () == SelfDisposingBitmapDrawable.class)
+		if (getClass () == SelfDisposingBitmapDrawable.class) {
 			mono.android.TypeManager.Activate ("FFImageLoading.Drawables.SelfDisposingBitmapDrawable, FFImageLoading.Platform", "System.String, mscorlib", this, new java.lang.Object[] { p0 });
+		}
 	}
 
 

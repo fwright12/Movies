@@ -377,7 +377,7 @@ namespace Movies
 
                 if (ID == null)
                 {
-                    var iso = JsonExtensions.FormatJson("iso_639_1", LANGUAGE) + ", ";
+                    var iso = JsonExtensions.FormatJson("iso_639_1", ISO_639_1) + ", ";
                     //var response = await Client.TryPostAsync(".", json.Insert(1, iso));
                     var response = await Client.TryPostAsync(API.LIST.CREATE_LIST.GetURL(), json.Insert(1, iso));
                     //var response = await Client.PostAsync("https://api.themoviedb.org/4/list", new StringContent(json.Insert(1, iso), Encoding.UTF8, "application/json"));
@@ -477,16 +477,17 @@ namespace Movies
                 StatusPath = statusPath;
 
                 Reverse = true;
+                var sort = $"sort_by={(Reverse ? "created_at.desc" : "created_at.asc")}";
 
                 Movies = new Models.Collection
                 {
                     Reverse = true,
-                    Items = Request<Models.Movie>(new ParameterizedPagedRequest(API.V4.ACCOUNT.GET_MOVIES, AccountID, ID), TryParseMovie)
+                    Items = Request<Models.Movie>(new ParameterizedPagedRequest(API.V4.ACCOUNT.GET_MOVIES, AccountID, ID), TryParseMovie, sort)
                 };
                 TV = new Models.Collection
                 {
                     Reverse = true,
-                    Items = Request<Models.TVShow>(new ParameterizedPagedRequest(API.V4.ACCOUNT.GET_TV_SHOWS, AccountID, ID), TryParseTVShow)
+                    Items = Request<Models.TVShow>(new ParameterizedPagedRequest(API.V4.ACCOUNT.GET_TV_SHOWS, AccountID, ID), TryParseTVShow, sort)
                 };
             }
 

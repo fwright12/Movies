@@ -3,7 +3,7 @@
   <PropertyGroup>
     <SelectedDevice>q_phone</SelectedDevice>
     <DefaultDevice>q_phone</DefaultDevice>
-    <ActiveDebugProfile>q_phone</ActiveDebugProfile>
+    <ActiveDebugProfile>Q Phone %28Android 10.0 - API 29%29</ActiveDebugProfile>
     <SelectedPlatformGroup>Emulator</SelectedPlatformGroup>
   </PropertyGroup>
 </Project>

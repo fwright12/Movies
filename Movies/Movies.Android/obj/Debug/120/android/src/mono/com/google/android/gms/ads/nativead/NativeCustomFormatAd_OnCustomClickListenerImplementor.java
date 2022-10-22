@@ -20,8 +20,9 @@ public class NativeCustomFormatAd_OnCustomClickListenerImplementor
 	public NativeCustomFormatAd_OnCustomClickListenerImplementor ()
 	{
 		super ();
-		if (getClass () == NativeCustomFormatAd_OnCustomClickListenerImplementor.class)
+		if (getClass () == NativeCustomFormatAd_OnCustomClickListenerImplementor.class) {
 			mono.android.TypeManager.Activate ("Android.Gms.Ads.NativeAd.INativeCustomFormatAdOnCustomClickListenerImplementor, Xamarin.GooglePlayServices.Ads.Lite", "", this, new java.lang.Object[] {  });
+		}
 	}
 
 

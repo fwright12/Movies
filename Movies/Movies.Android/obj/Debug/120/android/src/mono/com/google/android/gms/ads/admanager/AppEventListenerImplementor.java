@@ -20,8 +20,9 @@ public class AppEventListenerImplementor
 	public AppEventListenerImplementor ()
 	{
 		super ();
-		if (getClass () == AppEventListenerImplementor.class)
+		if (getClass () == AppEventListenerImplementor.class) {
 			mono.android.TypeManager.Activate ("Android.Gms.Ads.AdManager.IAppEventListenerImplementor, Xamarin.GooglePlayServices.Ads.Lite", "", this, new java.lang.Object[] {  });
+		}
 	}
 
 

@@ -20,8 +20,9 @@ public class OnH5AdsEventListenerImplementor
 	public OnH5AdsEventListenerImplementor ()
 	{
 		super ();
-		if (getClass () == OnH5AdsEventListenerImplementor.class)
+		if (getClass () == OnH5AdsEventListenerImplementor.class) {
 			mono.android.TypeManager.Activate ("Android.Gms.Ads.H5.IOnH5AdsEventListenerImplementor, Xamarin.GooglePlayServices.Ads.Lite", "", this, new java.lang.Object[] {  });
+		}
 	}
 
 

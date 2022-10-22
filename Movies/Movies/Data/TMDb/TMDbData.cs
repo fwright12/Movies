@@ -50,7 +50,7 @@ namespace Movies
             public HttpClient Client { get; }
             public IPagedRequest Request { get; }
             public string[] Parameters { get; }
-            public int Page => PageItr.Current < 0 ? (TotalPages ?? 0) - ~PageItr.Current : PageItr.Current;
+            public int Page => PageItr.Current < 0 ? (TotalPages ?? 1) - ~PageItr.Current : PageItr.Current;
 
             private int? TotalPages;
             private IEnumerator<int> PageItr;
@@ -71,7 +71,7 @@ namespace Movies
 
             public async ValueTask<bool> MoveNextAsync()
             {
-                if (!PageItr.MoveNext() || Page < 0 || Page >= TotalPages)
+                if (!PageItr.MoveNext() || Page < 0 || Page > TotalPages)
                 {
                     return false;
                 }
@@ -264,7 +264,7 @@ namespace Movies
             //Config = Client.GetConfigAsync();
             WebClient = new HttpClient
             {
-#if DEBUG && true
+#if DEBUG && false
                 BaseAddress = new Uri("https://mock.themoviedb/"),
 #else
                 BaseAddress = new Uri(BASE_ADDRESS),
@@ -417,16 +417,12 @@ namespace Movies
                 RequestUri = new Uri("https://api.themoviedb.org/4/auth/access_token"),
             };*/
 
+            UserAccessToken = Username = AccountID = SessionID = null;
+
             //var response = await WebClient.SendAsync(request);
             var response = await WebClient.TrySendAsync("4/auth/access_token", JsonExtensions.JsonObject(JsonExtensions.FormatJson("access_token", UserAccessToken)), HttpMethod.Delete);
 
-            if (response?.IsSuccessStatusCode == true && JsonNode.Parse(await response.Content.ReadAsStringAsync())["success"]?.GetValue<bool>() == true)
-            {
-                UserAccessToken = Username = AccountID = SessionID = null;
-                return true;
-            }
-
-            return false;
+            return response?.IsSuccessStatusCode == true && JsonNode.Parse(await response.Content.ReadAsStringAsync())["success"]?.GetValue<bool>() == true;
         }
 
         private static string BuildImageURL(object path) => BuildImageURL(path?.ToString());
@@ -579,6 +575,11 @@ namespace Movies
 
         private async Task CleanCache(TimeSpan olderThan)
         {
+            if (ResponseCache == null)
+            {
+                return;
+            }
+
             var cached = await ResponseCache.ReadAll();
 
             foreach (var kvp in cached)
@@ -594,6 +595,11 @@ namespace Movies
 
         private async Task GetChangeKeys()
         {
+            if (ResponseCache == null)
+            {
+                return;
+            }
+
             await CleanCacheTask;
 
             var url = API.CONFIGURATION.GET_API_CONFIGURATION.GetURL();

@@ -25,8 +25,9 @@ public class CustomEventListenerImplementor
 	public CustomEventListenerImplementor ()
 	{
 		super ();
-		if (getClass () == CustomEventListenerImplementor.class)
+		if (getClass () == CustomEventListenerImplementor.class) {
 			mono.android.TypeManager.Activate ("Android.Gms.Ads.Mediation.CustomEvent.ICustomEventListenerImplementor, Xamarin.GooglePlayServices.Ads.Lite", "", this, new java.lang.Object[] {  });
+		}
 	}
 
 

@@ -18,24 +18,27 @@ public abstract class PickerAppCompatRendererBase_1
 	public PickerAppCompatRendererBase_1 (android.content.Context p0)
 	{
 		super (p0);
-		if (getClass () == PickerAppCompatRendererBase_1.class)
+		if (getClass () == PickerAppCompatRendererBase_1.class) {
 			mono.android.TypeManager.Activate ("Xamarin.Forms.Platform.Android.AppCompat.PickerAppCompatRendererBase`1, Xamarin.Forms.Platform.Android", "Android.Content.Context, Mono.Android", this, new java.lang.Object[] { p0 });
+		}
 	}
 
 
 	public PickerAppCompatRendererBase_1 (android.content.Context p0, android.util.AttributeSet p1)
 	{
 		super (p0, p1);
-		if (getClass () == PickerAppCompatRendererBase_1.class)
+		if (getClass () == PickerAppCompatRendererBase_1.class) {
 			mono.android.TypeManager.Activate ("Xamarin.Forms.Platform.Android.AppCompat.PickerAppCompatRendererBase`1, Xamarin.Forms.Platform.Android", "Android.Content.Context, Mono.Android:Android.Util.IAttributeSet, Mono.Android", this, new java.lang.Object[] { p0, p1 });
+		}
 	}
 
 
 	public PickerAppCompatRendererBase_1 (android.content.Context p0, android.util.AttributeSet p1, int p2)
 	{
 		super (p0, p1, p2);
-		if (getClass () == PickerAppCompatRendererBase_1.class)
+		if (getClass () == PickerAppCompatRendererBase_1.class) {
 			mono.android.TypeManager.Activate ("Xamarin.Forms.Platform.Android.AppCompat.PickerAppCompatRendererBase`1, Xamarin.Forms.Platform.Android", "Android.Content.Context, Mono.Android:Android.Util.IAttributeSet, Mono.Android:System.Int32, mscorlib", this, new java.lang.Object[] { p0, p1, p2 });
+		}
 	}
 
 	private java.util.ArrayList refList;

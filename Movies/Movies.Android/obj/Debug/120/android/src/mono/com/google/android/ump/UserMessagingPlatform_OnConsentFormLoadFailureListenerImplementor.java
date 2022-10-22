@@ -20,8 +20,9 @@ public class UserMessagingPlatform_OnConsentFormLoadFailureListenerImplementor
 	public UserMessagingPlatform_OnConsentFormLoadFailureListenerImplementor ()
 	{
 		super ();
-		if (getClass () == UserMessagingPlatform_OnConsentFormLoadFailureListenerImplementor.class)
+		if (getClass () == UserMessagingPlatform_OnConsentFormLoadFailureListenerImplementor.class) {
 			mono.android.TypeManager.Activate ("Xamarin.Google.UserMesssagingPlatform.UserMessagingPlatform+IOnConsentFormLoadFailureListenerImplementor, Xamarin.Google.UserMessagingPlatform", "", this, new java.lang.Object[] {  });
+		}
 	}
 
 

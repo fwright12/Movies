@@ -20,8 +20,9 @@ public class OnPaidEventListenerImplementor
 	public OnPaidEventListenerImplementor ()
 	{
 		super ();
-		if (getClass () == OnPaidEventListenerImplementor.class)
+		if (getClass () == OnPaidEventListenerImplementor.class) {
 			mono.android.TypeManager.Activate ("Android.Gms.Ads.IOnPaidEventListenerImplementor, Xamarin.GooglePlayServices.Ads.Lite", "", this, new java.lang.Object[] {  });
+		}
 	}
 
 

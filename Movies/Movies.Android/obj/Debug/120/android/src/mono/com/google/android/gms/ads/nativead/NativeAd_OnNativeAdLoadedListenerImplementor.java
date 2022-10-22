@@ -20,8 +20,9 @@ public class NativeAd_OnNativeAdLoadedListenerImplementor
 	public NativeAd_OnNativeAdLoadedListenerImplementor ()
 	{
 		super ();
-		if (getClass () == NativeAd_OnNativeAdLoadedListenerImplementor.class)
+		if (getClass () == NativeAd_OnNativeAdLoadedListenerImplementor.class) {
 			mono.android.TypeManager.Activate ("Android.Gms.Ads.NativeAd.NativeAd+IOnNativeAdLoadedListenerImplementor, Xamarin.GooglePlayServices.Ads.Lite", "", this, new java.lang.Object[] {  });
+		}
 	}
 
 

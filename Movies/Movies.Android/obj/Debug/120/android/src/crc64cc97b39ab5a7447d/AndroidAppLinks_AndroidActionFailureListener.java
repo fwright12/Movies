@@ -20,8 +20,9 @@ public class AndroidAppLinks_AndroidActionFailureListener
 	public AndroidAppLinks_AndroidActionFailureListener ()
 	{
 		super ();
-		if (getClass () == AndroidAppLinks_AndroidActionFailureListener.class)
+		if (getClass () == AndroidAppLinks_AndroidActionFailureListener.class) {
 			mono.android.TypeManager.Activate ("Xamarin.Forms.Platform.Android.AppLinks.AndroidAppLinks+AndroidActionFailureListener, Xamarin.Forms.Platform.Android.AppLinks", "", this, new java.lang.Object[] {  });
+		}
 	}
 
 

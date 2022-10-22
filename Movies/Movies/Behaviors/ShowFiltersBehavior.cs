@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using Xamarin.Forms;
 
@@ -43,7 +44,7 @@ namespace Movies.Views
 
                         if (layout.Children.Count > 0)
                         {
-                            height -= layout.Children[layout.Children.Count - 1].Height;
+                            //height -= layout.Children[layout.Children.Count - 1].Height;
 
                             //Print.Log(e.VerticalOffset, header.Height, layout.Children[layout.Children.Count - 1].Height);
                         }
@@ -51,10 +52,26 @@ namespace Movies.Views
                 }
 
                 //Print.Log(e.VerticalDelta, e.VerticalOffset, height);
+                //drawerView.DrawerContentView.IsVisible = e.VerticalOffset > height - collectionView.Height && e.VerticalDelta < 0;
 
                 if (e.VerticalOffset > height)
                 {
                     drawerView.DrawerContentView.IsVisible = e.VerticalDelta < 0;
+                }
+                else
+                {
+                    double drawerHeight = 0;
+
+                    if (collectionView.Parent<DrawerView>() is DrawerView drawer)
+                    {
+                        drawerHeight = drawer.SnapPoints.Count > 0 ? drawer.SnapPoints.Min(snapPoint => snapPoint.Value) : drawer.Height;
+                    }
+
+                    drawerView.DrawerContentView.IsVisible = e.VerticalOffset > height + drawerHeight - collectionView.Height;
+                }
+
+                if (e.VerticalOffset > height)
+                {
 
                     var view = collectionView.Parent as Layout;
                     //view.Padding = new Thickness(view.Padding.Left, view.Padding.Top, view.Padding.Right, drawerView.DrawerContentView.IsVisible ? drawerView.DrawerContentView.Height : 0);

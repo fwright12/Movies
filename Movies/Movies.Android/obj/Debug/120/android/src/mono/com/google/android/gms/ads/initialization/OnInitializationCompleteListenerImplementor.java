@@ -20,8 +20,9 @@ public class OnInitializationCompleteListenerImplementor
 	public OnInitializationCompleteListenerImplementor ()
 	{
 		super ();
-		if (getClass () == OnInitializationCompleteListenerImplementor.class)
+		if (getClass () == OnInitializationCompleteListenerImplementor.class) {
 			mono.android.TypeManager.Activate ("Android.Gms.Ads.Initialization.IOnInitializationCompleteListenerImplementor, Xamarin.GooglePlayServices.Ads.Lite", "", this, new java.lang.Object[] {  });
+		}
 	}
 
 

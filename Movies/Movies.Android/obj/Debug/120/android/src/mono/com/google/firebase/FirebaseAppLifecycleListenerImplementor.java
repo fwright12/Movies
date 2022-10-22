@@ -20,8 +20,9 @@ public class FirebaseAppLifecycleListenerImplementor
 	public FirebaseAppLifecycleListenerImplementor ()
 	{
 		super ();
-		if (getClass () == FirebaseAppLifecycleListenerImplementor.class)
+		if (getClass () == FirebaseAppLifecycleListenerImplementor.class) {
 			mono.android.TypeManager.Activate ("Firebase.IFirebaseAppLifecycleListenerImplementor, Xamarin.Firebase.Common", "", this, new java.lang.Object[] {  });
+		}
 	}
 
 

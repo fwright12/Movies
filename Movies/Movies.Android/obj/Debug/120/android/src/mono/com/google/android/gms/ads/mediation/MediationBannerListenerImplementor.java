@@ -27,8 +27,9 @@ public class MediationBannerListenerImplementor
 	public MediationBannerListenerImplementor ()
 	{
 		super ();
-		if (getClass () == MediationBannerListenerImplementor.class)
+		if (getClass () == MediationBannerListenerImplementor.class) {
 			mono.android.TypeManager.Activate ("Android.Gms.Ads.Mediation.IMediationBannerListenerImplementor, Xamarin.GooglePlayServices.Ads.Lite", "", this, new java.lang.Object[] {  });
+		}
 	}
 
 

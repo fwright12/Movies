@@ -20,8 +20,9 @@ public class FirebaseApp_BackgroundStateChangeListenerImplementor
 	public FirebaseApp_BackgroundStateChangeListenerImplementor ()
 	{
 		super ();
-		if (getClass () == FirebaseApp_BackgroundStateChangeListenerImplementor.class)
+		if (getClass () == FirebaseApp_BackgroundStateChangeListenerImplementor.class) {
 			mono.android.TypeManager.Activate ("Firebase.FirebaseApp+IBackgroundStateChangeListenerImplementor, Xamarin.Firebase.Common", "", this, new java.lang.Object[] {  });
+		}
 	}
 
 

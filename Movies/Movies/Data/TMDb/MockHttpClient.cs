@@ -7,6 +7,9 @@ namespace Movies
 {
     public class HttpClient : System.Net.Http.HttpClient
     {
+        public static bool AllowLiveRequests = true;
+        public static bool BreakOnRequest = false;
+
         new public Task<HttpResponseMessage> GetAsync(string requestUri, CancellationToken cancellationToken = default) => SendAsync(new HttpRequestMessage(HttpMethod.Get, requestUri), cancellationToken);
         new public Task<HttpResponseMessage> SendAsync(HttpRequestMessage request) => SendAsync(request, new CancellationToken());
 
@@ -15,7 +18,7 @@ namespace Movies
             //return await base.SendAsync(request, cancellationToken);
 
             var endpoint = request.RequestUri.ToString();
-            string content = null;
+            string content = AllowLiveRequests ? null : string.Empty;
 
             if (endpoint.StartsWith("3/trending/movie") || endpoint.StartsWith("3/discover/movie"))
             {
@@ -29,32 +32,43 @@ namespace Movies
             {
                 content = TRENDING_PEOPLE_RESPONSE;
             }
-            else if (endpoint.StartsWith("3/movie"))
+            else if (endpoint.StartsWith("3/movie") && !endpoint.Contains("account_states"))
             {
                 //await Task.Delay(5000);
                 //throw new System.Net.Http.HttpRequestException();
+
+                if (BreakOnRequest)
+                { }
                 content = HARRY_POTTER_AND_THE_DEATHLY_HALLOWS_PART_2_RESPONSE;
                 //content = null;
                 //content = endpoint.Contains("reviews") ? null : content;
             }
-            else if (endpoint.StartsWith("3/tv"))
+            else if (endpoint.StartsWith("3/tv") && !endpoint.Contains("account_states"))
             {
                 if (endpoint.Contains("episode"))
                 {
+                    if (BreakOnRequest)
+                    { }
                     content = THE_OFFICE_SEASON_3_EPISODE_20_RESPONSE;
                 }
                 else if (endpoint.Contains("season"))
                 {
+                    if (BreakOnRequest)
+                    { }
                     content = THE_OFFICE_SEASON_3_RESPONSE;
                 }
                 else
                 {
+                    if (BreakOnRequest)
+                    { }
                     content = THE_OFFICE_RESPONSE;
                 }
                 //content = null;
             }
             else if (endpoint.StartsWith("3/person"))
             {
+                if (BreakOnRequest)
+                { }
                 content = JESSICA_CHASTAIN_RESPONSE;
                 //content = STEPHEN_WOOLFENDEN_RESPONSE;
                 //await Task.Delay(2000);
@@ -62,6 +76,8 @@ namespace Movies
             }
             else if (endpoint.StartsWith("3/collection"))
             {
+                if (BreakOnRequest)
+                { }
                 content = HARRY_POTTER_COLLECTION_RESPONSE;
                 //content = null;
             }
@@ -86,13 +102,16 @@ namespace Movies
                 {
                     content = TMDB_WATCHED_LIST_RESPONSE;
                 }
+
+                //content = null;
             }
-            else
+            else if (BaseAddress.ToString().Contains("trakt"))
             {
+                content = string.Empty;
                 content = null;
             }
 
-            Print.Log("web request: " + endpoint);
+            Print.Log($"web request{(content != null ? " (mock)" : string.Empty)}: " + endpoint);
             //await Task.Delay(5000);
 
             if (content != null)

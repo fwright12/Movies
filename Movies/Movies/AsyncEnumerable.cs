@@ -3,6 +3,11 @@ using System.Threading.Tasks;
 
 namespace System.Linq
 {
+    public static class EnumerableExtensions
+    {
+        public static IEnumerable<T> SelectMany<T>(this IEnumerable<IEnumerable<T>> source) => source.SelectMany(items => items);
+    }
+
     public static class AsyncEnumerable
     {
         public static async IAsyncEnumerable<TSource> Concat<TSource>(this IAsyncEnumerable<TSource> first, IAsyncEnumerable<TSource> second)

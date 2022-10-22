@@ -20,8 +20,9 @@ public class ConsentForm_OnConsentFormDismissedListenerImplementor
 	public ConsentForm_OnConsentFormDismissedListenerImplementor ()
 	{
 		super ();
-		if (getClass () == ConsentForm_OnConsentFormDismissedListenerImplementor.class)
+		if (getClass () == ConsentForm_OnConsentFormDismissedListenerImplementor.class) {
 			mono.android.TypeManager.Activate ("Xamarin.Google.UserMesssagingPlatform.IConsentFormOnConsentFormDismissedListenerImplementor, Xamarin.Google.UserMessagingPlatform", "", this, new java.lang.Object[] {  });
+		}
 	}
 
 

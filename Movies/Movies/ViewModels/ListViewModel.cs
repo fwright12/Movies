@@ -1,4 +1,5 @@
 ﻿using Movies.Models;
+using Movies.Views;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -100,8 +101,14 @@ namespace Movies.ViewModels
             public IList<SyncOptions> NewSources { get; set; }
         }
 
+        private static IEnumerable<List> OrderSources(IEnumerable<List> sources)
+        {
+            var local = sources.Where(list => list is Database.LocalList).ToList();
+            return local.Concat(sources.Except(local));
+        }
+
         public ListViewModel(params SyncOptions[] sources) : this((IEnumerable<SyncOptions>)sources) { }
-        public ListViewModel(IEnumerable<SyncOptions> sources, ItemType? allowedTypes = null, bool reverse = false) : base(new SyncList(sources.Select(sync => sync.List), reverse))
+        public ListViewModel(IEnumerable<SyncOptions> sources, ItemType? allowedTypes = null, bool reverse = false) : base(new SyncList(OrderSources(sources.Select(sync => sync.List)), reverse))
         {
             SyncWith = new ObservableCollection<SyncOptions>(sources);
             SyncBackup = new List<SyncOptions>(SyncWith);
@@ -131,7 +138,7 @@ namespace Movies.ViewModels
                 }
             });
 
-            if (Items is INotifyCollectionChanged observable)
+            if (Source.Items is INotifyCollectionChanged observable)
             {
                 observable.CollectionChanged += ListChanged;
             }
@@ -214,7 +221,8 @@ namespace Movies.ViewModels
                     if (syncList.Count != before)
                     {
                         syncList.Reset();
-                        UpdateItems(syncList);
+                        Source.Refresh();
+                        //UpdateItems(syncList);
                     }
                 }
 
@@ -246,7 +254,7 @@ namespace Movies.ViewModels
         {
             await ListChangedAsync(items, null);
 
-            var observable = Items as INotifyCollectionChanged;
+            var observable = Source.Items as INotifyCollectionChanged;
 
             if (observable != null)
             {
@@ -258,7 +266,7 @@ namespace Movies.ViewModels
             foreach (var item in order)
             {
                 //ContainsCache[item] = true;
-                if (Items is IList list)
+                if (Source.Items is IList list)
                 {
                     int index = -1;
                     if (this is NamedListViewModel)
@@ -291,7 +299,7 @@ namespace Movies.ViewModels
         {
             await ListChangedAsync(null, items);
 
-            var observable = Items as INotifyCollectionChanged;
+            var observable = Source.Items as INotifyCollectionChanged;
 
             if (observable != null)
             {
@@ -302,7 +310,7 @@ namespace Movies.ViewModels
             {
                 //ContainsCache[item] = false;
 
-                if (Items is IList list)
+                if (Source.Items is IList list)
                 {
                     int index = 0;
                     foreach (var model in list)
@@ -333,7 +341,7 @@ namespace Movies.ViewModels
 
         private async void ListChanged(object sender, NotifyCollectionChangedEventArgs e)
         {
-            if (!Loading)
+            if (!Source.Loading)
             {
                 await ListChangedAsync(e.NewItems?.OfType<ItemViewModel>().Select(ivm => ivm.Item), e.OldItems?.OfType<ItemViewModel>().Select(ivm => ivm.Item));
             }

@@ -20,8 +20,9 @@ public class WorkTimer_TimeLimitExceededListenerImplementor
 	public WorkTimer_TimeLimitExceededListenerImplementor ()
 	{
 		super ();
-		if (getClass () == WorkTimer_TimeLimitExceededListenerImplementor.class)
+		if (getClass () == WorkTimer_TimeLimitExceededListenerImplementor.class) {
 			mono.android.TypeManager.Activate ("AndroidX.Work.Impl.Utils.WorkTimer+ITimeLimitExceededListenerImplementor, Xamarin.AndroidX.Work.Runtime", "", this, new java.lang.Object[] {  });
+		}
 	}
 
 

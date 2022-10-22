@@ -80,7 +80,7 @@ namespace Movies.ViewModels
                     }
                 }
 
-                return (Items as IList)?.Count ?? 0;
+                return (Source.Items as IList)?.Count ?? 0;
             }
         }
 
@@ -107,8 +107,6 @@ namespace Movies.ViewModels
             return count;
         }
 
-        public IEnumerable Items { get; }
-        public ICommand LoadMoreCommand => LazyLoadMoreCommand?.Value;
         public ICommand ToggleSortOrder { get; }
         public ICommand ToggleListLayoutCommand { get; }
 
@@ -143,22 +141,7 @@ namespace Movies.ViewModels
             }
         }
 
-        public bool Loading
-        {
-            get => _Loading;
-            private set
-            {
-                if (value != _Loading)
-                {
-                    _Loading = value;
-                    OnPropertyChanged();
-                }
-            }
-        }
-
-        private Lazy<ICommand> LazyLoadMoreCommand;
         private string _Name;
-        private bool _Loading;
 
         public static readonly TreeToListConverter<object> TreeToListConverter = new TreeToListConverter<object>();
 
@@ -204,14 +187,9 @@ namespace Movies.ViewModels
                 ItemList.AddLazy(lazy);
             }*/
 
-            Items = new ObservableCollection<object>();
+            //Items = new ObservableCollection<object>();
             //var itr = !(items is LazyCollection<Item>) && items != null ? items.GetAsyncEnumerator() : ItemList.GetAsyncEnumerator();
 
-            LazyLoadMoreCommand = new Lazy<ICommand>(() =>
-            {
-                UpdateItems(items);
-                return new Command<int?>(async count => await Load(count));
-            });
             ToggleListLayoutCommand = new Command(() => ListLayout = ListLayout == ListLayouts.Grid ? ListLayouts.List : ListLayouts.Grid);
 
             var wrapper = new ItemWrapper(items, this);
@@ -250,12 +228,6 @@ namespace Movies.ViewModels
                 }
             }
 
-            Items = Source.Items;
-            LazyLoadMoreCommand = new Lazy<ICommand>(() =>
-            {
-                return Source.LoadMoreCommand;
-            });
-
             PropertyChanged += (sender, e) =>
             {
                 if (e.PropertyName == nameof(SortBy))
@@ -272,57 +244,14 @@ namespace Movies.ViewModels
                 Refresh();
             });
 
-            ((INotifyCollectionChanged)Items).CollectionChanged += (sender, e) => OnPropertyChanged(nameof(Count));
+            if (Source.Items is INotifyCollectionChanged observable1)
+            {
+                observable1.CollectionChanged += (sender, e) => OnPropertyChanged(nameof(Count));
+            }
 
             //Items = items?.Select(Map) ?? new List<ItemViewModel>();
             //if (this is TVSeriesViewModel)
             //Items = new List<ItemViewModel>(Items);
-        }
-
-        private IAsyncEnumerator<Item> Itr;
-
-        public async Task Load(int? count = null)
-        {
-            if (Loading)
-            {
-                return;
-            }
-
-            Loading = true;
-            try
-            {
-                for (int i = 0; i < (count ?? 1) && (await Itr.MoveNextAsync()); i++)
-                {
-                    if (Itr.Current == null)
-                    {
-                        i--;
-                        continue;
-                    }
-
-                    (Items as IList)?.Add(Map(Itr.Current));
-                }
-            }
-            catch (Exception e)
-            {
-#if DEBUG
-                Print.Log(e);
-                ;
-#endif
-            }
-
-            Loading = false;
-        }
-
-        protected void UpdateItems(IAsyncEnumerable<Item> items)
-        {
-            if (items == null)
-            {
-                return;
-            }
-
-            (Items as IList)?.Clear();
-            Itr = items.GetAsyncEnumerator();
-            _ = Load(10);
         }
 
         private void Refresh() => Source.Refresh();

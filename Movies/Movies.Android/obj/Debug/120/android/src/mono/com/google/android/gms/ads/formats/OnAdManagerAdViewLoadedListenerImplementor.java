@@ -20,8 +20,9 @@ public class OnAdManagerAdViewLoadedListenerImplementor
 	public OnAdManagerAdViewLoadedListenerImplementor ()
 	{
 		super ();
-		if (getClass () == OnAdManagerAdViewLoadedListenerImplementor.class)
+		if (getClass () == OnAdManagerAdViewLoadedListenerImplementor.class) {
 			mono.android.TypeManager.Activate ("Android.Gms.Ads.Formats.IOnAdManagerAdViewLoadedListenerImplementor, Xamarin.GooglePlayServices.Ads.Lite", "", this, new java.lang.Object[] {  });
+		}
 	}
 
 

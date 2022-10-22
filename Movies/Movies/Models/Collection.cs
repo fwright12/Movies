@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.Linq;
+using System.Net;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -33,59 +34,6 @@ namespace Movies.Models
 
     public static class ItemHelpers
     {
-        public static FilterPredicate FormatFilters(FilterPredicate filter)
-        {
-            if (!(filter is BooleanExpression expression))
-            {
-                return filter;
-            }
-
-            var sorted = new Dictionary<object, List<OperatorPredicate>>();
-            var predicates = expression.Predicates;
-            expression = new BooleanExpression();
-
-            foreach (var predicate in predicates)
-            {
-                if (predicate is OperatorPredicate op)
-                {
-                    if (!sorted.TryGetValue(op.LHS, out var values))
-                    {
-                        sorted[op.LHS] = values = new List<OperatorPredicate>();
-                    }
-
-                    values.Add(op);
-                }
-                else
-                {
-                    expression.Predicates.Add(predicate);
-                }
-            }
-
-            foreach (var kvp in sorted)
-            {
-                if (kvp.Value.Count == 1)
-                {
-                    expression.Predicates.Add(kvp.Value[0]);
-                }
-                else
-                {
-                    var inner = new BooleanExpression
-                    {
-                        IsAnd = false
-                    };
-
-                    foreach (var value in kvp.Value)
-                    {
-                        inner.Predicates.Add(value);
-                    }
-
-                    expression.Predicates.Add(inner);
-                }
-            }
-
-            return expression;
-        }
-
         public static List<Type> RemoveTypes(FilterPredicate predicate, out FilterPredicate remaining)
         {
             var predicates = predicate is BooleanExpression temp && temp.IsAnd ? temp.Predicates : new List<FilterPredicate> { predicate };
@@ -159,7 +107,10 @@ namespace Movies.Models
             object lhs = ViewModels.CollectionViewModel.ITEM_TYPE;
             object value = item.GetType();
 
-            filter = FormatFilters(filter);
+            if (filter is BooleanExpression exp)
+            {
+                filter = ViewModels.ExpressionBuilder.FormatFilters(exp.Predicates);
+            }
             //var types = RemoveTypes(filter, out filter);
 
             while (true)
@@ -175,7 +126,7 @@ namespace Movies.Models
                     return false;
                 }
 
-                if (await predicates.MoveNextAsync() && predicates.Current.LHS is Property property && details.Value.TryGetValue(property, out var task))
+                if (await predicates.MoveNextAsync() && predicates.Current.LHS is Property property && details.Value.TryGetValue(FixProperty(item, property), out var task))
                 {
                     lhs = property;
                     try
@@ -194,7 +145,35 @@ namespace Movies.Models
             }
         }
 
-        private static async IAsyncEnumerable<OperatorPredicate> DefferedPredicates(FilterPredicate predicate, PropertyDictionary properties = null, ItemProperties lookup = null, ItemInfoCache cache = null)
+        private static Property FixProperty(Item item, Property property)
+        {
+            if (item is Movie)
+            {
+                if (property == TVShow.GENRES)
+                {
+                    property = Movie.GENRES;
+                }
+                else if (property == TVShow.WATCH_PROVIDERS)
+                {
+                    property = Movie.WATCH_PROVIDERS;
+                }
+            }
+            else if (item is TVShow)
+            {
+                if (property == Movie.GENRES)
+                {
+                    property = TVShow.GENRES;
+                }
+                else if (property == Movie.WATCH_PROVIDERS)
+                {
+                    property = TVShow.WATCH_PROVIDERS;
+                }
+            }
+
+            return property;
+        }
+
+        public static async IAsyncEnumerable<OperatorPredicate> DefferedPredicates(FilterPredicate predicate, PropertyDictionary properties = null, ItemProperties lookup = null, IJsonCache cache = null)
         {
             var cachedInMemory = new Queue<OperatorPredicate>();
             var cachedPersistent = new Queue<OperatorPredicate>();
@@ -245,7 +224,7 @@ namespace Movies.Models
             }
         }
 
-        private static IEnumerable<FilterPredicate> Flatten(FilterPredicate predicate)
+        public static IEnumerable<FilterPredicate> Flatten(FilterPredicate predicate)
         {
             if (predicate is BooleanExpression expression)
             {
@@ -641,11 +620,11 @@ namespace Movies.Models
 
         public virtual Task<List<Item>> GetAdditionsAsync(List list) => Task.FromResult(new List<Item>());
 
-        public virtual async IAsyncEnumerator<Item> GetAsyncEnumerator(FilterPredicate predicate, CancellationToken cancellationToken = default)
+        public virtual async IAsyncEnumerator<Item> GetAsyncEnumerator(FilterPredicate filter, CancellationToken cancellationToken = default)
         {
             await foreach (var item in this)
             {
-                if (await ItemHelpers.Evaluate(item, predicate))
+                if (await ItemHelpers.Evaluate(item, filter))
                 {
                     yield return item;
                 }

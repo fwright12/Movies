@@ -527,7 +527,9 @@
                         </DataTemplate>
                     </views:SectionView.Header>
 
-                    <AbsoluteLayout CompressedLayout.IsHeadless="True">
+                    <AbsoluteLayout BindingContext="{Binding Source}"
+                                    x:DataType="{x:Null}"
+                                    CompressedLayout.IsHeadless="True">
                         <CollectionView ItemsSource="{Binding Items}"
                                         RemainingItemsThresholdReachedCommand="{Binding LoadMoreCommand}"
                                         RemainingItemsThreshold="0"

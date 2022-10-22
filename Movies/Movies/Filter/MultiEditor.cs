@@ -56,7 +56,9 @@ namespace Movies.ViewModels
                 return;
             }
 
-            SubEditorSelectedChanged((Editor)sender, e.OldValue as ObservableNode<object>, e.NewValue as ObservableNode<object>);
+            var newNode = e.NewValue as ObservableNode<object>;
+            SubPredicateChanged(newNode?.Value as IPredicateBuilder);
+            SubEditorSelectedChanged((Editor)sender, e.OldValue as ObservableNode<object>, newNode);
         }
 
         private void SubEditorSelectedChanged(Editor editor, ObservableNode<object> oldValue, ObservableNode<object> newValue)
@@ -68,7 +70,6 @@ namespace Movies.ViewModels
 
             if (newValue?.Value is IPredicateBuilder newBuilder)
             {
-                SubPredicateChanged(newBuilder);
                 newBuilder.PredicateChanged += SubPredicateChanged;
             }
         }

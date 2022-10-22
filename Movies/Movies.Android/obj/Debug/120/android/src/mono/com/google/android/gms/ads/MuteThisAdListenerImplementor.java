@@ -20,8 +20,9 @@ public class MuteThisAdListenerImplementor
 	public MuteThisAdListenerImplementor ()
 	{
 		super ();
-		if (getClass () == MuteThisAdListenerImplementor.class)
+		if (getClass () == MuteThisAdListenerImplementor.class) {
 			mono.android.TypeManager.Activate ("Android.Gms.Ads.IMuteThisAdListenerImplementor, Xamarin.GooglePlayServices.Ads.Lite", "", this, new java.lang.Object[] {  });
+		}
 	}
 
 

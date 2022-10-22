@@ -22,64 +22,72 @@ public class FFBitmapDrawable
 	public FFBitmapDrawable ()
 	{
 		super ();
-		if (getClass () == FFBitmapDrawable.class)
+		if (getClass () == FFBitmapDrawable.class) {
 			mono.android.TypeManager.Activate ("FFImageLoading.Drawables.FFBitmapDrawable, FFImageLoading.Platform", "", this, new java.lang.Object[] {  });
+		}
 	}
 
 
 	public FFBitmapDrawable (android.content.res.Resources p0)
 	{
 		super (p0);
-		if (getClass () == FFBitmapDrawable.class)
+		if (getClass () == FFBitmapDrawable.class) {
 			mono.android.TypeManager.Activate ("FFImageLoading.Drawables.FFBitmapDrawable, FFImageLoading.Platform", "Android.Content.Res.Resources, Mono.Android", this, new java.lang.Object[] { p0 });
+		}
 	}
 
 
 	public FFBitmapDrawable (android.content.res.Resources p0, android.graphics.Bitmap p1)
 	{
 		super (p0, p1);
-		if (getClass () == FFBitmapDrawable.class)
+		if (getClass () == FFBitmapDrawable.class) {
 			mono.android.TypeManager.Activate ("FFImageLoading.Drawables.FFBitmapDrawable, FFImageLoading.Platform", "Android.Content.Res.Resources, Mono.Android:Android.Graphics.Bitmap, Mono.Android", this, new java.lang.Object[] { p0, p1 });
+		}
 	}
 
 
 	public FFBitmapDrawable (android.content.res.Resources p0, java.io.InputStream p1)
 	{
 		super (p0, p1);
-		if (getClass () == FFBitmapDrawable.class)
+		if (getClass () == FFBitmapDrawable.class) {
 			mono.android.TypeManager.Activate ("FFImageLoading.Drawables.FFBitmapDrawable, FFImageLoading.Platform", "Android.Content.Res.Resources, Mono.Android:System.IO.Stream, mscorlib", this, new java.lang.Object[] { p0, p1 });
+		}
 	}
 
 
 	public FFBitmapDrawable (android.content.res.Resources p0, java.lang.String p1)
 	{
 		super (p0, p1);
-		if (getClass () == FFBitmapDrawable.class)
+		if (getClass () == FFBitmapDrawable.class) {
 			mono.android.TypeManager.Activate ("FFImageLoading.Drawables.FFBitmapDrawable, FFImageLoading.Platform", "Android.Content.Res.Resources, Mono.Android:System.String, mscorlib", this, new java.lang.Object[] { p0, p1 });
+		}
 	}
 
 
 	public FFBitmapDrawable (android.graphics.Bitmap p0)
 	{
 		super (p0);
-		if (getClass () == FFBitmapDrawable.class)
+		if (getClass () == FFBitmapDrawable.class) {
 			mono.android.TypeManager.Activate ("FFImageLoading.Drawables.FFBitmapDrawable, FFImageLoading.Platform", "Android.Graphics.Bitmap, Mono.Android", this, new java.lang.Object[] { p0 });
+		}
 	}
 
 
 	public FFBitmapDrawable (java.io.InputStream p0)
 	{
 		super (p0);
-		if (getClass () == FFBitmapDrawable.class)
+		if (getClass () == FFBitmapDrawable.class) {
 			mono.android.TypeManager.Activate ("FFImageLoading.Drawables.FFBitmapDrawable, FFImageLoading.Platform", "System.IO.Stream, mscorlib", this, new java.lang.Object[] { p0 });
+		}
 	}
 
 
 	public FFBitmapDrawable (java.lang.String p0)
 	{
 		super (p0);
-		if (getClass () == FFBitmapDrawable.class)
+		if (getClass () == FFBitmapDrawable.class) {
 			mono.android.TypeManager.Activate ("FFImageLoading.Drawables.FFBitmapDrawable, FFImageLoading.Platform", "System.String, mscorlib", this, new java.lang.Object[] { p0 });
+		}
 	}
 
 

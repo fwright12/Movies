@@ -20,8 +20,9 @@ public class ConsentInformation_OnConsentInfoUpdateSuccessListenerImplementor
 	public ConsentInformation_OnConsentInfoUpdateSuccessListenerImplementor ()
 	{
 		super ();
-		if (getClass () == ConsentInformation_OnConsentInfoUpdateSuccessListenerImplementor.class)
+		if (getClass () == ConsentInformation_OnConsentInfoUpdateSuccessListenerImplementor.class) {
 			mono.android.TypeManager.Activate ("Xamarin.Google.UserMesssagingPlatform.IConsentInformationOnConsentInfoUpdateSuccessListenerImplementor, Xamarin.Google.UserMessagingPlatform", "", this, new java.lang.Object[] {  });
+		}
 	}
 
 
