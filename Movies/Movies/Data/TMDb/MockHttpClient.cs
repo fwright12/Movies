@@ -8,7 +8,8 @@ namespace Movies
     public class HttpClient : System.Net.Http.HttpClient
     {
         public static bool AllowLiveRequests = true;
-        public static bool BreakOnRequest = false;
+        public static bool BreakOnRequest = true;
+        public static int SimulatedDelay = 0;
 
         new public Task<HttpResponseMessage> GetAsync(string requestUri, CancellationToken cancellationToken = default) => SendAsync(new HttpRequestMessage(HttpMethod.Get, requestUri), cancellationToken);
         new public Task<HttpResponseMessage> SendAsync(HttpRequestMessage request) => SendAsync(request, new CancellationToken());
@@ -18,7 +19,7 @@ namespace Movies
             //return await base.SendAsync(request, cancellationToken);
 
             var endpoint = request.RequestUri.ToString();
-            string content = AllowLiveRequests ? null : string.Empty;
+            string content = AllowLiveRequests ? null : "{}";
 
             if (endpoint.StartsWith("3/trending/movie") || endpoint.StartsWith("3/discover/movie"))
             {
@@ -60,7 +61,7 @@ namespace Movies
                 else
                 {
                     if (BreakOnRequest)
-                    { }
+                        ;
                     content = THE_OFFICE_RESPONSE;
                 }
                 //content = null;
@@ -80,6 +81,10 @@ namespace Movies
                 { }
                 content = HARRY_POTTER_COLLECTION_RESPONSE;
                 //content = null;
+            }
+            else if (endpoint.StartsWith("3/configuration"))
+            {
+                content = CONFIGURATION;
             }
             else if (BaseAddress.ToString().Contains("themoviedb"))
             {
@@ -108,18 +113,22 @@ namespace Movies
             else if (BaseAddress.ToString().Contains("trakt"))
             {
                 content = string.Empty;
-                content = null;
+                //content = null;
             }
 
-            Print.Log($"web request{(content != null ? " (mock)" : string.Empty)}: " + endpoint);
-            //await Task.Delay(5000);
+            //Print.Log($"web request{(content != null ? " (mock)" : string.Empty)}: " + endpoint);
+
+            if (SimulatedDelay > 0)
+            {
+                await Task.Delay(SimulatedDelay);
+            }
 
             if (content != null)
             {
-                return await Task.FromResult(new HttpResponseMessage
+                return new HttpResponseMessage
                 {
                     Content = new StringContent(content)
-                });
+                };
             }
             else
             {

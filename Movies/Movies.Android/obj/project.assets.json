@@ -163,7 +163,7 @@
           }
         }
       },
-      "System.Text.Json/6.0.5": {
+      "System.Text.Json/6.0.6": {
         "type": "package",
         "dependencies": {
           "Microsoft.Bcl.AsyncInterfaces": "6.0.0",
@@ -2231,7 +2231,7 @@
           "build/MonoAndroid90/Xamarin.Firebase.Components.targets": {}
         }
       },
-      "Xamarin.Forms/5.0.0.2478": {
+      "Xamarin.Forms/5.0.0.2515": {
         "type": "package",
         "dependencies": {
           "Xamarin.AndroidX.Browser": "[1.3.0.6, 1.4.0)",
@@ -2283,7 +2283,7 @@
           "buildTransitive/Xamarin.Forms.targets": {}
         }
       },
-      "Xamarin.Forms.AppLinks/5.0.0.2478": {
+      "Xamarin.Forms.AppLinks/5.0.0.2515": {
         "type": "package",
         "dependencies": {
           "Xamarin.AndroidX.Legacy.Support.V4": "1.0.0.7",
@@ -2737,11 +2737,11 @@
         "dependencies": {
           "Microsoft.CSharp": "4.7.0",
           "System.Extensions": "1.0.0",
-          "System.Text.Json": "6.0.5",
+          "System.Text.Json": "6.0.6",
           "Xamarin.Essentials": "1.7.3",
           "Xamarin.FFImageLoading": "2.4.11.982",
           "Xamarin.FFImageLoading.Forms": "2.4.11.982",
-          "Xamarin.Forms": "5.0.0.2478",
+          "Xamarin.Forms": "5.0.0.2515",
           "Xamarin.Forms.Extensions": "1.0.0",
           "sqlite-net-pcl": "1.8.116"
         },
@@ -3089,10 +3089,10 @@
         "useSharedDesignerContext.txt"
       ]
     },
-    "System.Text.Json/6.0.5": {
-      "sha512": "SSH+YYrMpvLcy7Orzb5K1tSyffnFacWahyxCCjYH1PbSHdAF4dekmIetBurFKgtTHDmwEe/J2Csi/7niRH6d/g==",
+    "System.Text.Json/6.0.6": {
+      "sha512": "GZ+62pLOr544jwSvyXv5ezSfzlFBTjLuPhgOS2dnKuknAA8dPNUGXLKTHf9XdsudU9JpbtweXnE4oEiKEB2T1Q==",
       "type": "package",
-      "path": "system.text.json/6.0.5",
+      "path": "system.text.json/6.0.6",
       "files": [
         ".nupkg.metadata",
         ".signature.p7s",
@@ -3138,7 +3138,7 @@
         "lib/netcoreapp3.1/System.Text.Json.xml",
         "lib/netstandard2.0/System.Text.Json.dll",
         "lib/netstandard2.0/System.Text.Json.xml",
-        "system.text.json.6.0.5.nupkg.sha512",
+        "system.text.json.6.0.6.nupkg.sha512",
         "system.text.json.nuspec",
         "useSharedDesignerContext.txt"
       ]
@@ -4840,10 +4840,10 @@
         "xamarin.firebase.components.nuspec"
       ]
     },
-    "Xamarin.Forms/5.0.0.2478": {
-      "sha512": "UeOnndxByPTpbExq0jPL5zKYqtHN9ldsgjQfUk9XF1pWSJUIakF3nJkq/tCgCVp5E1yp9Eecgqcthzy6llKiGg==",
+    "Xamarin.Forms/5.0.0.2515": {
+      "sha512": "n/Y/xk1idWRkxk7xItwvNwwda7CHpIk7JxD6tXkGXmTqiVGV1xRkepf5aKXFkQLM9KIQhXXYBxPsdyJysPpktw==",
       "type": "package",
-      "path": "xamarin.forms/5.0.0.2478",
+      "path": "xamarin.forms/5.0.0.2515",
       "files": [
         ".nupkg.metadata",
         ".signature.p7s",
@@ -5052,20 +5052,20 @@
         "lib/uap10.0.16299/Xamarin.Forms.Xaml.dll",
         "lib/uap10.0.16299/Xamarin.Forms.Xaml.pdb",
         "lib/uap10.0.16299/Xamarin.Forms.Xaml.xml",
-        "xamarin.forms.5.0.0.2478.nupkg.sha512",
+        "xamarin.forms.5.0.0.2515.nupkg.sha512",
         "xamarin.forms.nuspec"
       ]
     },
-    "Xamarin.Forms.AppLinks/5.0.0.2478": {
-      "sha512": "4+1YjFvqLpIitzm9Cgc294WM7yvwYDRn2DkEezMtpV8M8EQspC5lujwGdiegDoX+OjgOfZ9yo6YoKu2lgW+6hA==",
+    "Xamarin.Forms.AppLinks/5.0.0.2515": {
+      "sha512": "DE3Xm5cqLM70+jg8kbERCT7D9gmkOPsaEv2WL2PcOlD7G36JmZob9Q613HPehur7A9k3Y2W4iiht646USVCNOQ==",
       "type": "package",
-      "path": "xamarin.forms.applinks/5.0.0.2478",
+      "path": "xamarin.forms.applinks/5.0.0.2515",
       "files": [
         ".nupkg.metadata",
         ".signature.p7s",
         "Assets/xamarin_128x128.png",
         "lib/MonoAndroid10.0/Xamarin.Forms.Platform.Android.AppLinks.dll",
-        "xamarin.forms.applinks.5.0.0.2478.nupkg.sha512",
+        "xamarin.forms.applinks.5.0.0.2515.nupkg.sha512",
         "xamarin.forms.applinks.nuspec"
       ]
     },
@@ -5392,8 +5392,8 @@
       "Xamarin.AndroidX.Lifecycle.LiveData >= 2.4.1.1",
       "Xamarin.FFImageLoading >= 2.4.11.982",
       "Xamarin.FFImageLoading.Forms >= 2.4.11.982",
-      "Xamarin.Forms >= 5.0.0.2478",
-      "Xamarin.Forms.AppLinks >= 5.0.0.2478",
+      "Xamarin.Forms >= 5.0.0.2515",
+      "Xamarin.Forms.AppLinks >= 5.0.0.2515",
       "Xamarin.Forms.Extensions >= 1.0.0",
       "Xamarin.GooglePlayServices.Ads.Lite >= 121.0.0"
     ]
@@ -5457,11 +5457,11 @@
           },
           "Xamarin.Forms": {
             "target": "Package",
-            "version": "[5.0.0.2478, )"
+            "version": "[5.0.0.2515, )"
           },
           "Xamarin.Forms.AppLinks": {
             "target": "Package",
-            "version": "[5.0.0.2478, )"
+            "version": "[5.0.0.2515, )"
           },
           "Xamarin.GooglePlayServices.Ads.Lite": {
             "target": "Package",
@@ -5476,7 +5476,7 @@
       "code": "NU1608",
       "level": "Warning",
       "warningLevel": 1,
-      "message": "Detected package version outside of dependency constraint: Xamarin.Forms 5.0.0.2478 requires Xamarin.AndroidX.Lifecycle.LiveData (>= 2.3.1.1 && < 2.4.0) but version Xamarin.AndroidX.Lifecycle.LiveData 2.4.1.1 was resolved.",
+      "message": "Detected package version outside of dependency constraint: Xamarin.Forms 5.0.0.2515 requires Xamarin.AndroidX.Lifecycle.LiveData (>= 2.3.1.1 && < 2.4.0) but version Xamarin.AndroidX.Lifecycle.LiveData 2.4.1.1 was resolved.",
       "libraryId": "Xamarin.AndroidX.Lifecycle.LiveData",
       "targetGraphs": [
         "MonoAndroid,Version=v12.0"

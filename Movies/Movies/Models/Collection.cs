@@ -99,6 +99,46 @@ namespace Movies.Models
             return types;
         }
 
+        private static async Task<List<T>> Buffer<T>(IAsyncEnumerator<T> itr, int? count)
+        {
+            var buffer = new List<T>();
+
+            for (int i = 0; !(i >= count) && await itr.MoveNextAsync(); i++)
+            {
+                buffer.Add(itr.Current);
+            }
+
+            return buffer;
+        }
+
+        public static async IAsyncEnumerable<Item> Filter(IAsyncEnumerable<Item> items, FilterPredicate filter)
+        {
+            var itr = items.GetAsyncEnumerator();
+            List<Item> buffer;
+            var size = 10;
+            var watch = System.Diagnostics.Stopwatch.StartNew();
+            int count = 0;
+
+            do
+            {
+                buffer = await Buffer(itr, size);
+                count += buffer.Count;
+                if (count % 100 == 0) Print.Log($"Loaded {count}");
+                var evaluated = await Task.WhenAll(buffer.Select(item => ItemHelpers.Evaluate(item, filter)));
+
+                for (int i = 0; i < buffer.Count; i++)
+                {
+                    if (evaluated[i])
+                    {
+                        yield return buffer[i];
+                    }
+                }
+            }
+            while (buffer.Count == size);
+            watch.Stop();
+            Print.Log($"loaded {count} items in {watch.Elapsed}");
+        }
+
         public static async Task<bool> Evaluate(Item item, FilterPredicate filter, PropertyDictionary properties = null, ItemInfoCache cache = null)
         {
             var details = new Lazy<PropertyDictionary>(() => DataService.Instance.GetDetails(item));
@@ -173,7 +213,7 @@ namespace Movies.Models
             return property;
         }
 
-        public static async IAsyncEnumerable<OperatorPredicate> DefferedPredicates(FilterPredicate predicate, PropertyDictionary properties = null, ItemProperties lookup = null, IJsonCache cache = null)
+        public static async IAsyncEnumerable<OperatorPredicate> DefferedPredicates(FilterPredicate predicate, PropertyDictionary properties = null, IJsonCache cache = null)
         {
             var cachedInMemory = new Queue<OperatorPredicate>();
             var cachedPersistent = new Queue<OperatorPredicate>();
@@ -208,7 +248,7 @@ namespace Movies.Models
 
             foreach (var value in cachedPersistent)
             {
-                if (value.LHS is Property property && cache != null && lookup?.PropertyLookup.TryGetValue(property, out var request) == true && await cache.IsCached(request.GetURL()))
+                if (value.LHS is Property property && cache != null && TryGetRequest(property, out var request) == true && await cache.IsCached(request.GetURL()))
                 {
                     yield return value;
                 }
@@ -222,6 +262,20 @@ namespace Movies.Models
             {
                 yield return value;
             }
+        }
+
+        private static bool TryGetRequest(Property property, out TMDbRequest request)
+        {
+            foreach (var properties in TMDB.ITEM_PROPERTIES.Values)
+            {
+                if (properties.PropertyLookup.TryGetValue(property, out request))
+                {
+                    return true;
+                }
+            }
+
+            request = null;
+            return false;
         }
 
         public static IEnumerable<FilterPredicate> Flatten(FilterPredicate predicate)
@@ -620,15 +674,15 @@ namespace Movies.Models
 
         public virtual Task<List<Item>> GetAdditionsAsync(List list) => Task.FromResult(new List<Item>());
 
-        public virtual async IAsyncEnumerator<Item> GetAsyncEnumerator(FilterPredicate filter, CancellationToken cancellationToken = default)
+        public async IAsyncEnumerator<Item> GetAsyncEnumerator(FilterPredicate filter, CancellationToken cancellationToken = default)
         {
-            await foreach (var item in this)
+            await foreach (var item in GetFilteredItems(filter, cancellationToken))
             {
-                if (await ItemHelpers.Evaluate(item, filter))
-                {
-                    yield return item;
-                }
+                Cache[item] = Task.FromResult<bool?>(true);
+                yield return item;
             }
         }
+
+        protected virtual IAsyncEnumerable<Item> GetFilteredItems(FilterPredicate filter, CancellationToken cancellationToken = default) => ItemHelpers.Filter(this, filter);
     }
 }

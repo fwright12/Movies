@@ -2,6 +2,8 @@
 {
     public class TestList : List
     {
+        public const int SIMULATED_WEB_DELAY = 0;
+
         public override string ID { get; }
 
         public List<Item> ItemList { get; }
@@ -21,25 +23,21 @@
             Items = GetItems();
         }
 
-        public TestList AddItems(IEnumerable<Item> items) => new TestList(ID, ItemList.Concat(items).ToList())
+        private static async Task SimulateWebDelay()
         {
-            LastUpdated = LastUpdated
-        };
-
-        public TestList RemoveItems(IEnumerable<Item> items) => new TestList(ID, ItemList.Except(items).ToList())
-        {
-            LastUpdated = LastUpdated
-        };
-
-        //public static TestList operator +(TestList list, IEnumerable<Item> items) => 
+            await Task.Delay(SIMULATED_WEB_DELAY);
+        }
 
         private async IAsyncEnumerable<Item> GetItems()
         {
-            var items = Reverse ? ItemList.Reverse<Item>().ToList() : ItemList.ToList<Item>();
+            await SimulateWebDelay();
 
-            // Simulate delay from web api
-            //await Task.Delay(Random.Next(0, 5) * 10);
-            await Task.Delay(10);
+            if (SIMULATED_WEB_DELAY == 0)
+            {
+                await Task.Delay(10);
+            }
+
+            var items = Reverse ? ItemList.Reverse<Item>().ToList() : ItemList.ToList<Item>();
 
             foreach (var item in items)
             {
@@ -53,23 +51,31 @@
 
         public override Task Update() => Task.CompletedTask;
 
-        protected override Task<bool> AddAsyncInternal(IEnumerable<Item> items)
+        protected override async Task<bool> AddAsyncInternal(IEnumerable<Item> items)
         {
+            await SimulateWebDelay();
+
             int count = ItemList.Count;
+
             ItemList.AddRange(items);//.Where(item => !ItemList.Contains(item)));
+
             CallsToAdd++;
             NumAdded += ItemList.Count - count;
-            return Task.FromResult(true);
+
+            return true;
         }
 
-        protected override Task<bool?> ContainsAsyncInternal(Item item)
+        protected override async Task<bool?> ContainsAsyncInternal(Item item)
         {
+            await SimulateWebDelay();
             CallsToContains++;
-            return Task.FromResult<bool?>(ItemList.Contains(item));
+            return ItemList.Contains(item);
         }
 
-        protected override Task<bool> RemoveAsyncInternal(IEnumerable<Item> items)
+        protected override async Task<bool> RemoveAsyncInternal(IEnumerable<Item> items)
         {
+            await SimulateWebDelay();
+
             foreach (var item in items)
             {
                 ItemList.Remove(item);
@@ -77,11 +83,13 @@
             }
 
             CallsToRemove++;
-            return Task.FromResult(true);
+            return true;
         }
 
         public override async Task<List<Item>> GetAdditionsAsync(List list)
         {
+            await SimulateWebDelay();
+
             var add = new List<Item>();
             var itr = GetItems().GetAsyncEnumerator();
             var backup = (list as TestList)?.CallsToContains;

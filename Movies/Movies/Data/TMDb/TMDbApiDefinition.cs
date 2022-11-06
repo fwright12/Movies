@@ -482,10 +482,7 @@ namespace Movies
                     }
                     else
                     {
-                        Add(new ParserWrapper(value)
-                        {
-                            JsonParser = new JsonPropertyParser<JsonNode>(property)
-                        });
+                        Add(new ParserWrapper(value, new JsonPropertyParser<ArraySegment<byte>>(property)));
                     }
                 }
             }
@@ -687,7 +684,7 @@ namespace Movies
             }
         });
 
-        private static readonly Dictionary<ItemType, ItemProperties> ITEM_PROPERTIES = new Dictionary<ItemType, ItemProperties>
+        public static readonly Dictionary<ItemType, ItemProperties> ITEM_PROPERTIES = new Dictionary<ItemType, ItemProperties>
         {
             [ItemType.Movie] = MOVIE_PROPERTIES,
             [ItemType.TVShow] = TVSHOW_PROPERTIES,

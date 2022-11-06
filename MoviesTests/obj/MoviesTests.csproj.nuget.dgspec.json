@@ -86,19 +86,21 @@
           "dependencies": {
             "MSTest.TestAdapter": {
               "target": "Package",
-              "version": "[2.2.8, )"
+              "version": "[2.2.10, )"
             },
             "MSTest.TestFramework": {
               "target": "Package",
-              "version": "[2.2.8, )"
+              "version": "[2.2.10, )"
             },
             "Microsoft.NET.Test.Sdk": {
               "target": "Package",
-              "version": "[17.1.0, )"
+              "version": "[17.3.2, )"
             },
             "coverlet.collector": {
+              "include": "Runtime, Build, Native, ContentFiles, Analyzers, BuildTransitive",
+              "suppressParent": "All",
               "target": "Package",
-              "version": "[3.1.2, )"
+              "version": "[3.2.0, )"
             }
           },
           "imports": [
@@ -176,7 +178,7 @@
             },
             "System.Text.Json": {
               "target": "Package",
-              "version": "[6.0.5, )"
+              "version": "[6.0.6, )"
             },
             "Xamarin.Essentials": {
               "target": "Package",
@@ -192,7 +194,7 @@
             },
             "Xamarin.Forms": {
               "target": "Package",
-              "version": "[5.0.0.2478, )"
+              "version": "[5.0.0.2515, )"
             },
             "sqlite-net-pcl": {
               "target": "Package",

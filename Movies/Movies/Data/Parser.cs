@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 
@@ -51,11 +52,26 @@ namespace Movies
     public interface IJsonParser<T>
     {
         bool TryGetValue(JsonNode json, out T value);
+        bool TryGetValue(ArraySegment<byte> bytes, out T value) => TryGetValueFromBytes(bytes, out value);
+        bool TryGetValueFromBytes(ArraySegment<byte> bytes, out T value)
+        {
+            if (bytes is T t)
+            {
+                value = t;
+                return true;
+            }
+            else
+            {
+                //var json = System.Text.Encoding.UTF8.GetString(bytes);
+                return TryGetValue(JsonNode.Parse(bytes, null, default), out value);
+            }
+        }
     }
 
     public class JsonNodeParser<T> : IJsonParser<T>
     {
         private AsyncEnumerable.TryParseFunc<JsonNode, T> Parse;
+        private Func<ArraySegment<byte>, T> RawParse;
 
         public JsonNodeParser() { }
         public JsonNodeParser(AsyncEnumerable.TryParseFunc<JsonNode, T> parse)
@@ -70,6 +86,10 @@ namespace Movies
                 return true;
             };
         }
+        public JsonNodeParser(Func<ArraySegment<byte>, T> parse)
+        {
+            RawParse = parse;
+        }
 
         public bool TryGetValue(JsonNode json, out T value)
         {
@@ -82,9 +102,22 @@ namespace Movies
                 return json.TryGetValue(out value);
             }
         }
+
+        public bool TryGetValue(ArraySegment<byte> bytes, out T value)
+        {
+            if (RawParse != null)
+            {
+                value = RawParse(bytes);
+                return true;
+            }
+            else
+            {
+                return ((IJsonParser<T>)this).TryGetValueFromBytes(bytes, out value);
+            }
+        }
     }
 
-    public abstract class JsonPropertyParser
+    public abstract class JsonPropertyParser : IJsonParser<JsonNode>
     {
         public string Property { get; }
 
@@ -92,6 +125,8 @@ namespace Movies
         {
             Property = property;
         }
+
+        public bool TryGetValue(JsonNode json, out JsonNode value) => json.TryGetValue(Property, out value);
     }
 
     public class JsonPropertyParser<T> : JsonPropertyParser, IJsonParser<T>
@@ -107,9 +142,31 @@ namespace Movies
 
         public bool TryGetValue(JsonNode json, out T value)
         {
-            if (json.TryGetValue(Property, out JsonNode sub))
+            value = default;
+            return TryGetValue(json, out json) && Parser.TryGetValue(json, out value);
+        }
+
+        public bool TryGetValue(ArraySegment<byte> bytes, out T value)
+        {
+            var reader = new Utf8JsonReader(bytes);
+
+            while (reader.Read())
             {
-                return Parser.TryGetValue(sub, out value);
+                if (reader.TokenType == JsonTokenType.PropertyName)
+                {
+                    var property = reader.GetString();
+                    var offset = reader.BytesConsumed;
+
+                    reader.Skip();
+
+                    if (property == Property)
+                    {
+                        bytes = bytes.Slice((int)offset, (int)(reader.BytesConsumed - offset));
+                        //Print.Log(System.Text.Encoding.UTF8.GetString(bytes));
+                        //var json = JsonNode.Parse(bytes);
+                        return Parser.TryGetValue(bytes, out value);
+                    }
+                }
             }
 
             value = default;
@@ -132,16 +189,38 @@ namespace Movies
         public static Parser<IEnumerable<T>> Create<T>(MultiProperty<T> property, string subProperty) => new MultiParser<T>(property, new JsonArrayParser<T>(new JsonPropertyParser<T>(subProperty)));
         public static Parser<IEnumerable<T>> Create<T>(MultiProperty<T> property, Func<JsonNode, IEnumerable<T>> parse) => new MultiParser<T>(property, new JsonNodeParser<IEnumerable<T>>(parse));
 
-        public abstract PropertyValuePair GetPair(Task<JsonNode> node);
         public abstract bool TryGetValue(JsonNode json, out PropertyValuePair value);
+
+        public abstract PropertyValuePair GetPair(Task<JsonNode> node);
+        public virtual PropertyValuePair GetPair(Task<ArraySegment<byte>> bytes) => GetPair(Convert(bytes));
+
+        protected async Task<JsonNode> Convert(Task<ArraySegment<byte>> bytes) => JsonNode.Parse(await bytes);
     }
 
-    public class ParserWrapper : Parser
+    public abstract class IParser<T> : Parser
+    {
+        public IJsonParser<T> JsonParser { get; set; }
+
+        public IParser(Property property, IJsonParser<T> jsonParser) : base(property)
+        {
+            JsonParser = jsonParser;
+        }
+
+        public override PropertyValuePair GetPair(Task<JsonNode> node) => GetPairInternal(Unwrap(node));
+
+        public override PropertyValuePair GetPair(Task<ArraySegment<byte>> bytes) => GetPairInternal(Unwrap(bytes));
+
+        protected abstract PropertyValuePair GetPairInternal(Task<T> value);
+
+        protected async Task<T> Unwrap(Task<JsonNode> json) => JsonParser.TryGetValue(await json, out var value) ? value : throw new FormatException();
+        protected async Task<T> Unwrap(Task<ArraySegment<byte>> bytes) => JsonParser.TryGetValue(await bytes, out var value) ? value : throw new FormatException();
+    }
+
+    public class ParserWrapper : IParser<ArraySegment<byte>>
     {
         public Parser Parser { get; set; }
-        public IJsonParser<JsonNode> JsonParser { get; set; }
 
-        public ParserWrapper(Parser parser) : base(parser.Property)
+        public ParserWrapper(Parser parser, IJsonParser<ArraySegment<byte>> jsonParser) : base(parser.Property, jsonParser)
         {
             Parser = parser;
         }
@@ -152,9 +231,9 @@ namespace Movies
 
             if (JsonParser != null)
             {
-                if (JsonParser.TryGetValue(json, out var parsed))
+                if (JsonParser is IJsonParser<JsonNode> jsonNodeParser && jsonNodeParser.TryGetValue(json, out json))
                 {
-                    json = parsed;
+
                 }
                 else
                 {
@@ -165,24 +244,21 @@ namespace Movies
             return Parser.TryGetValue(json, out value);
         }
 
-        public override PropertyValuePair GetPair(Task<JsonNode> node) => Parser.GetPair(Unwrap(node));
+        protected override PropertyValuePair GetPairInternal(Task<ArraySegment<byte>> value) => Parser.GetPair(value);
 
-        private async Task<JsonNode> Unwrap(Task<JsonNode> json) => JsonParser?.TryGetValue(await json, out var unwrapped) == true ? unwrapped : new JsonObject();
+        //public override PropertyValuePair GetPair(Task<JsonNode> node) => Parser.GetPair(Unwrap(node));
+
+        //private async Task<JsonNode> Unwrap(Task<JsonNode> json) => JsonParser?.TryGetValue(await json, out var unwrapped) == true ? unwrapped : new JsonObject();
     }
 
-    public class Parser<T> : Parser, IJsonParser<PropertyValuePair>
+    public class Parser<T> : IParser<T>, IJsonParser<PropertyValuePair>
     {
-        public IJsonParser<T> JsonParser { get; }
-
         public Parser(Property<T> property, IJsonParser<T> jsonParser) : this((Property)property, jsonParser) { }
-        protected Parser(Property property, IJsonParser<T> jsonParser) : base(property)
-        {
-            JsonParser = jsonParser;
-        }
+        protected Parser(Property property, IJsonParser<T> jsonParser) : base(property, jsonParser) { }
 
         public static implicit operator Parser<T>(Property<T> property) => Create(property);
 
-        public override PropertyValuePair GetPair(Task<JsonNode> json) => new PropertyValuePair<T>((Property<T>)Property, Parse(json));
+        protected override PropertyValuePair GetPairInternal(Task<T> value) => new PropertyValuePair<T>((Property<T>)Property, value);
 
         public override bool TryGetValue(JsonNode json, out PropertyValuePair value)
         {
@@ -195,15 +271,13 @@ namespace Movies
             value = null;
             return false;
         }
-
-        protected async Task<T> Parse(Task<JsonNode> json) => JsonParser.TryGetValue(await json, out var value) ? value : throw new FormatException();
     }
 
     public class MultiParser<T> : Parser<IEnumerable<T>>
     {
         public MultiParser(MultiProperty<T> property, IJsonParser<IEnumerable<T>> jsonParser) : base(property, jsonParser) { }
 
-        public override PropertyValuePair GetPair(Task<JsonNode> json) => new PropertyValuePair<T>((MultiProperty<T>)Property, Parse(json));
+        protected override PropertyValuePair GetPairInternal(Task<IEnumerable<T>> value) => new PropertyValuePair<T>((MultiProperty<T>) Property, value);
 
         public override bool TryGetValue(JsonNode json, out PropertyValuePair value)
         {

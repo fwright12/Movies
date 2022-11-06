@@ -794,11 +794,11 @@ namespace Movies
             public IAsyncEnumerator<Item> GetAsyncEnumerator(CancellationToken cancellationToken = default) => Items;
         }
 
-        public override IAsyncEnumerator<Item> GetAsyncEnumerator(FilterPredicate predicate, CancellationToken cancellationToken = default) => GetItemsAsync(predicate, cancellationToken).GetAsyncEnumerator();
+        protected override IAsyncEnumerable<Item> GetFilteredItems(FilterPredicate filter, CancellationToken cancellationToken = default) => GetItemsAsync(filter, cancellationToken);
 
-        public async IAsyncEnumerable<Item> GetItemsAsync(FilterPredicate predicate, CancellationToken cancellationToken = default)
+        private async IAsyncEnumerable<Item> GetItemsAsync(FilterPredicate predicate, CancellationToken cancellationToken = default)
         {
-            var itr = new Enumerator(this);
+            var itr = new Enumerator(this, predicate);
 
             while (await itr.MoveNextAsync())
             {
@@ -1057,12 +1057,9 @@ namespace Movies
             private SemaphoreSlim ListItemsSemaphore = new SemaphoreSlim(1, 1);
             private SemaphoreSlim BufferSemaphore = new SemaphoreSlim(1, 1);
 
-            public Enumerator(SyncList list, FilterPredicate filter) : this(list)
-            {
+            public Enumerator(SyncList list) : this(list, FilterPredicate.TAUTOLOGY) { }
 
-            }
-
-            public Enumerator(SyncList list)
+            public Enumerator(SyncList list, FilterPredicate filter)
             {
                 List = list;
 
@@ -1076,7 +1073,7 @@ namespace Movies
                 }
 
                 RemoteIndexMap = new HashSet<int>(remoteIndexMap);
-                Itrs = Origin == null ? new IAsyncEnumerator<Item>[0] : remoteIndexMap.Select(i => Remote[i]).Prepend(Origin).Select(source => new FilteredList(source, FilterPredicate.TAUTOLOGY).GetAsyncEnumerator()).ToArray();
+                Itrs = Origin == null ? new IAsyncEnumerator<Item>[0] : remoteIndexMap.Select(i => Remote[i]).Prepend(Origin).Select(source => filter == FilterPredicate.TAUTOLOGY ? source.GetAsyncEnumerator() : new FilteredList(source, filter).GetAsyncEnumerator()).ToArray();
                 ListItems = Itrs.Select(_ => new Dictionary<Item, bool?>()).ToArray();
             }
 

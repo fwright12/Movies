@@ -1,36 +1,139 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using Xamarin.Forms;
 
 namespace Movies.Views
 {
-    public class ShowFiltersBehavior : Behavior<CollectionView>
+    public class TotalHeightConverter : IMultiValueConverter
     {
-        protected override void OnAttachedTo(CollectionView bindable)
+        public static readonly TotalHeightConverter Instance = new TotalHeightConverter();
+
+        public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
+        {
+            if (values[0] is double height) {
+
+                if (values[1] is double margin)
+                {
+                    height -= margin;
+                }
+
+                if (values[2] is double padding)
+                {
+                    height -= padding;
+                }
+
+                return height;
+            }
+
+            return 0;
+        }
+
+        public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    public class ShowFiltersBehavior : Behavior<DrawerView>
+    {
+        public CollectionView CollectionView
+        {
+            get => _CollectionView;
+            set
+            {
+                if (value != _CollectionView)
+                {
+                    if (_CollectionView != null)
+                    {
+                        _CollectionView.Scrolled -= ListScrolled;
+                    }
+
+                    ListScrolled(_CollectionView = value);
+
+                    if (_CollectionView != null)
+                    {
+                        _CollectionView.Scrolled += ListScrolled;
+                        _CollectionView.PropertyChanged += HeaderChanged;
+                    }
+                }
+            }
+        }
+
+        private CollectionView _CollectionView;
+
+        protected override void OnAttachedTo(DrawerView bindable)
         {
             base.OnAttachedTo(bindable);
 
-            ListScrolled(bindable, new ItemsViewScrolledEventArgs
+            //bindable.DescendantAdded += CollectionViewAdded;
+            bindable.SizeChanged += ListScrolled;
+            bindable.PropertyChanged += DrawerContentChanged;
+        }
+
+        private void DrawerContentChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName != nameof(DrawerView.DrawerContentView))
             {
-                VerticalOffset = 0
-            });
+                return;
+            }
+
+            var drawer = (DrawerView)sender;
+
+            if (drawer.DrawerContentView != null)
+            {
+                drawer.DrawerContentView.SizeChanged += ListScrolled;
+
+                ListScrolled(CollectionView);
+            }
+        }
+
+        private void HeaderChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName != StructuredItemsView.HeaderProperty.PropertyName)
+            {
+                return;
+            }
+
+            var collectionView = (CollectionView)sender;
+
+            if (collectionView.Header is Layout layout)
+            {
+                layout.LayoutChanged += ListScrolled;
+            }
+            else if (collectionView.Header is View view)
+            {
+                view.SizeChanged += ListScrolled;
+            }
+        }
+
+        private void CollectionViewAdded(object sender, ElementEventArgs e)
+        {
+            if (!(e.Element is CollectionView bindable))
+            {
+                return;
+            }
+
+            ((Element)sender).DescendantAdded -= CollectionViewAdded;
             bindable.Scrolled += ListScrolled;
         }
 
-        protected override void OnDetachingFrom(CollectionView bindable)
+        protected override void OnDetachingFrom(DrawerView bindable)
         {
             base.OnDetachingFrom(bindable);
 
-            bindable.Scrolled -= ListScrolled;
+            //bindable.Scrolled -= ListScrolled;
         }
 
-        private void ListScrolled(object sender, ItemsViewScrolledEventArgs e)
-        {
-            CollectionView collectionView = (CollectionView)sender;
+        private void ListScrolled(object sender, EventArgs e) => ListScrolled(CollectionView);
+        private void ListScrolled(object sender, ItemsViewScrolledEventArgs e) => ListScrolled((CollectionView)sender, e.VerticalOffset, e.VerticalDelta);
 
-            if (collectionView.Parent?.Parent is DrawerView drawerView && drawerView.DrawerContentView != null)
+        private void ListScrolled(CollectionView collectionView) => ListScrolled(collectionView, 0, 0);
+        private void ListScrolled(CollectionView collectionView, double verticalOffset, double verticalDelta)
+        {
+            if (collectionView?.Parent<DrawerView>() is DrawerView drawerView && drawerView.DrawerContentView != null)
             {
                 double height = 0;
 
@@ -54,23 +157,19 @@ namespace Movies.Views
                 //Print.Log(e.VerticalDelta, e.VerticalOffset, height);
                 //drawerView.DrawerContentView.IsVisible = e.VerticalOffset > height - collectionView.Height && e.VerticalDelta < 0;
 
-                if (e.VerticalOffset > height)
+                if (verticalOffset > height)
                 {
-                    drawerView.DrawerContentView.IsVisible = e.VerticalDelta < 0;
+                    drawerView.DrawerContentView.IsVisible = verticalDelta < 0;
                 }
                 else
                 {
                     double drawerHeight = 0;
+                    drawerHeight = drawerView.SnapPoints.Count > 0 ? drawerView.SnapPoints.Min(snapPoint => snapPoint.Value) : drawerView.Height;
 
-                    if (collectionView.Parent<DrawerView>() is DrawerView drawer)
-                    {
-                        drawerHeight = drawer.SnapPoints.Count > 0 ? drawer.SnapPoints.Min(snapPoint => snapPoint.Value) : drawer.Height;
-                    }
-
-                    drawerView.DrawerContentView.IsVisible = e.VerticalOffset > height + drawerHeight - collectionView.Height;
+                    drawerView.DrawerContentView.IsVisible = verticalOffset > height + drawerHeight - drawerView.Height;
                 }
 
-                if (e.VerticalOffset > height)
+                if (verticalOffset > height)
                 {
 
                     var view = collectionView.Parent as Layout;

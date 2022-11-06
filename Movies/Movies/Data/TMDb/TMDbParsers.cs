@@ -501,9 +501,11 @@ namespace Movies
             ["ads"] = MonetizationType.Ads,
         };
 
-        public static IEnumerable<WatchProvider> ParseWatchProviders(JsonNode json)
+        public static IEnumerable<WatchProvider> ParseWatchProviders(ArraySegment<byte> bytes)
         {
-            if (json is JsonObject array && array[ISO_3166_1] is JsonObject providers)
+            var countryParser = new JsonPropertyParser<ArraySegment<byte>>(ISO_3166_1);
+            //if (json is JsonObject array && array[ISO_3166_1] is JsonObject providers)
+            if (countryParser.TryGetValue(bytes, out bytes) && JsonNode.Parse(bytes) is JsonObject providers)
             {
                 foreach (var monetizationGroup in providers)
                 {

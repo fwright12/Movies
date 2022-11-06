@@ -1,32 +1,5 @@
 ﻿namespace MoviesTests
 {
-    public class DummyCache : Dictionary<string, JsonResponse>, IJsonCache
-    {
-        public DummyCache() : base() { }
-
-        public DummyCache(IEnumerable<KeyValuePair<string, JsonResponse>> collection) : base(collection) { }
-
-        public Task AddAsync(string url, JsonResponse response)
-        {
-            Add(url, response);
-            return Task.CompletedTask;
-        }
-
-        public Task<bool> Expire(string url) => Task.FromResult(Remove(url));
-
-        public IAsyncEnumerator<KeyValuePair<string, JsonResponse>> GetAsyncEnumerator(CancellationToken cancellationToken = default) => AsyncEnumerable.ToAsyncEnumerable(Task.FromResult<IEnumerable<KeyValuePair<string, JsonResponse>>>(this)).GetAsyncEnumerator();
-
-        public Task<bool> IsCached(string url) => Task.FromResult(ContainsKey(url));
-
-        public Task<JsonResponse> TryGetValueAsync(string url) => TryGetValue(url, out var value) ? Task.FromResult(value) : null;
-
-        Task IJsonCache.Clear()
-        {
-            Clear();
-            return Task.CompletedTask;
-        }
-    }
-
     [TestClass]
     public class FilterEvaluationTests
     {
@@ -34,13 +7,45 @@
         private TVShow Show = new TVShow("show").WithID(TMDB.IDKey, 0);
         private Person Person = new Person("person").WithID(TMDB.IDKey, 0);
 
+        private PropertyDictionary InMemoryCache = new PropertyDictionary
+        {
+            { Movie.RELEASE_DATE, Task.FromResult(DateTime.Now) },
+            { Movie.WATCH_PROVIDERS, Task.FromResult(new WatchProvider()) },
+            { TVShow.WATCH_PROVIDERS, Task.FromResult(new WatchProvider()) },
+        };
+
+        private static JsonResponse EmptyJSON = new JsonResponse(string.Empty);
+
+        private IJsonCache PersistentCache = new DummyJsonCache
+        {
+            { API.MOVIES.GET_WATCH_PROVIDERS.GetURL(), EmptyJSON },
+            { API.TV.GET_WATCH_PROVIDERS.GetURL(), EmptyJSON },
+            { API.MOVIES.GET_KEYWORDS.GetURL(), EmptyJSON }
+        };
+
         public FilterEvaluationTests()
         {
 #if DEBUG
             Movies.HttpClient.AllowLiveRequests = false;
             Movies.HttpClient.BreakOnRequest = false;
+            Movies.HttpClient.SimulatedDelay = 1000;
 #endif
-            new TMDB(string.Empty, string.Empty, new DummyCache());
+            new TMDB(string.Empty, string.Empty, new DummyJsonCache());
+        }
+
+        [TestMethod]
+        public async Task FilterPropertyEliminationOrderTests()
+        {
+            await AssertOrderCached(Helpers.DummyExpression(
+                Movie.RELEASE_DATE, Media.RUNTIME),
+                Movie.RELEASE_DATE, Media.RUNTIME);
+
+            await AssertOrder(Helpers.DummyExpression(
+                Media.ORIGINAL_TITLE, Media.RUNTIME, Media.KEYWORDS, Movie.RELEASE_DATE, Movie.WATCH_PROVIDERS),
+                Media.ORIGINAL_TITLE, Media.RUNTIME, Media.KEYWORDS, Movie.RELEASE_DATE, Movie.WATCH_PROVIDERS);
+            await AssertOrderCached(Helpers.DummyExpression(
+                Media.ORIGINAL_TITLE, Media.RUNTIME, Media.KEYWORDS, Movie.RELEASE_DATE, Movie.WATCH_PROVIDERS),
+                Movie.RELEASE_DATE, Movie.WATCH_PROVIDERS, Media.KEYWORDS, Media.ORIGINAL_TITLE, Media.RUNTIME);
         }
 
         [TestMethod]
@@ -55,21 +60,28 @@
             Assert.IsFalse(await ItemHelpers.Evaluate(Person, FilterPredicate.CONTRADICTION));
         }
 
+        private static readonly Genre ADVENTURE_GENRE = new Genre { Id = 12, Name = "Adventure" };
+        private static readonly Genre COMEDY_GENRE = new Genre { Id = 35, Name = "Comedy" };
+        private static readonly Keyword WIZARD_KEYWORD = new Keyword { Id = 177912, Name = "wizard" };
+        private static readonly WatchProvider HBO = new WatchProvider { Id = 384 };
+        private static readonly WatchProvider PEACOCK = new WatchProvider { Id = 386 };
+        private static OperatorPredicate ADVENTURE_MOVIES => new OperatorPredicate
+        {
+            LHS = Movie.GENRES,
+            Operator = Operators.Equal,
+            RHS = ADVENTURE_GENRE
+        };
+
         [TestMethod]
         public async Task SingleEqualityTests()
         {
-            var adventureGenre = new Genre { Id = 12, Name = "Adventure" };
-            var adventureMovies = new OperatorPredicate
-            {
-                LHS = Movie.GENRES,
-                Operator = Operators.Equal,
-                RHS = adventureGenre
-            };
             var filter = new BooleanExpression();
+            var adventureMovies = ADVENTURE_MOVIES;
             filter.Predicates.Add(adventureMovies);
 
             Assert.IsTrue(await ItemHelpers.Evaluate(Movie, filter));
             Assert.IsFalse(await ItemHelpers.Evaluate(Show, filter));
+            //Assert.IsFalse(await ItemHelpers.Evaluate(Person, filter));
             adventureMovies.RHS = new Genre { Id = -1, Name = "No genre" };
             Assert.IsFalse(await ItemHelpers.Evaluate(Movie, filter));
             Assert.IsFalse(await ItemHelpers.Evaluate(Show, filter));
@@ -78,30 +90,28 @@
             {
                 LHS = TVShow.GENRES,
                 Operator = Operators.Equal,
-                RHS = new Genre { Id = 35, Name = "Comedy" }
+                RHS = COMEDY_GENRE
             };
             filter.Predicates[0] = comedyTV;
 
             Assert.IsFalse(await ItemHelpers.Evaluate(Movie, filter));
             Assert.IsTrue(await ItemHelpers.Evaluate(Show, filter));
+            Assert.IsFalse(await ItemHelpers.Evaluate(Person, filter));
             comedyTV.RHS = new Genre { Id = -1, Name = "No genre" };
             Assert.IsFalse(await ItemHelpers.Evaluate(Movie, filter));
-            Assert.IsFalse(await ItemHelpers.Evaluate(Show, filter));
-
-            comedyTV.RHS = adventureGenre;
-            Assert.IsTrue(await ItemHelpers.Evaluate(Movie, filter));
             Assert.IsFalse(await ItemHelpers.Evaluate(Show, filter));
 
             var keyword = new OperatorPredicate
             {
                 LHS = Media.KEYWORDS,
                 Operator = Operators.Equal,
-                RHS = new Keyword { Id = 177912, Name = "wizard" }
+                RHS = WIZARD_KEYWORD
             };
             filter.Predicates[0] = keyword;
 
             Assert.IsTrue(await ItemHelpers.Evaluate(Movie, filter));
             Assert.IsFalse(await ItemHelpers.Evaluate(Show, filter));
+            Assert.IsFalse(await ItemHelpers.Evaluate(Person, filter));
         }
 
         [TestMethod]
@@ -117,12 +127,11 @@
             filter.Predicates.Add(shortAssMovies);
 
             Assert.IsTrue(await ItemHelpers.Evaluate(Movie, filter));
+            Assert.IsFalse(await ItemHelpers.Evaluate(Person, filter));
             shortAssMovies.Operator = Operators.LessThan;
             Assert.IsFalse(await ItemHelpers.Evaluate(Movie, filter));
             shortAssMovies.RHS = new TimeSpan(2, 10, 0);
             Assert.IsFalse(await ItemHelpers.Evaluate(Movie, filter));
-            Assert.IsFalse(await ItemHelpers.Evaluate(Movie, filter));
-
             Assert.IsTrue(await ItemHelpers.Evaluate(Show, filter));
             shortAssMovies.RHS = TimeSpan.Zero;
             Assert.IsFalse(await ItemHelpers.Evaluate(Show, filter));
@@ -137,6 +146,7 @@
 
             Assert.IsFalse(await ItemHelpers.Evaluate(Movie, filter));
             Assert.IsFalse(await ItemHelpers.Evaluate(Show, filter));
+            Assert.IsFalse(await ItemHelpers.Evaluate(Person, filter));
             oldMovies.Operator = Operators.GreaterThan;
             Assert.IsTrue(await ItemHelpers.Evaluate(Movie, filter));
             Assert.IsFalse(await ItemHelpers.Evaluate(Show, filter));
@@ -154,15 +164,122 @@
         }
 
         [TestMethod]
+        public async Task SamePropertyDifferentValuesTests()
+        {
+            var adventureMovies = new OperatorPredicate
+            {
+                LHS = TVShow.GENRES,
+                Operator = Operators.Equal,
+                RHS = ADVENTURE_GENRE
+            };
+            var filter = new BooleanExpression();
+            filter.Predicates.Add(adventureMovies);
+
+            Assert.IsTrue(await ItemHelpers.Evaluate(Movie, filter));
+            Assert.IsFalse(await ItemHelpers.Evaluate(Show, filter));
+            Assert.IsFalse(await ItemHelpers.Evaluate(Person, filter));
+
+            var comedyTV = new OperatorPredicate
+            {
+                LHS = Movie.GENRES,
+                Operator = Operators.Equal,
+                RHS = COMEDY_GENRE
+            };
+            filter.Predicates[0] = comedyTV;
+
+            Assert.IsFalse(await ItemHelpers.Evaluate(Movie, filter));
+            Assert.IsTrue(await ItemHelpers.Evaluate(Show, filter));
+            Assert.IsFalse(await ItemHelpers.Evaluate(Person, filter));
+
+            var hbo = new OperatorPredicate
+            {
+                LHS = TVShow.WATCH_PROVIDERS,
+                Operator = Operators.Equal,
+                RHS = HBO
+            };
+            filter.Predicates[0] = hbo;
+
+            Assert.IsTrue(await ItemHelpers.Evaluate(Movie, filter));
+            Assert.IsFalse(await ItemHelpers.Evaluate(Show, filter));
+
+            var peacock = new OperatorPredicate
+            {
+                LHS = Movie.WATCH_PROVIDERS,
+                Operator = Operators.Equal,
+                RHS = PEACOCK
+            };
+            filter.Predicates[0] = peacock;
+
+            Assert.IsFalse(await ItemHelpers.Evaluate(Movie, filter));
+            Assert.IsTrue(await ItemHelpers.Evaluate(Show, filter));
+        }
+
+        [TestMethod]
         public async Task MultiplePredicatesSamePropertyTests()
+        {
+            var exp = Helpers.DummyExpression(Enumerable.Repeat(Media.KEYWORDS, 5).ToArray());
+            exp.IsAnd = false;
+            (exp.Predicates[2] as OperatorPredicate).RHS = WIZARD_KEYWORD;
+            var filter = new BooleanExpression
+            {
+                Predicates = { ADVENTURE_MOVIES, exp }
+            };
+
+            Assert.IsTrue(await ItemHelpers.Evaluate(Movie, filter));
+            Assert.IsFalse(await ItemHelpers.Evaluate(Show, filter));
+            Assert.IsFalse(await ItemHelpers.Evaluate(Person, filter));
+
+            exp = Helpers.DummyExpression(Enumerable.Repeat(Movie.WATCH_PROVIDERS, 5).ToArray());
+            exp.IsAnd = false;
+            (exp.Predicates[2] as OperatorPredicate).RHS = HBO;
+            filter.Predicates[0] = exp;
+
+            Assert.IsTrue(await ItemHelpers.Evaluate(Movie, filter));
+            Assert.IsFalse(await ItemHelpers.Evaluate(Show, filter));
+            Assert.IsFalse(await ItemHelpers.Evaluate(Person, filter));
+
+            (exp.Predicates[2] as OperatorPredicate).RHS = null;
+            Assert.IsFalse(await ItemHelpers.Evaluate(Movie, filter));
+            Assert.IsFalse(await ItemHelpers.Evaluate(Show, filter));
+        }
+
+        [TestMethod]
+        public async Task MultiplePredicatesSamePropertyHotfixTests()
+        {
+            var exp = Helpers.DummyExpression(Enumerable.Repeat(Media.KEYWORDS, 5).ToArray());
+            exp.IsAnd = false;
+            (exp.Predicates[2] as OperatorPredicate).RHS = WIZARD_KEYWORD;
+            exp.Predicates.Insert(1, ADVENTURE_MOVIES);
+            var filter = exp;
+
+            Assert.IsTrue(await ItemHelpers.Evaluate(Movie, filter));
+            Assert.IsFalse(await ItemHelpers.Evaluate(Show, filter));
+            Assert.IsFalse(await ItemHelpers.Evaluate(Person, filter));
+
+            foreach (var i in Enumerable.Range(0, exp.Predicates.Count - 1).Reverse())
+            {
+                exp.Predicates.Insert(i, i == 0 ? ADVENTURE_MOVIES : Helpers.DummyPredicate(Movie.GENRES));
+            }
+
+            Assert.IsTrue(await ItemHelpers.Evaluate(Movie, filter));
+            Assert.IsFalse(await ItemHelpers.Evaluate(Show, filter));
+            Assert.IsFalse(await ItemHelpers.Evaluate(Person, filter));
+        }
+
+        //[TestMethod]
+        public async Task MultiplePredicatesTests()
         {
 
         }
 
-        [TestMethod]
-        public async Task MultiplePredicatesTests()
-        {
+        private Task AssertOrder(FilterPredicate filter, params Property[] expected) => AssertOrder(filter, null, null, expected);
+        private Task AssertOrderCached(FilterPredicate filter, params Property[] expected) => AssertOrder(filter, InMemoryCache, PersistentCache, expected);
+        //private Task AssertOrder(FilterPredicate filter, PropertyDictionary dict, IJsonCache cache, params Property[] expected) => AssertOrder(filter, dict, cache, (IEnumerable<Property>)expected);
 
+        private async Task AssertOrder(FilterPredicate filter, PropertyDictionary dict, IJsonCache cache, IEnumerable<Property> expected)
+        {
+            var actual = (await ItemHelpers.DefferedPredicates(filter, dict, cache).ReadAll()).Select(predicate => predicate.LHS);
+            Assert.IsTrue(actual.SequenceEqual(expected), $"Expected <[{string.Join(',', expected)}]>. Actual <[{string.Join(',', actual)}]>");
         }
     }
 }

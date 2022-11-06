@@ -161,8 +161,6 @@
                                                         <forms:ObservableConverter />
                                                     </MultiBinding.Converter>
 
-                                                    <Binding Path="Watchlist" />
-                                                    <Binding Path="Favorites" />
                                                     <Binding Path="History" />
                                                 </MultiBinding>
                                             </BindableLayout.ItemsSource>

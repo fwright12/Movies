@@ -602,7 +602,7 @@ namespace Movies
                 }
             }
 
-            public override IAsyncEnumerator<Models.Item> GetAsyncEnumerator(FilterPredicate filter, CancellationToken cancellationToken = default)
+            protected override IAsyncEnumerable<Models.Item> GetFilteredItems(FilterPredicate filter, CancellationToken cancellationToken = default)
             {
                 var types = Models.ItemHelpers.RemoveTypes(filter, out filter);
                 var movie = types.Contains(typeof(Models.Movie));
@@ -611,11 +611,11 @@ namespace Movies
                 if (movie ^ tv)
                 {
                     var items = tv ? TV : Movies;
-                    return items.WhereAsync(item => Models.ItemHelpers.Evaluate(item, filter)).GetAsyncEnumerator();
+                    return items.WhereAsync(item => Models.ItemHelpers.Evaluate(item, filter));
                 }
                 else
                 {
-                    return base.GetAsyncEnumerator(filter, cancellationToken);
+                    return base.GetFilteredItems(filter, cancellationToken);
                 }
             }
         }

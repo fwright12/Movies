@@ -1,7 +1,6 @@
 C:\Users\Flint\Documents\MovieApp\Movies\MoviesTests\bin\Debug\net6.0\CoverletSourceRootsMapping
 C:\Users\Flint\Documents\MovieApp\Movies\MoviesTests\bin\Debug\net6.0\testhost.dll
 C:\Users\Flint\Documents\MovieApp\Movies\MoviesTests\bin\Debug\net6.0\testhost.exe
-C:\Users\Flint\Documents\MovieApp\Movies\MoviesTests\bin\Debug\net6.0\Microsoft.TestPlatform.PlatformAbstractions.dll
 C:\Users\Flint\Documents\MovieApp\Movies\MoviesTests\bin\Debug\net6.0\Microsoft.VisualStudio.TestPlatform.MSTest.TestAdapter.dll
 C:\Users\Flint\Documents\MovieApp\Movies\MoviesTests\bin\Debug\net6.0\Microsoft.VisualStudio.TestPlatform.MSTestAdapter.PlatformServices.Interface.dll
 C:\Users\Flint\Documents\MovieApp\Movies\MoviesTests\bin\Debug\net6.0\Microsoft.VisualStudio.TestPlatform.MSTestAdapter.PlatformServices.dll
@@ -12,12 +11,12 @@ C:\Users\Flint\Documents\MovieApp\Movies\MoviesTests\bin\Debug\net6.0\MoviesTest
 C:\Users\Flint\Documents\MovieApp\Movies\MoviesTests\bin\Debug\net6.0\MoviesTests.pdb
 C:\Users\Flint\Documents\MovieApp\Movies\MoviesTests\bin\Debug\net6.0\Microsoft.VisualStudio.CodeCoverage.Shim.dll
 C:\Users\Flint\Documents\MovieApp\Movies\MoviesTests\bin\Debug\net6.0\Microsoft.TestPlatform.CoreUtilities.dll
+C:\Users\Flint\Documents\MovieApp\Movies\MoviesTests\bin\Debug\net6.0\Microsoft.TestPlatform.PlatformAbstractions.dll
 C:\Users\Flint\Documents\MovieApp\Movies\MoviesTests\bin\Debug\net6.0\Microsoft.VisualStudio.TestPlatform.ObjectModel.dll
 C:\Users\Flint\Documents\MovieApp\Movies\MoviesTests\bin\Debug\net6.0\Microsoft.TestPlatform.CommunicationUtilities.dll
 C:\Users\Flint\Documents\MovieApp\Movies\MoviesTests\bin\Debug\net6.0\Microsoft.TestPlatform.CrossPlatEngine.dll
 C:\Users\Flint\Documents\MovieApp\Movies\MoviesTests\bin\Debug\net6.0\Microsoft.TestPlatform.Utilities.dll
 C:\Users\Flint\Documents\MovieApp\Movies\MoviesTests\bin\Debug\net6.0\Microsoft.VisualStudio.TestPlatform.Common.dll
-C:\Users\Flint\Documents\MovieApp\Movies\MoviesTests\bin\Debug\net6.0\Microsoft.VisualStudio.TestPlatform.TestFramework.Extensions.dll
 C:\Users\Flint\Documents\MovieApp\Movies\MoviesTests\bin\Debug\net6.0\Microsoft.VisualStudio.TestPlatform.TestFramework.dll
 C:\Users\Flint\Documents\MovieApp\Movies\MoviesTests\bin\Debug\net6.0\Newtonsoft.Json.dll
 C:\Users\Flint\Documents\MovieApp\Movies\MoviesTests\bin\Debug\net6.0\NuGet.Frameworks.dll
@@ -112,6 +111,7 @@ C:\Users\Flint\Documents\MovieApp\Movies\MoviesTests\bin\Debug\net6.0\runtimes\w
 C:\Users\Flint\Documents\MovieApp\Movies\MoviesTests\bin\Debug\net6.0\runtimes\win-arm64\native\e_sqlite3.dll
 C:\Users\Flint\Documents\MovieApp\Movies\MoviesTests\bin\Debug\net6.0\runtimes\win-x64\native\e_sqlite3.dll
 C:\Users\Flint\Documents\MovieApp\Movies\MoviesTests\bin\Debug\net6.0\runtimes\win-x86\native\e_sqlite3.dll
+C:\Users\Flint\Documents\MovieApp\Movies\MoviesTests\bin\Debug\net6.0\Microsoft.VisualStudio.TestPlatform.TestFramework.Extensions.dll
 C:\Users\Flint\Documents\MovieApp\Movies\MoviesTests\bin\Debug\net6.0\Movies.dll
 C:\Users\Flint\Documents\MovieApp\Movies\MoviesTests\bin\Debug\net6.0\System.Extensions.dll
 C:\Users\Flint\Documents\MovieApp\Movies\MoviesTests\bin\Debug\net6.0\Xamarin.Forms.Extensions.dll
@@ -119,6 +119,7 @@ C:\Users\Flint\Documents\MovieApp\Movies\MoviesTests\bin\Debug\net6.0\Movies.pdb
 C:\Users\Flint\Documents\MovieApp\Movies\MoviesTests\bin\Debug\net6.0\System.Extensions.pdb
 C:\Users\Flint\Documents\MovieApp\Movies\MoviesTests\bin\Debug\net6.0\Xamarin.Forms.Extensions.pdb
 C:\Users\Flint\Documents\MovieApp\Movies\MoviesTests\bin\Debug\net6.0\Xamarin.Forms.Extensions.dll.config
+C:\Users\Flint\Documents\MovieApp\Movies\MoviesTests\bin\Debug\net6.0\Microsoft.VisualStudio.TestPlatform.TestFramework.Extensions.xml
 C:\Users\Flint\Documents\MovieApp\Movies\MoviesTests\obj\Debug\net6.0\MoviesTests.csproj.AssemblyReference.cache
 C:\Users\Flint\Documents\MovieApp\Movies\MoviesTests\obj\Debug\net6.0\MoviesTests.GeneratedMSBuildEditorConfig.editorconfig
 C:\Users\Flint\Documents\MovieApp\Movies\MoviesTests\obj\Debug\net6.0\MoviesTests.AssemblyInfoInputs.cache

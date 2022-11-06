@@ -264,7 +264,7 @@ namespace Movies
             //Config = Client.GetConfigAsync();
             WebClient = new HttpClient
             {
-#if DEBUG && false
+#if DEBUG && true
                 BaseAddress = new Uri("https://mock.themoviedb/"),
 #else
                 BaseAddress = new Uri(BASE_ADDRESS),
@@ -279,11 +279,12 @@ namespace Movies
             GetPropertyValues = InitValues();
 
             LazyAllLists = new Lazy<Task<List<Models.List>>>(GetAllLists);
+            var loadChangeKeys = GetChangeKeys();
 
             foreach (var properties in ITEM_PROPERTIES.Values)
             {
                 properties.ChangeKeys = ChangeKeys;
-                properties.ChangeKeysLoaded = GetChangeKeys();
+                properties.ChangeKeysLoaded = loadChangeKeys;
             }
         }
 
@@ -846,6 +847,8 @@ namespace Movies
             return null;
         }
 
+        private static async Task<JsonNode> Convert(Task<ArraySegment<byte>> bytes) => JsonNode.Parse(await bytes);
+
         public static async Task<Item> GetItem(ItemType type, int id)
         {
             if (type == ItemType.Collection)
@@ -856,7 +859,7 @@ namespace Movies
             {
                 Item item = null;
                 var requests = properties.Info.Keys.ToList();
-                var responses = Request(requests, new object[] { id });
+                var responses = Request(requests, new object[] { id }).Select(Convert).ToArray();
 
                 if (type == ItemType.Movie)
                 {
