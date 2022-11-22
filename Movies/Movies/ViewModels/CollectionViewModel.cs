@@ -167,7 +167,7 @@ namespace Movies.ViewModels
 
             public async IAsyncEnumerator<object> GetAsyncEnumerator(FilterPredicate predicate, CancellationToken cancellationToken = default)
             {
-                var itr = (Items as IAsyncFilterable<Item>)?.GetAsyncEnumerator(predicate) ?? Items.GetAsyncEnumerator();
+                var itr = (Items as IAsyncFilterable<Item>)?.GetAsyncEnumerator(predicate, cancellationToken) ?? Items.GetAsyncEnumerator(cancellationToken);
 
                 while (await itr.MoveNextAsync())
                 {
@@ -254,7 +254,7 @@ namespace Movies.ViewModels
             //Items = new List<ItemViewModel>(Items);
         }
 
-        private void Refresh() => Source.Refresh();
+        private void Refresh() => Source.Reset();
 
         public CollectionViewModel(Person person) : this(person.Name, new ItemHelpers.FilterableWrapper<Item>(PersonViewModel.GetCredits(person)), ItemType.Movie | ItemType.TVShow, person) { }
         public CollectionViewModel(Collection collection) : this(collection.Name, collection, (collection as List)?.AllowedTypes, collection) { }

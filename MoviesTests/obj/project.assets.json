@@ -1886,7 +1886,7 @@
           }
         }
       },
-      "System.Text.Json/6.0.6": {
+      "System.Text.Json/6.0.5": {
         "type": "package",
         "dependencies": {
           "System.Runtime.CompilerServices.Unsafe": "6.0.0",
@@ -2105,7 +2105,7 @@
           }
         }
       },
-      "Xamarin.Forms/5.0.0.2515": {
+      "Xamarin.Forms/5.0.0.2478": {
         "type": "package",
         "compile": {
           "lib/netstandard2.0/Xamarin.Forms.Core.dll": {
@@ -2136,11 +2136,11 @@
         "dependencies": {
           "Microsoft.CSharp": "4.7.0",
           "System.Extensions": "1.0.0",
-          "System.Text.Json": "6.0.6",
+          "System.Text.Json": "6.0.5",
           "Xamarin.Essentials": "1.7.3",
           "Xamarin.FFImageLoading": "2.4.11.982",
           "Xamarin.FFImageLoading.Forms": "2.4.11.982",
-          "Xamarin.Forms": "5.0.0.2515",
+          "Xamarin.Forms": "5.0.0.2478",
           "Xamarin.Forms.Extensions": "1.0.0",
           "sqlite-net-pcl": "1.8.116"
         },
@@ -6705,10 +6705,10 @@
         "useSharedDesignerContext.txt"
       ]
     },
-    "System.Text.Json/6.0.6": {
-      "sha512": "GZ+62pLOr544jwSvyXv5ezSfzlFBTjLuPhgOS2dnKuknAA8dPNUGXLKTHf9XdsudU9JpbtweXnE4oEiKEB2T1Q==",
+    "System.Text.Json/6.0.5": {
+      "sha512": "SSH+YYrMpvLcy7Orzb5K1tSyffnFacWahyxCCjYH1PbSHdAF4dekmIetBurFKgtTHDmwEe/J2Csi/7niRH6d/g==",
       "type": "package",
-      "path": "system.text.json/6.0.6",
+      "path": "system.text.json/6.0.5",
       "files": [
         ".nupkg.metadata",
         ".signature.p7s",
@@ -6754,7 +6754,7 @@
         "lib/netcoreapp3.1/System.Text.Json.xml",
         "lib/netstandard2.0/System.Text.Json.dll",
         "lib/netstandard2.0/System.Text.Json.xml",
-        "system.text.json.6.0.6.nupkg.sha512",
+        "system.text.json.6.0.5.nupkg.sha512",
         "system.text.json.nuspec",
         "useSharedDesignerContext.txt"
       ]
@@ -7387,10 +7387,10 @@
         "xamarin.ffimageloading.forms.nuspec"
       ]
     },
-    "Xamarin.Forms/5.0.0.2515": {
-      "sha512": "n/Y/xk1idWRkxk7xItwvNwwda7CHpIk7JxD6tXkGXmTqiVGV1xRkepf5aKXFkQLM9KIQhXXYBxPsdyJysPpktw==",
+    "Xamarin.Forms/5.0.0.2478": {
+      "sha512": "UeOnndxByPTpbExq0jPL5zKYqtHN9ldsgjQfUk9XF1pWSJUIakF3nJkq/tCgCVp5E1yp9Eecgqcthzy6llKiGg==",
       "type": "package",
-      "path": "xamarin.forms/5.0.0.2515",
+      "path": "xamarin.forms/5.0.0.2478",
       "files": [
         ".nupkg.metadata",
         ".signature.p7s",
@@ -7599,7 +7599,7 @@
         "lib/uap10.0.16299/Xamarin.Forms.Xaml.dll",
         "lib/uap10.0.16299/Xamarin.Forms.Xaml.pdb",
         "lib/uap10.0.16299/Xamarin.Forms.Xaml.xml",
-        "xamarin.forms.5.0.0.2515.nupkg.sha512",
+        "xamarin.forms.5.0.0.2478.nupkg.sha512",
         "xamarin.forms.nuspec"
       ]
     },

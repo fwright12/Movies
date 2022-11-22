@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "+cI/Q7+/Fr1gV/7mOv9/UY7cIeq/sgDfQsDj37+4LcyvCsV8eC2X4sj8eP+vxlVCoVGvMkPUWRQxugjHMZFyVg==",
+  "dgSpecHash": "y2MpcwTwlXnOSyR5AlNYQMPZ3rAg8IyzXBEonsaNj4ZdVVL8nNAzSrEzc2YJCJ/uIkgI+AKf9v78D8YAld2vTQ==",
   "success": true,
   "projectFilePath": "C:\\Users\\Flint\\Documents\\MovieApp\\Movies\\MoviesTests\\MoviesTests.csproj",
   "expectedPackageFiles": [
@@ -99,7 +99,7 @@
     "C:\\Users\\Flint\\.nuget\\packages\\system.text.encoding\\4.3.0\\system.text.encoding.4.3.0.nupkg.sha512",
     "C:\\Users\\Flint\\.nuget\\packages\\system.text.encoding.extensions\\4.3.0\\system.text.encoding.extensions.4.3.0.nupkg.sha512",
     "C:\\Users\\Flint\\.nuget\\packages\\system.text.encodings.web\\6.0.0\\system.text.encodings.web.6.0.0.nupkg.sha512",
-    "C:\\Users\\Flint\\.nuget\\packages\\system.text.json\\6.0.6\\system.text.json.6.0.6.nupkg.sha512",
+    "C:\\Users\\Flint\\.nuget\\packages\\system.text.json\\6.0.5\\system.text.json.6.0.5.nupkg.sha512",
     "C:\\Users\\Flint\\.nuget\\packages\\system.text.regularexpressions\\4.3.0\\system.text.regularexpressions.4.3.0.nupkg.sha512",
     "C:\\Users\\Flint\\.nuget\\packages\\system.threading\\4.3.0\\system.threading.4.3.0.nupkg.sha512",
     "C:\\Users\\Flint\\.nuget\\packages\\system.threading.tasks\\4.3.0\\system.threading.tasks.4.3.0.nupkg.sha512",
@@ -111,7 +111,7 @@
     "C:\\Users\\Flint\\.nuget\\packages\\xamarin.essentials\\1.7.3\\xamarin.essentials.1.7.3.nupkg.sha512",
     "C:\\Users\\Flint\\.nuget\\packages\\xamarin.ffimageloading\\2.4.11.982\\xamarin.ffimageloading.2.4.11.982.nupkg.sha512",
     "C:\\Users\\Flint\\.nuget\\packages\\xamarin.ffimageloading.forms\\2.4.11.982\\xamarin.ffimageloading.forms.2.4.11.982.nupkg.sha512",
-    "C:\\Users\\Flint\\.nuget\\packages\\xamarin.forms\\5.0.0.2515\\xamarin.forms.5.0.0.2515.nupkg.sha512"
+    "C:\\Users\\Flint\\.nuget\\packages\\xamarin.forms\\5.0.0.2478\\xamarin.forms.5.0.0.2478.nupkg.sha512"
   ],
   "logs": []
 }

@@ -4,12 +4,75 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
+using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using Xamarin.Forms;
 
 namespace Movies.ViewModels
 {
+    public class KeepItemsViewPopulatedBehavior : Behavior<ItemsView>
+    {
+        private static HashSet<string> Dependents = new HashSet<string>(new BindableProperty[]
+        {
+            ItemsView.ItemsSourceProperty,
+            ItemsView.RemainingItemsThresholdReachedCommandProperty,
+            ItemsView.RemainingItemsThresholdReachedCommandParameterProperty
+        }.Select(property => property.PropertyName));
+
+        protected override void OnAttachedTo(ItemsView bindable)
+        {
+            base.OnAttachedTo(bindable);
+
+            bindable.ChildRemoved += (sender, e) => ChildrenChanged(bindable, e);
+            bindable.ChildAdded += ChildrenChanged;
+            bindable.PropertyChanged += ItemsChanged;
+        }
+
+        protected override void OnDetachingFrom(ItemsView bindable)
+        {
+            base.OnDetachingFrom(bindable);
+
+            //bindable.ChildRemoved -= ChildrenChanged;
+            bindable.ChildAdded -= ChildrenChanged;
+            bindable.PropertyChanged -= ItemsChanged;
+        }
+
+        private void ItemsChanged(object sender, PropertyChangedEventArgs e)
+        {
+            if (Dependents.Contains(e.PropertyName))
+            {
+                var itemsView = (ItemsView)sender;
+                Load(itemsView);
+
+                if (e.PropertyName == ItemsView.ItemsSourceProperty.PropertyName && itemsView.ItemsSource is INotifyCollectionChanged observable)
+                {
+                    //observable.CollectionChanged += (sender, e) => Load(itemsView);
+                }
+            }
+        }
+
+        private void ChildrenChanged(object sender, ElementEventArgs e) => Load((ItemsView)sender);
+
+        private void Load(ItemsView itemsView)
+        {
+            var items = itemsView.ItemsSource;
+
+            // No items
+            if (items?.GetEnumerator().MoveNext() == false)
+            {
+                var command = itemsView.RemainingItemsThresholdReachedCommand;
+                var parameter = itemsView.RemainingItemsThresholdReachedCommandParameter;
+
+                if (command?.CanExecute(parameter) == true)
+                {
+                    command.Execute(parameter);
+                }
+            }
+        }
+    }
+
     public class AsyncListViewModel<T> : BindableViewModel, IEnumerable<T>, INotifyCollectionChanged
     {
         public event NotifyCollectionChangedEventHandler CollectionChanged;
@@ -28,12 +91,25 @@ namespace Movies.ViewModels
             }
         }
 
-        public ICommand LoadMoreCommand => LazyLoadMoreCommand.Value;
+        public bool Refreshing
+        {
+            get => _Refreshing;
+            set => UpdateValue(ref _Refreshing, value);
+        }
 
-        private Lazy<ICommand> LazyLoadMoreCommand;
+        public bool CanRefresh => IsRefreshEnabled || Refreshing;
+
+        public bool IsRefreshEnabled { get; set; }
+
+        public ICommand RefreshCommand { get; }
+        public ICommand LoadMoreCommand { get; }
+
         private IAsyncEnumerable<T> Source;
         private IAsyncEnumerator<T> Itr;
+        private bool _Refreshing;
         private bool _Loading;
+
+        private CancellationTokenSource CancelLoad;
 
         public AsyncListViewModel(IAsyncEnumerable<T> source)
         {
@@ -42,17 +118,18 @@ namespace Movies.ViewModels
             Items = items;
 
             Source = source;
-            LazyLoadMoreCommand = new Lazy<ICommand>(() =>
+            LoadMoreCommand = new Command<int?>(count => _ = LoadMore(count ?? 1));
+            RefreshCommand = new Command(() => _ = Refresh());
+
+            PropertyChanged += (sender, e) =>
             {
-                if (Itr == null)
+                if (e.PropertyName == nameof(IsRefreshEnabled) || e.PropertyName == nameof(Refreshing))
                 {
-                    Refresh();
+                    OnPropertyChanged(nameof(CanRefresh));
                 }
+            };
 
-                return new Command<int?>(count => _ = LoadMore(count ?? 1));
-            });
-
-            //Refresh();
+            Reset();
         }
 
         public async Task LoadMore(int count = 1)
@@ -79,24 +156,23 @@ namespace Movies.ViewModels
             }
 
             Loading = false;
+            Refreshing = false;
         }
 
-        public void Refresh()
+        public async Task Refresh()
         {
+            Refreshing = false;
+            await LoadMore(10);
+        }
+
+        public void Reset()
+        {
+            CancelLoad?.Cancel();
+            CancelLoad = new CancellationTokenSource();
+            Itr = Source.GetAsyncEnumerator(CancelLoad.Token);
+
             Items.Clear();
-            Itr = Source.GetAsyncEnumerator();
-            _ = LoadMore(10);
-        }
-
-        public static async IAsyncEnumerable<T> Where(IAsyncEnumerable<T> items, Func<T, bool> predicate)
-        {
-            await foreach (var item in items)
-            {
-                if (predicate(item))
-                {
-                    yield return item;
-                }
-            }
+            Refreshing = true;
         }
 
         public IEnumerator<T> GetEnumerator() => Items.GetEnumerator();

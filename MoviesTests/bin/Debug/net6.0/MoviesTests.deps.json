@@ -1137,7 +1137,7 @@
           "System.Runtime.CompilerServices.Unsafe": "6.0.0"
         }
       },
-      "System.Text.Json/6.0.6": {
+      "System.Text.Json/6.0.5": {
         "dependencies": {
           "System.Runtime.CompilerServices.Unsafe": "6.0.0",
           "System.Text.Encodings.Web": "6.0.0"
@@ -1145,7 +1145,7 @@
         "runtime": {
           "lib/net6.0/System.Text.Json.dll": {
             "assemblyVersion": "6.0.0.0",
-            "fileVersion": "6.0.922.41905"
+            "fileVersion": "6.0.622.26707"
           }
         }
       },
@@ -1256,7 +1256,7 @@
       "Xamarin.FFImageLoading.Forms/2.4.11.982": {
         "dependencies": {
           "Xamarin.FFImageLoading": "2.4.11.982",
-          "Xamarin.Forms": "5.0.0.2515"
+          "Xamarin.Forms": "5.0.0.2478"
         },
         "runtime": {
           "lib/netstandard1.0/FFImageLoading.Forms.dll": {
@@ -1265,19 +1265,19 @@
           }
         }
       },
-      "Xamarin.Forms/5.0.0.2515": {
+      "Xamarin.Forms/5.0.0.2478": {
         "runtime": {
           "lib/netstandard2.0/Xamarin.Forms.Core.dll": {
             "assemblyVersion": "2.0.0.0",
-            "fileVersion": "5.0.0.946"
+            "fileVersion": "5.0.0.927"
           },
           "lib/netstandard2.0/Xamarin.Forms.Platform.dll": {
             "assemblyVersion": "2.0.0.0",
-            "fileVersion": "5.0.0.946"
+            "fileVersion": "5.0.0.927"
           },
           "lib/netstandard2.0/Xamarin.Forms.Xaml.dll": {
             "assemblyVersion": "2.0.0.0",
-            "fileVersion": "5.0.0.946"
+            "fileVersion": "5.0.0.927"
           }
         }
       },
@@ -1285,11 +1285,11 @@
         "dependencies": {
           "Microsoft.CSharp": "4.7.0",
           "System.Extensions": "1.0.0",
-          "System.Text.Json": "6.0.6",
+          "System.Text.Json": "6.0.5",
           "Xamarin.Essentials": "1.7.3",
           "Xamarin.FFImageLoading": "2.4.11.982",
           "Xamarin.FFImageLoading.Forms": "2.4.11.982",
-          "Xamarin.Forms": "5.0.0.2515",
+          "Xamarin.Forms": "5.0.0.2478",
           "Xamarin.Forms.Extensions": "1.0.0",
           "sqlite-net-pcl": "1.8.116"
         },
@@ -1991,12 +1991,12 @@
       "path": "system.text.encodings.web/6.0.0",
       "hashPath": "system.text.encodings.web.6.0.0.nupkg.sha512"
     },
-    "System.Text.Json/6.0.6": {
+    "System.Text.Json/6.0.5": {
       "type": "package",
       "serviceable": true,
-      "sha512": "sha512-GZ+62pLOr544jwSvyXv5ezSfzlFBTjLuPhgOS2dnKuknAA8dPNUGXLKTHf9XdsudU9JpbtweXnE4oEiKEB2T1Q==",
-      "path": "system.text.json/6.0.6",
-      "hashPath": "system.text.json.6.0.6.nupkg.sha512"
+      "sha512": "sha512-SSH+YYrMpvLcy7Orzb5K1tSyffnFacWahyxCCjYH1PbSHdAF4dekmIetBurFKgtTHDmwEe/J2Csi/7niRH6d/g==",
+      "path": "system.text.json/6.0.5",
+      "hashPath": "system.text.json.6.0.5.nupkg.sha512"
     },
     "System.Text.RegularExpressions/4.3.0": {
       "type": "package",
@@ -2075,12 +2075,12 @@
       "path": "xamarin.ffimageloading.forms/2.4.11.982",
       "hashPath": "xamarin.ffimageloading.forms.2.4.11.982.nupkg.sha512"
     },
-    "Xamarin.Forms/5.0.0.2515": {
+    "Xamarin.Forms/5.0.0.2478": {
       "type": "package",
       "serviceable": true,
-      "sha512": "sha512-n/Y/xk1idWRkxk7xItwvNwwda7CHpIk7JxD6tXkGXmTqiVGV1xRkepf5aKXFkQLM9KIQhXXYBxPsdyJysPpktw==",
-      "path": "xamarin.forms/5.0.0.2515",
-      "hashPath": "xamarin.forms.5.0.0.2515.nupkg.sha512"
+      "sha512": "sha512-UeOnndxByPTpbExq0jPL5zKYqtHN9ldsgjQfUk9XF1pWSJUIakF3nJkq/tCgCVp5E1yp9Eecgqcthzy6llKiGg==",
+      "path": "xamarin.forms/5.0.0.2478",
+      "hashPath": "xamarin.forms.5.0.0.2478.nupkg.sha512"
     },
     "Movies/1.0.0": {
       "type": "project",

@@ -221,7 +221,7 @@ namespace Movies.ViewModels
                     if (syncList.Count != before)
                     {
                         syncList.Reset();
-                        Source.Refresh();
+                        Source.Reset();
                         //UpdateItems(syncList);
                     }
                 }

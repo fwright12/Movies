@@ -776,29 +776,26 @@ namespace Movies
         private class FilteredList : IAsyncCollection<Item>
         {
             public List List { get; }
-            public IAsyncEnumerator<Item> Items { get; }
+            public FilterPredicate Filter { get; }
 
-            public FilteredList(List list)
+            public FilteredList(List list) : this(list, FilterPredicate.TAUTOLOGY) { }
+
+            public FilteredList(List list, FilterPredicate filter)
             {
                 List = list;
-                Items = list.GetAsyncEnumerator();
-            }
-
-            public FilteredList(List list, FilterPredicate filter) : this(list)
-            {
-                Items = list.GetAsyncEnumerator(filter);
+                Filter = filter;
             }
 
             public Task<bool?> ContainsAsync(Item item) => List.ContainsAsync(item);
 
-            public IAsyncEnumerator<Item> GetAsyncEnumerator(CancellationToken cancellationToken = default) => Items;
+            public IAsyncEnumerator<Item> GetAsyncEnumerator(CancellationToken cancellationToken = default) => List.GetAsyncEnumerator(Filter, cancellationToken);
         }
 
         protected override IAsyncEnumerable<Item> GetFilteredItems(FilterPredicate filter, CancellationToken cancellationToken = default) => GetItemsAsync(filter, cancellationToken);
 
         private async IAsyncEnumerable<Item> GetItemsAsync(FilterPredicate predicate, CancellationToken cancellationToken = default)
         {
-            var itr = new Enumerator(this, predicate);
+            var itr = new Enumerator(this, predicate, cancellationToken);
 
             while (await itr.MoveNextAsync())
             {
@@ -1057,9 +1054,9 @@ namespace Movies
             private SemaphoreSlim ListItemsSemaphore = new SemaphoreSlim(1, 1);
             private SemaphoreSlim BufferSemaphore = new SemaphoreSlim(1, 1);
 
-            public Enumerator(SyncList list) : this(list, FilterPredicate.TAUTOLOGY) { }
+            public Enumerator(SyncList list, CancellationToken cancellationToken = default) : this(list, FilterPredicate.TAUTOLOGY) { }
 
-            public Enumerator(SyncList list, FilterPredicate filter)
+            public Enumerator(SyncList list, FilterPredicate filter, CancellationToken cancellationToken = default)
             {
                 List = list;
 
@@ -1073,7 +1070,7 @@ namespace Movies
                 }
 
                 RemoteIndexMap = new HashSet<int>(remoteIndexMap);
-                Itrs = Origin == null ? new IAsyncEnumerator<Item>[0] : remoteIndexMap.Select(i => Remote[i]).Prepend(Origin).Select(source => filter == FilterPredicate.TAUTOLOGY ? source.GetAsyncEnumerator() : new FilteredList(source, filter).GetAsyncEnumerator()).ToArray();
+                Itrs = Origin == null ? new IAsyncEnumerator<Item>[0] : remoteIndexMap.Select(i => Remote[i]).Prepend(Origin).Select(source => filter == FilterPredicate.TAUTOLOGY ? source.GetAsyncEnumerator(cancellationToken) : new FilteredList(source, filter).GetAsyncEnumerator(cancellationToken)).ToArray();
                 ListItems = Itrs.Select(_ => new Dictionary<Item, bool?>()).ToArray();
             }
 

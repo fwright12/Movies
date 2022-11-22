@@ -1,11 +1,3 @@
-C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies\bin\Debug\netstandard2.1\Movies.deps.json
-C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies\bin\Debug\netstandard2.1\Movies.dll
-C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies\bin\Debug\netstandard2.1\Movies.pdb
-C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies\bin\Debug\netstandard2.1\System.Extensions.dll
-C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies\bin\Debug\netstandard2.1\Xamarin.Forms.Extensions.dll
-C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies\bin\Debug\netstandard2.1\System.Extensions.pdb
-C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies\bin\Debug\netstandard2.1\Xamarin.Forms.Extensions.pdb
-C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies\bin\Debug\netstandard2.1\Xamarin.Forms.Extensions.dll.config
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies\obj\Debug\netstandard2.1\Movies.csproj.AssemblyReference.cache
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies\obj\Debug\netstandard2.1\Movies.GeneratedMSBuildEditorConfig.editorconfig
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies\obj\Debug\netstandard2.1\App.xaml.g.cs
@@ -44,6 +36,14 @@ C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies\obj\Debug\netstandard2.1\
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies\obj\Debug\netstandard2.1\Movies.AssemblyInfoInputs.cache
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies\obj\Debug\netstandard2.1\Movies.AssemblyInfo.cs
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies\obj\Debug\netstandard2.1\Movies.csproj.CoreCompileInputs.cache
+C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies\bin\Debug\netstandard2.1\Movies.deps.json
+C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies\bin\Debug\netstandard2.1\Movies.dll
+C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies\bin\Debug\netstandard2.1\Movies.pdb
+C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies\bin\Debug\netstandard2.1\System.Extensions.dll
+C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies\bin\Debug\netstandard2.1\Xamarin.Forms.Extensions.dll
+C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies\bin\Debug\netstandard2.1\System.Extensions.pdb
+C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies\bin\Debug\netstandard2.1\Xamarin.Forms.Extensions.pdb
+C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies\bin\Debug\netstandard2.1\Xamarin.Forms.Extensions.dll.config
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies\obj\Debug\netstandard2.1\XamlC.stamp
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies\obj\Debug\netstandard2.1\Movies.csproj.CopyComplete
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies\obj\Debug\netstandard2.1\Movies.dll

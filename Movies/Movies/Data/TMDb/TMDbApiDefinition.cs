@@ -482,7 +482,7 @@ namespace Movies
                     }
                     else
                     {
-                        Add(new ParserWrapper(value, new JsonPropertyParser<ArraySegment<byte>>(property)));
+                        Add(new ParserWrapper(value, new JsonPropertyParser<ArraySegment<byte>>(property, new JsonNodeParser<ArraySegment<byte>>(bytes => bytes))));
                     }
                 }
             }

@@ -288,44 +288,34 @@ namespace Movies
             }
         }
 
-        public ItemInfoCache ItemCache
-        {
-            set
-            {
-                _ = CleanWatchProviders(value);
+        public ItemInfoCache ItemCache { get; private set; }
 
-                foreach (var properties in ITEM_PROPERTIES.Values)
-                {
-                    properties.Cache = value;
-                }
+        public async Task SetItemCache(ItemInfoCache value, DateTime? lastCleaned = null)
+        {
+            foreach (var properties in ITEM_PROPERTIES.Values)
+            {
+                properties.Cache = value;
             }
+
+            //await CleanCache(value, lastCleaned);
+            await CleanWatchProviders(value);
         }
 
         private const int WATCH_PROVIDERS_EXPIRED_AFTER_DAY_OF_MONTH = 3;
 
         private async Task CleanWatchProviders(ItemInfoCache cache)
         {
-            var pattern = "{\\d+}";
-            var pattern1 = "\\d+";
-            var movieRegex = new Regex(pattern).Replace(API.MOVIES.GET_WATCH_PROVIDERS.GetURL(), pattern1);
-            var tvRegex = new Regex(pattern).Replace(API.TV.GET_WATCH_PROVIDERS.GetURL(), pattern1);
+            var requests = new TMDbRequest[] { API.MOVIES.GET_WATCH_PROVIDERS, API.TV.GET_WATCH_PROVIDERS };
+            var regexPattern = "{\\d+}";
+            var sqlPattern = "%";
+            var patterns = requests.Select(request => new Regex(regexPattern).Replace(request.GetURL(), sqlPattern) + "%");
 
-            var values = await cache.ReadAll();
-            var expired = new List<Task>();
+            //var values = await cache.ReadAll();
             var offset = DateTime.Now.AddDays(-WATCH_PROVIDERS_EXPIRED_AFTER_DAY_OF_MONTH + 1);
             var date = new DateTime(offset.Year, offset.Month, WATCH_PROVIDERS_EXPIRED_AFTER_DAY_OF_MONTH);
+            //date = DateTime.Now;
 
-            foreach (var kvp in values)
-            {
-                var url = kvp.Key;
-
-                if (kvp.Value.Timestamp < date && (Regex.Match(url, movieRegex).Success || Regex.Match(url, tvRegex).Success))
-                {
-                    expired.Add(cache.Expire(url));
-                }
-            }
-
-            await Task.WhenAll(expired);
+            var adfsd = await Task.WhenAll(patterns.Select(pattern => cache.ExpireAll(pattern, date)));
         }
 
         private string RequestToken;
@@ -669,33 +659,53 @@ namespace Movies
             }
         }
 
-        private static readonly TimeSpan CHANGES_DURATION = new TimeSpan(14, 0, 0, 0);
-
-        public Task CleanCache(ItemInfoCache cache, DateTime lastCleaned)
+        public static readonly TimeSpan CHANGES_DURATION = new TimeSpan(14, 0, 0, 0);
+        public static readonly IReadOnlyDictionary<ItemType, PagedTMDbRequest> CHANGES_ENDPOINTS = new Dictionary<ItemType, PagedTMDbRequest>
         {
-            var requests = new PagedTMDbRequest[]
-            {
-                API.CHANGES.GET_MOVIE_CHANGE_LIST,
-                API.CHANGES.GET_TV_CHANGE_LIST,
-                API.CHANGES.GET_PERSON_CHANGE_LIST
-            };
+            [ItemType.Movie] = API.CHANGES.GET_MOVIE_CHANGE_LIST,
+            //[ItemType.TVShow] = API.CHANGES.GET_TV_CHANGE_LIST,
+            //[ItemType.Person] = API.CHANGES.GET_PERSON_CHANGE_LIST
+        };
 
-            return Task.WhenAll(requests.Select(request => CleanCache(cache, request, lastCleaned)));
+        public const int MAX_ALLOWED_CHANGES_CALLS = 10;
+
+        public Task CleanCache(ItemInfoCache cache, DateTime? lastCleaned = null)
+        {
+            if (!lastCleaned.HasValue || (DateTime.Now - lastCleaned) / CHANGES_DURATION > MAX_ALLOWED_CHANGES_CALLS)
+            {
+                return cache.Clear();
+            }
+
+            return Task.WhenAll(CHANGES_ENDPOINTS.Keys.Select(type => CleanExpired(cache, type, lastCleaned.Value)));
         }
 
-        private async Task CleanCache(ItemInfoCache cache, PagedTMDbRequest request, DateTime lastCleaned)
+        private static async Task CleanExpired(ItemInfoCache cache, ItemType type, DateTime since)
         {
-            for (var start = lastCleaned; start < DateTime.Now; start += CHANGES_DURATION)
+            if (!CHANGES_ENDPOINTS.TryGetValue(type, out var request))
+            {
+                return;
+            }
+
+            var from = since;
+            var to = DateTime.Now;
+            var tasks = new List<Task>();
+
+            for (var start = from; start < to; start += CHANGES_DURATION)
             {
                 var end = start + CHANGES_DURATION;
+                string str(DateTime date) => JsonSerializer.Serialize(date).Trim('\"');
+                var args = new List<string> { $"start_date={str(start)}" };
 
-                //var response = await WebClient.TryGetAsync(request.GetURL($"{end}", $"{start}"));
-
-                await foreach (var id in Request<int>(request, new JsonPropertyParser<int>("id").TryGetValue, false, $"start_date={start}", $"end_date={end}"))
+                if (end < to)
                 {
-                    await cache.Expire(ItemType.Movie, id);
+                    args.Add($"end_date={str(end)}");
                 }
+
+                var ids = await Request<int>(request, new JsonPropertyParser<int>("id").TryGetValue, false, args.ToArray()).ReadAll();
+                tasks.Add(cache.Expire(type, ids));
             }
+
+            await Task.WhenAll(tasks);
         }
 
         private static bool TryParseCertifications(JsonNode json, out IEnumerable<string> certifications) => TryParseCertifications(json, REGION, out certifications);
@@ -847,7 +857,7 @@ namespace Movies
             return null;
         }
 
-        private static async Task<JsonNode> Convert(Task<ArraySegment<byte>> bytes) => JsonNode.Parse(await bytes);
+        private static async Task<JsonNode> Convert(HttpContent content) => JsonNode.Parse(await content.ReadAsByteArrayAsync());
 
         public static async Task<Item> GetItem(ItemType type, int id)
         {

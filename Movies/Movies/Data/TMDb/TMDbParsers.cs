@@ -503,9 +503,8 @@ namespace Movies
 
         public static IEnumerable<WatchProvider> ParseWatchProviders(ArraySegment<byte> bytes)
         {
-            var countryParser = new JsonPropertyParser<ArraySegment<byte>>(ISO_3166_1);
             //if (json is JsonObject array && array[ISO_3166_1] is JsonObject providers)
-            if (countryParser.TryGetValue(bytes, out bytes) && JsonNode.Parse(bytes) is JsonObject providers)
+            if (JsonParser.PeelProperty(ISO_3166_1, bytes, out bytes) && JsonNode.Parse(bytes) is JsonObject providers)
             {
                 foreach (var monetizationGroup in providers)
                 {

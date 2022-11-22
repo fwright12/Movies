@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Movies.Models;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
@@ -611,7 +612,8 @@ namespace Movies
                 if (movie ^ tv)
                 {
                     var items = tv ? TV : Movies;
-                    return items.WhereAsync(item => Models.ItemHelpers.Evaluate(item, filter));
+                    return ItemHelpers.Filter(items, filter, cancellationToken);
+                    //return items.WhereAsync(item => Models.ItemHelpers.Evaluate(item, filter, cancellationToken));
                 }
                 else
                 {

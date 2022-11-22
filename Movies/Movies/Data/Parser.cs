@@ -47,25 +47,70 @@ namespace Movies
     {
         public static bool TryParse<T>(string json, out T value) => TryParse(json, new JsonNodeParser<T>(), out value);
         public static bool TryParse<T>(string json, IJsonParser<T> parser, out T value) => parser.TryGetValue(JsonNode.Parse(json), out value);
+
+        public static bool PeelProperty(string propertyName, ArraySegment<byte> bytes, out ArraySegment<byte> value)
+        {
+            var reader = new Utf8JsonReader(bytes);
+            
+            while (reader.Read())
+            {
+                if (reader.TokenType == JsonTokenType.PropertyName)
+                {
+                    var property = reader.GetString();
+                    var offset = reader.BytesConsumed;
+
+                    reader.Skip();
+
+                    if (property == propertyName)
+                    {
+                        value = bytes.Slice((int)offset, (int)(reader.BytesConsumed - offset));
+                        //Print.Log(System.Text.Encoding.UTF8.GetString(bytes));
+                        //var json = JsonNode.Parse(bytes);
+                        return true;
+                    }
+                }
+            }
+
+            value = default;
+            return false;
+        }
+
+        public static bool PeelProperties(ArraySegment<byte> bytes, out ArraySegment<byte> value, params string[] properties)
+        {
+            var reader = new Utf8JsonReader(bytes);
+            int index = 0;
+
+            while (reader.Read() && reader.TokenType != JsonTokenType.EndObject)
+            {
+                if (reader.TokenType == JsonTokenType.PropertyName)
+                {
+                    bool match = reader.ValueTextEquals(properties[index]);
+                    var offset = reader.BytesConsumed;
+
+                    if (!match || ++index == properties.Length)
+                    {
+                        reader.Skip();
+
+                        if (match)
+                        {
+                            value = bytes.Slice((int)offset, (int)(reader.BytesConsumed - offset));
+                            //Print.Log(System.Text.Encoding.UTF8.GetString(bytes));
+                            //var json = JsonNode.Parse(bytes);
+                            return true;
+                        }
+                    }
+                }
+            }
+
+            value = default;
+            return false;
+        }
     }
 
     public interface IJsonParser<T>
     {
         bool TryGetValue(JsonNode json, out T value);
-        bool TryGetValue(ArraySegment<byte> bytes, out T value) => TryGetValueFromBytes(bytes, out value);
-        bool TryGetValueFromBytes(ArraySegment<byte> bytes, out T value)
-        {
-            if (bytes is T t)
-            {
-                value = t;
-                return true;
-            }
-            else
-            {
-                //var json = System.Text.Encoding.UTF8.GetString(bytes);
-                return TryGetValue(JsonNode.Parse(bytes, null, default), out value);
-            }
-        }
+        bool TryGetValue(ArraySegment<byte> bytes, out T value) => TryGetValue(JsonNode.Parse(bytes), out value);
     }
 
     public class JsonNodeParser<T> : IJsonParser<T>
@@ -112,7 +157,7 @@ namespace Movies
             }
             else
             {
-                return ((IJsonParser<T>)this).TryGetValueFromBytes(bytes, out value);
+                return TryGetValue(JsonNode.Parse(bytes), out value);
             }
         }
     }
@@ -127,6 +172,7 @@ namespace Movies
         }
 
         public bool TryGetValue(JsonNode json, out JsonNode value) => json.TryGetValue(Property, out value);
+        public bool TryGetValue(ArraySegment<byte> bytes, out ArraySegment<byte> value) => JsonParser.PeelProperty(Property, bytes, out value);
     }
 
     public class JsonPropertyParser<T> : JsonPropertyParser, IJsonParser<T>
@@ -148,29 +194,8 @@ namespace Movies
 
         public bool TryGetValue(ArraySegment<byte> bytes, out T value)
         {
-            var reader = new Utf8JsonReader(bytes);
-
-            while (reader.Read())
-            {
-                if (reader.TokenType == JsonTokenType.PropertyName)
-                {
-                    var property = reader.GetString();
-                    var offset = reader.BytesConsumed;
-
-                    reader.Skip();
-
-                    if (property == Property)
-                    {
-                        bytes = bytes.Slice((int)offset, (int)(reader.BytesConsumed - offset));
-                        //Print.Log(System.Text.Encoding.UTF8.GetString(bytes));
-                        //var json = JsonNode.Parse(bytes);
-                        return Parser.TryGetValue(bytes, out value);
-                    }
-                }
-            }
-
             value = default;
-            return false;
+            return TryGetValue(bytes, out bytes) && Parser.TryGetValue(bytes, out value);
         }
     }
 
@@ -277,7 +302,7 @@ namespace Movies
     {
         public MultiParser(MultiProperty<T> property, IJsonParser<IEnumerable<T>> jsonParser) : base(property, jsonParser) { }
 
-        protected override PropertyValuePair GetPairInternal(Task<IEnumerable<T>> value) => new PropertyValuePair<T>((MultiProperty<T>) Property, value);
+        protected override PropertyValuePair GetPairInternal(Task<IEnumerable<T>> value) => new PropertyValuePair<T>((MultiProperty<T>)Property, value);
 
         public override bool TryGetValue(JsonNode json, out PropertyValuePair value)
         {

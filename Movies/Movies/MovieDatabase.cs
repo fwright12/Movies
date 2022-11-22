@@ -229,7 +229,7 @@ namespace Movies
         }
     }
 
-    public class ItemInfoCache : IAsyncEnumerable<KeyValuePair<string, JsonResponse>>
+    public class ItemInfoCache : IJsonCache, IAsyncEnumerable<KeyValuePair<string, JsonResponse>>
     {
         public static readonly Table.Column ID = new Table.Column("id", "integer");
         public static readonly Table.Column TYPE = new Table.Column("type", "integer");
@@ -250,9 +250,10 @@ namespace Movies
             var cache = new SQLJsonCache(db);
             await cache.Setup;
             await cache.DB.AddColumns(cache.Table, ID, TYPE);
-            await cache.Clear();
 
 #if DEBUG
+            //await cache.Clear();
+
             var rows = await cache.DB.QueryAsync<(string, string, string, string, string)>($"select * from {cache.Table} limit 10");
             Print.Log((await cache.DB.QueryScalarsAsync<int>($"select count(*) from {cache.Table}")).FirstOrDefault() + " items in cache");
             foreach (var row in rows)
@@ -292,9 +293,11 @@ namespace Movies
             Batch = ExecuteBatched(CancelBatch.Token);
         }
 
-        private List<IEnumerable<object>> BatchInsert = new List<IEnumerable<object>>();
+        private List<Task<IEnumerable<object>>> BatchInsert = new List<Task<IEnumerable<object>>>();
 
-        private void InsertBatched(params object[] args)
+        private void InsertBatched(params object[] args) => InsertBatched(Task.FromResult<IEnumerable<object>>(args));
+
+        private void InsertBatched(Task<IEnumerable<object>> args)
         {
             CancelBatch?.Cancel();
             CancelBatch = new CancellationTokenSource();
@@ -306,35 +309,124 @@ namespace Movies
 
         private async Task ExecuteBatched(CancellationToken cancellationToken = default)
         {
-            await Task.Delay(1000, cancellationToken);
+            await Task.Delay(BATCH_INSERT_DELAY, cancellationToken);
 
             if (!cancellationToken.IsCancellationRequested)
             {
-                var cols = string.Join(", ", SQLJsonCache.URL, SQLJsonCache.RESPONSE, SQLJsonCache.TIMESTAMP, TYPE, ID);
-                var values = string.Join(", ", BatchInsert.Select(row => "(" + string.Join(", ", Enumerable.Repeat("?", row.Count())) + ")"));
-                var query = $"insert into {(await Cache).Table} ({cols}) values {values}";
-                await (await Cache).DB.ExecuteAsync(query, BatchInsert.SelectMany().ToArray());
-
-                BatchQuery = null;
-                BatchInsert.Clear();
+                await FlushBatch();
             }
         }
 
-        public async Task AddAsync(ItemType type, int id, string url, JsonResponse response)
+        private const int BATCH_INSERT_DELAY = 1000;
+        private const int MAX_BATCH_SIZE = 1000;
+
+        private async Task FlushBatch()
+        {
+            CancelBatch?.Cancel();
+
+            var cols = string.Join(", ", SQLJsonCache.URL, SQLJsonCache.RESPONSE, SQLJsonCache.TIMESTAMP, TYPE, ID);
+            var rows = await Task.WhenAll(BatchInsert);
+            var values = string.Join(", ", rows.Select(row => "(" + string.Join(", ", Enumerable.Repeat("?", row.Count())) + ")"));
+            var query = $"insert or replace into {(await Cache).Table} ({cols}) values {values}";
+
+            BatchQuery = null;
+            BatchInsert.Clear();
+
+            Print.Log("flushing");
+            await (await Cache).DB.ExecuteAsync(query, rows.SelectMany().ToArray());
+            Print.Log($"flushed {rows.Length} items");
+        }
+
+        Task IJsonCache.AddAsync(string url, JsonResponse response)
+        {
+            InsertBatched(url, response.Json, response.Timestamp, 0, 0);
+            return Task.CompletedTask;
+        }
+
+        public Task AddAsync(ItemType type, int id, string url, JsonResponse response) => AddAsync(type, id, url, Task.FromResult(response));
+        public Task AddAsync(ItemType type, int id, IEnumerable<KeyValuePair<string, Task<JsonResponse>>> responses)
+        {
+            var args = responses.Select(response => Unwrap(response.Key, response.Value, type, id));
+            BatchInsert.AddRange(args);
+            return FlushBatch();
+        }
+        public async Task AddAsync(ItemType type, int id, string url, Task<JsonResponse> response)
         {
             var cache = await Cache;
             //var cols = InsertCols(SQLJsonCache.URL, SQLJsonCache.RESPONSE, SQLJsonCache.TIMESTAMP, TYPE, ID);
             //ExecuteBatched($"insert into {cache.Table} {cols}", url, response.Json, response.Timestamp, (int)type, id);
-            InsertBatched(url, response.Json, response.Timestamp, (int)type, id);
+            //InsertBatched(url, response.Json, response.Timestamp, (int)type, id);
+            InsertBatched(Unwrap(url, response, type, id));
+
+            if (BatchInsert.Count >= MAX_BATCH_SIZE)
+            {
+                //Print.Log("flushing");
+                //await FlushBatch();
+            }
             //await cache.AddAsync(url, response);
             //await cache.DB.ExecuteAsync($"update {cache.Table} set {TYPE} = ?, {ID} = ? where {SQLJsonCache.URL} = ?", (int)type, id, url);
+        }
+
+        private static async Task<IEnumerable<object>> Unwrap(string url, Task<JsonResponse> response, ItemType type, int id)
+        {
+            var json = await response;
+            return new object[] { url, json.Json, json.Timestamp, (int)type, id };
         }
 
         public async Task Clear() => await (await Cache).Clear();
 
         public async Task<bool> Expire(string url) => await (await Cache).Expire(url);
 
-        public async Task<bool> Expire(ItemType type, int id) => (await (await Cache).DB.ExecuteAsync($"delete from {(await Cache).Table} where {TYPE} = ? and {ID} = ?", (int)type, id)) > 1;
+        public async Task<int> ExpireAll(string pattern, DateTime? olderThan = null)
+        {
+            var cache = await Cache;
+            var query = $"delete from {cache.Table} where {SQLJsonCache.URL} like ?";
+
+            if (olderThan.HasValue)
+            {
+                query += $" and {SQLJsonCache.TIMESTAMP} < ?";
+            }
+
+            return await cache.DB.ExecuteAsync(query, pattern, olderThan);
+        }
+
+        public const int MAX_SQL_VARIABLES = 32766;
+
+        private static IEnumerable<T> Take<T>(IEnumerator<T> itr, int size)
+        {
+            for (int i = 0; i < size && itr.MoveNext(); i++)
+            {
+                yield return itr.Current;
+            }
+        }
+
+        private static IEnumerable<T> ToEnumerable<T>(IEnumerator<T> itr)
+        {
+            while (itr.MoveNext())
+            {
+                yield return itr.Current;
+            }
+        }
+
+        public Task<int> Expire(ItemType type, params int[] ids) => Expire(type, (IEnumerable<int>)ids);
+        public async Task<int> Expire(ItemType type, IEnumerable<int> ids)
+        {
+            if (!ids.Any())
+            {
+                return 0;
+            }
+
+            var cache = await Cache;
+            var itr = ids.OfType<object>().GetEnumerator();
+            var args = Take(itr, MAX_SQL_VARIABLES - 1).Prepend((int)type).ToArray();
+            var values = string.Join(",", Enumerable.Repeat("?", args.Length - 1));
+            var query = $"delete from {cache.Table} where {TYPE} = ? and {ID} in ({values})";
+
+            var counts = await Task.WhenAll(
+                cache.DB.ExecuteAsync(query, args),
+                Expire(type, ToEnumerable(itr).OfType<int>()));
+            return counts.Sum();
+        }
 
         public async Task<bool> IsCached(string url) => await (await Cache).IsCached(url);
 
@@ -913,7 +1005,7 @@ namespace Movies.Views
             protected override IAsyncEnumerable<Item> GetFilteredItems(FilterPredicate filter, CancellationToken cancellationToken = default)
             {
                 var types = Models.ItemHelpers.RemoveTypes(filter, out filter);
-                return ItemHelpers.Filter(GetItemsAsync(types, cancellationToken), filter);
+                return ItemHelpers.Filter(GetItemsAsync(types, cancellationToken), filter, cancellationToken);
             }
 
             private async IAsyncEnumerable<Item> GetItemsAsync(List<Type> types, CancellationToken cancellationToken = default)

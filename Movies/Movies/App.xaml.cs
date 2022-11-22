@@ -145,6 +145,7 @@ namespace Movies
         private Task DBInitialization { get; }
 
         private CollectionViewModel _Popular;
+        private const string LAST_ACCESSED_KEY = "last accessed";
         private const string DB_LAST_CLEANED_KEY = "last cleaned";
         private static readonly TimeSpan DB_CLEANING_SCHEDULE = new TimeSpan(7, 0, 0, 0);
 
@@ -231,18 +232,22 @@ namespace Movies
             }
 #else
             LocalDatabase = new Database(tmdb, TMDB.IDKey);
+            DateTime? lastAccess = null;
             var lastCleaned = DateTime.MinValue;
 
             if (Properties.TryGetValue(DB_LAST_CLEANED_KEY, out var dateObj) && dateObj is string dateStr && DateTime.TryParse(dateStr, out var tempLastCleaned))
             {
                 lastCleaned = tempLastCleaned;
             }
+            if (Properties.TryGetValue(LAST_ACCESSED_KEY, out dateObj) && dateObj is string dateStr1 && DateTime.TryParse(dateStr1, out var tempLastAccess))
+            {
+                lastAccess = tempLastAccess;
+            }
 
             if (DateTime.Now - lastCleaned > DB_CLEANING_SCHEDULE)
             {
                 DBInitialization = LocalDatabase.Clean();
                 Properties[DB_LAST_CLEANED_KEY] = DateTime.Now.ToString();
-                _ = SavePropertiesAsync();
             }
             else
             {
@@ -250,7 +255,11 @@ namespace Movies
             }
             //DataManager.AddDataSource(tmdb);
 
-            tmdb.ItemCache = LocalDatabase.ItemCache;
+            Properties[LAST_ACCESSED_KEY] = DateTime.Now.ToString();
+            _ = SavePropertiesAsync();
+
+            ItemHelpers.PersistentCache = LocalDatabase.ItemCache;
+            _ = tmdb.SetItemCache(LocalDatabase.ItemCache, lastAccess);
 
             SavedFilters = Properties.TryGetValue(SAVED_FILTERS_KEY, out var filtersObj) && filtersObj is string filters ? System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(filters) : new Dictionary<string, string>();
 
@@ -455,7 +464,7 @@ namespace Movies
 #else
         private void AddFirst(IList<object> list, CollectionViewModel model)
         {
-            if (model.Items is INotifyCollectionChanged observable)
+            if (model.Source.Items is INotifyCollectionChanged observable)
             {
                 NotifyCollectionChangedEventHandler handler = null;
                 handler = (sender, e) =>
@@ -468,7 +477,7 @@ namespace Movies
                 };
 
                 observable.CollectionChanged += handler;
-                _ = model.LoadMoreCommand;
+                //_ = model.LoadMoreCommand;
             }
         }
 

@@ -401,7 +401,7 @@ namespace Movies.ViewModels
         public void Filter(FilterPredicate filter)
         {
             Source.Filter = filter;
-            Refresh();
+            Reset();
         }
 
         private void PredicateChanged(object sender, EventArgs e) => Filter(Predicate.Predicate);

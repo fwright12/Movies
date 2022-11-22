@@ -79,6 +79,11 @@
       "frameworks": {
         "xamarinios10": {
           "dependencies": {
+            "System.Memory": {
+              "include": "None",
+              "target": "Package",
+              "version": "[4.5.4, )"
+            },
             "Xamarin.FFImageLoading": {
               "target": "Package",
               "version": "[2.4.11.982, )"
@@ -89,11 +94,11 @@
             },
             "Xamarin.Forms": {
               "target": "Package",
-              "version": "[5.0.0.2515, )"
+              "version": "[5.0.0.2478, )"
             },
             "Xamarin.Google.iOS.MobileAds": {
               "target": "Package",
-              "version": "[8.13.0, )"
+              "version": "[8.13.0.3, )"
             }
           }
         }
@@ -165,7 +170,7 @@
             },
             "System.Text.Json": {
               "target": "Package",
-              "version": "[6.0.6, )"
+              "version": "[6.0.5, )"
             },
             "Xamarin.Essentials": {
               "target": "Package",
@@ -181,7 +186,7 @@
             },
             "Xamarin.Forms": {
               "target": "Package",
-              "version": "[5.0.0.2515, )"
+              "version": "[5.0.0.2478, )"
             },
             "sqlite-net-pcl": {
               "target": "Package",

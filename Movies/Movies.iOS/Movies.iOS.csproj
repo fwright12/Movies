@@ -185,15 +185,14 @@
       <Version>2.4.11.982</Version>
     </PackageReference>
     <PackageReference Include="Xamarin.Forms">
-      <Version>5.0.0.2515</Version>
+      <Version>5.0.0.2478</Version>
     </PackageReference>
     <PackageReference Include="Xamarin.Google.iOS.MobileAds">
-      <Version>8.13.0</Version>
+      <Version>8.13.0.3</Version>
     </PackageReference>
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="System.Memory" Version="4.5.4">
-      <IncludeAssets>none</IncludeAssets>
-    </PackageReference>
-    <PackageReference Include="System.Buffers" Version="4.5.1">
       <IncludeAssets>none</IncludeAssets>
     </PackageReference>
   </ItemGroup>

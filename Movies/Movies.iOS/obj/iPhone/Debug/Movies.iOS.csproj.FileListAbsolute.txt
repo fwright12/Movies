@@ -6,8 +6,6 @@ C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhone\Debug\SQLi
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhone\Debug\SQLitePCLRaw.nativelibrary.dll
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhone\Debug\SQLitePCLRaw.core.dll
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhone\Debug\SQLitePCLRaw.provider.dynamic_cdecl.dll
-C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhone\Debug\System.Buffers.dll
-C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhone\Debug\System.Memory.dll
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhone\Debug\System.Runtime.CompilerServices.Unsafe.dll
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhone\Debug\System.Text.Encodings.Web.dll
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhone\Debug\System.Text.Json.dll
@@ -22,7 +20,6 @@ C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhone\Debug\FFIm
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhone\Debug\FFImageLoading.Forms.Platform.pdb
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhone\Debug\FFImageLoading.Forms.dll
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhone\Debug\FFImageLoading.Forms.pdb
-C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhone\Debug\Firebase.Core.dll
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhone\Debug\Xamarin.Forms.Core.dll
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhone\Debug\Xamarin.Forms.Core.pdb
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhone\Debug\Xamarin.Forms.Platform.dll
@@ -64,7 +61,6 @@ C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhone\Debug\vi\X
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhone\Debug\zh-HK\Xamarin.Forms.Platform.iOS.resources.dll
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhone\Debug\zh-Hans\Xamarin.Forms.Platform.iOS.resources.dll
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhone\Debug\zh-Hant\Xamarin.Forms.Platform.iOS.resources.dll
-C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhone\Debug\Google.MobileAds.dll
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhone\Debug\Movies.dll
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhone\Debug\Xamarin.Forms.Extensions.dll
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhone\Debug\System.Extensions.dll
@@ -115,8 +111,6 @@ C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Debug\devi
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Debug\device-builds\iphone11.8-16.1\CopyFilesToMac\SQLitePCLRaw.nativelibrary.dll.ReferenceCopyLocalPaths.stamp
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Debug\device-builds\iphone11.8-16.1\CopyFilesToMac\SQLitePCLRaw.core.dll.ReferenceCopyLocalPaths.stamp
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Debug\device-builds\iphone11.8-16.1\CopyFilesToMac\SQLitePCLRaw.provider.dynamic_cdecl.dll.ReferenceCopyLocalPaths.stamp
-C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Debug\device-builds\iphone11.8-16.1\CopyFilesToMac\System.Buffers.dll.ReferenceCopyLocalPaths.stamp
-C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Debug\device-builds\iphone11.8-16.1\CopyFilesToMac\System.Memory.dll.ReferenceCopyLocalPaths.stamp
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Debug\device-builds\iphone11.8-16.1\CopyFilesToMac\System.Runtime.CompilerServices.Unsafe.dll.ReferenceCopyLocalPaths.stamp
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Debug\device-builds\iphone11.8-16.1\CopyFilesToMac\System.Text.Encodings.Web.dll.ReferenceCopyLocalPaths.stamp
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Debug\device-builds\iphone11.8-16.1\CopyFilesToMac\System.Text.Json.dll.ReferenceCopyLocalPaths.stamp
@@ -131,7 +125,6 @@ C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Debug\devi
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Debug\device-builds\iphone11.8-16.1\CopyFilesToMac\FFImageLoading.Forms.Platform.pdb.ReferenceCopyLocalPaths.stamp
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Debug\device-builds\iphone11.8-16.1\CopyFilesToMac\FFImageLoading.Forms.dll.ReferenceCopyLocalPaths.stamp
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Debug\device-builds\iphone11.8-16.1\CopyFilesToMac\FFImageLoading.Forms.pdb.ReferenceCopyLocalPaths.stamp
-C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Debug\device-builds\iphone11.8-16.1\CopyFilesToMac\Firebase.Core.dll.ReferenceCopyLocalPaths.stamp
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Debug\device-builds\iphone11.8-16.1\CopyFilesToMac\Xamarin.Forms.Core.dll.ReferenceCopyLocalPaths.stamp
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Debug\device-builds\iphone11.8-16.1\CopyFilesToMac\Xamarin.Forms.Core.pdb.ReferenceCopyLocalPaths.stamp
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Debug\device-builds\iphone11.8-16.1\CopyFilesToMac\Xamarin.Forms.Platform.dll.ReferenceCopyLocalPaths.stamp
@@ -140,7 +133,6 @@ C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Debug\devi
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Debug\device-builds\iphone11.8-16.1\CopyFilesToMac\Xamarin.Forms.Xaml.dll.ReferenceCopyLocalPaths.stamp
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Debug\device-builds\iphone11.8-16.1\CopyFilesToMac\Xamarin.Forms.Xaml.pdb.ReferenceCopyLocalPaths.stamp
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Debug\device-builds\iphone11.8-16.1\CopyFilesToMac\Xamarin.Forms.Platform.iOS.resources.dll.ReferenceCopyLocalPaths.stamp
-C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Debug\device-builds\iphone11.8-16.1\CopyFilesToMac\Google.MobileAds.dll.ReferenceCopyLocalPaths.stamp
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Debug\device-builds\iphone11.8-16.1\CopyFilesToMac\Movies.dll.ReferenceCopyLocalPaths.stamp
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Debug\device-builds\iphone11.8-16.1\CopyFilesToMac\Xamarin.Forms.Extensions.dll.ReferenceCopyLocalPaths.stamp
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Debug\device-builds\iphone11.8-16.1\CopyFilesToMac\System.Extensions.dll.ReferenceCopyLocalPaths.stamp
@@ -153,3 +145,9 @@ C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Debug\devi
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Debug\device-builds\iphone11.8-16.1\CopyFilesToMac\Movies.iOS.pdb.DebugSymbolsProjectOutputGroupOutput.stamp
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Debug\device-builds\iphone11.8-16.1\CopyFilesToMac\Entitlements.plist.NoneOutput.stamp
 C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Debug\device-builds\iphone11.8-16.1\CopyFilesToMac\Info.plist.NoneOutput.stamp
+C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhone\Debug\System.Buffers.dll
+C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Debug\device-builds\iphone11.8-16.1\CopyFilesToMac\System.Buffers.dll.ReferenceCopyLocalPaths.stamp
+C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhone\Debug\Firebase.Core.dll
+C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\bin\iPhone\Debug\Google.MobileAds.dll
+C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Debug\device-builds\iphone11.8-16.1\CopyFilesToMac\Firebase.Core.dll.ReferenceCopyLocalPaths.stamp
+C:\Users\Flint\Documents\MovieApp\Movies\Movies\Movies.iOS\obj\iPhone\Debug\device-builds\iphone11.8-16.1\CopyFilesToMac\Google.MobileAds.dll.ReferenceCopyLocalPaths.stamp

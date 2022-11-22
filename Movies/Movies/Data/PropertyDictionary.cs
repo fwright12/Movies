@@ -103,6 +103,8 @@ namespace Movies
             {
                 Properties.Add(property, values = new List<object>());
             }
+            // Clear for now to discard old values - there should only ever be one value per source
+            values.Clear();
 
             values.Add(value);
         }

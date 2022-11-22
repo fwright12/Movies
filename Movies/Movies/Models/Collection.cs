@@ -99,11 +99,11 @@ namespace Movies.Models
             return types;
         }
 
-        private static async Task<List<T>> Buffer<T>(IAsyncEnumerator<T> itr, int? count)
+        private static async Task<List<T>> Buffer<T>(IAsyncEnumerator<T> itr, int? count, CancellationToken cancellationToken = default)
         {
             var buffer = new List<T>();
 
-            for (int i = 0; !(i >= count) && await itr.MoveNextAsync(); i++)
+            for (int i = 0; !(i >= count) && !cancellationToken.IsCancellationRequested && await itr.MoveNextAsync(); i++)
             {
                 buffer.Add(itr.Current);
             }
@@ -111,9 +111,9 @@ namespace Movies.Models
             return buffer;
         }
 
-        public static async IAsyncEnumerable<Item> Filter(IAsyncEnumerable<Item> items, FilterPredicate filter)
+        public static async IAsyncEnumerable<Item> Filter(IAsyncEnumerable<Item> items, FilterPredicate filter, CancellationToken cancellationToken = default)
         {
-            var itr = items.GetAsyncEnumerator();
+            var itr = items.GetAsyncEnumerator(cancellationToken);
             List<Item> buffer;
             var size = 10;
             var watch = System.Diagnostics.Stopwatch.StartNew();
@@ -121,12 +121,12 @@ namespace Movies.Models
 
             do
             {
-                buffer = await Buffer(itr, size);
+                buffer = await Buffer(itr, size, cancellationToken);
                 count += buffer.Count;
                 if (count % 100 == 0) Print.Log($"Loaded {count}");
                 var evaluated = await Task.WhenAll(buffer.Select(item => ItemHelpers.Evaluate(item, filter)));
 
-                for (int i = 0; i < buffer.Count; i++)
+                for (int i = 0; i < buffer.Count && !cancellationToken.IsCancellationRequested; i++)
                 {
                     if (evaluated[i])
                     {
@@ -134,15 +134,17 @@ namespace Movies.Models
                     }
                 }
             }
-            while (buffer.Count == size);
+            while (buffer.Count == size && !cancellationToken.IsCancellationRequested);
             watch.Stop();
             Print.Log($"loaded {count} items in {watch.Elapsed}");
         }
 
-        public static async Task<bool> Evaluate(Item item, FilterPredicate filter, PropertyDictionary properties = null, ItemInfoCache cache = null)
+        public static IJsonCache PersistentCache { get; set; }
+
+        public static async Task<bool> Evaluate(Item item, FilterPredicate filter)//, PropertyDictionary properties = null, ItemInfoCache cache = null)
         {
             var details = new Lazy<PropertyDictionary>(() => DataService.Instance.GetDetails(item));
-            var predicates = DefferedPredicates(filter).GetAsyncEnumerator();
+            var predicates = DefferedPredicates(filter, DataService.Instance.GetDetails(item), PersistentCache).GetAsyncEnumerator();
 
             object lhs = ViewModels.CollectionViewModel.ITEM_TYPE;
             object value = item.GetType();
@@ -683,6 +685,6 @@ namespace Movies.Models
             }
         }
 
-        protected virtual IAsyncEnumerable<Item> GetFilteredItems(FilterPredicate filter, CancellationToken cancellationToken = default) => ItemHelpers.Filter(this, filter);
+        protected virtual IAsyncEnumerable<Item> GetFilteredItems(FilterPredicate filter, CancellationToken cancellationToken = default) => ItemHelpers.Filter(this, filter, cancellationToken);
     }
 }

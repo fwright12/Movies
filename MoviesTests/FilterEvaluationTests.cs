@@ -25,11 +25,6 @@
 
         public FilterEvaluationTests()
         {
-#if DEBUG
-            Movies.HttpClient.AllowLiveRequests = false;
-            Movies.HttpClient.BreakOnRequest = false;
-            Movies.HttpClient.SimulatedDelay = 1000;
-#endif
             new TMDB(string.Empty, string.Empty, new DummyJsonCache());
         }
 
