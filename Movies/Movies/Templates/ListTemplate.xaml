@@ -83,379 +83,383 @@
 
         <Grid RowDefinitions="*, Auto"
               RowSpacing="0">
-            <RefreshView BindingContext="{Binding Source}"
-                         Style="{StaticResource AsyncListViewModelRefreshStyle}">
-                <CollectionView x:Name="collectionView"
-                                BindingContext="{Binding Parent.Parent.BindingContext, Source={RelativeSource Self}}"
-                                ext:VisualStateManager.VisualState="{Binding ListLayout}"
-                                ItemsSource="{Binding Source.Items}"
-                                views:CollectionViewExt.IsEditing="{Binding Editing}"
-                                SelectionMode="{Binding Editing, Converter={Static views:BoolToSelectionModeConverter.Instance}}"
-                                RemainingItemsThresholdReachedCommand="{Binding Source.LoadMoreCommand}"
-                                RemainingItemsThreshold="4"
-                                VerticalScrollBarVisibility="Default"
-                                Grid.Row="0">
-                    <VisualElement.Effects>
-                        <views:FixiOSCollectionViewScrollsToTopPlatformEffect />
-                    </VisualElement.Effects>
+            <CollectionView x:Name="collectionView"
+                            ext:VisualStateManager.VisualState="{Binding ListLayout}"
+                            ItemsSource="{Binding Source.Items}"
+                            views:CollectionViewExt.IsEditing="{Binding Editing}"
+                            SelectionMode="{Binding Editing, Converter={Static views:BoolToSelectionModeConverter.Instance}}"
+                            RemainingItemsThresholdReachedCommand="{Binding Source.LoadMoreCommand}"
+                            RemainingItemsThreshold="4"
+                            VerticalScrollBarVisibility="Default"
+                            Grid.Row="0">
+                <VisualElement.Effects>
+                    <views:FixiOSCollectionViewScrollsToTopPlatformEffect />
+                </VisualElement.Effects>
 
-                    <VisualElement.Resources>
-                        <ResourceDictionary>
-                            <ResourceDictionary.MergedDictionaries>
-                                <views:InfoPageResources />
-                            </ResourceDictionary.MergedDictionaries>
-                        </ResourceDictionary>
+                <VisualElement.Resources>
+                    <ResourceDictionary>
+                        <ResourceDictionary.MergedDictionaries>
+                            <views:InfoPageResources />
+                        </ResourceDictionary.MergedDictionaries>
+                    </ResourceDictionary>
 
-                        <templates:DetailedMovieTemplate x:Key="DetailedMediaTemplate" />
+                    <templates:DetailedMovieTemplate x:Key="DetailedMediaTemplate" />
 
-                        <forms:TypeTemplateSelector x:Key="ListSelector">
-                            <forms:TypeTemplateSelector.Templates>
-                                <forms:TypeDataTemplate Type="{x:Type viewmodels:MovieViewModel}"
-                                                        Template="{StaticResource DetailedMediaTemplate}" />
-                                <forms:TypeDataTemplate Type="{x:Type viewmodels:TVShowViewModel}"
-                                                        Template="{StaticResource DetailedMediaTemplate}" />
-                                <forms:TypeDataTemplate Type="{x:Type viewmodels:TVEpisodeViewModel}">
-                                    <templates:EpisodeTemplate />
-                                </forms:TypeDataTemplate>
-                                <forms:TypeDataTemplate Type="{x:Type viewmodels:PersonViewModel}">
-                                    <templates:PersonTemplate />
-                                </forms:TypeDataTemplate>
-                                <forms:TypeDataTemplate Type="{x:Type viewmodels:CollectionViewModel}">
-                                    <templates:DetailedCollectionTemplate />
-                                </forms:TypeDataTemplate>
-                            </forms:TypeTemplateSelector.Templates>
-                        </forms:TypeTemplateSelector>
+                    <forms:TypeTemplateSelector x:Key="ListSelector">
+                        <forms:TypeTemplateSelector.Templates>
+                            <forms:TypeDataTemplate Type="{x:Type viewmodels:MovieViewModel}"
+                                                    Template="{StaticResource DetailedMediaTemplate}" />
+                            <forms:TypeDataTemplate Type="{x:Type viewmodels:TVShowViewModel}"
+                                                    Template="{StaticResource DetailedMediaTemplate}" />
+                            <forms:TypeDataTemplate Type="{x:Type viewmodels:TVEpisodeViewModel}">
+                                <templates:EpisodeTemplate />
+                            </forms:TypeDataTemplate>
+                            <forms:TypeDataTemplate Type="{x:Type viewmodels:PersonViewModel}">
+                                <templates:PersonTemplate />
+                            </forms:TypeDataTemplate>
+                            <forms:TypeDataTemplate Type="{x:Type viewmodels:CollectionViewModel}">
+                                <templates:DetailedCollectionTemplate />
+                            </forms:TypeDataTemplate>
+                        </forms:TypeTemplateSelector.Templates>
+                    </forms:TypeTemplateSelector>
 
-                        <ControlTemplate x:Key="ListSwipeTemplate">
-                            <SwipeView>
-                                <SwipeView.RightItems>
-                                    <SwipeItems>
-                                        <SwipeItem Text="Delete"
-                                                   BackgroundColor="Red"
-                                                   Command="{Binding RemoveCommand, Source={RelativeSource AncestorType={x:Type viewmodels:ListViewModel}}, Mode=OneTime}"
-                                                   CommandParameter="{TemplateBinding BindingContext.Item}" />
-                                    </SwipeItems>
-                                </SwipeView.RightItems>
+                    <ControlTemplate x:Key="ListSwipeTemplate">
+                        <SwipeView>
+                            <SwipeView.RightItems>
+                                <SwipeItems>
+                                    <SwipeItem Text="Delete"
+                                               BackgroundColor="Red"
+                                               Command="{Binding RemoveCommand, Source={RelativeSource AncestorType={x:Type viewmodels:ListViewModel}}, Mode=OneTime}"
+                                               CommandParameter="{TemplateBinding BindingContext.Item}" />
+                                </SwipeItems>
+                            </SwipeView.RightItems>
 
-                                <ContentPresenter />
-                            </SwipeView>
-                        </ControlTemplate>
+                            <ContentPresenter />
+                        </SwipeView>
+                    </ControlTemplate>
 
-                        <ControlTemplate x:Key="EditGridTemplate">
-                            <Grid InputTransparent="True">
-                                <ContentPresenter />
+                    <ControlTemplate x:Key="EditGridTemplate">
+                        <Grid InputTransparent="True">
+                            <ContentPresenter />
 
-                                <CheckBox IsChecked="{TemplateBinding Selected, Mode=TwoWay}"
-                                          HorizontalOptions="End"
-                                          VerticalOptions="Start" />
-                            </Grid>
-                        </ControlTemplate>
+                            <CheckBox IsChecked="{TemplateBinding Selected, Mode=TwoWay}"
+                                      HorizontalOptions="End"
+                                      VerticalOptions="Start" />
+                        </Grid>
+                    </ControlTemplate>
 
-                        <views:EditDataTemplateSelector x:Key="EditListSelector"
-                                                        Main="{StaticResource ListSelector}"
-                                                        SwipeTemplate="{StaticResource ListSwipeTemplate}"
-                                                        EditTemplate="{StaticResource EditListTemplate}" />
+                    <views:EditDataTemplateSelector x:Key="EditListSelector"
+                                                    Main="{StaticResource ListSelector}"
+                                                    SwipeTemplate="{StaticResource ListSwipeTemplate}"
+                                                    EditTemplate="{StaticResource EditListTemplate}" />
 
-                        <views:EditDataTemplateSelector x:Key="EditGridSelector"
-                                                        Main="{StaticResource CompressedListSelector}"
-                                                        EditTemplate="{StaticResource EditGridTemplate}" />
-                    </VisualElement.Resources>
+                    <views:EditDataTemplateSelector x:Key="EditGridSelector"
+                                                    Main="{StaticResource CompressedListSelector}"
+                                                    EditTemplate="{StaticResource EditGridTemplate}" />
+                </VisualElement.Resources>
 
-                    <VisualStateManager.VisualStateGroups>
-                        <VisualStateGroup>
-                            <VisualState Name="List">
-                                <VisualState.Setters>
-                                    <Setter Property="ItemTemplate">
-                                        <Binding Path="Editable">
-                                            <Binding.Converter>
-                                                <forms:BoolToObjectConverter TrueObject="{StaticResource EditListSelector}"
-                                                                             FalseObject="{StaticResource ListSelector}" />
-                                            </Binding.Converter>
-                                        </Binding>
-                                    </Setter>
+                <VisualStateManager.VisualStateGroups>
+                    <VisualStateGroup>
+                        <VisualState Name="List">
+                            <VisualState.Setters>
+                                <Setter Property="ItemTemplate">
+                                    <Binding Path="Editable">
+                                        <Binding.Converter>
+                                            <forms:BoolToObjectConverter TrueObject="{StaticResource EditListSelector}"
+                                                                         FalseObject="{StaticResource ListSelector}" />
+                                        </Binding.Converter>
+                                    </Binding>
+                                </Setter>
 
-                                    <Setter Property="ItemsLayout">
-                                        <LinearItemsLayout Orientation="Vertical"
-                                                           ItemSpacing="5" />
-                                    </Setter>
+                                <Setter Property="ItemsLayout">
+                                    <LinearItemsLayout Orientation="Vertical"
+                                                       ItemSpacing="5" />
+                                </Setter>
 
-                                    <Setter Property="ItemSizingStrategy"
-                                            Value="MeasureAllItems" />
-                                </VisualState.Setters>
-                            </VisualState>
+                                <Setter Property="ItemSizingStrategy"
+                                        Value="MeasureAllItems" />
+                            </VisualState.Setters>
+                        </VisualState>
 
-                            <VisualState Name="Grid">
-                                <VisualState.Setters>
-                                    <Setter Property="ItemTemplate">
-                                        <Binding Path="Editable">
-                                            <Binding.Converter>
-                                                <forms:BoolToObjectConverter TrueObject="{StaticResource EditGridSelector}"
-                                                                             FalseObject="{StaticResource CompressedListSelector}" />
-                                            </Binding.Converter>
-                                        </Binding>
-                                    </Setter>
+                        <VisualState Name="Grid">
+                            <VisualState.Setters>
+                                <Setter Property="ItemTemplate">
+                                    <Binding Path="Editable">
+                                        <Binding.Converter>
+                                            <forms:BoolToObjectConverter TrueObject="{StaticResource EditGridSelector}"
+                                                                         FalseObject="{StaticResource CompressedListSelector}" />
+                                        </Binding.Converter>
+                                    </Binding>
+                                </Setter>
 
-                                    <Setter Property="Style">
-                                        <Style TargetType="CollectionView">
-                                            <Setter Property="ItemsLayout">
-                                                <GridItemsLayout Orientation="Vertical"
-                                                                 Span="2"
-                                                                 HorizontalItemSpacing="5"
-                                                                 VerticalItemSpacing="5" />
-                                            </Setter>
+                                <Setter Property="Style">
+                                    <Style TargetType="CollectionView">
+                                        <Setter Property="ItemsLayout">
+                                            <GridItemsLayout Orientation="Vertical"
+                                                             Span="2"
+                                                             HorizontalItemSpacing="5"
+                                                             VerticalItemSpacing="5" />
+                                        </Setter>
 
-                                            <Style.Triggers>
-                                                <DataTrigger TargetType="CollectionView"
-                                                             Binding="{Binding Converter={Static forms:GetTypeConverter.Instance}}"
-                                                             Value="{x:Type viewmodels:TVSeasonViewModel}">
-                                                    <Setter Property="ItemsLayout">
-                                                        <LinearItemsLayout Orientation="Vertical"
-                                                                           ItemSpacing="5" />
-                                                    </Setter>
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </Setter>
+                                        <Style.Triggers>
+                                            <DataTrigger TargetType="CollectionView"
+                                                         Binding="{Binding Converter={Static forms:GetTypeConverter.Instance}}"
+                                                         Value="{x:Type viewmodels:TVSeasonViewModel}">
+                                                <Setter Property="ItemsLayout">
+                                                    <LinearItemsLayout Orientation="Vertical"
+                                                                       ItemSpacing="5" />
+                                                </Setter>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Setter>
 
-                                    <Setter Property="ItemSizingStrategy"
-                                            Value="MeasureAllItems" />
-                                </VisualState.Setters>
-                            </VisualState>
-                        </VisualStateGroup>
-                    </VisualStateManager.VisualStateGroups>
+                                <Setter Property="ItemSizingStrategy"
+                                        Value="MeasureAllItems" />
+                            </VisualState.Setters>
+                        </VisualState>
+                    </VisualStateGroup>
+                </VisualStateManager.VisualStateGroups>
 
-                    <!--<forms:Ads.CollectionAds>
+                <!--<forms:Ads.CollectionAds>
                     <forms:AdInfo Frequency="10"
                                   Template="{StaticResource InlineBannerTemplate}" />
                 </forms:Ads.CollectionAds>-->
 
-                    <CollectionView.Header>
-                        <StackLayout Orientation="Vertical"
-                                     Spacing="20"
-                                     Padding="10,0"
-                                     views:Extensions.Batch="{OnPlatform iOS={Binding BindingContext, Source={x:Reference root}}}">
-                            <forms:AdView Style="{StaticResource BannerAdStyle}"
-                                          AdUnitID="{Static movies:App.TopBannerAdUnitID}" />
+                <CollectionView.Header>
+                    <StackLayout Orientation="Vertical"
+                                 Spacing="20"
+                                 Padding="10,0"
+                                 views:Extensions.Batch="{Binding BindingContext, Source={x:Reference root}}">
+                        <forms:AdView Style="{StaticResource BannerAdStyle}"
+                                      AdUnitID="{Static movies:App.TopBannerAdUnitID}" />
+
+                        <FlexLayout Direction="Row"
+                                    Style="{StaticResource EditingOnlyStyle}">
+                            <Label Text="Name: " />
+
+                            <ScrollView Orientation="{OnPlatform iOS='Neither'}"
+                                        FlexLayout.Grow="1">
+                                <Entry Text="{Binding Name, Mode=TwoWay}"
+                                       ReturnType="Done" />
+                            </ScrollView>
+                        </FlexLayout>
+
+                        <ContentView IsVisible="{Binding ControlTemplate, Source={RelativeSource Self}, Converter={Static forms:FalseIfNullConverter.Instance}}">
+                            <VisualElement.Triggers>
+                                <DataTrigger TargetType="TemplatedView"
+                                             Binding="{TemplateBinding Content, Converter={Static forms:FalseIfNullConverter.Instance}}"
+                                             Value="True">
+                                    <Setter Property="ControlTemplate"
+                                            Value="{StaticResource BasicInfoTemplate}" />
+                                </DataTrigger>
+                            </VisualElement.Triggers>
+                            
+                            <ContentPresenter />
+                        </ContentView>
+
+                        <views:SectionView Title="{Binding DescriptionLabel}"
+                                           ext:ContentView.ItemSource="{Binding Description}"
+                                           Style="{StaticResource OptionalContentViewStyle}"
+                                           StyleClass="EditingOnly"
+                                           views:EditView1.IsEditing="{Binding Editing}"
+                                           views:EditView1.Display="{StaticResource InfoTemplateSelector}">
+                            <views:EditView1.Edit>
+                                <Frame BorderColor="LightGray">
+                                    <Editor Text="{Binding Item.Description, Mode=TwoWay}"
+                                            TextColor="{AppThemeBinding Light={StaticResource LightPrimaryText}, Dark={StaticResource DarkPrimaryText}}"
+                                            HeightRequest="200"
+                                            Placeholder="Enter a description..." />
+                                </Frame>
+                            </views:EditView1.Edit>
+                        </views:SectionView>
+
+                        <views:SectionView Title="Sync"
+                                           Style="{StaticResource CardStyle}"
+                                           Padding="{StaticResource PagePadding}"
+                                           IsVisible="{Binding Editing, FallbackValue='False'}">
+                            <StackLayout Orientation="Vertical">
+                                <StackLayout Orientation="Vertical"
+                                             BindableLayout.ItemsSource="{Binding SyncWith}"
+                                             Spacing="{Binding Spacing, Source={RelativeSource AncestorType={x:Type StackLayout}}}">
+                                    <BindableLayout.ItemTemplate>
+                                        <DataTemplate>
+                                            <FlexLayout Direction="Row"
+                                                        JustifyContent="SpaceBetween">
+                                                <Label Text="{Binding Provider.Name}" />
+
+                                                <Button Text="Remove"
+                                                        TextColor="Red"
+                                                        IsVisible="{Binding IsEnabled, Source={RelativeSource Self}}"
+                                                        Command="{Binding RemoveSyncCommand, Source={RelativeSource AncestorType={x:Type viewmodels:ListViewModel}}}"
+                                                        CommandParameter="{Binding}" />
+                                            </FlexLayout>
+                                        </DataTemplate>
+                                    </BindableLayout.ItemTemplate>
+                                </StackLayout>
+
+                                <Button Text="+ Add Source"
+                                        HorizontalOptions="Start"
+                                        IsVisible="{Binding IsEnabled, Source={RelativeSource Self}}"
+                                        Command="{Binding AddSyncSourceCommand, Source={Static Application.Current}}"
+                                        CommandParameter="{Binding}" />
+                            </StackLayout>
+                        </views:SectionView>
+
+                        <Button Text="Delete List"
+                                TextColor="Red"
+                                HorizontalOptions="Center"
+                                Command="{Binding DeleteListCommand, Source={Static Application.Current}}"
+                                CommandParameter="{Binding}"
+                                Style="{StaticResource EditingOnlyStyle}" />
+
+                        <Grid x:Name="sort"
+                              ColumnDefinitions="*, Auto"
+                              Padding="0,0,0,5">
+                            <VisualElement.Resources>
+                                <Style TargetType="Button">
+                                    <Setter Property="WidthRequest"
+                                            Value="{Binding Height, Source={RelativeSource Self}}" />
+                                    <Setter Property="FontFamily"
+                                            Value="{StaticResource IoniconsFont}" />
+                                    <Setter Property="FontSize"
+                                            Value="Title" />
+                                </Style>
+                            </VisualElement.Resources>
+
+                            <Label Text="{Binding ListLabel}"
+                                   IsVisible="{Binding Text, Source={RelativeSource Self}, Converter={Static forms:FalseIfNullConverter.Instance}}"
+                                   FontSize="Large"
+                                   Style="{StaticResource ValueDescriptorStyle}"
+                                   VerticalOptions="Center"
+                                   Grid.Column="0" />
 
                             <FlexLayout Direction="Row"
-                                        Style="{StaticResource EditingOnlyStyle}">
-                                <Label Text="Name: " />
-
-                                <ScrollView Orientation="{OnPlatform iOS='Neither'}"
-                                            FlexLayout.Grow="1">
-                                    <Entry Text="{Binding Name, Mode=TwoWay}"
-                                           ReturnType="Done" />
-                                </ScrollView>
-                            </FlexLayout>
-
-                            <ContentView ControlTemplate="{StaticResource BasicInfoTemplate}"
-                                         IsVisible="{TemplateBinding Content, Converter={Static forms:FalseIfNullConverter.Instance}}">
-                                <ContentPresenter />
-                            </ContentView>
-
-                            <views:SectionView Title="{Binding DescriptionLabel}"
-                                               ext:ContentView.ItemSource="{Binding Description}"
-                                               Style="{StaticResource OptionalContentViewStyle}"
-                                               StyleClass="EditingOnly"
-                                               views:EditView1.IsEditing="{Binding Editing}"
-                                               views:EditView1.Display="{StaticResource InfoTemplateSelector}">
-                                <views:EditView1.Edit>
-                                    <Frame BorderColor="LightGray">
-                                        <Editor Text="{Binding Item.Description, Mode=TwoWay}"
-                                                TextColor="{AppThemeBinding Light={StaticResource LightPrimaryText}, Dark={StaticResource DarkPrimaryText}}"
-                                                HeightRequest="200"
-                                                Placeholder="Enter a description..." />
-                                    </Frame>
-                                </views:EditView1.Edit>
-                            </views:SectionView>
-
-                            <views:SectionView Title="Sync"
-                                               Style="{StaticResource CardStyle}"
-                                               Padding="{StaticResource PagePadding}"
-                                               IsVisible="{Binding Editing, FallbackValue='False'}">
-                                <StackLayout Orientation="Vertical">
-                                    <StackLayout Orientation="Vertical"
-                                                 BindableLayout.ItemsSource="{Binding SyncWith}"
-                                                 Spacing="{Binding Spacing, Source={RelativeSource AncestorType={x:Type StackLayout}}}">
-                                        <BindableLayout.ItemTemplate>
-                                            <DataTemplate>
-                                                <FlexLayout Direction="Row"
-                                                            JustifyContent="SpaceBetween">
-                                                    <Label Text="{Binding Provider.Name}" />
-
-                                                    <Button Text="Remove"
-                                                            TextColor="Red"
-                                                            IsVisible="{Binding IsEnabled, Source={RelativeSource Self}}"
-                                                            Command="{Binding RemoveSyncCommand, Source={RelativeSource AncestorType={x:Type viewmodels:ListViewModel}}}"
-                                                            CommandParameter="{Binding}" />
-                                                </FlexLayout>
-                                            </DataTemplate>
-                                        </BindableLayout.ItemTemplate>
-                                    </StackLayout>
-
-                                    <Button Text="+ Add Source"
-                                            HorizontalOptions="Start"
-                                            IsVisible="{Binding IsEnabled, Source={RelativeSource Self}}"
-                                            Command="{Binding AddSyncSourceCommand, Source={Static Application.Current}}"
-                                            CommandParameter="{Binding}" />
-                                </StackLayout>
-                            </views:SectionView>
-
-                            <Button Text="Delete List"
-                                    TextColor="Red"
-                                    HorizontalOptions="Center"
-                                    Command="{Binding DeleteListCommand, Source={Static Application.Current}}"
-                                    CommandParameter="{Binding}"
-                                    Style="{StaticResource EditingOnlyStyle}" />
-
-                            <Grid x:Name="sort"
-                                  ColumnDefinitions="*, Auto"
-                                  Padding="0,0,0,5">
-                                <VisualElement.Resources>
-                                    <Style TargetType="Button">
-                                        <Setter Property="WidthRequest"
-                                                Value="{Binding Height, Source={RelativeSource Self}}" />
-                                        <Setter Property="FontFamily"
-                                                Value="{StaticResource IoniconsFont}" />
-                                        <Setter Property="FontSize"
-                                                Value="Title" />
-                                    </Style>
-                                </VisualElement.Resources>
-
-                                <Label Text="{Binding ListLabel}"
-                                       IsVisible="{Binding Text, Source={RelativeSource Self}, Converter={Static forms:FalseIfNullConverter.Instance}}"
-                                       FontSize="Large"
-                                       Style="{StaticResource ValueDescriptorStyle}"
-                                       VerticalOptions="Center"
-                                       Grid.Column="0" />
-
-                                <FlexLayout Direction="Row"
-                                            Grid.Column="0">
-                                    <VisualElement.Triggers>
-                                        <DataTrigger TargetType="VisualElement"
-                                                     Binding="{Binding Items.Count, FallbackValue=0}"
-                                                     Value="-1">
-                                            <Setter Property="IsVisible"
-                                                    Value="False" />
-                                        </DataTrigger>
-
-                                        <DataTrigger TargetType="VisualElement"
-                                                     Binding="{Binding SortOptions.Count, FallbackValue=0}"
-                                                     Value="0">
-                                            <Setter Property="IsVisible"
-                                                    Value="False" />
-                                        </DataTrigger>
-                                    </VisualElement.Triggers>
-
-                                    <Label Text="Sort:"
-                                           FontSize="Default" />
-
-                                    <Button Command="{Binding ToggleSortOrder}">
-                                        <Button.Text>
-                                            <Binding Path="SortAscending">
-                                                <Binding.Converter>
-                                                    <forms:BoolToObjectConverter TrueObject="&#xf10e;"
-                                                                                 FalseObject="&#xf105;" />
-                                                </Binding.Converter>
-                                            </Binding>
-                                        </Button.Text>
-                                    </Button>
-
-                                    <Picker BindingContext="{Binding}"
-                                            x:DataType="{x:Null}"
-                                            ItemsSource="{Binding SortOptions}"
-                                            SelectedItem="{Binding SortBy}"
-                                            BackgroundColor="Transparent"
-                                            TextColor="{StaticResource Primary}"
-                                            TitleColor="{Binding TextColor, Source={RelativeSource Self}}"
-                                            WidthRequest="0"
-                                            FlexLayout.Grow="1"
-                                            FlexLayout.Shrink="0" />
-                                </FlexLayout>
-
-                                <StackLayout x:Name="liststates"
-                                             Orientation="Horizontal"
-                                             Spacing="0"
-                                             Grid.Column="1">
-                                    <VisualElement.Resources>
-                                        <x:Int32 x:Key="zero">0</x:Int32>
-                                    </VisualElement.Resources>
-
-                                    <Button Text="{OnPlatform Android=&#xf38b;, iOS=&#xf31b;}"
-                                            Command="{Binding OpenFiltersCommand, Source={Static Application.Current}}"
-                                            CommandParameter="{Binding Source={RelativeSource AncestorType={x:Type forms:DrawerView}}}"
-                                            IsVisible="{Binding Filters.Editors.Count, Converter={Static forms:ObjectToFalseConverter.Instance}, ConverterParameter={StaticResource zero}}" />
-
-                                    <Button Command="{Binding ToggleListLayoutCommand}">
-                                        <VisualStateManager.VisualStateGroups>
-                                            <VisualStateGroup Name="CommonStates">
-                                                <VisualState Name="Normal" />
-                                            </VisualStateGroup>
-
-                                            <VisualStateGroup>
-                                                <VisualState Name="List">
-                                                    <VisualState.StateTriggers>
-                                                        <CompareStateTrigger Property="{Binding ListLayout}"
-                                                                             Value="{Static viewmodels:ListLayouts.List}" />
-                                                    </VisualState.StateTriggers>
-
-                                                    <VisualState.Setters>
-                                                        <Setter Property="Text"
-                                                                Value="&#xf13f;" />
-                                                    </VisualState.Setters>
-                                                </VisualState>
-
-                                                <VisualState Name="Grid">
-                                                    <VisualState.StateTriggers>
-                                                        <StateTrigger IsActive="True" />
-                                                    </VisualState.StateTriggers>
-
-                                                    <VisualState.Setters>
-                                                        <Setter Property="Text"
-                                                                Value="{OnPlatform iOS='&#xf453;', Android='&#xf391;'}" />
-                                                    </VisualState.Setters>
-                                                </VisualState>
-                                            </VisualStateGroup>
-                                        </VisualStateManager.VisualStateGroups>
-                                    </Button>
-                                </StackLayout>
-                            </Grid>
-                        </StackLayout>
-                    </CollectionView.Header>
-
-                    <CollectionView.Footer>
-                        <StackLayout Orientation="Vertical"
-                                     Spacing="10"
-                                     Padding="10,0">
-                            <views:SectionView Title="People"
-                                               IsVisible="False">
+                                        Grid.Column="0">
                                 <VisualElement.Triggers>
                                     <DataTrigger TargetType="VisualElement"
-                                                 Binding="{Binding Converter={Static forms:GetTypeConverter.Instance}}"
-                                                 Value="{x:Type viewmodels:TVSeasonViewModel}">
+                                                 Binding="{Binding Items.Count, FallbackValue=0}"
+                                                 Value="-1">
                                         <Setter Property="IsVisible"
-                                                Value="True" />
+                                                Value="False" />
+                                    </DataTrigger>
+
+                                    <DataTrigger TargetType="VisualElement"
+                                                 Binding="{Binding SortOptions.Count, FallbackValue=0}"
+                                                 Value="0">
+                                        <Setter Property="IsVisible"
+                                                Value="False" />
                                     </DataTrigger>
                                 </VisualElement.Triggers>
 
-                                <StackLayout Orientation="Vertical"
-                                             views:Extensions.Batch="{OnPlatform Android={Binding BindingContext, Source={x:Reference root}}}">
-                                    <views:SectionView Title="Cast"
-                                                       ext:ContentView.ItemSource="{Binding Cast, TargetNullValue={StaticResource EmptyCredits}}"
-                                                       Style="{StaticResource InfoSubsectionStyle}" />
+                                <Label Text="Sort:"
+                                       FontSize="Default" />
 
-                                    <views:SectionView Title="Crew"
-                                                       ext:ContentView.ItemSource="{Binding Crew, TargetNullValue={StaticResource EmptyCredits}}"
-                                                       Style="{StaticResource InfoSubsectionStyle}" />
-                                </StackLayout>
-                            </views:SectionView>
+                                <Button Command="{Binding ToggleSortOrder}">
+                                    <Button.Text>
+                                        <Binding Path="SortAscending">
+                                            <Binding.Converter>
+                                                <forms:BoolToObjectConverter TrueObject="&#xf10e;"
+                                                                             FalseObject="&#xf105;" />
+                                            </Binding.Converter>
+                                        </Binding>
+                                    </Button.Text>
+                                </Button>
 
-                            <forms:AdView Style="{StaticResource BannerAdStyle}"
-                                          AdUnitID="{Static movies:App.BottomBannerAdUnitID}" />
-                        </StackLayout>
-                    </CollectionView.Footer>
+                                <Picker BindingContext="{Binding}"
+                                        x:DataType="{x:Null}"
+                                        ItemsSource="{Binding SortOptions}"
+                                        SelectedItem="{Binding SortBy}"
+                                        BackgroundColor="Transparent"
+                                        TextColor="{StaticResource Primary}"
+                                        TitleColor="{Binding TextColor, Source={RelativeSource Self}}"
+                                        WidthRequest="0"
+                                        FlexLayout.Grow="1"
+                                        FlexLayout.Shrink="0" />
+                            </FlexLayout>
 
-                    <!--<VisualElement.Triggers>
+                            <StackLayout x:Name="liststates"
+                                         Orientation="Horizontal"
+                                         Spacing="0"
+                                         Grid.Column="1">
+                                <VisualElement.Resources>
+                                    <x:Int32 x:Key="zero">0</x:Int32>
+                                </VisualElement.Resources>
+
+                                <Button Text="{OnPlatform Android=&#xf38b;, iOS=&#xf31b;}"
+                                        Command="{Binding OpenFiltersCommand, Source={Static Application.Current}}"
+                                        CommandParameter="{Binding Source={RelativeSource AncestorType={x:Type forms:DrawerView}}}"
+                                        IsVisible="{Binding Filters.Editors.Count, Converter={Static forms:ObjectToFalseConverter.Instance}, ConverterParameter={StaticResource zero}}" />
+
+                                <Button Command="{Binding ToggleListLayoutCommand}">
+                                    <VisualStateManager.VisualStateGroups>
+                                        <VisualStateGroup Name="CommonStates">
+                                            <VisualState Name="Normal" />
+                                        </VisualStateGroup>
+
+                                        <VisualStateGroup>
+                                            <VisualState Name="List">
+                                                <VisualState.StateTriggers>
+                                                    <CompareStateTrigger Property="{Binding ListLayout}"
+                                                                         Value="{Static viewmodels:ListLayouts.List}" />
+                                                </VisualState.StateTriggers>
+
+                                                <VisualState.Setters>
+                                                    <Setter Property="Text"
+                                                            Value="&#xf13f;" />
+                                                </VisualState.Setters>
+                                            </VisualState>
+
+                                            <VisualState Name="Grid">
+                                                <VisualState.StateTriggers>
+                                                    <StateTrigger IsActive="True" />
+                                                </VisualState.StateTriggers>
+
+                                                <VisualState.Setters>
+                                                    <Setter Property="Text"
+                                                            Value="{OnPlatform iOS='&#xf453;', Android='&#xf391;'}" />
+                                                </VisualState.Setters>
+                                            </VisualState>
+                                        </VisualStateGroup>
+                                    </VisualStateManager.VisualStateGroups>
+                                </Button>
+                            </StackLayout>
+                        </Grid>
+                    </StackLayout>
+                </CollectionView.Header>
+
+                <CollectionView.Footer>
+                    <StackLayout Orientation="Vertical"
+                                 Spacing="10"
+                                 Padding="10,0">
+                        <views:SectionView Title="People"
+                                           IsVisible="False">
+                            <VisualElement.Triggers>
+                                <DataTrigger TargetType="VisualElement"
+                                             Binding="{Binding Converter={Static forms:GetTypeConverter.Instance}}"
+                                             Value="{x:Type viewmodels:TVSeasonViewModel}">
+                                    <Setter Property="IsVisible"
+                                            Value="True" />
+                                </DataTrigger>
+                            </VisualElement.Triggers>
+
+                            <StackLayout Orientation="Vertical">
+                                <views:SectionView Title="Cast"
+                                                   ext:ContentView.ItemSource="{Binding Cast, TargetNullValue={StaticResource EmptyCredits}}"
+                                                   Style="{StaticResource InfoSubsectionStyle}" />
+
+                                <views:SectionView Title="Crew"
+                                                   ext:ContentView.ItemSource="{Binding Crew, TargetNullValue={StaticResource EmptyCredits}}"
+                                                   Style="{StaticResource InfoSubsectionStyle}" />
+                            </StackLayout>
+                        </views:SectionView>
+
+                        <forms:AdView Style="{StaticResource BannerAdStyle}"
+                                      AdUnitID="{Static movies:App.BottomBannerAdUnitID}" />
+                    </StackLayout>
+                </CollectionView.Footer>
+
+                <!--<VisualElement.Triggers>
                 <DataTrigger TargetType="CollectionView"
                              Binding="{Binding Converter={Static views:GetTypeConverter.Instance}}"
                              Value="{x:Type viewmodels:TVSeasonViewModel}">
@@ -475,22 +479,25 @@
                 </DataTrigger>
             </VisualElement.Triggers>-->
 
-                    <CollectionView.EmptyView>
-                        <Binding Path="DrawerContentView.IsVisibl"
-                                 Source="{RelativeSource AncestorType={x:Type forms:DrawerView}}">
-                            <Binding.Converter>
-                                <forms:BoolToObjectConverter TrueObject="Hmm... Nothing to show here. Maybe try a different search?"
-                                                             FalseObject="No items" />
-                            </Binding.Converter>
-                        </Binding>
-                    </CollectionView.EmptyView>
-                </CollectionView>
-            </RefreshView>
+                <CollectionView.EmptyView>
+                    <Binding Path="DrawerContentView.IsVisibl"
+                             Source="{RelativeSource AncestorType={x:Type forms:DrawerView}}">
+                        <Binding.Converter>
+                            <forms:BoolToObjectConverter TrueObject="Hmm... Nothing to show here. Maybe try a different search?"
+                                                         FalseObject="No items" />
+                        </Binding.Converter>
+                    </Binding>
+                </CollectionView.EmptyView>
+            </CollectionView>
 
             <ActivityIndicator IsRunning="{Binding Source.Loading}"
                                HorizontalOptions="Center"
                                VerticalOptions="Center"
                                Grid.Row="0" />
+
+            <RefreshView IsVisible="false"
+                         BindingContext="{Binding Source}"
+                         Style="{StaticResource AsyncListViewModelRefreshStyle}" />
 
             <StackLayout Orientation="Horizontal"
                          Padding="10, 5"

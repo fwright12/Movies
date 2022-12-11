@@ -148,6 +148,8 @@ namespace Movies.ViewModels
 
         private static readonly HashSet<Property> UnavailableFilters = new HashSet<Property>
         {
+            CollectionViewModel.MonetizationType,
+            CollectionViewModel.People,
             Movie.RELEASE_DATE,
             TMDB.SCORE
         };

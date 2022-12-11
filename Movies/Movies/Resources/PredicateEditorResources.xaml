@@ -412,6 +412,10 @@
                                  InputTransparent="True" />
                 </DataTemplate>
             </ItemsView.ItemTemplate>
+
+            <viewmodels:RefreshHelper.RefreshView>
+                <RefreshView Style="{StaticResource AsyncListViewModelRefreshStyle}" />
+            </viewmodels:RefreshHelper.RefreshView>
         </CollectionView>
     </DataTemplate>
 
@@ -424,6 +428,10 @@
                            Padding="20,0,0,0" />
                 </DataTemplate>
             </ItemsView.ItemTemplate>
+
+            <viewmodels:RefreshHelper.RefreshView>
+                <RefreshView Style="{StaticResource AsyncListViewModelRefreshStyle}" />
+            </viewmodels:RefreshHelper.RefreshView>
         </CollectionView>
     </DataTemplate>
 

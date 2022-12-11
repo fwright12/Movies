@@ -36,11 +36,11 @@ namespace Movies
 
             if (!double.IsInfinity(widthConstraint) && double.IsInfinity(heightConstraint))
             {
-                request.Request = new Size(widthConstraint, widthConstraint * Ratio);
+                request.Request = new Size(widthConstraint, (widthConstraint - Padding.HorizontalThickness) * Ratio + Padding.VerticalThickness);
             }
             else if (!double.IsInfinity(heightConstraint) && double.IsInfinity(widthConstraint))
             {
-                request.Request = new Size(heightConstraint / Ratio, heightConstraint);
+                request.Request = new Size((heightConstraint - Padding.VerticalThickness) / Ratio + Padding.HorizontalThickness, heightConstraint);
             }
 
             return request;

@@ -152,19 +152,7 @@ namespace Movies
         public App()
         {
 #if DEBUG
-            var cachedWebRequests = new Dictionary<TMDbRequest, string>
-            {
-                [API.GENRES.GET_MOVIE_LIST] = HttpClient.MOVIE_GENRE_VALUES,
-                [API.GENRES.GET_TV_LIST] = HttpClient.TV_GENRE_VALUES,
-                [API.CERTIFICATIONS.GET_MOVIE_CERTIFICATIONS] = HttpClient.MOVIE_CERTIFICATION_VALUES,
-                [API.CERTIFICATIONS.GET_TV_CERTIFICATIONS] = HttpClient.TV_CERTIFICATION_VALUES,
-                [API.WATCH_PROVIDERS.GET_MOVIE_PROVIDERS] = HttpClient.MOVIE_WATCH_PROVIDER_VALUES,
-                [API.WATCH_PROVIDERS.GET_TV_PROVIDERS] = HttpClient.TV_WATCH_PROVIDER_VALUES,
-                [API.CONFIGURATION.GET_COUNTRIES] = HttpClient.COUNTRIES_VALUES,
-                [API.CONFIGURATION.GET_API_CONFIGURATION] = HttpClient.CONFIGURATION,
-            }.Select(kvp => new KeyValuePair<string, string>(kvp.Key.GetURL(), System.Text.Json.JsonSerializer.Serialize(new JsonResponse(kvp.Value))));
-
-            foreach (var kvp in new Dictionary<string, string>(cachedWebRequests)
+            foreach (var kvp in new Dictionary<string, string>()
             {
                 [GetLoginCredentialsKey(ServiceName.TMDb)] = TMDB_LOGIN_INFO,
                 [GetLoginCredentialsKey(ServiceName.Trakt)] = TRAKT_LOGIN_INFO,
@@ -182,6 +170,7 @@ namespace Movies
 
             _ = SavePropertiesAsync();
 
+
             //UserAppTheme = OSAppTheme.Dark;
 #endif
 
@@ -197,6 +186,8 @@ namespace Movies
             TMDbGetPropertyValues = tmdb.GetPropertyValues;
             tmdb.Company.LogoPath ??= "file://Movies.Logos.TMDbLogo.png";
             trakt.Company.LogoPath ??= "file://Movies.Logos.TraktLogo.png";
+
+            //var test = Properties.Remove(API.CONFIGURATION.GET_COUNTRIES.GetURL());
 
             _ = tmdb.SetValues(Prefs.Regions, API.CONFIGURATION.GET_COUNTRIES, new JsonArrayParser<Region>(new JsonNodeParser<Region>((JsonNode json, out Region region) =>
             {
@@ -268,6 +259,16 @@ namespace Movies
             {
                 new CollectionViewModel("Trending Movies", tmdb.GetTrendingMoviesAsync()),
                 new CollectionViewModel("Trending TV", tmdb.GetTrendingTVShowsAsync()),
+                new CollectionViewModel("Trending People", tmdb.GetTrendingPeopleAsync()),
+            };
+
+            TVExplore = new List<object>
+            {
+                new CollectionViewModel("Trending TV", tmdb.GetTrendingTVShowsAsync()),
+            };
+
+            PeopleExplore = new List<object>
+            {
                 new CollectionViewModel("Trending People", tmdb.GetTrendingPeopleAsync()),
             };
 #else
@@ -464,6 +465,9 @@ namespace Movies
 #else
         private void AddFirst(IList<object> list, CollectionViewModel model)
         {
+            list.Insert(0, model);
+            return;
+
             if (model.Source.Items is INotifyCollectionChanged observable)
             {
                 NotifyCollectionChangedEventHandler handler = null;

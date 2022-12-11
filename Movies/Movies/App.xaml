@@ -143,7 +143,7 @@
                 <Setter Property="Command"
                         Value="{Binding RefreshCommand}" />
                 <Setter Property="IsRefreshing"
-                        Value="{Binding Refreshing}" />
+                        Value="{Binding IsRefreshRequired}" />
                 <Setter Property="IsEnabled"
                         Value="{Binding CanRefresh}" />
             </Style>
@@ -325,8 +325,8 @@
                         </TapGestureRecognizer>
                     </View.GestureRecognizers>
 
-                    <ffil:CachedImage Source="{Binding PosterPath}"
-                                      Aspect="AspectFill" />
+                    <Image Source="{Binding PosterPath}"
+                           Aspect="AspectFill" />
                 </views:ImageView>
             </DataTemplate>
 
@@ -540,39 +540,40 @@
                     <AbsoluteLayout BindingContext="{Binding Source}"
                                     x:DataType="{x:Null}"
                                     CompressedLayout.IsHeadless="True">
-                        <RefreshView Style="{StaticResource AsyncListViewModelRefreshStyle}"
-                                     AbsoluteLayout.LayoutBounds="0.5,0.5,1,1"
-                                     AbsoluteLayout.LayoutFlags="All">
-                            <CollectionView ItemsSource="{Binding Items}"
-                                            RemainingItemsThresholdReachedCommand="{Binding LoadMoreCommand}"
-                                            RemainingItemsThreshold="0"
-                                            HeightRequest="250">
-                                <CollectionView.ItemsLayout>
-                                    <LinearItemsLayout Orientation="Horizontal"
-                                                       ItemSpacing="5" />
-                                </CollectionView.ItemsLayout>
+                        <CollectionView ItemsSource="{Binding Items}"
+                                        RemainingItemsThresholdReachedCommand="{Binding LoadMoreCommand}"
+                                        RemainingItemsThreshold="4"
+                                        AbsoluteLayout.LayoutBounds="0.5,0.5,1,1"
+                                        AbsoluteLayout.LayoutFlags="All"
+                                        HeightRequest="250">
+                            <CollectionView.ItemsLayout>
+                                <LinearItemsLayout Orientation="Horizontal" />
+                            </CollectionView.ItemsLayout>
 
-                                <ItemsView.ItemTemplate>
-                                    <DataTemplate>
-                                        <movies:AspectContentView Ratio="1.5"
-                                                                  ContentTemplate="{StaticResource CompressedListSelector}" />
-                                    </DataTemplate>
-                                </ItemsView.ItemTemplate>
+                            <ItemsView.ItemTemplate>
+                                <DataTemplate>
+                                    <movies:AspectContentView Ratio="1.5"
+                                                              Padding="2.5, 0"
+                                                              ContentTemplate="{StaticResource CompressedListSelector}" />
+                                </DataTemplate>
+                            </ItemsView.ItemTemplate>
 
-                                <ItemsView.EmptyView>
-                                    <Binding Path="Loading">
-                                        <Binding.Converter>
-                                            <forms:BoolToObjectConverter TrueObject=""
-                                                                         FalseObject="No items!" />
-                                        </Binding.Converter>
-                                    </Binding>
-                                </ItemsView.EmptyView>
-                            </CollectionView>
-                        </RefreshView>
+                            <ItemsView.EmptyView>
+                                <Binding Path="Loading">
+                                    <Binding.Converter>
+                                        <forms:BoolToObjectConverter TrueObject=""
+                                                                     FalseObject="No items!" />
+                                    </Binding.Converter>
+                                </Binding>
+                            </ItemsView.EmptyView>
+                        </CollectionView>
 
                         <ActivityIndicator IsRunning="{Binding Loading}"
                                            AbsoluteLayout.LayoutBounds="0.5,0.5,-1,-1"
                                            AbsoluteLayout.LayoutFlags="PositionProportional" />
+
+                        <RefreshView IsVisible="False"
+                                     Style="{StaticResource AsyncListViewModelRefreshStyle}" />
                     </AbsoluteLayout>
                 </views:SectionView>
             </DataTemplate>

@@ -116,14 +116,18 @@ namespace Movies.Models
             var itr = items.GetAsyncEnumerator(cancellationToken);
             List<Item> buffer;
             var size = 10;
+#if DEBUG
             var watch = System.Diagnostics.Stopwatch.StartNew();
             int count = 0;
+#endif
 
             do
             {
                 buffer = await Buffer(itr, size, cancellationToken);
+#if DEBUG
                 count += buffer.Count;
                 if (count % 100 == 0) Print.Log($"Loaded {count}");
+#endif
                 var evaluated = await Task.WhenAll(buffer.Select(item => ItemHelpers.Evaluate(item, filter)));
 
                 for (int i = 0; i < buffer.Count && !cancellationToken.IsCancellationRequested; i++)
@@ -135,8 +139,11 @@ namespace Movies.Models
                 }
             }
             while (buffer.Count == size && !cancellationToken.IsCancellationRequested);
+
+#if DEBUG
             watch.Stop();
             Print.Log($"loaded {count} items in {watch.Elapsed}");
+#endif
         }
 
         public static IJsonCache PersistentCache { get; set; }
@@ -423,13 +430,48 @@ namespace Movies.Models
             {
                 if (_Itr == null)
                 {
-                    _Itr = Items.GetAsyncEnumerator();
+                    _Itr = new WebCollectionEnumerator<Item>(Items);
                 }
 
                 return _Itr;
             }
         }
         private IAsyncEnumerator<Item> _Itr;
+
+        private class WebCollectionEnumerator<T> : IAsyncEnumerator<T>
+        {
+            public T Current => Itr.Current;
+
+            private IAsyncEnumerator<T> Itr { get; }
+            private Exception ThrownException;
+
+            public WebCollectionEnumerator(IAsyncEnumerable<T> items)
+            {
+                Itr = items.GetAsyncEnumerator();
+            }
+
+            public async ValueTask<bool> MoveNextAsync()
+            {
+                if (ThrownException != null)
+                {
+                    throw ThrownException;
+                }
+
+                try
+                {
+                    return await Itr.MoveNextAsync();
+                }
+                catch (Exception e)
+                {
+                    throw ThrownException = e;
+                }
+            }
+
+            public ValueTask DisposeAsync()
+            {
+                return Itr.DisposeAsync();
+            }
+        }
 
         public Collection()
         {
@@ -512,6 +554,7 @@ namespace Movies.Models
 
         private SemaphoreSlim ItrSemaphore = new SemaphoreSlim(1, 1);
         public bool Reverse { get; set; } = false;
+        public bool Error { get; private set; }
 
         public async IAsyncEnumerator<Item> GetAsyncEnumerator(CancellationToken cancellationToken = default)
         {
@@ -521,7 +564,20 @@ namespace Movies.Models
 
                 if (node == Middle)
                 {
-                    if (await Itr.MoveNextAsync())
+                    bool moved;
+
+                    try
+                    {
+                        moved = await Itr.MoveNextAsync();
+                    }
+                    catch
+                    {
+                        Error = true;
+                        ItrSemaphore.Release();
+                        throw;
+                    }
+
+                    if (moved)
                     {
                         LinkedListNode<Item> added = null;
 
@@ -676,15 +732,25 @@ namespace Movies.Models
 
         public virtual Task<List<Item>> GetAdditionsAsync(List list) => Task.FromResult(new List<Item>());
 
-        public async IAsyncEnumerator<Item> GetAsyncEnumerator(FilterPredicate filter, CancellationToken cancellationToken = default)
+        public IAsyncEnumerator<Item> GetAsyncEnumerator(FilterPredicate filter, CancellationToken cancellationToken = default)
         {
-            await foreach (var item in GetFilteredItems(filter, cancellationToken))
+            var filtered = TryFilter(filter, out filter, cancellationToken);
+            return ItemHelpers.Filter(CacheItems(filtered), filter, cancellationToken).GetAsyncEnumerator();
+        }
+
+        private async IAsyncEnumerable<Item> CacheItems(IAsyncEnumerable<Item> items)
+        {
+            await foreach (var item in items)
             {
                 Cache[item] = Task.FromResult<bool?>(true);
                 yield return item;
             }
         }
 
-        protected virtual IAsyncEnumerable<Item> GetFilteredItems(FilterPredicate filter, CancellationToken cancellationToken = default) => ItemHelpers.Filter(this, filter, cancellationToken);
+        public virtual IAsyncEnumerable<Item> TryFilter(FilterPredicate full, out FilterPredicate partial, CancellationToken cancellationToken = default)
+        {
+            partial = full;
+            return this;
+        }
     }
 }

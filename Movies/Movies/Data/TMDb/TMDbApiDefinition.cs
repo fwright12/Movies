@@ -174,11 +174,6 @@ namespace Movies
             };
         }
 
-        public static class TRENDING
-        {
-            public static readonly TMDbRequest MOVIES = new TMDbRequest("movie/list");
-        }
-
         public static class PEOPLE
         {
             public static readonly TMDbRequest GET_DETAILS = new TMDbRequest("person/{0}")
@@ -602,7 +597,7 @@ namespace Movies
                 ["episode_run_time"] = Parser.Create(Media.RUNTIME, json => (json as JsonArray)?.FirstOrDefault() is JsonNode first && RUNTIME_PARSER.TryGetValue(first, out var runtime) ? runtime : TimeSpan.Zero),
                 ["original_name"] = ORIGINAL_TITLE_PARSER,
                 ["first_air_date"] = Parser.Create(TVShow.FIRST_AIR_DATE),
-                ["last_air_date"] = new Parser<DateTime?>(TVShow.LAST_AIR_DATE, new JsonNodeParser<DateTime?>(TryParseLastAirDate)),
+                [""] = new Parser<DateTime?>(TVShow.LAST_AIR_DATE, new JsonNodeParser<DateTime?>(TryParseLastAirDate)),
                 ["genres"] = new MultiParser<Genre>(TVShow.GENRES, GENRES_PARSER),
                 ["networks"] = new MultiParser<Company>(TVShow.NETWORKS, COMPANIES_PARSER),
                 ["seasons"] = new MultiParser<TVSeason>(TVShow.SEASONS, null),

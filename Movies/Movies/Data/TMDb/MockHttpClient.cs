@@ -1,8 +1,12 @@
 ﻿#if DEBUG
 using System.Collections.Generic;
+using System.Linq;
+using System.Net;
 using System.Net.Http;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using Xamarin.Forms;
 
 namespace Movies
 {
@@ -16,6 +20,43 @@ namespace Movies
 
         public static void ClearCallHistory() => CallHistory.Clear();
 
+        private readonly Dictionary<TMDbRequest, string> REQUEST_MAP = new Dictionary<TMDbRequest, string>
+        {
+            ["trending/movie"] = TRENDING_MOVIES_RESPONSE,
+            [API.DISCOVER.MOVIE_DISCOVER] = TRENDING_MOVIES_RESPONSE,
+            ["trending/tv"] = TRENDING_TV_RESPONSE,
+            [API.DISCOVER.TV_DISCOVER] = TRENDING_TV_RESPONSE,
+            ["trending/person"] = TRENDING_PEOPLE_RESPONSE,
+            [API.PEOPLE.GET_POPULAR] = TRENDING_PEOPLE_RESPONSE,
+            [API.CONFIGURATION.GET_API_CONFIGURATION] = CONFIGURATION,
+            [API.GENRES.GET_MOVIE_LIST] = HttpClient.MOVIE_GENRE_VALUES,
+            [API.GENRES.GET_TV_LIST] = HttpClient.TV_GENRE_VALUES,
+            [API.CERTIFICATIONS.GET_MOVIE_CERTIFICATIONS] = HttpClient.MOVIE_CERTIFICATION_VALUES,
+            [API.CERTIFICATIONS.GET_TV_CERTIFICATIONS] = HttpClient.TV_CERTIFICATION_VALUES,
+            [API.WATCH_PROVIDERS.GET_MOVIE_PROVIDERS] = HttpClient.MOVIE_WATCH_PROVIDER_VALUES,
+            [API.WATCH_PROVIDERS.GET_TV_PROVIDERS] = HttpClient.TV_WATCH_PROVIDER_VALUES,
+            [API.CONFIGURATION.GET_COUNTRIES] = HttpClient.COUNTRIES_VALUES,
+            [API.CONFIGURATION.GET_API_CONFIGURATION] = HttpClient.CONFIGURATION,
+        };
+
+        private List<(Regex, string)> ROUTES => REQUEST_MAP.Select(kvp =>
+        {
+            return (new Regex(new Regex("{\\d+}").Replace(kvp.Key.GetURL(), "*") + "*"), kvp.Value);
+        }).ToList();
+
+        public string Route(string url)
+        {
+            foreach (var route in ROUTES)
+            {
+                if (route.Item1.IsMatch(url))
+                {
+                    return route.Item2;
+                }
+            }
+
+            return null;
+        }
+
         new public Task<HttpResponseMessage> GetAsync(string requestUri, CancellationToken cancellationToken = default) => SendAsync(new HttpRequestMessage(HttpMethod.Get, requestUri), cancellationToken);
         new public Task<HttpResponseMessage> SendAsync(HttpRequestMessage request) => SendAsync(request, new CancellationToken());
 
@@ -25,26 +66,25 @@ namespace Movies
 
             var endpoint = request.RequestUri.ToString();
             string content = AllowLiveRequests ? null : "{}";
+            //throw new HttpRequestException();
 
-            if (endpoint.StartsWith("3/trending/movie") || endpoint.StartsWith("3/discover/movie"))
+            void Breakpoint()
             {
-                content = TRENDING_MOVIES_RESPONSE;
+                var temp = endpoint;
+                if (BreakOnRequest)
+                    ;
             }
-            else if (endpoint.StartsWith("3/trending/tv") || endpoint.StartsWith("3/discover/tv"))
+
+            if (REQUEST_MAP.FirstOrDefault(kvp => endpoint.Substring(2).StartsWith(kvp.Key.Endpoint)).Value is string value && !string.IsNullOrEmpty(value))
             {
-                content = TRENDING_TV_RESPONSE;
-            }
-            else if (endpoint.StartsWith("3/trending/person") || endpoint.StartsWith("3/person/popular"))
-            {
-                content = TRENDING_PEOPLE_RESPONSE;
+                content = value;
             }
             else if (endpoint.StartsWith("3/movie") && !endpoint.Contains("account_states") && !endpoint.Contains("changes"))
             {
                 //await Task.Delay(5000);
                 //throw new System.Net.Http.HttpRequestException();
 
-                if (BreakOnRequest)
-                { }
+                Breakpoint();
                 //content = HARRY_POTTER_AND_THE_DEATHLY_HALLOWS_PART_2_PARTIAL_RESPONSE;
                 content = HARRY_POTTER_AND_THE_DEATHLY_HALLOWS_PART_2_RESPONSE;
                 //content = null;
@@ -54,28 +94,24 @@ namespace Movies
             {
                 if (endpoint.Contains("episode"))
                 {
-                    if (BreakOnRequest)
-                    { }
+                    Breakpoint();
                     content = THE_OFFICE_SEASON_3_EPISODE_20_RESPONSE;
                 }
                 else if (endpoint.Contains("season"))
                 {
-                    if (BreakOnRequest)
-                    { }
+                    Breakpoint();
                     content = THE_OFFICE_SEASON_3_RESPONSE;
                 }
                 else
                 {
-                    if (BreakOnRequest)
-                        ;
+                    Breakpoint();
                     content = THE_OFFICE_RESPONSE;
                 }
                 //content = null;
             }
             else if (endpoint.StartsWith("3/person") && !endpoint.Contains("changes"))
             {
-                if (BreakOnRequest)
-                { }
+                Breakpoint();
                 content = JESSICA_CHASTAIN_RESPONSE;
                 //content = STEPHEN_WOOLFENDEN_RESPONSE;
                 //await Task.Delay(2000);
@@ -83,18 +119,17 @@ namespace Movies
             }
             else if (endpoint.StartsWith("3/collection"))
             {
-                if (BreakOnRequest)
-                { }
+                Breakpoint();
                 content = HARRY_POTTER_COLLECTION_RESPONSE;
                 //content = null;
             }
-            else if (endpoint.StartsWith("3/configuration"))
+            else if (endpoint.Contains("changes"))
             {
-                content = CONFIGURATION;
+                content = "{}";
             }
             else if (BaseAddress.ToString().Contains("themoviedb"))
             {
-                if (endpoint.StartsWith("4/account"))
+                if (endpoint.Contains("account"))
                 {
                     if (endpoint.Contains("movie"))
                     {
@@ -118,11 +153,36 @@ namespace Movies
             }
             else if (BaseAddress.ToString().Contains("trakt"))
             {
-                content = string.Empty;
+                if (BaseAddress.ToString().Contains("sync"))
+                {
+                    if (endpoint.StartsWith("watchlist"))
+                    {
+                        content = TRAKT_ACCOUNT_FAVORITES_RESPONSE;
+                    }
+                }
+                else
+                {
+                    if (endpoint.Contains("sync/last_activities"))
+                    {
+                        content = "{}";
+                    }
+                    else if (endpoint.StartsWith("users/me/lists"))
+                    {
+                        if (endpoint.Contains("favorites"))
+                        {
+                            content = TRAKT_ACCOUNT_FAVORITES_RESPONSE;
+                        }
+                        else
+                        {
+                            content = TRAKT_ACCOUNT_LISTS_RESPONSE;
+                        }
+                    }
+                }
+                
                 //content = null;
             }
 
-            //Print.Log($"web request{(content != null ? " (mock)" : string.Empty)}: " + endpoint);
+            Print.Log($"web request{(content != null ? " (mock)" : string.Empty)}: " + endpoint);
             CallHistory.Add(endpoint);
 
             if (SimulatedDelay > 0)
@@ -51588,6 +51648,201 @@ namespace Movies
     ""total_pages"": 1,
     ""total_results"": 2
 }";
+
+        public static readonly string TRAKT_ACCOUNT_LAST_ACTIVITIES_RESPONSE = @"{
+    ""all"": ""2022-10-16T20:53:26.000Z"",
+    ""movies"": {
+        ""watched_at"": ""2022-04-23T21:24:33.000Z"",
+        ""collected_at"": ""2022-03-30T17:32:59.000Z"",
+        ""rated_at"": ""2022-03-30T17:32:59.000Z"",
+        ""watchlisted_at"": ""2022-04-23T21:01:04.000Z"",
+        ""recommendations_at"": ""2022-03-30T17:32:59.000Z"",
+        ""commented_at"": ""2022-03-30T17:32:59.000Z"",
+        ""paused_at"": ""2022-03-30T17:32:59.000Z"",
+        ""hidden_at"": ""2022-03-30T17:32:59.000Z""
+    },
+    ""episodes"": {
+        ""watched_at"": ""2022-04-16T21:11:02.000Z"",
+        ""collected_at"": ""2022-03-30T17:32:59.000Z"",
+        ""rated_at"": ""2022-03-30T17:32:59.000Z"",
+        ""watchlisted_at"": ""2022-03-30T17:32:59.000Z"",
+        ""commented_at"": ""2022-03-30T17:32:59.000Z"",
+        ""paused_at"": ""2022-03-30T17:32:59.000Z""
+    },
+    ""shows"": {
+        ""rated_at"": ""2022-03-30T17:32:59.000Z"",
+        ""watchlisted_at"": ""2022-04-21T19:55:20.000Z"",
+        ""recommendations_at"": ""2022-03-30T17:32:59.000Z"",
+        ""commented_at"": ""2022-03-30T17:32:59.000Z"",
+        ""hidden_at"": ""2022-03-30T17:32:59.000Z""
+    },
+    ""seasons"": {
+        ""rated_at"": ""2022-03-30T17:32:59.000Z"",
+        ""watchlisted_at"": ""2022-03-30T17:32:59.000Z"",
+        ""commented_at"": ""2022-03-30T17:32:59.000Z"",
+        ""hidden_at"": ""2022-03-30T17:32:59.000Z""
+    },
+    ""comments"": {
+        ""liked_at"": ""2022-03-30T17:32:59.000Z"",
+        ""blocked_at"": ""2022-03-30T17:32:59.000Z""
+    },
+    ""lists"": {
+        ""liked_at"": ""2022-03-30T17:32:59.000Z"",
+        ""updated_at"": ""2022-10-16T20:53:26.000Z"",
+        ""commented_at"": ""2022-03-30T17:32:59.000Z""
+    },
+    ""watchlist"": {
+        ""updated_at"": ""2022-04-23T21:01:04.000Z""
+    },
+    ""recommendations"": {
+        ""updated_at"": ""2022-03-30T17:32:59.000Z""
+    },
+    ""collaborations"": {
+        ""updated_at"": ""2022-03-30T17:32:59.000Z""
+    },
+    ""account"": {
+        ""settings_at"": ""2022-03-30T17:33:51.000Z"",
+        ""followed_at"": ""2022-03-30T17:32:59.000Z"",
+        ""following_at"": ""2022-03-30T17:32:59.000Z"",
+        ""pending_at"": ""2022-03-30T17:32:59.000Z"",
+        ""requested_at"": ""2022-03-30T17:32:59.000Z""
+    },
+    ""saved_filters"": {
+        ""updated_at"": ""2022-03-30T17:32:59.000Z""
+    }
+}";
+        public static readonly string TRAKT_ACCOUNT_LISTS_RESPONSE = @"[
+            {
+                ""name"": ""Big list [Trakt]"",
+                ""description"": """",
+                ""privacy"": ""private"",
+                ""type"": ""personal"",
+                ""display_numbers"": false,
+                ""allow_comments"": true,
+                ""sort_by"": ""rank"",
+                ""sort_how"": ""asc"",
+                ""created_at"": ""2022-04-06T21:16:07.000Z"",
+                ""updated_at"": ""2022-04-17T20:32:35.000Z"",
+                ""item_count"": 46,
+                ""comment_count"": 0,
+                ""likes"": 0,
+                ""ids"": {
+                    ""trakt"": 23321509,
+                    ""slug"": ""big-list-trakt""
+                },
+                ""user"": {
+                    ""username"": ""GreenMountainLabs"",
+                    ""private"": false,
+                    ""name"": """",
+                    ""vip"": false,
+                    ""vip_ep"": false,
+                    ""ids"": {
+                        ""slug"": ""greenmountainlabs""
+                    }
+                }
+            },
+            {
+                ""name"": ""Favorites"",
+                ""description"": """",
+                ""privacy"": ""private"",
+                ""type"": ""personal"",
+                ""display_numbers"": false,
+                ""allow_comments"": true,
+                ""sort_by"": ""rank"",
+                ""sort_how"": ""asc"",
+                ""created_at"": ""2022-04-08T02:53:47.000Z"",
+                ""updated_at"": ""2022-10-16T17:37:23.000Z"",
+                ""item_count"": 4,
+                ""comment_count"": 0,
+                ""likes"": 0,
+                ""ids"": {
+                    ""trakt"": 23327889,
+                    ""slug"": ""favorites""
+                },
+                ""user"": {
+                    ""username"": ""GreenMountainLabs"",
+                    ""private"": false,
+                    ""name"": """",
+                    ""vip"": false,
+                    ""vip_ep"": false,
+                    ""ids"": {
+                        ""slug"": ""greenmountainlabs""
+                    }
+                }
+            }
+        ]";
+        public static readonly string TRAKT_ACCOUNT_FAVORITES_RESPONSE = @"[
+            {
+                ""rank"": 1,
+                ""id"": 689140778,
+                ""listed_at"": ""2022-04-23T21:01:26.000Z"",
+                ""notes"": null,
+                ""type"": ""movie"",
+                ""movie"": {
+                    ""title"": ""The Matrix Resurrections"",
+                    ""year"": 2021,
+                    ""ids"": {
+                        ""trakt"": 466465,
+                        ""slug"": ""the-matrix-resurrections-2021"",
+                        ""imdb"": ""tt10838180"",
+                        ""tmdb"": 624860
+                    }
+                }
+            },
+            {
+                ""rank"": 2,
+                ""id"": 751635643,
+                ""listed_at"": ""2022-10-13T23:33:21.000Z"",
+                ""notes"": null,
+                ""type"": ""show"",
+                ""show"": {
+                    ""title"": ""The Office"",
+                    ""year"": 2005,
+                    ""ids"": {
+                        ""trakt"": 2302,
+                        ""slug"": ""the-office"",
+                        ""tvdb"": 73244,
+                        ""imdb"": ""tt0386676"",
+                        ""tmdb"": 2316,
+                        ""tvrage"": 6061
+                    }
+                }
+            },
+            {
+                ""rank"": 3,
+                ""id"": 689140779,
+                ""listed_at"": ""2022-04-23T21:01:26.000Z"",
+                ""notes"": null,
+                ""type"": ""movie"",
+                ""movie"": {
+                    ""title"": ""Venom: Let There Be Carnage"",
+                    ""year"": 2021,
+                    ""ids"": {
+                        ""trakt"": 429764,
+                        ""slug"": ""venom-let-there-be-carnage-2021"",
+                        ""imdb"": ""tt7097896"",
+                        ""tmdb"": 580489
+                    }
+                }
+            },
+            {
+                ""rank"": 4,
+                ""id"": 689140780,
+                ""listed_at"": ""2022-04-23T21:01:26.000Z"",
+                ""notes"": null,
+                ""type"": ""movie"",
+                ""movie"": {
+                    ""title"": ""Resident Evil: Welcome to Raccoon City"",
+                    ""year"": 2021,
+                    ""ids"": {
+                        ""trakt"": 307489,
+                        ""slug"": ""resident-evil-welcome-to-raccoon-city-2021"",
+                        ""imdb"": ""tt6920084"",
+                        ""tmdb"": 460458
+                    }
+                }
+            }
+        ]";
 
         public static readonly string MOVIE_GENRE_VALUES = @"{
     ""genres"": [

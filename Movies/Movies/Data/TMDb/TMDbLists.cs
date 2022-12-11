@@ -22,14 +22,18 @@ namespace Movies
 
     public class JsonResponse
     {
-        public string Json { get; }
+        public HttpContent Content { get; }
         public DateTime Timestamp { get; }
 
         public JsonResponse(string json) : this(json, DateTime.Now) { }
+        public JsonResponse(byte[] bytes) : this(bytes, DateTime.Now) { }
 
-        public JsonResponse(string json, DateTime timeStamp)
+        public JsonResponse(string json, DateTime timeStamp) : this(new StringContent(json), timeStamp) { }
+        public JsonResponse(byte[] bytes, DateTime timeStamp) : this(new ByteArrayContent(bytes), timeStamp) { }
+
+        public JsonResponse(HttpContent content, DateTime timeStamp)
         {
-            Json = json;
+            Content = content;
             Timestamp = timeStamp;
         }
 
@@ -59,8 +63,10 @@ namespace Movies
                 return await cached;
             }
 
-            var response = new JsonResponse(await TryGetContentAsync(client, request));
-            if (response.Json != null)
+            var content = await TryGetContentAsync(client, request);
+            var response = new JsonResponse(content);
+
+            if (content != null)
             {
                 await cache.AddAsync(url, response);
             }
@@ -603,21 +609,22 @@ namespace Movies
                 }
             }
 
-            protected override IAsyncEnumerable<Models.Item> GetFilteredItems(FilterPredicate filter, CancellationToken cancellationToken = default)
+            public override IAsyncEnumerable<Models.Item> TryFilter(FilterPredicate filter, out FilterPredicate partial, CancellationToken cancellationToken = default)
             {
-                var types = Models.ItemHelpers.RemoveTypes(filter, out filter);
+                var types = Models.ItemHelpers.RemoveTypes(filter, out partial);
                 var movie = types.Contains(typeof(Models.Movie));
                 var tv = types.Contains(typeof(Models.TVShow));
 
                 if (movie ^ tv)
                 {
                     var items = tv ? TV : Movies;
-                    return ItemHelpers.Filter(items, filter, cancellationToken);
+                    return items;
+                    //return ItemHelpers.Filter(items, filter, cancellationToken);
                     //return items.WhereAsync(item => Models.ItemHelpers.Evaluate(item, filter, cancellationToken));
                 }
                 else
                 {
-                    return base.GetFilteredItems(filter, cancellationToken);
+                    return base.TryFilter(filter, out partial, cancellationToken);
                 }
             }
         }

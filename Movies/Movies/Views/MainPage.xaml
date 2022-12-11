@@ -82,7 +82,7 @@
 
     <TabBar Shell.TabBarBackgroundColor="{Binding Parent.BackgroundColor}"
             Shell.TabBarTitleColor="{StaticResource Primary}">
-        <Tab Title="Explore">
+        <viewmodels:ShellTabFix Title="Explore">
             <Tab.Icon>
                 <FontImageSource Glyph="&#xf273;"
                                  FontFamily="{StaticResource IoniconsFont}" />
@@ -97,7 +97,7 @@
             <ShellContent Title="People"
                           BindingContext="{Binding PeopleExplore, Source={Static Application.Current}}"
                           ContentTemplate="{StaticResource ExploreTemplate}" />
-        </Tab>
+        </viewmodels:ShellTabFix>
 
         <ShellContent Title="Find">
             <ShellContent.Icon>
@@ -153,7 +153,6 @@
                                                       AdUnitID="{Static movies:App.TopBannerAdUnitID}" />
 
                                         <StackLayout Orientation="Vertical"
-                                                     CompressedLayout.IsHeadless="True"
                                                      BindableLayout.ItemTemplate="{StaticResource CondensedListTemplate}">
                                             <BindableLayout.ItemsSource>
                                                 <MultiBinding>

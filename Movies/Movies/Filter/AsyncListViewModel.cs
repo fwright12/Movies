@@ -12,6 +12,54 @@ using Xamarin.Forms;
 
 namespace Movies.ViewModels
 {
+    public class ShellTabFix : Tab
+    {
+        private Dictionary<ShellContent, DataTemplate> Tabs = new Dictionary<ShellContent, DataTemplate>();
+
+        public ShellTabFix()
+        {
+            if (Items is INotifyCollectionChanged observable)
+            {
+                observable.CollectionChanged += Observable_CollectionChanged;
+            }
+
+            PropertyChanged += ShellTabFix_PropertyChanged;
+        }
+
+        private void ShellTabFix_PropertyChanged(object sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(CurrentItem))
+            {
+                if (Tabs.Remove(CurrentItem, out var template) && CurrentItem.Content is ContentPage page && template.CreateContent() is ContentPage contentPage)
+                {
+                    page.Content = contentPage.Content;
+                    foreach (var item in contentPage.ToolbarItems)
+                    {
+                        page.ToolbarItems.Add(item);
+                    }
+                }
+            }
+        }
+
+        private void Observable_CollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
+        {
+            if (e.NewItems != null)
+            {
+                foreach (var content in e.NewItems.OfType<ShellContent>())
+                {
+                    if (content == CurrentItem)
+                    {
+                        continue;
+                    }
+
+                    Tabs[content] = content.ContentTemplate;
+                    content.ClearValue(ShellContent.ContentTemplateProperty);
+                    content.Content = new ContentPage();
+                }
+            }
+        }
+    }
+
     public class KeepItemsViewPopulatedBehavior : Behavior<ItemsView>
     {
         private static HashSet<string> Dependents = new HashSet<string>(new BindableProperty[]
@@ -73,6 +121,20 @@ namespace Movies.ViewModels
         }
     }
 
+    public static class RefreshHelper
+    {
+        public static readonly BindableProperty RefreshViewProperty = BindableProperty.CreateAttached("RefreshView", typeof(RefreshView), typeof(ItemsView), null, propertyChanged: (bindable, oldValue, newValue) => RefreshViewChanged((ItemsView)bindable, (RefreshView)oldValue, (RefreshView)newValue));
+
+        public static RefreshView GetRefreshView(this ItemsView bindable) => (RefreshView)bindable.GetValue(RefreshViewProperty);
+        public static void SetRefreshView(this ItemsView bindable, RefreshView value) => bindable.SetValue(RefreshViewProperty, value);
+
+        private static void RefreshViewChanged(ItemsView items, RefreshView oldValue, RefreshView newValue)
+        {
+            oldValue?.RemoveBinding(BindableObject.BindingContextProperty);
+            newValue?.SetBinding(BindableObject.BindingContextProperty, new Binding(ItemsView.ItemsSourceProperty.PropertyName, source: items));
+        }
+    }
+
     public class AsyncListViewModel<T> : BindableViewModel, IEnumerable<T>, INotifyCollectionChanged
     {
         public event NotifyCollectionChangedEventHandler CollectionChanged;
@@ -91,13 +153,13 @@ namespace Movies.ViewModels
             }
         }
 
-        public bool Refreshing
+        public bool IsRefreshRequired
         {
-            get => _Refreshing;
-            set => UpdateValue(ref _Refreshing, value);
+            get => _IsRefreshRequired;
+            set => UpdateValue(ref _IsRefreshRequired, value);
         }
 
-        public bool CanRefresh => IsRefreshEnabled || Refreshing;
+        public bool CanRefresh => IsRefreshEnabled || IsRefreshRequired;
 
         public bool IsRefreshEnabled { get; set; }
 
@@ -106,7 +168,7 @@ namespace Movies.ViewModels
 
         private IAsyncEnumerable<T> Source;
         private IAsyncEnumerator<T> Itr;
-        private bool _Refreshing;
+        private bool _IsRefreshRequired;
         private bool _Loading;
 
         private CancellationTokenSource CancelLoad;
@@ -123,7 +185,7 @@ namespace Movies.ViewModels
 
             PropertyChanged += (sender, e) =>
             {
-                if (e.PropertyName == nameof(IsRefreshEnabled) || e.PropertyName == nameof(Refreshing))
+                if (e.PropertyName == nameof(IsRefreshEnabled) || e.PropertyName == nameof(IsRefreshRequired))
                 {
                     OnPropertyChanged(nameof(CanRefresh));
                 }
@@ -152,16 +214,17 @@ namespace Movies.ViewModels
             {
 #if DEBUG
                 Print.Log(e);
+                ;
 #endif
             }
 
             Loading = false;
-            Refreshing = false;
+            IsRefreshRequired = false;
         }
 
         public async Task Refresh()
         {
-            Refreshing = false;
+            IsRefreshRequired = false;
             await LoadMore(10);
         }
 
@@ -172,7 +235,7 @@ namespace Movies.ViewModels
             Itr = Source.GetAsyncEnumerator(CancelLoad.Token);
 
             Items.Clear();
-            Refreshing = true;
+            IsRefreshRequired = true;
         }
 
         public IEnumerator<T> GetEnumerator() => Items.GetEnumerator();

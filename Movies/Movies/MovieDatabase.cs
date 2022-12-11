@@ -14,14 +14,16 @@ namespace Movies
 {
     public class SQLJsonCache : IJsonCache
     {
+        public const string TABLE_NAME = "WebResourceCache";
+
         public SQLiteAsyncConnection DB { get; }
         public Table Table { get; } = new Table(URL, RESPONSE, TIMESTAMP)
         {
-            Name = "JsonCache"
+            Name = TABLE_NAME
         };
 
         public static readonly Table.Column URL = new Table.Column("url", "text", "primary key not null unique");
-        public static readonly Table.Column RESPONSE = new Table.Column("json", "text");
+        public static readonly Table.Column RESPONSE = new Table.Column("json", "blob");
         public static readonly Table.Column TIMESTAMP = new Table.Column("timestamp", "text");
 
         public Task Setup { get; }
@@ -33,7 +35,7 @@ namespace Movies
             Setup = DB.CreateTable(Table);
         }
 
-        public Task AddAsync(string url, JsonResponse response) => ExecuteAsync($"insert into {Table} ({URL}, {RESPONSE}, {TIMESTAMP}) values (?,?,?)", url, response.Json, response.Timestamp);
+        public async Task AddAsync(string url, JsonResponse response) => await ExecuteAsync($"insert into {Table} ({URL}, {RESPONSE}, {TIMESTAMP}) values (?,?,?)", url, await response.Content.ReadAsByteArrayAsync(), response.Timestamp);
 
         public Task Clear() => ExecuteAsync($"delete from {Table}");
 
@@ -48,7 +50,8 @@ namespace Movies
         public async Task<JsonResponse> TryGetValueAsync(string url)
         {
             await Setup;
-            var rows = await DB.QueryAsync<(string, DateTime)>($"select {RESPONSE}, {TIMESTAMP} from {Table} where {URL} = ?", url);
+
+            var rows = await DB.QueryAsync<(byte[], DateTime)>($"select {RESPONSE}, {TIMESTAMP} from {Table} where {URL} = ?", url);
 
             if (rows.Count == 1)
             {
@@ -64,7 +67,7 @@ namespace Movies
         {
             await Setup;
 
-            foreach (var row in await DB.QueryAsync<(string, string, DateTime)>($"select * from {Table}"))
+            foreach (var row in await DB.QueryAsync<(string, byte[], DateTime)>($"select * from {Table}"))
             {
                 yield return new KeyValuePair<string, JsonResponse>(row.Item1, new JsonResponse(row.Item2, row.Item3));
             }
@@ -254,11 +257,11 @@ namespace Movies
 #if DEBUG
             //await cache.Clear();
 
-            var rows = await cache.DB.QueryAsync<(string, string, string, string, string)>($"select * from {cache.Table} limit 10");
+            var rows = await cache.DB.QueryAsync<(string, byte[], string, string, string)>($"select * from {cache.Table} limit 10");
             Print.Log((await cache.DB.QueryScalarsAsync<int>($"select count(*) from {cache.Table}")).FirstOrDefault() + " items in cache");
             foreach (var row in rows)
             {
-                Print.Log(row.Item1, row.Item3, row.Item4, row.Item5);//, row.Item2);
+                Print.Log(row.Item1, row.Item2.Length, row.Item3, row.Item4, row.Item5);//, row.Item2);
             }
 #endif
 
@@ -337,19 +340,9 @@ namespace Movies
             Print.Log($"flushed {rows.Length} items");
         }
 
-        Task IJsonCache.AddAsync(string url, JsonResponse response)
-        {
-            InsertBatched(url, response.Json, response.Timestamp, 0, 0);
-            return Task.CompletedTask;
-        }
+        async Task IJsonCache.AddAsync(string url, JsonResponse response) => InsertBatched(url, await response.Content.ReadAsByteArrayAsync(), response.Timestamp, 0, 0);
 
         public Task AddAsync(ItemType type, int id, string url, JsonResponse response) => AddAsync(type, id, url, Task.FromResult(response));
-        public Task AddAsync(ItemType type, int id, IEnumerable<KeyValuePair<string, Task<JsonResponse>>> responses)
-        {
-            var args = responses.Select(response => Unwrap(response.Key, response.Value, type, id));
-            BatchInsert.AddRange(args);
-            return FlushBatch();
-        }
         public async Task AddAsync(ItemType type, int id, string url, Task<JsonResponse> response)
         {
             var cache = await Cache;
@@ -370,7 +363,7 @@ namespace Movies
         private static async Task<IEnumerable<object>> Unwrap(string url, Task<JsonResponse> response, ItemType type, int id)
         {
             var json = await response;
-            return new object[] { url, json.Json, json.Timestamp, (int)type, id };
+            return new object[] { url, await json.Content.ReadAsByteArrayAsync(), json.Timestamp, (int)type, id };
         }
 
         public async Task Clear() => await (await Cache).Clear();
@@ -554,6 +547,7 @@ namespace Movies.Views
             //await UserInfo.ExecuteAsync("drop table if exists " + SyncLists.Name);
 
             await UserInfo.ExecuteAsync("drop table if exists Movies");
+            await ItemInfo.ExecuteAsync("drop table if exists JsonCache");
             //await SQL.ExecuteAsync("drop table if exists MovieInfo");
             //await SQL.ExecuteAsync("drop table if exists TVShows");
             //await SQL.ExecuteAsync("drop table if exists People");
@@ -660,7 +654,7 @@ namespace Movies.Views
                 var id = kvp.Value.Columns[0];
                 var userLists = $"(select {LocalList.ItemsCols.ITEM_ID} from items.{LocalList.ItemsTable} where {LocalList.ItemsCols.ITEM_TYPE} = ?)";
                 cleaning.Add(ItemInfo.ExecuteAsync($"delete from {kvp.Value} where {id} not in {userLists}", kvp.Key));
-                cleaning.Add(ItemInfo.ExecuteAsync($"delete from {"JsonCache"} where {ItemInfoCache.TYPE} = ? and {ItemInfoCache.ID} not in {userLists}", kvp.Key, kvp.Key));
+                cleaning.Add(ItemInfo.ExecuteAsync($"delete from {SQLJsonCache.TABLE_NAME} where {ItemInfoCache.TYPE} = ? and {ItemInfoCache.ID} not in {userLists}", kvp.Key, kvp.Key));
             }
 
             var rows = await Task.WhenAll(cleaning);
@@ -876,7 +870,7 @@ namespace Movies.Views
                 SQLDB = database;
                 Id = id;
 
-                Items = GetFilteredItems(FilterPredicate.TAUTOLOGY);// GetItems();
+                Items = TryFilter(FilterPredicate.TAUTOLOGY, out _);// GetItems();
 #if DEBUG
                 if (id == 1)
                 {
@@ -1002,10 +996,11 @@ namespace Movies.Views
                 await Task.WhenAll(details, items);
             }
 
-            protected override IAsyncEnumerable<Item> GetFilteredItems(FilterPredicate filter, CancellationToken cancellationToken = default)
+            public override IAsyncEnumerable<Item> TryFilter(FilterPredicate filter, out FilterPredicate partial, CancellationToken cancellationToken = default)
             {
-                var types = Models.ItemHelpers.RemoveTypes(filter, out filter);
-                return ItemHelpers.Filter(GetItemsAsync(types, cancellationToken), filter, cancellationToken);
+                var types = Models.ItemHelpers.RemoveTypes(filter, out partial);
+                return GetItemsAsync(types, cancellationToken);
+                //return ItemHelpers.Filter(GetItemsAsync(types, cancellationToken), filter, cancellationToken);
             }
 
             private async IAsyncEnumerable<Item> GetItemsAsync(List<Type> types, CancellationToken cancellationToken = default)

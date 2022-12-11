@@ -259,7 +259,7 @@ namespace Movies
 
         public static bool TryParseLastAirDate(JsonNode json, out DateTime? airDate)
         {
-            if (json.TryGetValue(out airDate) && json.Parent?.TryGetValue("in_production", out bool inProduction) == true)
+            if (json.TryGetValue("last_air_date", out airDate) && json.TryGetValue("in_production", out bool inProduction) == true)
             {
                 if (inProduction)
                 {

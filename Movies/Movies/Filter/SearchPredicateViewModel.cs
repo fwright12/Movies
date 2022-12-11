@@ -53,10 +53,17 @@ namespace Movies.ViewModels
 
             Cancel?.Cancel();
 
-            Predicate = new SearchPredicate
+            if (string.IsNullOrEmpty(Query))
             {
-                Query = LastQuery = Query
-            };
+                Predicate = FilterPredicate.TAUTOLOGY;
+            }
+            else
+            {
+                Predicate = new SearchPredicate
+                {
+                    Query = LastQuery = Query
+                };
+            }
 
             PredicateChanged?.Invoke(this, EventArgs.Empty);
         }

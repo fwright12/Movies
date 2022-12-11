@@ -1,0 +1,275 @@
+
+
+Debug Trace:
+Loaded 100
+Loaded 200
+Loaded 300
+Loaded 400
+Loaded 500
+Loaded 600
+Loaded 700
+Loaded 800
+loaded 885 items in 00:00:00.0723200
+Loaded 100
+Loaded 200
+Loaded 300
+Loaded 400
+Loaded 500
+Loaded 600
+Loaded 700
+Loaded 800
+Loaded 900
+Loaded 1000
+Loaded 1000
+loaded 1000 items in 00:00:00.0967190
+Loaded 100
+Loaded 200
+Loaded 300
+Loaded 400
+Loaded 500
+Loaded 600
+Loaded 700
+Loaded 800
+Loaded 900
+loaded 979 items in 00:00:00.0881042
+Loaded 100
+Loaded 200
+Loaded 300
+Loaded 400
+Loaded 500
+Loaded 600
+Loaded 700
+Loaded 800
+loaded 885 items in 00:00:00.0102419
+Loaded 100
+Loaded 200
+Loaded 300
+Loaded 400
+Loaded 500
+Loaded 600
+Loaded 700
+Loaded 800
+Loaded 900
+Loaded 1000
+Loaded 1000
+loaded 1000 items in 00:00:00.0974969
+Loaded 100
+Loaded 200
+Loaded 300
+Loaded 400
+Loaded 500
+Loaded 600
+Loaded 700
+Loaded 800
+Loaded 900
+loaded 979 items in 00:00:00.0110473
+Loaded 100
+Loaded 200
+Loaded 300
+Loaded 400
+Loaded 500
+Loaded 600
+Loaded 700
+loaded 712 items in 00:00:00.0347036
+Loaded 100
+Loaded 200
+Loaded 300
+Loaded 400
+Loaded 500
+Loaded 600
+Loaded 700
+Loaded 800
+loaded 885 items in 00:00:00.2585982
+Loaded 100
+Loaded 200
+Loaded 300
+Loaded 400
+Loaded 500
+Loaded 600
+Loaded 700
+Loaded 800
+loaded 849 items in 00:00:00.0733258
+Loaded 100
+Loaded 200
+Loaded 300
+Loaded 400
+Loaded 500
+Loaded 600
+Loaded 700
+loaded 712 items in 00:00:00.0117559
+Loaded 100
+Loaded 200
+Loaded 300
+Loaded 400
+Loaded 500
+Loaded 600
+Loaded 700
+Loaded 800
+loaded 885 items in 00:00:00.0989131
+Loaded 100
+Loaded 200
+Loaded 300
+Loaded 400
+Loaded 500
+Loaded 600
+Loaded 700
+Loaded 800
+loaded 849 items in 00:00:00.0217992
+Loaded 100
+Loaded 200
+Loaded 300
+Loaded 400
+Loaded 500
+loaded 574 items in 00:00:00.0547923
+Loaded 100
+Loaded 200
+Loaded 300
+Loaded 400
+Loaded 500
+Loaded 600
+Loaded 700
+loaded 712 items in 00:00:00.1247624
+Loaded 100
+Loaded 200
+Loaded 300
+Loaded 400
+Loaded 500
+Loaded 600
+loaded 673 items in 00:00:00.0410800
+Loaded 100
+Loaded 200
+Loaded 300
+Loaded 400
+Loaded 500
+loaded 574 items in 00:00:00.0112812
+Loaded 100
+Loaded 200
+Loaded 300
+Loaded 400
+Loaded 500
+Loaded 600
+Loaded 700
+loaded 712 items in 00:00:00.1013898
+Loaded 100
+Loaded 200
+Loaded 300
+Loaded 400
+Loaded 500
+Loaded 600
+loaded 673 items in 00:00:00.0082076
+Loaded 100
+Loaded 200
+Loaded 300
+Loaded 400
+loaded 458 items in 00:00:00.0210452
+Loaded 100
+Loaded 200
+Loaded 300
+Loaded 400
+Loaded 500
+loaded 574 items in 00:00:00.0999258
+Loaded 100
+Loaded 200
+Loaded 300
+Loaded 400
+loaded 496 items in 00:00:00.0195804
+Loaded 100
+Loaded 200
+Loaded 300
+Loaded 400
+loaded 458 items in 00:00:00.0083558
+Loaded 100
+Loaded 200
+Loaded 300
+Loaded 400
+Loaded 500
+loaded 574 items in 00:00:00.0993159
+Loaded 100
+Loaded 200
+Loaded 300
+Loaded 400
+loaded 496 items in 00:00:00.0076184
+Loaded 100
+Loaded 200
+Loaded 300
+loaded 320 items in 00:00:00.0110805
+Loaded 100
+Loaded 200
+Loaded 300
+Loaded 400
+loaded 458 items in 00:00:00.0933886
+Loaded 100
+Loaded 200
+Loaded 300
+loaded 386 items in 00:00:00.0133308
+Loaded 100
+Loaded 200
+Loaded 300
+loaded 320 items in 00:00:00.0042175
+Loaded 100
+Loaded 200
+Loaded 300
+Loaded 400
+loaded 458 items in 00:00:00.0974132
+Loaded 100
+Loaded 200
+Loaded 300
+loaded 386 items in 00:00:00.0044458
+Loaded 100
+Loaded 200
+loaded 250 items in 00:00:00.0062535
+Loaded 100
+Loaded 200
+Loaded 300
+loaded 320 items in 00:00:00.0973325
+Loaded 100
+Loaded 200
+Loaded 300
+loaded 316 items in 00:00:00.0066430
+Loaded 100
+Loaded 200
+loaded 250 items in 00:00:00.0024655
+Loaded 100
+Loaded 200
+Loaded 300
+loaded 320 items in 00:00:00.0935681
+Loaded 100
+Loaded 200
+Loaded 300
+loaded 316 items in 00:00:00.0028436
+Loaded 100
+loaded 140 items in 00:00:00.0028710
+Loaded 100
+Loaded 200
+loaded 250 items in 00:00:00.0996455
+Loaded 100
+Loaded 200
+loaded 202 items in 00:00:00.0038747
+Loaded 100
+loaded 140 items in 00:00:00.0013235
+Loaded 100
+Loaded 200
+loaded 250 items in 00:00:00.0957766
+Loaded 100
+Loaded 200
+loaded 202 items in 00:00:00.0021647
+loaded 17 items in 00:00:00.0002461
+Loaded 100
+loaded 140 items in 00:00:00.0945371
+loaded 63 items in 00:00:00.0010632
+loaded 17 items in 00:00:00.0003185
+Loaded 100
+loaded 140 items in 00:00:00.0949991
+loaded 63 items in 00:00:00.0021401
+loaded 3 items in 00:00:00.0001441
+loaded 17 items in 00:00:00.0934395
+loaded 6 items in 00:00:00.0001375
+loaded 3 items in 00:00:00.0000989
+loaded 17 items in 00:00:00.0939861
+loaded 6 items in 00:00:00.0001458
+loaded 1 items in 00:00:00.0000613
+loaded 3 items in 00:00:00.0950717
+loaded 1 items in 00:00:00.0000300
+loaded 1 items in 00:00:00.0000400
+loaded 3 items in 00:00:00.0933867
+loaded 1 items in 00:00:00.0000582

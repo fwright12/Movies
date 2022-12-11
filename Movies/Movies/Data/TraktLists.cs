@@ -106,7 +106,7 @@ namespace Movies
                 {
                     string sortedHow = null;
 
-                    if (response.RequestMessage.RequestUri.ToString().StartsWith("https://api.trakt.tv/sync/history"))
+                    if (response.RequestMessage?.RequestUri.ToString().StartsWith("https://api.trakt.tv/sync/history") == true)
                     {
                         sortedHow = "desc";
                     }

@@ -47,7 +47,7 @@ namespace MoviesTests
             Print.Log(Encoding.UTF8.GetString(json));
         }
 
-        [TestMethod]
+        //[TestMethod]
         public async Task FilterStressTest()
         {
             var list = new TestList("test", Enumerable.Range(0, 1000).Select(Helpers.ToMovie));

@@ -20,10 +20,15 @@ namespace Movies
             Application = application;
         }
 
-        public Task AddAsync(string url, JsonResponse response)
+        public async Task AddAsync(string url, JsonResponse response)
         {
-            Application.Properties[url] = JsonSerializer.Serialize(response);
-            return Application.SavePropertiesAsync();
+            Application.Properties[url] = JsonSerializer.Serialize(new
+            {
+                Json = await response.Content.ReadAsStringAsync(),
+                Timestamp = response.Timestamp
+            });
+
+            await Application.SavePropertiesAsync();
         }
 
         public async Task Clear()
@@ -36,7 +41,7 @@ namespace Movies
 
         public Task<bool> IsCached(string url) => Task.FromResult(Application.Properties.ContainsKey(url));
 
-        public Task<JsonResponse> TryGetValueAsync(string url) => Task.FromResult(TryGetValue(url, out var response) ? response : null);
+        public Task<JsonResponse> TryGetValueAsync(string url) => TryGetValue(url, out var response) ? Task.FromResult(response) : null;
 
         public bool TryGetValue(string url, out JsonResponse response)
         {
@@ -46,7 +51,7 @@ namespace Movies
                 {
                     var root = JsonDocument.Parse(cached).RootElement;
 
-                    if (root.TryGetValue(out string json, nameof(JsonResponse.Json)) && root.TryGetValue(out DateTime timeStamp, nameof(JsonResponse.Timestamp)))
+                    if (root.TryGetValue(out string json, "Json") && root.TryGetValue(out DateTime timeStamp, "Timestamp"))
                     {
                         response = new JsonResponse(json, timeStamp);
                         return true;

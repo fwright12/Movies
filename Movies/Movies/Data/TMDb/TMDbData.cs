@@ -264,7 +264,7 @@ namespace Movies
             //Config = Client.GetConfigAsync();
             WebClient = new HttpClient
             {
-#if DEBUG && true
+#if DEBUG && false
                 BaseAddress = new Uri("https://mock.themoviedb/"),
 #else
                 BaseAddress = new Uri(BASE_ADDRESS),
@@ -297,11 +297,11 @@ namespace Movies
                 properties.Cache = value;
             }
 
-            //await CleanCache(value, lastCleaned);
+            await CleanCache(value, lastCleaned);
             await CleanWatchProviders(value);
         }
 
-        private const int WATCH_PROVIDERS_EXPIRED_AFTER_DAY_OF_MONTH = 3;
+        private const int WATCH_PROVIDERS_EXPIRED_AFTER_DAY_OF_MONTH = 5;
 
         private async Task CleanWatchProviders(ItemInfoCache cache)
         {
@@ -601,9 +601,9 @@ namespace Movies
             {
                 var response = await cached;
 
-                if (DateTime.Now - response.Timestamp <= PROPERTY_VALUES_CACHE_DURATION)
+                if (DateTime.Now - response?.Timestamp <= PROPERTY_VALUES_CACHE_DURATION)
                 {
-                    json = JsonDocument.Parse(response.Json);
+                    json = JsonDocument.Parse(await response.Content.ReadAsByteArrayAsync());
                 }
             }
 
@@ -650,7 +650,7 @@ namespace Movies
             
             var response = await WebClient.TryGetCachedAsync(request.GetURL(), ResponseCache);
             
-            if (JsonParser.TryParse(response.Json, parser, out var values))
+            if (JsonParser.TryParse(await response.Content.ReadAsStringAsync(), parser, out var values))
             {
                 foreach (var value in values)
                 {
@@ -660,23 +660,29 @@ namespace Movies
         }
 
         public static readonly TimeSpan CHANGES_DURATION = new TimeSpan(14, 0, 0, 0);
+        public static readonly TimeSpan MAX_TIME_AWAY = new TimeSpan(180, 0, 0, 0);
+        public static readonly TimeSpan MIN_TIME_AWAY = new TimeSpan(1, 0, 0);
+
         public static readonly IReadOnlyDictionary<ItemType, PagedTMDbRequest> CHANGES_ENDPOINTS = new Dictionary<ItemType, PagedTMDbRequest>
         {
             [ItemType.Movie] = API.CHANGES.GET_MOVIE_CHANGE_LIST,
-            //[ItemType.TVShow] = API.CHANGES.GET_TV_CHANGE_LIST,
-            //[ItemType.Person] = API.CHANGES.GET_PERSON_CHANGE_LIST
+            [ItemType.TVShow] = API.CHANGES.GET_TV_CHANGE_LIST,
+            [ItemType.Person] = API.CHANGES.GET_PERSON_CHANGE_LIST
         };
 
-        public const int MAX_ALLOWED_CHANGES_CALLS = 10;
+        //public const int MAX_ALLOWED_CHANGES_CALLS = 10;
 
-        public Task CleanCache(ItemInfoCache cache, DateTime? lastCleaned = null)
+        public async Task CleanCache(ItemInfoCache cache, DateTime? lastCleaned = null)
         {
-            if (!lastCleaned.HasValue || (DateTime.Now - lastCleaned) / CHANGES_DURATION > MAX_ALLOWED_CHANGES_CALLS)
+            //if (!lastCleaned.HasValue || (DateTime.Now - lastCleaned) / CHANGES_DURATION > MAX_ALLOWED_CHANGES_CALLS)
+            if (DateTime.Now - lastCleaned <= MAX_TIME_AWAY == false)
             {
-                return cache.Clear();
+                await cache.Clear();
             }
-
-            return Task.WhenAll(CHANGES_ENDPOINTS.Keys.Select(type => CleanExpired(cache, type, lastCleaned.Value)));
+            else if (DateTime.Now - lastCleaned > MIN_TIME_AWAY)
+            {
+                await Task.WhenAll(CHANGES_ENDPOINTS.Keys.Select(type => CleanExpired(cache, type, lastCleaned.Value)));
+            }
         }
 
         private static async Task CleanExpired(ItemInfoCache cache, ItemType type, DateTime since)

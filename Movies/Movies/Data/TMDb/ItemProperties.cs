@@ -152,46 +152,6 @@ namespace Movies
 
         private static async Task<LazyJson> Parse(Task<System.Net.Http.HttpResponseMessage> response, IEnumerable<string> properties) => new LazyJson(await (await response).Content.ReadAsByteArrayAsync(), properties);
 
-        private static async Task<Dictionary<string, ArraySegment<byte>>> Parse1(Task<System.Net.Http.HttpResponseMessage> response, IEnumerable<string> properties)
-        {
-            var bytes = await (await response).Content.ReadAsByteArrayAsync();
-            return Parse(bytes, properties, out _);
-        }
-
-        private static Dictionary<string, ArraySegment<byte>> Parse(ArraySegment<byte> bytes, IEnumerable<string> properties, out Lazy<ArraySegment<byte>> leftover)
-        {
-            var result = new Dictionary<string, ArraySegment<byte>>
-            {
-                [""] = bytes
-            };
-            var reader = new Utf8JsonReader(bytes);
-            var remaining = properties.ToList();
-            var parts = new List<ArraySegment<byte>>();
-            long lastOffset = 0;
-
-            while (remaining.Count > 0 && reader.Read())
-            {
-                if (reader.TokenType == JsonTokenType.PropertyName)
-                {
-                    var property = reader.GetString();
-                    var offset = reader.BytesConsumed;
-
-                    reader.Skip();
-
-                    if (remaining.Remove(property))
-                    {
-                        parts.Add(bytes.Slice((int)lastOffset, (int)(offset - lastOffset)));
-                        lastOffset = offset;
-
-                        result[property] = bytes.Slice((int)offset, (int)(reader.BytesConsumed - offset));
-                    }
-                }
-            }
-
-            leftover = new Lazy<ArraySegment<byte>>(() => parts.SelectMany(part => part).ToArray());
-            return result;
-        }
-
         public static HttpContent[] Request(IEnumerable<TMDbRequest> requests, params object[] parameters)
         {
             //return Enumerable.Repeat(Task.FromResult<ArraySegment<byte>>(Encoding.UTF8.GetBytes("{}")), requests.Count()).ToArray();
@@ -299,16 +259,6 @@ namespace Movies
             return string.Join('&', parameters.Select(kvp => string.Join('=', kvp.Key, kvp.Value)));
         }
 
-        private static async Task<Dictionary<string, ArraySegment<byte>>> ToBytes(Task<System.Net.Http.HttpResponseMessage> response)
-        {
-            //JsonNode.Parse(await (await response).Content.ReadAsStringAsync());
-            return new Dictionary<string, ArraySegment<byte>>
-            {
-                [""] = await (await response).Content.ReadAsByteArrayAsync()
-            };
-            //return System.Text.Encoding.UTF8.GetBytes("{}");
-        }
-
         private static async Task<ArraySegment<byte>> GetAppendedJson(Task<LazyJson> jsonTask, string property)
         {
             var json = await jsonTask;
@@ -318,26 +268,6 @@ namespace Movies
             json.Semaphore.Release();
 
             return result;
-        }
-
-        private static async Task<ArraySegment<byte>> GetAppendedJson(Task<byte[]> bytes, string property)
-        {
-            //JsonDocument.Parse(await (await response).Content.ReadAsStreamAsync());
-            //return parse.TryGetValue(JsonNode.Parse("{}"), out var empty) ? empty : null;
-            //var json = await JsonDocument.ParseAsync(await (await response).Content.ReadAsStreamAsync());
-            //parser.TryGetValue(await bytes, out var temp);
-            //JsonParser.PeelProperty(property, await bytes, out _);
-            //return System.Text.Encoding.UTF8.GetBytes("{}");
-            //var content = await (await response).Content.ReadAsByteArrayAsync();
-            //foreach(var c in content){ }
-            if (property == null)
-            {
-                return await bytes;
-            }
-            else
-            {
-                return JsonParser.PeelProperty(property, await bytes, out var value) ? value : null;
-            }
         }
 
         public static bool TryGetParameters(Item item, out List<object> parameters)
@@ -383,7 +313,8 @@ namespace Movies
             [Movie.CONTENT_RATING] = "releases",
             [Movie.RELEASE_DATE] = "releases",
             [TVShow.CONTENT_RATING] = "releases",
-            [TVShow.LAST_AIR_DATE] = "status",
+            [TVShow.FIRST_AIR_DATE] = "episode",
+            [TVShow.LAST_AIR_DATE] = "episode",
             //[TVShow.SEASONS] = "season",
             [Person.PROFILE_PATH] = "images",
         };
@@ -394,8 +325,7 @@ namespace Movies
             Media.ORIGINAL_LANGUAGE,
             Media.RECOMMENDED,
             Movie.PARENT_COLLECTION,
-            TVShow.FIRST_AIR_DATE,
-            //TVShow.LAST_AIR_DATE,
+            TVShow.SEASONS, // There is a change key for this but I'm not tracking it at this point
             TVShow.NETWORKS,
             Person.GENDER,
             Person.CREDITS,
@@ -408,6 +338,8 @@ namespace Movies
             Movie.WATCH_PROVIDERS,
             TVShow.WATCH_PROVIDERS
         };
+
+        private const ItemType UNCACHED_TYPES = ~(ItemType.Movie | ItemType.TVShow | ItemType.Person);
 
         private List<TMDbRequest> SupportsAppendToResponse = new List<TMDbRequest>();
         private Dictionary<TMDbRequest, List<Property>> AllRequests { get; }
@@ -635,7 +567,7 @@ namespace Movies
                         //var json = JsonNode.Parse(response.Json);
                         //Print.Log(json);
                         //responses[kvp.Value] = Task.FromResult<ArraySegment<byte>>(response.Json);
-                        responses[kvp.Value] = new StringContent(response.Json);
+                        responses[kvp.Value] = response.Content;
                     }
                 }
 
@@ -733,7 +665,7 @@ namespace Movies
             public bool IsCacheValid(Property property) => CHANGES_IGNORED.Contains(property) || (Context.ChangeKeyLookup.TryGetValue(property, out var changeKey) && Context.ChangeKeys.Contains(changeKey));
 
             private const int BATCH_DELAY = 1000;
-            private static List<(string URL, HttpContent Response)> ResponseBatch = new List<(string URL, HttpContent Response)>();
+            private static List<(string URL, HttpContent Response, ItemType Type, int ID)> ResponseBatch = new List<(string URL, HttpContent Response, ItemType Type, int ID)>();
             private static SemaphoreSlim BatchResponseSemaphore = new SemaphoreSlim(1, 1);
             private static CancellationTokenSource CancelBatch;
             private static Task BatchCache;
@@ -748,8 +680,8 @@ namespace Movies
                 var parsers = Context.Info.TryGetValue(request, out var temp) ? temp : null;
                 var invalid = parsers?.Where(parser => NO_CHANGE_KEY.Contains(parser.Property)).ToList();
 
-                // We can't cache this request (probably no change key) 
-                if (invalid?.Count < parsers?.Count == false)
+                // We can't cache this request (probably no change key)
+                if (UNCACHED_TYPES.HasFlag(Item.ItemType) || invalid?.Count < parsers?.Count == false)
                 {
                     return;
                 }
@@ -758,7 +690,7 @@ namespace Movies
 
                 try
                 {
-                    ResponseBatch.Add((GetFullURL(request), content));
+                    ResponseBatch.Add((GetFullURL(request), content, Item.ItemType, id));
                 }
                 finally
                 {
@@ -768,10 +700,10 @@ namespace Movies
                 CancelBatch?.Cancel();
                 CancelBatch = new CancellationTokenSource();
 
-                BatchCache = CachePersistentDelayed(Item.ItemType, id, CancelBatch.Token);
+                BatchCache = CachePersistentDelayed(Context.Cache, CancelBatch.Token);
             }
 
-            private async Task CachePersistentDelayed(ItemType type, int id, CancellationToken cancellationToken = default)
+            private static async Task CachePersistentDelayed(ItemInfoCache cache, CancellationToken cancellationToken = default)
             {
                 await Task.Delay(BATCH_DELAY, cancellationToken);
 
@@ -780,11 +712,11 @@ namespace Movies
                     CancelBatch?.Cancel();
 
                     await BatchResponseSemaphore.WaitAsync();
-                    IEnumerable<KeyValuePair<string, Task<JsonResponse>>> pairs = null;
+                    (string URL, HttpContent Response, ItemType Type, int ID)[] rows = new (string, HttpContent, ItemType, int)[0];
 
                     try
                     {
-                        pairs = await Task.Run(() => ResponseBatch.Select(info => new KeyValuePair<string, Task<JsonResponse>>(info.URL, GetJson(info.Response))).ToList());
+                        rows = ResponseBatch.ToArray();// await Task.Run(() => ResponseBatch.Select(info => new KeyValuePair<string, Task<JsonResponse>>(info.URL, GetJson(info.Response))).ToList());
                         ResponseBatch.Clear();
                     }
                     finally
@@ -792,11 +724,14 @@ namespace Movies
                         BatchResponseSemaphore.Release();
                     }
 
-                    await Context.Cache.AddAsync(type, id, pairs);
+                    foreach (var row in rows)
+                    {
+                        await cache.AddAsync(row.Type, row.ID, row.URL, GetJson(row.Response));
+                    }
                 }
             }
 
-            private async Task<JsonResponse> GetJson(HttpContent content) => new JsonResponse(await content.ReadAsStringAsync());
+            private static async Task<JsonResponse> GetJson(HttpContent content) => new JsonResponse(await content.ReadAsStringAsync());
 
             private async Task<IEnumerable<T>> GetTVItems<T>(Task<ArraySegment<byte>> json, string property, AsyncEnumerable.TryParseFunc<JsonNode, T> parse) => TMDB.TryParseCollection(JsonNode.Parse(await json), new JsonPropertyParser<IEnumerable<JsonNode>>(property), out var result, new JsonNodeParser<T>(parse)) ? result : null;
 
