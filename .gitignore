@@ -1,1 +1,9 @@
+.vs/
+
+bin/
+obj/
+
+packages/
+TestResults/
+
 Movies/Movies/Keys.cs
