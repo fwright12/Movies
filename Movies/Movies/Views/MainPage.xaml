@@ -99,6 +99,17 @@
                           ContentTemplate="{StaticResource ExploreTemplate}" />
         </viewmodels:ShellTabFix>
 
+        <ShellContent>
+            <ContentPage>
+                <StackLayout Orientation="Vertical">
+                    <Label Text="test"/>
+                    <Label Text="{Binding Headline,Source={x:Reference test},TargetNullValue='null',FallbackValue='fallback'}"
+                           TextColor="White"/>
+                    <forms:NativeAdView x:Name="test" />
+                </StackLayout>
+            </ContentPage>
+        </ShellContent>
+
         <ShellContent Title="Find">
             <ShellContent.Icon>
                 <FontImageSource Glyph="{OnPlatform iOS='&#xf4a4;', Android='&#xf2f5;'}"

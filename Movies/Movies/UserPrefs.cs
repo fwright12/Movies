@@ -17,39 +17,6 @@ namespace System
 
 namespace Movies
 {
-    public class BindableDictionary<TKey, TValue> : BindableViewModel
-    {
-        private IDictionary<TKey, TValue> Cache { get; }
-
-        public BindableDictionary(IDictionary<TKey, TValue> cache)
-        {
-            Cache = cache;
-        }
-
-        protected T GetValue<T>(TKey key) => Cache.TryGetValue(key, out var value) && value is T t ? t : default;
-
-        protected virtual bool UpdateValue(TKey key, TValue value, [CallerMemberName] string propertyName = null)
-        {
-            object oldValue = null;
-            if (Cache.TryGetValue(key, out var cached))
-            {
-                oldValue = cached;
-            }
-
-            if (!Equals(oldValue, value))
-            {
-                OnPropertyChanging(propertyName);
-                var e = new PropertyChangeEventArgs(propertyName, oldValue, Cache[key] = value);
-                OnPropertyChanged(propertyName);
-                OnPropertyChange(this, e);
-
-                return true;
-            }
-
-            return false;
-        }
-    }
-
     public class Language
     {
         public CultureInfo Culture { get; }
@@ -125,21 +92,21 @@ namespace Movies
         public override string ToString() => DisplayName ?? Iso_3166;
     }
 
-    public class UserPrefs : BindableDictionary<string, object>
+    public class UserPrefs : BindableDictionary<object>
     {
         public const string LANGUAGE_KEY = "language";
         public const string REGION_KEY = "region";
 
         public Language Language
         {
-            get => GetValue<string>(LANGUAGE_KEY) is string iso ? new Language(iso) : null;
-            set => UpdateValue(LANGUAGE_KEY, value.Name);
+            get => GetValue(LANGUAGE_KEY) is string iso ? new Language(iso) : null;
+            set => SetValue(LANGUAGE_KEY, value.Name);
         }
 
         public Region Region
         {
-            get => GetValue<string>(REGION_KEY) is string iso ? new Region(iso) : null;
-            set => UpdateValue(REGION_KEY, value.Name);
+            get => GetValue(REGION_KEY) is string iso ? new Region(iso) : null;
+            set => SetValue(REGION_KEY, value.Name);
         }
 
         public bool RestartRequired { get; private set; }

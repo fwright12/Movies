@@ -86,13 +86,13 @@
       <Version>2.4.11.982</Version>
     </PackageReference>
     <PackageReference Include="Xamarin.Forms">
-      <Version>5.0.0.2478</Version>
+      <Version>5.0.0.2545</Version>
     </PackageReference>
     <PackageReference Include="Xamarin.Forms.AppLinks">
       <Version>5.0.0.2515</Version>
     </PackageReference>
     <PackageReference Include="Xamarin.GooglePlayServices.Ads.Lite">
-      <Version>121.0.0</Version>
+      <Version>121.3.0</Version>
     </PackageReference>
   </ItemGroup>
   <ItemGroup>

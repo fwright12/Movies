@@ -43,35 +43,6 @@ namespace Movies
      * 
      */
 
-    public class BiMap<TKey, TValue> //: Dictionary<TKey, TValue>, IDictionary<TValue, TKey>
-    {
-        public Dictionary<TKey, TValue> Keys { get; } = new Dictionary<TKey, TValue>();
-        public Dictionary<TValue, TKey> Values { get; } = new Dictionary<TValue, TKey>();
-
-        public TValue this[TKey key]
-        {
-            get => Keys[key];
-            set
-            {
-                Keys[key] = value;
-                Values[value] = key;
-            }
-        }
-
-        public TKey this[TValue val]
-        {
-            get => Values[val];
-            set
-            {
-                Keys[value] = val;
-                Values[val] = value;
-            }
-        }
-
-        public bool TryGetValue(TKey key, out TValue value) => Keys.TryGetValue(key, out value);
-        public bool TryGetValue(TValue value, out TKey key) => Values.TryGetValue(value, out key);
-    }
-
     public partial class App : Application
     {
         public static readonly string[] AdKeywords = "movie,tv,shows,tv show,series,streaming,entertainment,watch,list,film,actor,guide,library,theater".Split(',').ToArray();
@@ -143,11 +114,9 @@ namespace Movies
         private Dictionary<ServiceName, IService> Services;
         private Database LocalDatabase;
         private Task DBInitialization { get; }
+        private Session Session { get; }
 
         private CollectionViewModel _Popular;
-        private const string LAST_ACCESSED_KEY = "last accessed";
-        private const string DB_LAST_CLEANED_KEY = "last cleaned";
-        private static readonly TimeSpan DB_CLEANING_SCHEDULE = new TimeSpan(7, 0, 0, 0);
 
         public App()
         {
@@ -170,7 +139,6 @@ namespace Movies
 
             _ = SavePropertiesAsync();
 
-
             //UserAppTheme = OSAppTheme.Dark;
 #endif
 
@@ -186,8 +154,6 @@ namespace Movies
             TMDbGetPropertyValues = tmdb.GetPropertyValues;
             tmdb.Company.LogoPath ??= "file://Movies.Logos.TMDbLogo.png";
             trakt.Company.LogoPath ??= "file://Movies.Logos.TraktLogo.png";
-
-            //var test = Properties.Remove(API.CONFIGURATION.GET_COUNTRIES.GetURL());
 
             _ = tmdb.SetValues(Prefs.Regions, API.CONFIGURATION.GET_COUNTRIES, new JsonArrayParser<Region>(new JsonNodeParser<Region>((JsonNode json, out Region region) =>
             {
@@ -222,23 +188,15 @@ namespace Movies
                 //CustomLists.Add(new List { Name = collection.Name, Items = collection.Items });
             }
 #else
+            Session = new Session(Properties);
+            Session.PropertyChanged += async (sender, e) => await SavePropertiesAsync();
+
             LocalDatabase = new Database(tmdb, TMDB.IDKey);
-            DateTime? lastAccess = null;
-            var lastCleaned = DateTime.MinValue;
 
-            if (Properties.TryGetValue(DB_LAST_CLEANED_KEY, out var dateObj) && dateObj is string dateStr && DateTime.TryParse(dateStr, out var tempLastCleaned))
-            {
-                lastCleaned = tempLastCleaned;
-            }
-            if (Properties.TryGetValue(LAST_ACCESSED_KEY, out dateObj) && dateObj is string dateStr1 && DateTime.TryParse(dateStr1, out var tempLastAccess))
-            {
-                lastAccess = tempLastAccess;
-            }
-
-            if (DateTime.Now - lastCleaned > DB_CLEANING_SCHEDULE)
+            if (DateTime.Now - Session.DBLastCleaned <= DB_CLEANING_SCHEDULE == false)
             {
                 DBInitialization = LocalDatabase.Clean();
-                Properties[DB_LAST_CLEANED_KEY] = DateTime.Now.ToString();
+                Session.DBLastCleaned = DateTime.Now;
             }
             else
             {
@@ -246,13 +204,9 @@ namespace Movies
             }
             //DataManager.AddDataSource(tmdb);
 
-            Properties[LAST_ACCESSED_KEY] = DateTime.Now.ToString();
-            _ = SavePropertiesAsync();
-
             ItemHelpers.PersistentCache = LocalDatabase.ItemCache;
-            _ = tmdb.SetItemCache(LocalDatabase.ItemCache, lastAccess);
-
-            SavedFilters = Properties.TryGetValue(SAVED_FILTERS_KEY, out var filtersObj) && filtersObj is string filters ? System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(filters) : new Dictionary<string, string>();
+            _ = tmdb.SetItemCache(LocalDatabase.ItemCache, Session.LastAccessed);
+            Session.LastAccessed = DateTime.Now;
 
 #if DEBUG
             MovieExplore = new List<object>
@@ -548,10 +502,6 @@ namespace Movies
         }
 #endif
 
-        public const string OAUTH_SCHEME = "nexus";
-        public const string OAUTH_HOST = "gmlmovies.page.link";
-        public static readonly Uri BASE_OAUTH_REDIRECT_URI = new Uri((Device.RuntimePlatform == Device.iOS ? "https" : OAUTH_SCHEME) + "://" + OAUTH_HOST + "/oauth/");
-
         protected override async void OnAppLinkRequestReceived(Uri uri)
         {
             base.OnAppLinkRequestReceived(uri);
@@ -615,8 +565,6 @@ namespace Movies
         }
 
         private Task TMDbGetPropertyValues { get; }
-        private const string SAVED_FILTERS_KEY = "SavedFilters";
-        private Dictionary<string, string> SavedFilters { get; }
 
         private string GetFiltersKey(CollectionViewModel collection) => collection == Popular ? "Popular" : (collection.Item as List)?.ID ?? collection.Name;
 
@@ -653,7 +601,7 @@ namespace Movies
             var key = GetFiltersKey(collection);
             await TMDbGetPropertyValues;
 
-            if (key != null && collection.Source.Predicate is ExpressionBuilder builder && SavedFilters.TryGetValue(key, out var savedFilters))
+            if (key != null && collection.Source.Predicate is ExpressionBuilder builder && Session.Filters.TryGetValue(key, out var savedFilters))
             {
                 try
                 {
@@ -711,9 +659,8 @@ namespace Movies
 
             if (GetFiltersKey(collection) is string key)
             {
-                SavedFilters[key] = json;
-
-                Properties[SAVED_FILTERS_KEY] = System.Text.Json.JsonSerializer.Serialize(SavedFilters);
+                Session.Filters[key] = json;
+                Session.SaveFilters(json);
                 return SavePropertiesAsync();
             }
 

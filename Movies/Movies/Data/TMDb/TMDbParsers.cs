@@ -295,6 +295,43 @@ namespace Movies
             return null;
         }
 
+        private static bool TryParseCertifications(JsonNode json, out IEnumerable<string> certifications) => TryParseCertifications(json, REGION, out certifications);
+        private static bool TryParseCertifications(JsonNode json, Region region, out IEnumerable<string> certifications)
+        {
+            if (json.TryGetValue("certifications", out json))
+            {
+                if (json.TryGetValue(region.Iso_3166, out JsonArray array))
+                {
+                    array = new JsonArray(array.OrderBy(json => json["order"]?.TryGetValue<int>() ?? int.MaxValue).Select(json => JsonNode.Parse(json.ToJsonString())).ToArray());
+                    return new JsonArrayParser<string>(new JsonPropertyParser<string>("certification")).TryGetValue(array, out certifications);
+                }
+                else if (region != FALLBACK_REGION)
+                {
+                    return TryParseCertifications(json, FALLBACK_REGION, out certifications);
+                }
+            }
+
+            certifications = null;
+            return false;
+        }
+
+        private static bool TryParseWatchProviders(JsonNode json, out IEnumerable<WatchProvider> providers)
+        {
+            if (json is JsonArray array)
+            {
+                int priority(JsonNode json) => json["display_priority"]?.TryGetValue<int>() ?? int.MaxValue;
+
+                var primary = array.Where(json => json.TryGetValue("provider_id", out int id) && (id < 50 || id == 384 || id == 390 || id == 350 || id == 386 || id == 387 || id == 191 || id == 531));
+                var ordered = primary.OrderBy(priority).Concat(array.Except(primary).OrderBy(priority));
+                array = new JsonArray(ordered.Select(json => JsonNode.Parse(json.ToJsonString())).ToArray());
+
+                return new JsonArrayParser<WatchProvider>(new JsonNodeParser<WatchProvider>(TryParseWatchProvider)).TryGetValue(array, out providers);
+            }
+
+            providers = null;
+            return false;
+        }
+
         public static string ParseTVCertification(JsonNode json)
         {
             if (json is JsonArray releases)

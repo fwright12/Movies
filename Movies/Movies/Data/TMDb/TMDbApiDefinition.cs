@@ -174,6 +174,11 @@ namespace Movies
             };
         }
 
+        public static class TRENDING
+        {
+            public static readonly PagedTMDbRequest GET_TRENDING = new PagedTMDbRequest("trending/{0}/{1}");
+        }
+
         public static class PEOPLE
         {
             public static readonly TMDbRequest GET_DETAILS = new TMDbRequest("person/{0}")

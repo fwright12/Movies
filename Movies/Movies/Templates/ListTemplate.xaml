@@ -221,10 +221,10 @@
                     </VisualStateGroup>
                 </VisualStateManager.VisualStateGroups>
 
-                <!--<forms:Ads.CollectionAds>
+                <forms:Ads.CollectionAds>
                     <forms:AdInfo Frequency="10"
                                   Template="{StaticResource InlineBannerTemplate}" />
-                </forms:Ads.CollectionAds>-->
+                </forms:Ads.CollectionAds>
 
                 <CollectionView.Header>
                     <StackLayout Orientation="Vertical"

@@ -1,20 +1,81 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Linq;
-using System.Text;
-using CoreGraphics;
+﻿using CoreGraphics;
 using Foundation;
 using Google.MobileAds;
-using Movies.Views;
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
 using UIKit;
 using Xamarin.Forms;
 using Xamarin.Forms.Platform.iOS;
 
 [assembly: ExportRenderer(typeof(AdView), typeof(Movies.iOS.AdRenderer))]
+[assembly: ExportRenderer(typeof(Xamarin.Forms.NativeAdView), typeof(Movies.iOS.NativeAdRenderer))]
 
 namespace Movies.iOS
 {
+    public class NativeAdRenderer : ViewRenderer<Xamarin.Forms.NativeAdView, Google.MobileAds.NativeAdView>
+    {
+        private void GetAd()
+        {
+            var controller = GetVisibleViewController();
+            var adLoader = new AdLoader("ca-app-pub-3940256099942544/3986624511", controller, new AdLoaderAdType[] { AdLoaderAdType.Native }, new AdLoaderOptions[0] );
+            adLoader.Delegate = new Listener
+            {
+                Element = Element
+            };
+            Element.Headline = "requested";
+
+            adLoader.LoadRequest(Request.GetDefaultRequest());
+        }
+
+        UIViewController GetVisibleViewController()
+        {
+            var rootController = UIApplication.SharedApplication.KeyWindow.RootViewController;
+
+            if (rootController.PresentedViewController == null)
+                return rootController;
+
+            if (rootController.PresentedViewController is UINavigationController)
+            {
+                return ((UINavigationController)rootController.PresentedViewController).VisibleViewController;
+            }
+
+            if (rootController.PresentedViewController is UITabBarController)
+            {
+                return ((UITabBarController)rootController.PresentedViewController).SelectedViewController;
+            }
+
+            return rootController.PresentedViewController;
+        }
+
+        protected override void OnElementChanged(ElementChangedEventArgs<Xamarin.Forms.NativeAdView> e)
+        {
+            base.OnElementChanged(e);
+
+            if (Control == null)
+            {
+                GetAd();
+            }
+        }
+
+        private class Listener : UnifiedNativeAdLoaderDelegate
+        {
+            public Xamarin.Forms.NativeAdView Element { get; set; }
+
+            public override void DidFailToReceiveAd(AdLoader adLoader, NSError error)
+            {
+                Element.Headline = "failed " + error;
+                ;
+            }
+
+            public override void DidReceiveUnifiedNativeAd(AdLoader adLoader, NativeAd nativeAd)
+            {
+                Element.Headline = "loaded " + nativeAd;
+                ;
+            }
+        }
+    }
+
     public class AdRenderer : ViewRenderer<AdView, BannerView>
     {
         private BannerView NativeAdView
@@ -55,7 +116,7 @@ namespace Movies.iOS
         protected override void OnElementChanged(ElementChangedEventArgs<AdView> e)
         {
             base.OnElementChanged(e);
-            
+
             if (Control == null && _NativeAdView == null)
             {
                 try
@@ -95,7 +156,7 @@ namespace Movies.iOS
             }
             else
             {
-                
+
             }
 
             Element.WidthRequest = size.Width;
