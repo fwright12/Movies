@@ -17,15 +17,15 @@ namespace Movies
 
         private Task<SQLJsonCache> Cache { get; }
 
-        public ItemInfoCache(SQLiteAsyncConnection db)
+        public ItemInfoCache(Task<SQLiteAsyncConnection> db)
         {
             Setup = Cache = Init(db);
             //_ = Expire(ItemType.Movie, 453395);
         }
 
-        private async Task<SQLJsonCache> Init(SQLiteAsyncConnection db)
+        private async Task<SQLJsonCache> Init(Task<SQLiteAsyncConnection> db)
         {
-            var cache = new SQLJsonCache(db);
+            var cache = new SQLJsonCache(await db);
             await cache.Setup;
             await cache.DB.AddColumns(cache.Table, ID, TYPE);
 

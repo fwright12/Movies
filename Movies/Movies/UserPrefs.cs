@@ -100,13 +100,13 @@ namespace Movies
         public Language Language
         {
             get => GetValue(LANGUAGE_KEY) is string iso ? new Language(iso) : null;
-            set => SetValue(LANGUAGE_KEY, value.Name);
+            set => SetValue(value.Name, LANGUAGE_KEY);
         }
 
         public Region Region
         {
             get => GetValue(REGION_KEY) is string iso ? new Region(iso) : null;
-            set => SetValue(REGION_KEY, value.Name);
+            set => SetValue(value.Name, REGION_KEY);
         }
 
         public bool RestartRequired { get; private set; }

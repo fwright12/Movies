@@ -3,16 +3,6 @@
     [TestClass]
     public class RequestHandlerTests
     {
-        public RequestHandlerTests()
-        {
-#if DEBUG
-            Movies.HttpClient.AllowLiveRequests = false;
-            Movies.HttpClient.BreakOnRequest = false;
-            Movies.HttpClient.SimulatedDelay = 1000;
-#endif
-            var tmdb = new TMDB(string.Empty, string.Empty, new DummyJsonCache());
-        }
-
         [TestMethod]
         public Task MovieChangeKeysTests() => ChangeKeysTest(ItemType.Movie);
 

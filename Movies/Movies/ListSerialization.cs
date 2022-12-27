@@ -22,8 +22,6 @@ namespace Movies
 
         private async Task<List<ListViewModel.SyncOptions>> GetSyncOptionsAsync(ServiceName name, object id)
         {
-            await DBInitialization;
-
             var result = new List<ListViewModel.SyncOptions>();
 
             foreach (var sync in await LocalDatabase.GetSyncsWithAsync(name.ToString(), id.ToString()))

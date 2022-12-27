@@ -16,10 +16,9 @@ namespace Movies
     {
         public List<(Regex Route, string Response)> Routes { get; }
 
-        public Router(IEnumerable<(string, string)> routes) : this(routes.Select(route => (new Regex(route.Item1), route.Item2))) { }
-        public Router(IEnumerable<(Regex, string)> routes)
+        public Router(IEnumerable<(string, string)> routes)
         {
-            Routes = new List<(Regex route, string content)>(routes.OrderByDescending(route => route.Item1.ToString().Length));
+            Routes = new List<(Regex route, string content)>(routes.Select(route => (new Regex(route.Item1), route.Item2)).OrderByDescending(route => route.Item1.ToString().Length));
         }
 
         public string Route(string url)
@@ -34,13 +33,6 @@ namespace Movies
 
             return null;
         }
-    }
-
-    public partial class HttpClient
-    {
-        public static bool AllowLiveRequests = true;
-        public static bool BreakOnRequest = true;
-        public static int SimulatedDelay = 0;
     }
 
     public partial class HttpClient : System.Net.Http.HttpClient
@@ -96,7 +88,7 @@ namespace Movies
 
         public HttpClient()
         {
-            Router = new Router(DetailsRoutes.Concat(TMDbRoutes).Concat(TraktRoutes).Select<KeyValuePair<object, string>, (Regex, string)>(kvp =>
+            Router = new Router(DetailsRoutes.Concat(TMDbRoutes).Concat(TraktRoutes).Select<KeyValuePair<object, string>, (string, string)>(kvp =>
             {
                 string url;
 
@@ -109,7 +101,7 @@ namespace Movies
                     url = kvp.Key?.ToString() ?? string.Empty;
                 }
 
-                return (new Regex(new Regex("{\\d+}").Replace(url, ".*") + ".*"), kvp.Value);
+                return (new Regex("{\\d+}").Replace(url, ".*") + ".*", kvp.Value);
             }));
         }
 
@@ -121,28 +113,20 @@ namespace Movies
             //return await base.SendAsync(request, cancellationToken);
 
             var endpoint = request.RequestUri.ToString();
-            string content;
+            var content = DebugConfig.AllowLiveRequests ? null : "{}";
 
-            if (AllowLiveRequests)
+            if (endpoint.Contains("changes"))
             {
-                if (endpoint.Contains("changes"))
-                {
-                    content = "{}";
-                }
-                else
-                {
-                    content = Router.Route(endpoint);
-                }
+                content = "{}";
             }
             else
             {
-                content = "{}";
+                content = Router.Route(endpoint);
             }
 
             if (DetailsRoutes.Values.Contains(content))
             {
-                if (BreakOnRequest)
-                    ;
+                DebugConfig.Breakpoint(endpoint);
             }
 
             //throw new HttpRequestException();
@@ -253,9 +237,9 @@ namespace Movies
             Print.Log($"web request{(content != null ? " (mock)" : string.Empty)}: " + endpoint);
             CallHistory.Add(endpoint);
 
-            if (SimulatedDelay > 0)
+            if (DebugConfig.SimulatedDelay > 0)
             {
-                await Task.Delay(SimulatedDelay);
+                await Task.Delay(DebugConfig.SimulatedDelay);
             }
 
             if (content != null)

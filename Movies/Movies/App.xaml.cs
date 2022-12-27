@@ -113,7 +113,6 @@ namespace Movies
 
         private Dictionary<ServiceName, IService> Services;
         private Database LocalDatabase;
-        private Task DBInitialization { get; }
         private Session Session { get; }
 
         private CollectionViewModel _Popular;
@@ -155,17 +154,28 @@ namespace Movies
             tmdb.Company.LogoPath ??= "file://Movies.Logos.TMDbLogo.png";
             trakt.Company.LogoPath ??= "file://Movies.Logos.TraktLogo.png";
 
-            _ = tmdb.SetValues(Prefs.Regions, API.CONFIGURATION.GET_COUNTRIES, new JsonArrayParser<Region>(new JsonNodeParser<Region>((JsonNode json, out Region region) =>
+            async Task SetRegions()
             {
-                if (json.TryGetValue("iso_3166_1", out string iso_3166))
+                var regions = new List<Region>();
+                await tmdb.SetValues(regions, API.CONFIGURATION.GET_COUNTRIES, new JsonArrayParser<Region>(new JsonNodeParser<Region>((JsonNode json, out Region region) =>
                 {
-                    region = new Region(iso_3166, json["english_name"]?.TryGetValue<string>());
-                    return true;
-                }
+                    if (json.TryGetValue("iso_3166_1", out string iso_3166))
+                    {
+                        region = new Region(iso_3166, json["english_name"]?.TryGetValue<string>());
+                        return true;
+                    }
 
-                region = null;
-                return false;
-            })));
+                    region = null;
+                    return false;
+                })));
+
+                foreach (var region in regions.OrderBy(region => region.ToString()))
+                {
+                    Prefs.Regions.Add(region);
+                }
+            }
+
+            _ = SetRegions();
 
             //_ = TMDB.GetItem(ItemType.Movie, 453395);
 
@@ -191,16 +201,11 @@ namespace Movies
             Session = new Session(Properties);
             Session.PropertyChanged += async (sender, e) => await SavePropertiesAsync();
 
-            LocalDatabase = new Database(tmdb, TMDB.IDKey);
+            LocalDatabase = new Database(tmdb, TMDB.IDKey, Session.DBLastCleaned);
 
-            if (DateTime.Now - Session.DBLastCleaned <= DB_CLEANING_SCHEDULE == false)
+            if (LocalDatabase.NeedsCleaning)
             {
-                DBInitialization = LocalDatabase.Clean();
                 Session.DBLastCleaned = DateTime.Now;
-            }
-            else
-            {
-                DBInitialization = LocalDatabase.Init;
             }
             //DataManager.AddDataSource(tmdb);
 
@@ -520,18 +525,6 @@ namespace Movies
             }
         }
 
-        private const string POPULAR_FILTERS = "PopularFilters";
-        private readonly System.Text.Json.JsonSerializerOptions FilterSerializerOptions = new System.Text.Json.JsonSerializerOptions
-        {
-            Converters =
-            {
-                new ItemTypeConverter(),
-                new PredicateConverter(),
-                new PropertyConverter(),
-                new PersonConverter()
-            }
-        };
-
         private CollectionViewModel GetPopular()
         {
             if (_Popular != null)
@@ -566,48 +559,19 @@ namespace Movies
 
         private Task TMDbGetPropertyValues { get; }
 
-        private string GetFiltersKey(CollectionViewModel collection) => collection == Popular ? "Popular" : (collection.Item as List)?.ID ?? collection.Name;
-
-        public class PersistentValue<T>
-        {
-            public T Value { get; private set; }
-            public string Key { get; }
-
-            private IDictionary<string, object> Storage { get; }
-
-            private PersistentValue(IDictionary<string, object> storage, string key, T value)
-            {
-                Storage = storage;
-                //Value = 
-            }
-
-            public static bool TryCreate(IDictionary<string, object> storage, string key, out PersistentValue<T> value)
-            {
-                try
-                {
-                    value = new PersistentValue<T>(storage, key, default);
-                    return true;
-                }
-                catch
-                {
-                    value = null;
-                    return false;
-                }
-            }
-        }
+        private string GetFiltersKey(CollectionViewModel collection) => collection == _Popular ? "Popular" : (collection.Item as List)?.ID ?? collection.Name;
 
         private async Task RestoreFilters(CollectionViewModel collection)
         {
             var key = GetFiltersKey(collection);
             await TMDbGetPropertyValues;
 
-            if (key != null && collection.Source.Predicate is ExpressionBuilder builder && Session.Filters.TryGetValue(key, out var savedFilters))
+            try
             {
-                try
+                if (key != null && collection.Source.Predicate is ExpressionBuilder builder && Session.TryGetFilters(key, out var predicates))
                 {
 #if !DEBUG || true
                     var expression = new BooleanExpression();
-                    var predicates = System.Text.Json.JsonSerializer.Deserialize<IEnumerable<OperatorPredicate>>(savedFilters, FilterSerializerOptions);
 
                     foreach (var predicate in predicates)
                     {
@@ -622,10 +586,10 @@ namespace Movies
                     }
 #endif
                 }
-                catch (Exception e)
-                {
-                    Print.Log(e);
-                }
+            }
+            catch (Exception e)
+            {
+                Print.Log(e);
             }
 
             collection.Source.Predicate.PredicateChanged += async (sender, e) =>
@@ -650,17 +614,15 @@ namespace Movies
             var filters = collection.Source.Predicate.Predicate;
             //var temp = SerializeFilters(builder.Predicate);
             var predicates = (filters as BooleanExpression)?.Predicates.OfType<OperatorPredicate>() ?? Enumerable.Empty<OperatorPredicate>();
-            var json = System.Text.Json.JsonSerializer.Serialize(predicates, FilterSerializerOptions);
 #if DEBUG && false
-                var temp = System.Text.Json.JsonSerializer.Deserialize<IEnumerable<OperatorPredicate>>(json, FilterSerializerOptions);
+            var temp = System.Text.Json.JsonSerializer.Deserialize<IEnumerable<OperatorPredicate>>(json, FilterSerializerOptions);
 
-                Print.Log(json);
+            Print.Log(json);
 #endif
 
             if (GetFiltersKey(collection) is string key)
             {
-                Session.Filters[key] = json;
-                Session.SaveFilters(json);
+                Session.SaveFilters(key, predicates);
                 return SavePropertiesAsync();
             }
 

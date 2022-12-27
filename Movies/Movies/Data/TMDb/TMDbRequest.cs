@@ -37,7 +37,7 @@ namespace Movies
         public static implicit operator TMDbRequest(string url) => new TMDbRequest(url);
 
 
-        public string GetURL(params string[] parameters) => GetURL(TMDB.LANGUAGE.Name, TMDB.REGION.Name, TMDB.ADULT, parameters);
+        public string GetURL(params string[] parameters) => GetURL(TMDB.LANGUAGE.Iso_639, TMDB.REGION.Iso_3166, TMDB.ADULT, parameters);
         public string GetURL(string language, string region, bool adult, params string[] otherParameters)
         {
             var parameters = new List<string>();

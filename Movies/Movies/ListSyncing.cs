@@ -133,8 +133,6 @@ namespace Movies
             }
             LoadingLists = true;
 
-            await DBInitialization;
-
             //while (QueuedProviders.Count > 0)
             for (int i = 0; i < (count ?? 1) && QueuedProviders.Count > 0;)
             {

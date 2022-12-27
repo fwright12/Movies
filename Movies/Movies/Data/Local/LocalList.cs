@@ -38,15 +38,15 @@ namespace Movies.Views
             public static readonly Table DetailsTable = new Table(DetailsCols.ID, DetailsCols.ALLOWED_TYPES, DetailsCols.NAME, DetailsCols.DESCRIPTION, DetailsCols.AUTHOR, DetailsCols.PRIVATE, DetailsCols.UPDATED_AT) { Name = "LocalLists" };
             public static readonly Table ItemsTable = new Table(ItemsCols.LIST_ID, ItemsCols.ITEM_ID, ItemsCols.ITEM_TYPE, ItemsCols.DATE_ADDED) { Name = "LocalListItems" };
 
-            public SQLiteAsyncConnection SQLDB;
+            public Task<SQLiteAsyncConnection> Database;
             public IAssignID<int> IDSystem;
             public override string ID => Id.ToString();
 
             private int Id;
 
-            public LocalList(SQLiteAsyncConnection database, int id)
+            public LocalList(Task<SQLiteAsyncConnection> database, int id)
             {
-                SQLDB = database;
+                Database = database;
                 Id = id;
 
                 Items = TryFilter(FilterPredicate.TAUTOLOGY, out _);// GetItems();
@@ -60,7 +60,11 @@ namespace Movies.Views
 
             private object GetUpdatedAt() => "current_timestamp";
 
-            private async Task Updated() => await SQLDB.ExecuteAsync(string.Format("update {0} set {1} = {2} where {3} = ?", DetailsTable, DetailsCols.UPDATED_AT, GetUpdatedAt(), DetailsCols.ID), ID);
+            private async Task Updated()
+            {
+                var database = await Database;
+                await database.ExecuteAsync(string.Format("update {0} set {1} = {2} where {3} = ?", DetailsTable, DetailsCols.UPDATED_AT, GetUpdatedAt(), DetailsCols.ID), ID);
+            }
 
             protected override async Task<bool> AddAsyncInternal(IEnumerable<Item> items)
             {
@@ -83,7 +87,8 @@ namespace Movies.Views
                 if (rows.Count > 0)
                 {
                     string values = string.Join(',', Enumerable.Repeat("(?,?,?)", rows.Count));
-                    var modified = await SQLDB.ExecuteAsync(string.Format("insert into {0}({1}) values " + values, ItemsTable, string.Join(',', ItemsTable.Columns.SkipLast(1))), rows.SelectMany(row => row).ToArray());
+                    var database = await Database;
+                    var modified = await database.ExecuteAsync(string.Format("insert into {0}({1}) values " + values, ItemsTable, string.Join(',', ItemsTable.Columns.SkipLast(1))), rows.SelectMany(row => row).ToArray());
 
                     if (modified > 0)
                     {
@@ -97,9 +102,17 @@ namespace Movies.Views
             }
             protected async override Task<bool?> ContainsAsyncInternal(Item item) => IDSystem.TryGetID(item, out var id) && await Contains(id, item.ItemType);
 
-            private async Task<bool> Contains(int id, Test.ItemType itemType) => (await SQLDB.ExecuteScalarAsync<int>(string.Format("select count(*) from {0} where {1} = ? and {2} = ? and {3} = ?", ItemsTable, ItemsCols.LIST_ID, ItemsCols.ITEM_ID, ItemsCols.ITEM_TYPE), Id, id, AppItemTypeToDatabaseItemType(itemType))) == 1;
+            private async Task<bool> Contains(int id, Test.ItemType itemType)
+            {
+                var database = await Database;
+                return (await database.ExecuteScalarAsync<int>(string.Format("select count(*) from {0} where {1} = ? and {2} = ? and {3} = ?", ItemsTable, ItemsCols.LIST_ID, ItemsCols.ITEM_ID, ItemsCols.ITEM_TYPE), Id, id, AppItemTypeToDatabaseItemType(itemType))) == 1;
+            }
 
-            public override Task<int> CountAsync() => SQLDB.ExecuteScalarAsync<int>(string.Format("select count(*) from {0} where {1} = ?", ItemsTable, ItemsCols.LIST_ID), Id);
+            public override async Task<int> CountAsync()
+            {
+                var database = await Database;
+                return await database.ExecuteScalarAsync<int>(string.Format("select count(*) from {0} where {1} = ?", ItemsTable, ItemsCols.LIST_ID), Id);
+            }
 
             protected override async Task<bool> RemoveAsyncInternal(IEnumerable<Item> items)
             {
@@ -112,7 +125,8 @@ namespace Movies.Views
 
                     if (IDSystem.TryGetID(item, out var id))
                     {
-                        rows = await SQLDB.ExecuteAsync(string.Format("delete from {0} where {1} = ? and {2} = ? and {3} = ?", ItemsTable, ItemsCols.LIST_ID, ItemsCols.ITEM_ID, ItemsCols.ITEM_TYPE), Id, id, AppItemTypeToDatabaseItemType(item.ItemType));
+                        var database = await Database;
+                        rows = await database.ExecuteAsync(string.Format("delete from {0} where {1} = ? and {2} = ? and {3} = ?", ItemsTable, ItemsCols.LIST_ID, ItemsCols.ITEM_ID, ItemsCols.ITEM_TYPE), Id, id, AppItemTypeToDatabaseItemType(item.ItemType));
                         total += rows;
                     }
 
@@ -149,15 +163,16 @@ namespace Movies.Views
                 };
 
                 var cols = DetailsTable.Columns.Where(col => col != DetailsCols.ID).Select(col => col.Name);
+                var database = await Database;
 
                 if (Id == -1)
                 {
-                    await SQLDB.ExecuteAsync(string.Format("insert into {0} ({1}) values ({2},{3})", DetailsTable, string.Join(",", cols), string.Join(",", Enumerable.Repeat("?", values.Length)), GetUpdatedAt()), values);
-                    Id = (await SQLDB.QueryScalarsAsync<int>("select last_insert_rowid()")).First();
+                    await database.ExecuteAsync(string.Format("insert into {0} ({1}) values ({2},{3})", DetailsTable, string.Join(",", cols), string.Join(",", Enumerable.Repeat("?", values.Length)), GetUpdatedAt()), values);
+                    Id = (await database.QueryScalarsAsync<int>("select last_insert_rowid()")).First();
                 }
                 else
                 {
-                    await SQLDB.ExecuteAsync(string.Format("update {0} set {1}{4} where {2} = {3}", DetailsTable, string.Join(",", cols.Select(col => col + "=?")).TrimEnd('?'), DetailsCols.ID, Id, GetUpdatedAt()), values);
+                    await database.ExecuteAsync(string.Format("update {0} set {1}{4} where {2} = {3}", DetailsTable, string.Join(",", cols.Select(col => col + "=?")).TrimEnd('?'), DetailsCols.ID, Id, GetUpdatedAt()), values);
                 }
             }
 
@@ -168,8 +183,9 @@ namespace Movies.Views
                     return;
                 }
 
-                var details = SQLDB.ExecuteAsync(string.Format("delete from {0} where {1} = ?", DetailsTable, DetailsCols.ID), Id);
-                var items = SQLDB.ExecuteAsync(string.Format("delete from {0} where {1} = ?", ItemsTable, ItemsCols.LIST_ID), Id);
+                var database = await this.Database;
+                var details = database.ExecuteAsync(string.Format("delete from {0} where {1} = ?", DetailsTable, DetailsCols.ID), Id);
+                var items = database.ExecuteAsync(string.Format("delete from {0} where {1} = ?", ItemsTable, ItemsCols.LIST_ID), Id);
 
                 await Task.WhenAll(details, items);
             }
@@ -192,7 +208,8 @@ namespace Movies.Views
                     query += $" and {ItemsCols.ITEM_TYPE} in ({string.Join(',', typeFilter)})";
                 }
 
-                IEnumerable<(int?, int?, string)> items = await SQLDB.QueryAsync<(int?, int?, string)>(query, Id);
+                var database = await Database;
+                IEnumerable<(int?, int?, string)> items = await database.QueryAsync<(int?, int?, string)>(query, Id);
 
                 if (Reverse)
                 {
@@ -240,7 +257,8 @@ namespace Movies.Views
                     items = unknownAddDate.Concat(items);
                 }*/
 
-                IEnumerable<(int?, int?, string)> items = await SQLDB.QueryAsync<(int?, int?, string)>(string.Format("select {0} from {1} where {2} = ?", SQLiteExtensions.SelectFrom(ItemsCols.ITEM_ID.Name, ItemsCols.ITEM_TYPE.Name, ItemsCols.DATE_ADDED.Name), ItemsTable, ItemsCols.LIST_ID), Id);
+                var database = await Database;
+                IEnumerable<(int?, int?, string)> items = await database.QueryAsync<(int?, int?, string)>(string.Format("select {0} from {1} where {2} = ?", SQLiteExtensions.SelectFrom(ItemsCols.ITEM_ID.Name, ItemsCols.ITEM_TYPE.Name, ItemsCols.DATE_ADDED.Name), ItemsTable, ItemsCols.LIST_ID), Id);
 
                 if (Reverse)
                 {

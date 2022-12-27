@@ -167,8 +167,9 @@
                      Orientation="Horizontal">
             <Label Text="{Binding Value.LHS, StringFormat='{0}: '}" />
 
-            <ContentView ControlTemplate="{StaticResource PredicateOperatorRHSControlTemplate}"
-                         StyleClass="PredicateClass" />
+            <ContentView ControlTemplate="{StaticResource PredicateOperatorRHSControlTemplate}">
+                <ContentPresenter />
+            </ContentView>
         </StackLayout>
     </ControlTemplate>
 

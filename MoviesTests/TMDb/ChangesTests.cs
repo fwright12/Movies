@@ -9,7 +9,7 @@ namespace MoviesTests
         [TestMethod]
         public async Task ExpireTests()
         {
-            var tmdb = Config.TMDb;
+            var tmdb = TestsConfig.TMDb;
 
             var date = new DateTime(2000, 1, 1);
             await AssertExpired(date, date);

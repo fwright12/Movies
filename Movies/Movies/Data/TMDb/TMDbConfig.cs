@@ -7,14 +7,14 @@ namespace Movies
 {
     public partial class TMDB
     {
-#if DEBUG && true
-        public const string BASE_ADDRESS = "https://api.themoviedb.org/";
+#if DEBUG
+        public const string BASE_ADDRESS = DebugConfig.ALLOW_TMDB_REQUESTS ? "https://api.themoviedb.org/" : "https://mock.themoviedb/";
 #else
-        public const string BASE_ADDRESS = "https://mock.themoviedb/";
+        public const string BASE_ADDRESS = "https://api.themoviedb.org/";
 #endif
 
 #if DEBUG
-        private static readonly string SECURE_BASE_IMAGE_URL = string.Empty;
+        private static readonly string SECURE_BASE_IMAGE_URL = DebugConfig.ALLOW_TMDB_IMAGES ? "https://image.tmdb.org/t/p" : string.Empty;
 #else
         private static readonly string SECURE_BASE_IMAGE_URL = "https://image.tmdb.org/t/p";
 #endif
