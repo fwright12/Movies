@@ -582,12 +582,10 @@ namespace Movies
             {
                 ["results"] = Parser.Create(Movie.CONTENT_RATING, ParseMovieCertification)
             },
-#if !DEBUG || false
             [API.MOVIES.GET_VIDEOS] = new ParserList
             {
                 ["results"] = Parser.Create(Media.TRAILER_PATH, ParseTrailerPath)
             },
-#endif
             [API.MOVIES.GET_WATCH_PROVIDERS] = new ParserList
             {
                 ["results"] = new MultiParser<WatchProvider>(Movie.WATCH_PROVIDERS, new JsonNodeParser<IEnumerable<WatchProvider>>(ParseWatchProviders))
@@ -621,12 +619,10 @@ namespace Movies
             {
                 ["results"] = KEYWORDS_PARSER
             },
-#if !DEBUG || false
             [API.TV.GET_VIDEOS] = new ParserList
             {
                 ["results"] = Parser.Create(Media.TRAILER_PATH, ParseTrailerPath)
             },
-#endif
             [API.TV.GET_WATCH_PROVIDERS] = new ParserList
             {
                 ["results"] = new MultiParser<WatchProvider>(TVShow.WATCH_PROVIDERS, new JsonNodeParser<IEnumerable<WatchProvider>>(ParseWatchProviders))
@@ -672,7 +668,7 @@ namespace Movies
                 ["birthday"] = Parser.Create(Person.BIRTHDAY),
                 ["deathday"] = Parser.Create(Person.DEATHDAY),
                 ["also_known_as"] = new MultiParser<string>(Person.ALSO_KNOWN_AS, new JsonArrayParser<string>()),
-                ["gender"] = Parser.Create(Person.GENDER),
+                ["gender"] = Parser.Create(Person.GENDER, value => ""),
                 ["biography"] = Parser.Create(Person.BIO),
                 ["popularity"] = Parser.Create(POPULARITY),
                 ["place_of_birth"] = Parser.Create(Person.BIRTHPLACE),

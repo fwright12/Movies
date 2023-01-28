@@ -13,11 +13,11 @@ namespace Movies
         public static async Task<JsonResponse> TryGetCachedAsync(this HttpClient client, HttpRequestMessage request, IJsonCache cache)
         {
             var url = request.RequestUri.ToString();
-            var cached = cache.TryGetValueAsync(url);
+            var cached = await cache.TryGetValueAsync(url);
 
             if (cached != null)
             {
-                return await cached;
+                return cached;
             }
 
             var content = await TryGetContentAsync(client, request);

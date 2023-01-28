@@ -17,8 +17,6 @@ namespace Movies
 {
     public partial class TMDB
     {
-        private static async Task<LazyJson> Parse(Task<System.Net.Http.HttpResponseMessage> response, IEnumerable<string> properties) => new LazyJson(await (await response).Content.ReadAsByteArrayAsync(), properties);
-
         public static HttpContent[] Request(IEnumerable<TMDbRequest> requests, params object[] parameters)
         {
             //return Enumerable.Repeat(Task.FromResult<ArraySegment<byte>>(Encoding.UTF8.GetBytes("{}")), requests.Count()).ToArray();
@@ -60,7 +58,7 @@ namespace Movies
                 var paths = appended.Select(uri => uri.OriginalString.Split('?').First()).ToArray();
                 var atrQuery = $"append_to_response={string.Join(',', paths)}";
 
-                var endpoint = urls[i] = BuildApiCall(basePath, query, atrQuery);
+                var endpoint = urls[i] = TMDB.BuildApiCall(basePath, query, atrQuery);
 
                 var fullUrl = string.Format(endpoint as string, parameters);
                 urls[i] = Parse(WebClient.TrySendAsync(fullUrl), paths);
@@ -100,6 +98,8 @@ namespace Movies
 
             return result;
         }
+
+        private static async Task<LazyJson> Parse(Task<System.Net.Http.HttpResponseMessage> response, IEnumerable<string> properties) => new LazyJson(await (await response).Content.ReadAsByteArrayAsync(), properties);
 
         public static string CombineQueries(IEnumerable<Uri> endpoints)
         {

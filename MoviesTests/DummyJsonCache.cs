@@ -18,7 +18,7 @@
 
         public Task<bool> IsCached(string url) => Task.FromResult(ContainsKey(url));
 
-        public Task<JsonResponse> TryGetValueAsync(string url) => TryGetValue(url, out var value) ? Task.FromResult(value) : null;
+        public Task<JsonResponse> TryGetValueAsync(string url) => Task.FromResult(TryGetValue(url, out var value) ? value : null);
 
         Task IJsonCache.Clear()
         {

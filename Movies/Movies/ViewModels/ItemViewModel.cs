@@ -85,6 +85,14 @@ namespace Movies.ViewModels
 
         protected delegate bool TryGet<T>(out T value);
 
+        protected bool TryRequestValue<T>(Property property, out T value, [CallerMemberName] string propertyName = null)
+        {
+            var uii = new UniformItemIdentifier(Item, property);
+            //var resource = DataService.Locator.Locate(uii);
+
+            return TryGetValue(null, out value);
+        }
+
         protected bool TryRequestValue<T>(TryGet<Task<T>> getTask, Property property, out T value, [CallerMemberName] string propertyName = null)
         {
             if (DataService.Instance.Batched)

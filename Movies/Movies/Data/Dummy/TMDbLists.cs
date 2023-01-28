@@ -5,7 +5,7 @@ using System.Text;
 
 namespace Movies
 {
-    public partial class HttpClient
+    public static class DUMMY_TMDB_LISTS
     {
         public static readonly string TMDB_ACCOUNT_LISTS_RESPONSE = @"{
     ""page"": 1,

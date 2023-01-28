@@ -5,7 +5,7 @@ using System.Text;
 
 namespace Movies
 {
-    public partial class HttpClient
+    public static class DUMMY_TMDB_CONFIG
     {
         public static readonly string MOVIE_GENRE_VALUES = @"{
     ""genres"": [

@@ -203,7 +203,7 @@
       <Name>Xamarin.Forms.Extensions</Name>
     </ProjectReference>
     <ProjectReference Include="..\Movies\Movies.csproj">
-      <Project>{D1E87F74-6844-464F-BC3E-AC8F853B15EF}</Project>
+      <Project>{507d7663-212d-4e72-842d-d0689e57777f}</Project>
       <Name>Movies</Name>
     </ProjectReference>
   </ItemGroup>

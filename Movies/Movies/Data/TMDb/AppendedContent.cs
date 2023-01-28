@@ -6,46 +6,43 @@ using System.Threading.Tasks;
 
 namespace Movies
 {
-    public partial class TMDB
+    public class AppendedContent : HttpContent
     {
-        private class AppendedContent : HttpContent
+        private Task<LazyJson> Json { get; }
+        private string PropertyName { get; }
+
+        public AppendedContent(Task<LazyJson> json, string propertyName)
         {
-            private Task<LazyJson> Json { get; }
-            private string PropertyName { get; }
+            Json = json;
+            PropertyName = propertyName;
+        }
 
-            public AppendedContent(Task<LazyJson> json, string propertyName)
+        protected override async Task SerializeToStreamAsync(Stream stream, TransportContext context)
+        {
+            var json = await Json;
+            var result = false;
+            var bytes = new ArraySegment<byte>();
+
+            await json.Semaphore.WaitAsync();
+            try
             {
-                Json = json;
-                PropertyName = propertyName;
+                result = json.TryGetValue(PropertyName, out bytes);
+            }
+            finally
+            {
+                json.Semaphore.Release();
             }
 
-            protected override async Task SerializeToStreamAsync(Stream stream, TransportContext context)
+            if (result)
             {
-                var json = await Json;
-                var result = false;
-                var bytes = new ArraySegment<byte>();
-
-                await json.Semaphore.WaitAsync();
-                try
-                {
-                    result = json.TryGetValue(PropertyName, out bytes);
-                }
-                finally
-                {
-                    json.Semaphore.Release();
-                }
-
-                if (result)
-                {
-                    await stream.WriteAsync(bytes);
-                }
+                await stream.WriteAsync(bytes);
             }
+        }
 
-            protected override bool TryComputeLength(out long length)
-            {
-                length = default;
-                return false;
-            }
+        protected override bool TryComputeLength(out long length)
+        {
+            length = default;
+            return false;
         }
     }
 }

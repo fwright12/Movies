@@ -213,6 +213,15 @@ namespace Movies
             _ = tmdb.SetItemCache(LocalDatabase.ItemCache, Session.LastAccessed);
             Session.LastAccessed = DateTime.Now;
 
+            //var inMemory = new ResourceCache();
+            //var local = new LocalResources(LocalDatabase.ItemCache);
+            //var tmdbResources = new TMDbResources();
+
+            //inMemory.SetNext(local, null);
+            //local.SetNext(tmdbResources);
+
+            //var resources = new PropertyDictionary(new LocalResources(LocalDatabase.ItemCache, new TMDbResources()));
+
 #if DEBUG
             MovieExplore = new List<object>
             {

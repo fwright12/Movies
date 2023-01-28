@@ -6,6 +6,11 @@ namespace System.Linq
     public static class EnumerableExtensions
     {
         public static IEnumerable<T> SelectMany<T>(this IEnumerable<IEnumerable<T>> source) => source.SelectMany(items => items);
+
+        public static IEnumerable<T> AsEnumerable<T>(this T item)
+        {
+            yield return item;
+        }
     }
 
     public static class AsyncEnumerable
