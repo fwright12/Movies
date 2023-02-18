@@ -69,7 +69,7 @@ namespace Movies
             }
         }
 
-        private readonly HashSet<string> ChangeKeys = new HashSet<string>();
+        public readonly HashSet<string> ChangeKeys = new HashSet<string>();
 
         private async Task GetChangeKeys()
         {

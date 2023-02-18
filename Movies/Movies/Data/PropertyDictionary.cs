@@ -1,9 +1,13 @@
-﻿using Movies.Models;
+﻿using FFImageLoading.Work;
+using Movies.Models;
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
+using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using static System.Net.Mime.MediaTypeNames;
@@ -19,596 +23,6 @@ namespace Movies
         {
             Item = item;
             Property = property;
-        }
-    }
-
-    public class TMDbCompressor : ControllerLink
-    {
-        public TMDbLocalResources LocalCache { get; }
-
-        public TMDbCompressor(TMDbLocalResources localCache)
-        {
-            LocalCache = localCache;
-        }
-
-        public override Task GetAsync(MultiRestEventArgs<GetEventArgs> e, ChainLinkEventHandler<MultiRestEventArgs<GetEventArgs>> next) => base.GetAsync(new MultiRestEventArgs<GetEventArgs>(GetUrisGreedy(e.Args).ToArray()), next);
-
-        private Dictionary<TMDbRequest, TMDbRequest> Appendable;
-
-        private IEnumerable<GetEventArgs> GetUrisGreedy(IEnumerable<GetEventArgs> requests)
-        {
-            var uiis = requests.Select(request => request.Uri).OfType<UniformItemIdentifier>();
-
-            foreach (var uii in uiis)
-            {
-                if (TMDbRemoteResources.TryResolve(uii, out var request, out var args))
-                {
-                    if (Appendable.TryGetValue(request, out var parent))
-                    {
-                        yield return new GetEventArgs<HttpContent>(new Uri(string.Format(parent.GetURL(), args), UriKind.Relative));
-                        request = parent;
-                    }
-
-                    if (request.SupportsAppendToResponse)
-                    {
-                        // append all supported
-                    }
-                }
-            }
-        }
-    }
-
-    public class TMDbLocalResources : ControllerLink<HttpContent>, IHandleSingleRestEvent<GetEventArgs<HttpContent>>
-    {
-        public HashSet<string> ChangeKeys { get; set; }
-        public Task ChangeKeysLoaded { get; set; }
-
-        private static Dictionary<Property, string> CHANGE_KEY_PROPERTY_MAP = new Dictionary<Property, string>
-        {
-            [Media.KEYWORDS] = "plot_keywords",
-            [Media.POSTER_PATH] = "images",
-            [Media.BACKDROP_PATH] = "images",
-            [Media.TRAILER_PATH] = "videos",
-            [Movie.CONTENT_RATING] = "releases",
-            [Movie.RELEASE_DATE] = "releases",
-            [TVShow.CONTENT_RATING] = "releases",
-            [TVShow.FIRST_AIR_DATE] = "episode",
-            [TVShow.LAST_AIR_DATE] = "episode",
-            //[TVShow.SEASONS] = "season",
-            [Person.PROFILE_PATH] = "images",
-        };
-
-        // There are no change keys for these properties but we're going to ignore that and cache them anyway
-        public static HashSet<Property> CHANGES_IGNORED = new HashSet<Property>
-        {
-            Media.RATING,
-            Movie.WATCH_PROVIDERS,
-            TVShow.WATCH_PROVIDERS
-        };
-
-        private const ItemType UNCACHED_TYPES = ~(ItemType.Movie | ItemType.TVShow | ItemType.Person);
-
-        private ItemInfoCache Cache { get; }
-
-        public TMDbLocalResources(ItemInfoCache cache) : base()
-        {
-            Cache = cache;
-        }
-
-        public async Task HandleAsync(GetEventArgs<HttpContent> arg)
-        {
-            if (arg.Uri is UniformItemIdentifier uii && TMDbResources.TryGetUrl(uii, out var url) && await Cache.TryGetValueAsync(url) is JsonResponse json && json != null)
-            {
-                arg.Handle(json.Content);
-            }
-        }
-
-        public async Task PostAsync<T>(Uri uri, T resource)
-        {
-            if (uri is UniformItemIdentifier uii && !UNCACHED_TYPES.HasFlag(uii.Item.ItemType) && IsCacheValid(uii.Property) && uii.Item.TryGetID(TMDB.ID, out var id) && TMDbResources.TryGetUrl(uii, out var url) && Converter.TryConvert(resource, out var content))
-            {
-                await Cache.AddAsync(uii.Item.ItemType, id, url, new JsonResponse(content));
-            }
-        }
-
-        public static async Task<string> GetContent(JsonResponse json) => await json.Content.ReadAsStringAsync();
-
-        public bool IsCacheValid(Property property) => CHANGES_IGNORED.Contains(property);// || (Context.ChangeKeyLookup.TryGetValue(property, out var changeKey) && Context.ChangeKeys.Contains(changeKey));
-    }
-
-    public class TMDbConverter
-    {
-        public static TMDbConverter Instance = new TMDbConverter();
-
-        private Dictionary<ItemType, Dictionary<Property, Parser>> Index;
-
-        private TMDbConverter()
-        {
-            Index = new Dictionary<ItemType, Dictionary<Property, Parser>>();
-
-            foreach (var kvp in TMDB.ITEM_PROPERTIES)
-            {
-                var index = new Dictionary<Property, Parser>();
-
-                foreach (var parser in kvp.Value.Info.Values.SelectMany())
-                {
-                    index[parser.Property] = parser;
-                }
-
-                Index[kvp.Key] = index;
-            }
-        }
-
-        public bool TryGetUrl(UniformItemIdentifier uii, out string url)
-        {
-            if (TMDB.ITEM_PROPERTIES.TryGetValue(uii.Item.ItemType, out var properties) && properties.PropertyLookup.TryGetValue(uii.Property, out var request) && TMDB.TryGetParameters(uii.Item, out var args))
-            {
-                url = string.Format(request.GetURL(), args.ToArray());
-                return true;
-            }
-            else
-            {
-                url = null;
-                return false;
-            }
-        }
-
-        public async Task HandleAsync(IEnumerable<GetEventArgs> args, ChainEventHandler<MultiRestEventArgs<GetEventArgs<HttpContent>>> handler)
-        {
-            var typed = args.Select(arg => new GetEventArgs<HttpContent>(arg.Uri)).ToArray();
-            await handler(new MultiRestEventArgs<GetEventArgs<HttpContent>>(typed), null);
-
-            args.Zip(typed, Convert).ToArray();
-        }
-
-        private bool Convert(GetEventArgs untyped, GetEventArgs<HttpContent> typed)
-        {
-            if (typed.Handled)
-            {
-                if (untyped.Handle(typed.Resource, Converter))
-                {
-                    return true;
-                }
-                else if (untyped.Uri is UniformItemIdentifier uii && Index.TryGetValue(uii.Item.ItemType, out var properties) && properties.TryGetValue(uii.Property, out var parser))
-                {
-                    var pair = parser.GetPair(Convert(typed.Resource));
-                    untyped.Handle(pair.Value, Converter);
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        private static async Task<ArraySegment<byte>> Convert(HttpContent content) => await content.ReadAsByteArrayAsync();
-
-        private readonly IConverter<object> Converter = new DefaultConverter<object>();
-
-        private class DefaultConverter<T> : IConverter<T>
-        {
-            public bool TryConvert<TTarget>(T source, out TTarget target)
-            {
-                if (source is TTarget t)
-                {
-                    target = t;
-                    return true;
-                }
-                else
-                {
-                    target = default;
-                    return false;
-                }
-            }
-        }
-    }
-
-    public class TMDbResources : ControllerLink
-    {
-        private ControllerLink<HttpContent> Controller { get; }
-        private static Dictionary<ItemType, Dictionary<Property, Parser>> Index;
-
-        static TMDbResources()
-        {
-            Index = new Dictionary<ItemType, Dictionary<Property, Parser>>();
-
-            foreach (var kvp in TMDB.ITEM_PROPERTIES)
-            {
-                var index = new Dictionary<Property, Parser>();
-
-                foreach (var parser in kvp.Value.Info.Values.SelectMany())
-                {
-                    index[parser.Property] = parser;
-                }
-
-                Index[kvp.Key] = index;
-            }
-        }
-
-        public TMDbResources(ControllerLink<HttpContent> controller)
-        {
-            Controller = controller;
-        }
-
-        public static bool TryGetUrl(UniformItemIdentifier uii, out string url)
-        {
-            if (TMDB.ITEM_PROPERTIES.TryGetValue(uii.Item.ItemType, out var properties) && properties.PropertyLookup.TryGetValue(uii.Property, out var request) && TMDB.TryGetParameters(uii.Item, out var args))
-            {
-                url = string.Format(request.GetURL(), args.ToArray());
-                return true;
-            }
-            else
-            {
-                url = null;
-                return false;
-            }
-        }
-
-        private async Task<(bool Success, TResource Resource)> Convert<TResource>(Uri uri, (bool Success, HttpContent Resource) response)
-        {
-            if (response.Resource is TResource resource)
-            {
-                return (response.Success, resource);
-            }
-
-            if (response.Success && uri is UniformItemIdentifier uii && Index.TryGetValue(uii.Item.ItemType, out var properties) && properties.TryGetValue(uii.Property, out var parser))
-            {
-                var pair = parser.GetPair(Convert(response.Resource));
-
-                if (pair.Value is Task<TResource> task)
-                {
-                    return (true, await task);
-                }
-            }
-
-            return (false, default);
-        }
-
-        private static async Task<ArraySegment<byte>> Convert(HttpContent content) => await content.ReadAsByteArrayAsync();
-    }
-
-    public class TMDbRemoteResources : ControllerLink<HttpContent>, IHandleMultiRestEvent<GetEventArgs>, IHandleMultiRestEvent<GetEventArgs<HttpContent>>
-    {
-        private Dictionary<Uri, HttpContent> Responses = new Dictionary<Uri, HttpContent>();
-        private SemaphoreSlim ResponseCacheSemaphore = new SemaphoreSlim(1, 1);
-        private TMDbConverter TMDbConverter = TMDbConverter.Instance;
-
-        public Task HandleAsync(IEnumerable<GetEventArgs> args) => TMDbConverter.HandleAsync(args, GetAsync);
-
-        private void AddToTrie<TValue>(Dictionary<string, List<TValue>> trie, string key, TValue value)
-        {
-            foreach (var kvp in trie)
-            {
-                if (key.StartsWith(kvp.Key))
-                {
-                    kvp.Value.Add(value);
-                    return;
-                }
-            }
-
-            var list = new List<TValue> { value };
-            var kvps = trie.Where(kvp => kvp.Key.StartsWith(key)).ToArray();
-
-            trie[key] = list;
-
-            foreach (var kvp in kvps)
-            {
-                trie.Remove(kvp.Key);
-                list.AddRange(kvp.Value);
-            }
-        }
-
-        public Task HandleAsync(IEnumerable<GetEventArgs<HttpContent>> e)
-        {
-            var trie = new Dictionary<string, List<(string Path, string Query, TMDbRequest Request, GetEventArgs<HttpContent> Arg)>>();
-
-            foreach (var arg in e)
-            {
-                if (arg.Uri is UniformItemIdentifier uii && TryGetRequest(uii, out var request))
-                {
-                    var args = new object[0];
-
-                    if (TMDB.TryGetParameters(uii.Item, out var temp))
-                    {
-                        args = temp.ToArray();
-                    }
-
-                    var url = string.Format(request.GetURL(), args);
-                    var parts = url.Split('?');
-
-                    AddToTrie(trie, parts[0], (parts[0], parts.Length > 1 ? parts[1] : string.Empty, request, arg));
-                }
-            }
-
-            foreach (var kvp in trie)
-            {
-                var url = kvp.Key;
-                var paths = kvp.Value.Select(value => value.Path.Substring(url.Length).Trim('/')).ToArray();
-                var validPaths = paths.Where(path => !string.IsNullOrEmpty(path)).Distinct().ToArray();
-                var queries = kvp.Value.Select(value => value.Query).ToArray();
-
-                var append = $"append_to_response={string.Join(',', validPaths)}";
-                var query = CombineQueries(queries.Append(append));
-                var response = Parse(TMDB.WebClient.TryGetAsync($"{url}?{query}"), validPaths);
-
-                var itr = kvp.Value.GetEnumerator();
-
-                for (int i = 0; i < paths.Length && itr.MoveNext(); i++)
-                {
-                    var value = itr.Current;
-                    var path = paths[i];
-
-                    value.Arg.Handle(new AppendedContent(response, path));
-                }
-            }
-
-            return Task.CompletedTask;
-        }
-
-        private static async Task<LazyJson> Parse(Task<HttpResponseMessage> responseTask, IEnumerable<string> properties)
-        {
-            var response = await responseTask;
-            return response?.IsSuccessStatusCode == true ? new LazyJson(await response.Content.ReadAsByteArrayAsync(), properties) : null;
-        }
-
-        private static string CombineQueries(IEnumerable<string> queries)
-        {
-            var result = new Dictionary<string, string>();
-
-            foreach (var query in queries)
-            {
-                var args = query.Split('&');
-
-                foreach (var arg in args)
-                {
-                    var kvp = arg.Split('=');
-
-                    if (kvp.Length == 2)
-                    {
-                        result.TryAdd(kvp[0], kvp[1]);
-                    }
-                }
-            }
-
-            return string.Join('&', result.Select(kvp => $"{kvp.Key}={kvp.Value}"));
-        }
-
-        public async Task HandleAsync1(IEnumerable<GetEventArgs<HttpContent>> requests)
-        {
-            /*if (Responses.TryGetValue(uri, out var content))
-            {
-                return (true, content);
-            }*/
-
-            var request = new TMDbHttpRequest();
-            var promises = requests.Select(uri => (request.TryAdd(uri.Uri, out var resource), resource)).ToArray();
-            //var results = new (bool Success, HttpContent Resource)[promises.Length];
-
-            var responses = await Task.WhenAll(promises.Select(promise => promise.Item1 ? promise.resource.Request.Send(TMDB.WebClient) : Task.FromResult((false, (LazyJson)null))));
-            var itr = ((IEnumerable<(bool Success, TMDbHttpRequest.Resource resource)>)promises).GetEnumerator();
-
-            for (int i = 0; i < responses.Length && itr.MoveNext(); i++)
-            {
-                var response = responses[i];
-                var promise = itr.Current;
-
-                if (response.Item1)
-                {
-                    var resource = promise.resource;
-                    requests.ElementAt(i).Handle(new AppendedContent(Task.FromResult(response.Item2), resource.Path));
-                    //results[i] = (true, new AppendedContent(Task.FromResult(response.Item2), resource.Path));
-                }
-                else
-                {
-                    //results[i] = (false, null);
-                }
-            }
-
-            /*try
-            {
-                await ResponseCacheSemaphore.WaitAsync();
-
-                Responses.TryAdd(uri, response.Content);
-            }
-            finally
-            {
-                ResponseCacheSemaphore.Release();
-            }*/
-        }
-
-        public static bool TryGetRequest(UniformItemIdentifier uii, out TMDbRequest request)
-        {
-            request = null;
-            return TMDB.ITEM_PROPERTIES.TryGetValue(uii.Item.ItemType, out var properties) && properties.PropertyLookup.TryGetValue(uii.Property, out request);
-        }
-
-        public static bool TryResolve(Uri uri, out TMDbRequest request, out object[] args)
-        {
-            args = new object[0];
-
-            if (uri is UniformItemIdentifier uii && TryGetRequest(uii, out request))
-            {
-                if (TMDB.TryGetParameters(uii.Item, out var temp))
-                {
-                    args = temp.ToArray();
-                }
-                return true;
-            }
-
-            request = null;
-            return false;
-        }
-
-        public class TMDbHttpRequest
-        {
-            //private Dictionary<string, string> SingleRequests { get; } = new Dictionary<string, string>();
-            private Dictionary<string, Request> AppendedRequests { get; } = new Dictionary<string, Request>();
-            private IEnumerable<TMDbRequest> Appendable { get; }
-
-            public TMDbHttpRequest(params TMDbRequest[] appendable) : this((IEnumerable<TMDbRequest>)appendable) { }
-            public TMDbHttpRequest(IEnumerable<TMDbRequest> appendable)
-            {
-                Appendable = appendable;
-            }
-
-            //public Resource[] AddMany(IEnumerable<Uri> uris) => uris.Select(uri => Add(uri)).ToArray();
-
-            public bool TryAdd(Uri uri, out Resource resource)
-            {
-                if (!TryResolve(uri, out var request, out var args))
-                {
-                    resource = null;
-                    return false;
-                }
-
-                TryAdd(request, args, out resource);
-                return true;
-            }
-
-            private bool TryAdd(TMDbRequest request, object[] args, out Resource resource)
-            {
-                var url = string.Format(request.GetURL(), args);
-                Request r;
-
-                if (request.SupportsAppendToResponse)
-                {
-                    r = new Request(url);
-
-                    if (AppendedRequests.TryGetValue(r.Url, out var atr))
-                    {
-                        resource = new Resource(atr);
-                        return false;
-                    }
-                    else
-                    {
-                        AppendedRequests.Add(r.Url, r);
-                    }
-                }
-                else
-                {
-                    var itr = Appendable.GetEnumerator();
-                    while (itr.MoveNext() && TryAdd(itr.Current, args, out _)) { }
-
-                    //var itr = Appendable.Select(appendable => string.Format(appendable.GetURL(), args)).GetEnumerator();
-                    //while (itr.MoveNext() && TryAddAtr(itr.Current, out _)) { }
-
-                    foreach (var appendable in AppendedRequests.Values)
-                    {
-                        if (appendable.TryAppend(url, out var path))
-                        {
-                            resource = new Resource(appendable, path);
-                            return true;
-                        }
-                    }
-
-                    r = new Request(url);
-                }
-
-                resource = new Resource(r);
-                return true;
-            }
-
-            public class Resource
-            {
-                public Request Request { get; }
-                public string Path { get; }
-
-                public Resource(Request request, string path = "")
-                {
-                    Request = request;
-                    Path = path;
-                }
-            }
-
-            public class Request
-            {
-                public string Url { get; }
-
-                private HashSet<string> Append { get; } = new HashSet<string>();
-                private Dictionary<string, string> Queries { get; } = new Dictionary<string, string>();
-
-                private Task<(bool, LazyJson)> Response;
-
-                public Request(string url)
-                {
-                    Url = Split(url);
-                }
-
-                public bool TryAppend(string url, out string path)
-                {
-                    if (url.StartsWith(Url))
-                    {
-                        path = Split(url).Substring(Url.Length).Trim('/');
-
-                        if (!string.IsNullOrEmpty(path))
-                        {
-                            Append.Add(path);
-                        }
-                        return true;
-                    }
-
-                    path = null;
-                    return false;
-                }
-
-                private string Split(string url)
-                {
-                    var parts = url.Split('?');
-
-                    if (parts.Length > 1 && !string.IsNullOrEmpty(parts[1]))
-                    {
-                        var query = parts[1].Split('&');
-
-                        foreach (var arg in query)
-                        {
-                            var kvp = arg.Split('=');
-
-                            if (kvp.Length == 2)
-                            {
-                                Queries.TryAdd(kvp[0], kvp[1]);
-                            }
-                        }
-                    }
-
-                    return parts.FirstOrDefault();
-                }
-
-                public string GetUrl()
-                {
-                    var args = new List<string>();
-
-                    args.Add(string.Join('&', Queries.Select(kvp => $"{kvp.Key}={kvp.Value}")));
-                    if (Append.Count > 0)
-                    {
-                        args.Add($"append_to_response={string.Join(',', Append)}");
-                    }
-
-                    return TMDB.BuildApiCall(Url, args.ToArray());
-                }
-
-                private static async Task<(bool, LazyJson)> Parse(Task<HttpResponseMessage> responseTask, IEnumerable<string> properties)
-                {
-                    var response = await responseTask;
-
-                    if (response != null && response.IsSuccessStatusCode)
-                    {
-                        return (response?.IsSuccessStatusCode == true, new LazyJson(await response.Content.ReadAsByteArrayAsync(), properties));
-                    }
-                    else
-                    {
-                        return (false, default);
-                    }
-                }
-
-                public Task<(bool Success, LazyJson Content)> Send(HttpClient client)
-                {
-                    if (Response == null)
-                    {
-                        Response = Parse(client.TryGetAsync(GetUrl()), Append);
-                    }
-
-                    return Response;
-                }
-            }
         }
     }
 
@@ -669,30 +83,92 @@ namespace Movies
 
     public class Controller : IRestService
     {
-        public ChainLink<MultiRestEventArgs<GetEventArgs>> GetChain { get; }
+        public ChainLink<MultiRestEventArgs> GetChain { get; private set; }
+        public ChainLink<MultiRestEventArgs> PostChain { get; private set; }
 
-        public Controller(ControllerLink first)
+        public Controller SetNext<T>(ControllerLink<T> controller)
         {
-            GetChain = new ChainLink<MultiRestEventArgs<GetEventArgs>>(first.GetAsync);
-        }
+            var handler = new ChainLink<MultiRestEventArgs>(controller.GetAsync);
 
-        public Controller SetNext(ControllerLink controller)
-        {
-            var handler = new ChainLink<MultiRestEventArgs<GetEventArgs>>(controller.GetAsync);
-            GetChain.SetNext(handler);
+            if (GetChain == null)
+            {
+                GetChain = handler;
+            }
+            else
+            {
+                GetChain.SetNext(handler);
+            }
 
             return this;
         }
 
-        public Task Get(params GetEventArgs[] args) => Get((IEnumerable<GetEventArgs>)args);
-        public Task Get(IEnumerable<GetEventArgs> args) => GetChain.HandleAsync(new MultiRestEventArgs<GetEventArgs>(args));
+        public ChainLink<MultiRestEventArgs> SetNext(ChainEventHandler<MultiRestEventArgs> handler)
+        {
+            var link = new ChainLink<MultiRestEventArgs>(handler);
+
+            if (PostChain == null)
+            {
+                PostChain = link;
+            }
+            else
+            {
+                PostChain.SetNext(link);
+            }
+
+            return link;
+        }
+
+        public async Task<(bool Success, T Resource)> TryGet<T>(string url)
+        {
+            var args = new RestRequestArgs(new Uri(url, UriKind.Relative));
+            await Get(args);
+
+            if (args.Handled && args.Response.TryGetRepresentation<T>(out var value))
+            {
+                return (true, value);
+            }
+            else
+            {
+                return (false, default);
+            }
+        }
+
+        public Task GetAsync(MultiRestEventArgs e, ChainLinkEventHandler<MultiRestEventArgs> next) => GetChain.HandleAsync(e);
+
+        public Task Get(params RestRequestArgs[] args) => Get((IEnumerable<RestRequestArgs>)args);
+        public Task Get(IEnumerable<RestRequestArgs> args) => GetChain.HandleAsync(new MultiRestEventArgs(args));
+
+        public Task<RestRequestArgs[]> Get(params string[] urls) => Get(urls.Select(url => new Uri(url, UriKind.Relative)));
+        public Task<RestRequestArgs[]> Get(params Uri[] uris) => Get((IEnumerable<Uri>)uris);
+        public async Task<RestRequestArgs[]> Get(IEnumerable<Uri> uris)
+        {
+            var args = uris.Select(uri => new RestRequestArgs(uri)).ToArray();
+            await Get(args);
+            return args;
+        }
+
+        public Task<(bool Success, HttpContent Resource)> Get(string url) => GetInternal<HttpContent>(new Uri(url, UriKind.Relative));
+        public Task<(bool Success, HttpContent Resource)> Get(Uri uri) => GetInternal<HttpContent>(uri);
 
         public async Task<(bool Success, T Resource)> Get<T>(Uri uri)
         {
-            var args = new GetEventArgs<T>(uri);
+            var response = await GetInternal<Task<T>>(uri);
+            return (response.Success, response.Success ? await response.Resource : default);
+        }
+
+        private async Task<(bool Success, T Resource)> GetInternal<T>(Uri uri)
+        {
+            var args = new RestRequestArgs(uri);
             await Get(args);
 
-            return (args.Handled, args.Resource);
+            if (args.Handled && args.Response.TryGetRepresentation<T>(out var value))
+            {
+                return (true, value);
+            }
+            else
+            {
+                return (false, default);
+            }
         }
 
         public Task PostAsync<T>(Uri uri, T resource)
@@ -701,106 +177,207 @@ namespace Movies
         }
     }
 
-    public interface IHandleMultiRestEvent<T> where T : RestEventArgs
+    public interface IMultiRestEventHandler<T> where T : RestRequestArgs
     {
         Task HandleAsync(IEnumerable<T> args);
     }
 
-    public interface IHandleSingleRestEventNext<T> where T : RestEventArgs
+    public interface ISingleRestEventNextHandler<T> where T : RestRequestArgs
     {
         Task HandleAsync(T arg, ChainLinkEventHandler<T> next);
     }
 
-    public interface IHandleSingleRestEvent<T> where T : RestEventArgs
+    public interface ISingleRestEventHandler<T> where T : RestRequestArgs
     {
         Task HandleAsync(T arg);
     }
 
-    public abstract class ControllerLink
+    public class RestLink : ChainLink<MultiRestEventArgs>
     {
-        public virtual Task GetAsync(MultiRestEventArgs<GetEventArgs> e, ChainLinkEventHandler<MultiRestEventArgs<GetEventArgs>> next) => HandleAsync(e, next);
+        public HttpMethod Method { get; }
 
-        //public Task HandleAsync<T>(T e, ChainLinkEventHandler<MultiRestEventArgs<T>> next) where T : RestEventArgs => HandleAsync(e.AsEnumerable(), next);
-        //public Task HandleAsync<T>(IEnumerable<T> e) where T : RestEventArgs => HandleAsync(e, null);
-        //public Task HandleAsync<T>(T e) where T : RestEventArgs => HandleAsync(e.AsEnumerable(), null);
-
-        protected Task HandleAsync<T>(MultiRestEventArgs<T> args, ChainLinkEventHandler<MultiRestEventArgs<T>> next) where T : RestEventArgs => HandleAsync(args.Args, next);
-        protected async Task HandleAsync<T>(IEnumerable<T> args, ChainLinkEventHandler<MultiRestEventArgs<T>> next) where T : RestEventArgs
+        public RestLink(ChainEventHandler<MultiRestEventArgs> handler, ChainLink<MultiRestEventArgs> next = null) : base(handler, next)
         {
-            if (this is IHandleMultiRestEvent<T> multi)
-            {
-                await multi.HandleAsync(args);
-            }
-            if (this is IHandleSingleRestEvent<T> single)
-            {
-                await Task.WhenAll(WhereUnhandled(args).Select(single.HandleAsync));
-            }
-            if (this is IRestService restService)
-            {
-                await Task.WhenAll(WhereUnhandled(args).Select(arg => arg.HandleAsync(restService)));
-            }
+        }
 
+
+    }
+
+    public abstract class ControllerLink : ControllerLink<object>
+    {
+        public override bool TryConvert(object value, Type type, out object converted)
+        {
+            converted = value;
+            return type.IsAssignableFrom(value.GetType());
+        }
+    }
+
+    public abstract class ControllerLink<T> : IConverter1<T>
+    {
+        public delegate Task SingleHandler(RestRequestArgs e);
+        public delegate Task MultiHandler(IEnumerable<RestRequestArgs> e);
+        public delegate Task SingleNextHandler(RestRequestArgs e, ChainLinkEventHandler<RestRequestArgs> next);
+        public delegate Task MultiNextHandler(IEnumerable<RestRequestArgs> e, ChainLinkEventHandler<MultiRestEventArgs> next);
+
+        public bool CacheAside { get; set; } = true;
+
+        //public Task GetAsync(MultiRestEventArgs e, ChainLinkEventHandler<MultiRestEventArgs> next) => HandleAsync(e, next);
+
+        //public Task PostAsync(MultiRestEventArgs e, ChainLinkEventHandler<MultiRestEventArgs> next) => HandleAsync(e, next);
+
+        public async Task GetAsync(MultiRestEventArgs e, ChainLinkEventHandler<MultiRestEventArgs> next)
+        {
+            await GetAsync(e.Args, null);
+            AddRepresentations(e.Args);
+
+            var unhandled = WhereUnhandled(e.Args).ToArray();
             if (next != null)
             {
-                await next(new MultiRestEventArgs<T>(WhereUnhandled(args)));
+                await next(e);
+            }
 
-                if (this is IHandleSingleRestEventNext<T> singleNext)
-                {
-                    Task sendNext(T e) => next(new MultiRestEventArgs<T>(e.AsEnumerable()));
-                    await Task.WhenAll(WhereUnhandled(args).Select(arg => singleNext.HandleAsync(arg, sendNext)));
-                }
+            if (CacheAside)
+            {
+                var handled = unhandled.Where(arg => arg.Handled).ToArray();
+                var posts = handled.Select(arg => new RestRequestArgs(arg.Uri)).ToArray();
+                await HandleAsync(posts, null);
             }
         }
 
-        protected IEnumerable<T> WhereUnhandled<T>(IEnumerable<T> e) where T : RestEventArgs => e.Where(NotHandled);
+        protected virtual Task GetAsync(IEnumerable<RestRequestArgs> e, ChainLinkEventHandler<MultiRestEventArgs> next) => HandleAsync(e, next);
 
-        protected bool NotHandled<T>(T arg) where T : ChainEventArgs => !arg.Handled;
+        public abstract bool TryConvert(T value, Type targetType, out object converted);
+
+        private void AddRepresentations(IEnumerable<RestRequestArgs> args)
+        {
+            foreach (var arg in args)
+            {
+                arg.Response?.Add(arg.Expected, this);
+            }
+        }
+
+        protected Task HandleAsync<T>(IEnumerable<T> e, ChainLinkEventHandler<MultiRestEventArgs> next) where T : RestRequestArgs => next?.Invoke(new MultiRestEventArgs(WhereUnhandled(e).ToArray())) ?? Task.CompletedTask;
+        protected async Task HandleAsync<T>(IEnumerable<T> e, ChainLinkEventHandler<MultiRestEventArgs> next, Func<IEnumerable<T>, Task> handler) where T : RestRequestArgs
+        {
+            await handler(e);
+            await HandleAsync(e, next);
+        }
+        protected async Task HandleAsync<T>(IEnumerable<T> e, ChainLinkEventHandler<MultiRestEventArgs> next, Func<T, ChainLinkEventHandler<T>, Task> handler) where T : RestRequestArgs
+        {
+            Task sendNext(RestRequestArgs e) => next(new MultiRestEventArgs(e));
+            await Task.WhenAll(e.Select(arg => handler(arg, sendNext)));
+            await HandleAsync(e, next);
+        }
+        protected async Task HandleAsync<T>(IEnumerable<T> e, ChainLinkEventHandler<MultiRestEventArgs> next, Func<T, Task> handler) where T : RestRequestArgs
+        {
+            await Task.WhenAll(e.Select(handler));
+            await HandleAsync(e, next);
+        }
+
+        private class RestRequestHandlers
+        {
+            private SingleHandler Single;
+            private MultiHandler Multi;
+            private SingleNextHandler SingleNext;
+            private MultiNextHandler MultiNext;
+
+            public RestRequestHandlers(SingleHandler single, MultiHandler multi, SingleNextHandler singleNext, MultiNextHandler multiNext)
+            {
+                Single = single;
+                Multi = multi;
+                SingleNext = singleNext;
+                MultiNext = multiNext;
+            }
+
+            public Task HandleAsync(IEnumerable<RestRequestArgs> e, ChainLinkEventHandler<MultiRestEventArgs> next)
+            {
+                MultiNext = null;
+                return HandleAnyAsync(e, next);
+            }
+
+            public Task HandleAsync(RestRequestArgs e, ChainLinkEventHandler<RestRequestArgs> next)
+            {
+                SingleNext = null;
+                return HandleAnyAsync(e.AsEnumerable(), null);
+            }
+
+            public Task HandleAsync(IEnumerable<RestRequestArgs> e)
+            {
+                Multi = null;
+                return HandleAnyAsync(e, null);
+            }
+
+            public Task HandleAsync(RestRequestArgs e)
+            {
+                Single = null;
+                return HandleAnyAsync(e.AsEnumerable(), null);
+            }
+
+            private Task HandleAnyAsync(IEnumerable<RestRequestArgs> e, ChainLinkEventHandler<MultiRestEventArgs> next)
+            {
+                if (MultiNext != null)
+                {
+                    return MultiNext(e, next);
+                }
+                else if (SingleNext != null)
+                {
+                    Task sendNext(RestRequestArgs e) => next(new MultiRestEventArgs(e));
+                    return Task.WhenAll(e.Select(arg => SingleNext(arg, sendNext)));
+                }
+                else if (Multi != null)
+                {
+                    return Multi(e);
+                }
+                else if (Single != null)
+                {
+                    return Task.WhenAll(e.Select(arg => Single(arg)));
+                }
+
+                return Task.CompletedTask;
+            }
+        }
+
+        protected IEnumerable<RestRequestArgs> WhereUnhandled(IEnumerable<RestRequestArgs> e) => e.Where(NotHandled);
+
+        protected bool NotHandled(RestRequestArgs arg) => !arg.Handled;
     }
 
-    public abstract class ControllerLink<T> : ControllerLink
+    public abstract class ControllerLink1<T> : ControllerLink
     {
         public ResourceConverter<T> Converter { get; }
 
-        public virtual Task GetAsync(MultiRestEventArgs<GetEventArgs<T>> e, ChainLinkEventHandler<MultiRestEventArgs<GetEventArgs<T>>> next) => HandleAsync(e, next);
-
-        public override async Task GetAsync(MultiRestEventArgs<GetEventArgs> e, ChainLinkEventHandler<MultiRestEventArgs<GetEventArgs>> next)
+        public ControllerLink1(ResourceConverter<T> converter = null)
         {
-            Task TypeSafeHandler(MultiRestEventArgs<GetEventArgs<T>> args) => next?.Invoke(new MultiRestEventArgs<GetEventArgs>(args.Args)) ?? Task.CompletedTask;
-
-            var typedRequests = e.Args.Select(WrapGetEventArgs).ToArray();
-            await GetAsync(new MultiRestEventArgs<GetEventArgs<T>>(typedRequests), TypeSafeHandler);
-
-            e.Args.Zip(typedRequests, HandleAsync);
-
-            await base.GetAsync(e, next);
+            Converter = converter;
         }
 
-        private bool HandleAsync(GetEventArgs target, GetEventArgs<T> source)
+
+
+        /*protected virtual Task GetAsync(IEnumerable<RestRequestArgs<T>> e, ChainLinkEventHandler<MultiRestEventArgs> next) => base.HandleAsync(e, next);
+
+        protected override async Task GetAsync(IEnumerable<RestRequestArgs> e, ChainLinkEventHandler<MultiRestEventArgs> next)
         {
-            target.Handle(source.Resource, Converter);
-            return true;
-        }
+            //Task TypeSafeHandler(MultiRestEventArgs<GetEventArgs<T>> args) => next?.Invoke(new MultiRestEventArgs<GetEventArgs>(args.Args)) ?? Task.CompletedTask;
 
-        private GetEventArgs<T> WrapGetEventArgs(GetEventArgs e) => new GetEventArgs<T>(e.Uri);
+            IEnumerable<RestRequestArgs<T>> typedRequests = e.Select(arg => new RestRequestArgs<T>(arg.Request)).ToArray();
+            await GetAsync(typedRequests, null);
 
-        protected async Task HandleAsyncTypeSafe<TArgs, TGenericArgs>(IEnumerable<TGenericArgs> e, ChainLinkEventHandler<MultiRestEventArgs<TArgs>> next)
-            where TArgs : RestEventArgs
-            where TGenericArgs : TArgs
-        {
-            //Task TypeSafeHandler(MultiRestEventArgs<TGenericArgs> args) => next(new MultiRestEventArgs<TArgs>(args.Args));
-            Task TypeSafeHandler(MultiRestEventArgs<TGenericArgs> args) => next(new MultiRestEventArgs<TArgs>(args.Args));
+            var typedItr = typedRequests.GetEnumerator();
+            var untypedItr = e.GetEnumerator();
 
-            await HandleAsync(e, TypeSafeHandler);
-            //await HandleAsync<TArgs>(new MultiRestEventArgs<TArgs>(e.Args), TypeSafeHandler);
-        }
+            while (typedItr.MoveNext() && untypedItr.MoveNext())
+            {
+                var typed = typedItr.Current;
+                var untyped = untypedItr.Current;
 
-        protected Task HandleAsyncTypeSafe<TArgs, TGenericArgs>(MultiRestEventArgs<TArgs> e, ChainLinkEventHandler<MultiRestEventArgs<TArgs>> next)
-            where TArgs : RestEventArgs
-            where TGenericArgs : TArgs
-        {
-            Task TypeSafeHandler(MultiRestEventArgs<TGenericArgs> args) => next(new MultiRestEventArgs<TArgs>(args.Args));
-            return HandleAsync(e.Args.OfType<TGenericArgs>(), TypeSafeHandler);
-        }
+                if (typed.Handled && !untyped.Handle(typed.Response) && CacheAside)
+                {
+                    //await PostAsync(new MultiRestEventArgs<PostEventArgs>(new PostEventArgs<T>(typed.Uri, typed.Resource)), null);
+                }
+            }
+
+            await base.HandleAsync(WhereUnhandled(e).ToArray(), next);
+        }*/
     }
 
     //public abstract class ControllerLinkHandler : LinkHandler
@@ -852,18 +429,6 @@ namespace Movies
     //    }
     //}
 
-    public class ControllerWrapper
-    {
-        public IRestService RestService { get; }
-
-        public ControllerWrapper(IRestService restService)
-        {
-            RestService = restService;
-        }
-
-        //protected override Task HandleAsync(ChainEventArgs e) => e is RestEventArgs rest ? rest.HandleAsync(RestService) : Task.CompletedTask;
-    }
-
     public interface IRestService
     {
         Task<(bool Success, T Resource)> Get<T>(Uri uri);
@@ -873,96 +438,155 @@ namespace Movies
 
     public class ChainEventArgs
     {
-        public bool Handled { get; protected set; }
+        public bool Handled { get; private set; }
+
+        protected void Handle() => Handled = true;
     }
 
-    public class MultiRestEventArgs<T> : ChainEventArgs where T : RestEventArgs
+    public interface IConverter1
     {
-        public IEnumerable<T> Args { get; }
+        bool CanConvert(Type fromType, Type toType);
+    }
 
-        public MultiRestEventArgs(params T[] args) : this((IEnumerable<T>)args) { }
-        public MultiRestEventArgs(IEnumerable<T> args)
+    public interface IConverter1<T> : IConverter1
+    {
+        bool TryConvert(T original, Type targetType, out object converted);
+    }
+
+    public class State : IEnumerable
+    {
+        private Dictionary<Type, object> Representations { get; }
+
+        public State(object initial) : this(initial.GetType(), initial) { }
+        private State(Type type, object initial)
+        {
+            Representations = new Dictionary<Type, object>
+            {
+                { type, initial }
+            };
+        }
+
+        public static State Create<T>(T value) => new State(typeof(T), value);
+
+        public void Add<T>(T value)
+        {
+            Representations.Add(typeof(T), value);
+        }
+
+        public void Add(object value)
+        {
+            Representations.Add(value.GetType(), value);
+        }
+
+        public bool Add<T>(Type type, IConverter1<T> converter)
+        {
+            foreach (var value in this.OfType<T>())
+            {
+                if (converter.TryConvert(value, type, out var converted))
+                {
+                    Representations.Add(type, converted);
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        public bool CanRepresentAs(Type type)
+        {
+            if (Representations.ContainsKey(type))
+            {
+                return true;
+            }
+
+            return false;
+        }
+
+        public bool TryGetRepresentation(Type type, out object value) => Representations.TryGetValue(type, out value);
+        public bool TryGetRepresentation<T>(out T value)
+        {
+            if (TryGetRepresentation(typeof(T), out var rawValue) && rawValue is T t)
+            {
+                value = t;
+                return true;
+            }
+            else
+            {
+                value = default;
+                return false;
+            }
+        }
+
+        public IEnumerator GetEnumerator() => Representations.Values.GetEnumerator();
+    }
+
+    public class MultiRestEventArgs : ChainEventArgs // where T : RestEventArgs
+    {
+        public IEnumerable<RestRequestArgs> Args { get; }
+
+        public MultiRestEventArgs(params RestRequestArgs[] args) : this((IEnumerable<RestRequestArgs>)args) { }
+        public MultiRestEventArgs(IEnumerable<RestRequestArgs> args)
         {
             Args = args;
         }
     }
 
-    public abstract class RestEventArgs : ChainEventArgs
+    public class RestRequestArgs : ChainEventArgs
     {
-        public HttpMethod Method { get; }
         public Uri Uri { get; }
-        public object Response { get; protected set; }
+        public State Body { get; }
+        public State Response { get; private set; }
+        public Type Expected { get; }
 
-        public RestEventArgs(HttpMethod method, Uri uri)
+        public RestRequestArgs(Uri uri, Type expected = null)
         {
-            Method = method;
             Uri = uri;
+            Expected = expected;
         }
 
-        public abstract Task HandleAsync(IRestService controller);
-    }
+        public bool Handle(object response) => Handle(new State(response));
 
-    public abstract class GetEventArgs : RestEventArgs
-    {
-        public Type ResourceType { get; }
+        public bool Handle<TResponse>(TResponse response) => Handle(new State(response));
 
-        public GetEventArgs(Uri uri, Type resourceType) : base(HttpMethod.Get, uri)
+        public bool Handle<T>(IConverter1<T> converter)
         {
-            ResourceType = resourceType;
-        }
-
-        public abstract bool Handle<T>(T response, IConverter<T> converter);
-    }
-
-    public class GetEventArgs<T> : GetEventArgs
-    {
-        public T Resource { get; protected set; }
-
-        public GetEventArgs(Uri uri) : base(uri, typeof(T)) { }
-
-        public void Handle(T resource)
-        {
-            Resource = resource;
-            Handled = true;
-        }
-
-        public override bool Handle<TResponse>(TResponse response, IConverter<TResponse> converter)
-        {
-            if (converter.TryConvert<T>(response, out var converted))
+            if (response.Add(Expected, converter))
             {
-                Resource = converted;
-                return Handled = true;
+                Response = response;
+                Handle();
+                return true;
             }
-            else
-            {
-                return false;
-            }
+
+            return false;
         }
 
-        public override async Task HandleAsync(IRestService restService)
+        public bool Handle(State response)
         {
-            var response = await restService.Get<T>(Uri);
+            Response = response;
 
-            if (response.Success)
+            if (Expected != null && response.CanRepresentAs(Expected))
             {
-                Handle(Resource = response.Resource);
+                Handle();
+                return true;
             }
+
+            return false;
         }
     }
 
-    public class ResourceCache : ControllerLink, IRestService
+    public class ResourceCache : ControllerLink
     {
-        private Dictionary<Item, Dictionary<Property, Task>> Cache = new Dictionary<Item, Dictionary<Property, Task>>();
+        private Dictionary<Item, Dictionary<Property, object>> Cache = new Dictionary<Item, Dictionary<Property, object>>();
 
-        public async Task<(bool Success, T Resource)> Get<T>(Uri uri)
+        protected override Task GetAsync(IEnumerable<RestRequestArgs> e, ChainLinkEventHandler<MultiRestEventArgs> next) => HandleAsync(e, next, (RestRequestArgs e) =>
         {
-            if (uri is UniformItemIdentifier uii && Cache.TryGetValue(uii.Item, out var properties) && properties.TryGetValue(uii.Property, out var response) && PropertyDictionary.TryCastTask<T>(response, out var resource) && resource.IsCompletedSuccessfully)
+            if (e.Uri is UniformItemIdentifier uii && Cache.TryGetValue(uii.Item, out var properties) && properties.TryGetValue(uii.Property, out var response))// && PropertyDictionary.TryCastTask<T>(response, out var resource) && resource.IsCompletedSuccessfully)
             {
-                return (true, await resource);
+                e.Handle(response);
             }
 
-            return (false, default);
-        }
+            return Task.CompletedTask;
+        });
 
         public Task PostAsync<T>(Uri uri, T resource)
         {
@@ -976,10 +600,10 @@ namespace Movies
             {
                 if (!Cache.TryGetValue(uii.Item, out var properties))
                 {
-                    Cache[uii.Item] = properties = new Dictionary<Property, Task>();
+                    Cache[uii.Item] = properties = new Dictionary<Property, object>();
                 }
 
-                properties[uii.Property] = Task.FromResult(resource);
+                properties[uii.Property] = resource;
             }
         }
     }

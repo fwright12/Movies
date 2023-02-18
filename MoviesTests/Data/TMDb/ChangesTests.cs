@@ -1,7 +1,7 @@
 ﻿using System.Collections;
 using HttpClient = Movies.HttpClient;
 
-namespace MoviesTests
+namespace MoviesTests.Data.TMDb
 {
     [TestClass]
     public class ChangesTests

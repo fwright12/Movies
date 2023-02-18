@@ -105,6 +105,7 @@ namespace Movies
             }));
         }
 
+        new public Task<HttpResponseMessage> GetAsync(Uri requestUri) => SendAsync(new HttpRequestMessage(HttpMethod.Get, requestUri));
         new public Task<HttpResponseMessage> GetAsync(string requestUri, CancellationToken cancellationToken = default) => SendAsync(new HttpRequestMessage(HttpMethod.Get, requestUri), cancellationToken);
         new public Task<HttpResponseMessage> SendAsync(HttpRequestMessage request) => SendAsync(request, new CancellationToken());
 

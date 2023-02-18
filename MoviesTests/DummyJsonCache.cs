@@ -8,7 +8,7 @@
 
         public Task AddAsync(string url, JsonResponse response)
         {
-            Add(url, response);
+            TryAdd(url, response);
             return Task.CompletedTask;
         }
 
