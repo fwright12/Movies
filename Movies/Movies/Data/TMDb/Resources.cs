@@ -8,12 +8,14 @@ using System.Threading.Tasks;
 using System.Threading;
 using System.Collections;
 using static System.Net.Mime.MediaTypeNames;
+using System.Text.Json.Nodes;
 
 namespace Movies
 {
     public class TMDbResolver
     {
         private Dictionary<ItemType, Dictionary<Property, Parser>> Index { get; }
+        private Dictionary<string, KeyValuePair<TMDbRequest, List<Parser>>> Annotations { get; }
         private Dictionary<Property, string> ChangeKeys { get; } = new Dictionary<Property, string>
         {
             [Media.KEYWORDS] = "plot_keywords",
@@ -30,21 +32,27 @@ namespace Movies
         };
 
         private Dictionary<ItemType, ItemProperties> Properties { get; }
-        private IConverter<object> Converter => DefaultConverter<object>.Instance;
 
         public TMDbResolver(Dictionary<ItemType, ItemProperties> properties)
         {
             Properties = properties;
 
             Index = new Dictionary<ItemType, Dictionary<Property, Parser>>();
+            Annotations = new Dictionary<string, KeyValuePair<TMDbRequest, List<Parser>>>();
 
             foreach (var kvp in Properties)
             {
                 var index = new Dictionary<Property, Parser>();
 
-                foreach (var parser in kvp.Value.Info.Values.SelectMany())
+                foreach (var kvp1 in kvp.Value.Info)
                 {
-                    index[parser.Property] = parser;
+                    var path = RemoveVariables(string.Format(kvp1.Key.Endpoint, Enumerable.Repeat<object>(0, 3).ToArray()), out _);
+                    Annotations[path] = kvp1;
+
+                    foreach (var parser in kvp1.Value)
+                    {
+                        index[parser.Property] = parser;
+                    }
                 }
 
                 Index[kvp.Key] = index;
@@ -58,6 +66,157 @@ namespace Movies
                     {
                         ChangeKeys.TryAdd(property, changeKey);
                     }
+                }
+            }
+        }
+
+        private string RemoveVariables(string url, out List<object> args)
+        {
+            args = new List<object>();
+            var parts = url.Split('/').Select(part => part.ToLower().Trim()).ToList();
+
+            if (parts.Count > 0)
+            {
+                if (parts[0] == "movie" || parts[0] == "person")
+                {
+                    RemoveVariables(parts, out args, 1);
+                }
+                else if (parts[0] == "tv")
+                {
+                    RemoveVariables(parts, out args, 1, 3, 5);
+                }
+
+                url = string.Join('/', parts);
+            }
+
+            return url;
+        }
+
+        private void RemoveVariables(List<string> parts, out List<object> args, params int[] indices)
+        {
+            args = new List<object>();
+
+            foreach (var index in indices.OrderByDescending(index => index))
+            {
+                if (parts.Count > index && int.TryParse(parts[index], out var id))
+                {
+                    args.Insert(0, id);
+                    parts.RemoveAt(index);
+                }
+            }
+        }
+
+        public IEnumerable<KeyValuePair<Property, string>> GetDetailsAnnotations(string url)
+        {
+            url = url.Split('?')[0];
+            url = string.Join('/', url.Split('/').Skip(1));
+            var key = RemoveVariables(url, out var args);
+
+            //ItemType type;
+            //if (Equals(args[0], "movie")) type = ItemType.Movie;
+            //else if (Equals(args[0], "tv")) type = ItemType.TVShow;
+            //else if (Equals(args[0], "person")) type = ItemType.Person;
+            //else yield break;
+
+            //if (!Properties.TryGetValue(type, out var properties) || !Annotations.TryGetValue(key, out var request) || !properties.Info.TryGetValue(null, out var parsers))
+            if (!Annotations.TryGetValue(key, out var info))
+            {
+                yield break;
+            }
+
+            foreach (var parser in info.Value)
+            {
+                var path = string.Empty;
+
+                if ((parser as ParserWrapper)?.JsonParser is JsonPropertyParser jpp)
+                {
+                    path = jpp.Property;
+                }
+
+                yield return new KeyValuePair<Property, string>(parser.Property, path);
+            }
+        }
+
+        private async Task<IEnumerable<T>> GetTVItems<T>(Task<ArraySegment<byte>> json, string property, AsyncEnumerable.TryParseFunc<JsonNode, T> parse) => TMDB.TryParseCollection(JsonNode.Parse(await json), new JsonPropertyParser<IEnumerable<JsonNode>>(property), out var result, new JsonNodeParser<T>(parse)) ? result : null;
+
+        public async Task<IConverter<string>> GetConverter(Uri uri, string target, bool parentCollectionWasRequested = true)
+        {
+            if (TryGetParser(uri, out var parser) && parser?.Property.Type != typeof(string))
+            {
+                var uii = (UniformItemIdentifier)uri;
+                var success = false;
+                object converted = null;
+
+                if (parser.Property == TVShow.SEASONS)
+                {
+                    success = true;
+                    converted = await GetTVItems(Convert(target), "seasons", (JsonNode json, out TVSeason season) => TMDB.TryParseTVSeason(json, (TVShow)uii.Item, out season));
+                }
+                else if (parser.Property == TVSeason.EPISODES)
+                {
+                    if (uii.Item is TVSeason season)
+                    {
+                        success = true;
+                        converted = await GetTVItems(Convert(target), "episodes", (JsonNode json, out TVEpisode episode) => TMDB.TryParseTVEpisode(json, season, out episode));
+                    }
+                }
+                // Avoid parsing a movie's parent collection unless it was specifically requested because it requires an additional api call
+                else if (parser.Property != Movie.PARENT_COLLECTION || parentCollectionWasRequested)
+                {
+                    var response = await parser.TryGetValue(Convert(target));
+                    success = response.Success;
+                    converted = response.Result;
+                }
+
+                if (success)
+                {
+                    return new DummyConverter(target, converted);
+                }
+            }
+
+            return null;
+        }
+
+        private class DummyConverter : IConverter<string>
+        {
+            private string Original { get; }
+            private object Converted { get; }
+
+            public DummyConverter(string original, object converted)
+            {
+                Original = original;
+                Converted = converted;
+            }
+
+            public bool TryConvert(string original, Type targetType, out object converted)
+            {
+                converted = Converted;
+                return original == Original;
+            }
+        }
+
+        private class Converter : IConverter<string>
+        {
+            public TMDbResolver Resolver { get; }
+            public Uri Uri { get; }
+
+            public Converter(TMDbResolver resolver, Uri uri)
+            {
+                Resolver = resolver;
+                Uri = uri;
+            }
+
+            public bool TryConvert(string original, Type targetType, out object converted)
+            {
+                if (Resolver.TryGetParser(Uri, out var parser))
+                {
+                    converted = parser.GetPair(Convert(original)).Value;
+                    return true;
+                }
+                else
+                {
+                    converted = default;
+                    return false;
                 }
             }
         }
@@ -89,6 +248,7 @@ namespace Movies
             return uri is UniformItemIdentifier uii && Index.TryGetValue(uii.Item.ItemType, out var properties) && properties.TryGetValue(uii.Property, out parser);
         }
 
+        private static Task<ArraySegment<byte>> Convert(string content) => Task.FromResult<ArraySegment<byte>>(Encoding.UTF8.GetBytes(content));
         private static async Task<ArraySegment<byte>> Convert(HttpContent content) => await content.ReadAsByteArrayAsync();
 
         public bool TryResolveJsonPropertyName(Property property, out string changeKey) => ChangeKeys.TryGetValue(property, out changeKey);
@@ -156,129 +316,6 @@ namespace Movies
         }
     }
 
-    public class DefaultConverter<T> : IConverter<T>
-    {
-        public readonly static DefaultConverter<T> Instance = new DefaultConverter<T>();
-
-        private DefaultConverter() { }
-
-        public bool TryConvert<TTarget>(T source, out TTarget target)
-        {
-            if (source is TTarget t)
-            {
-                target = t;
-                return true;
-            }
-            else
-            {
-                target = default;
-                return false;
-            }
-        }
-    }
-
-    public class TMDbResources : ControllerLink
-    {
-        public static readonly Dictionary<TMDbRequest, IEnumerable<TMDbRequest>> AutoAppend = new Dictionary<TMDbRequest, IEnumerable<TMDbRequest>>
-        {
-            [API.MOVIES.GET_DETAILS] = new List<TMDbRequest>
-            {
-                API.MOVIES.GET_CREDITS,
-                API.MOVIES.GET_KEYWORDS,
-                API.MOVIES.GET_RECOMMENDATIONS,
-                API.MOVIES.GET_RELEASE_DATES,
-                API.MOVIES.GET_VIDEOS,
-                API.MOVIES.GET_WATCH_PROVIDERS
-            },
-            [API.TV.GET_DETAILS] = new List<TMDbRequest>
-            {
-                API.TV.GET_AGGREGATE_CREDITS,
-                API.TV.GET_CONTENT_RATINGS,
-                API.TV.GET_KEYWORDS,
-                API.TV.GET_RECOMMENDATIONS,
-                API.TV.GET_VIDEOS,
-                API.TV.GET_WATCH_PROVIDERS
-            },
-            [API.PEOPLE.GET_DETAILS] = new List<TMDbRequest>
-            {
-                API.PEOPLE.GET_COMBINED_CREDITS,
-            }
-        };
-
-        public Controller Primary { get; }
-        public Controller Greedy { get; }
-        public TMDbResolver Resolver { get; }
-
-        private Dictionary<TMDbRequest, IEnumerable<TMDbRequest>> Appendable { get; }
-        private Dictionary<TMDbRequest, TMDbRequest> AppendsTo { get; }
-
-        private void TMDbResources1(IJsonCache cache, IAsyncCollection<string> changeKeys = null)
-        {
-            //Resolver = new TMDbResolver(TMDB.ITEM_PROPERTIES);
-
-            var local = new TMDbLocalResources(cache, Resolver)
-            {
-                ChangeKeys = changeKeys
-            };
-            var remote = new TMDbClient(TMDB.WebClient, Resolver);
-            var controller = new Controller().SetNext(local).SetNext(remote);
-            //var greedy = new GreedyTMDbResources(controller, Resolver, AutoAppend);
-
-            //Controller = new Controller().SetNext(local).SetNext(greedy);
-            //new Controller().SetNext(Controller.GetAsync);
-        }
-
-        public TMDbResources(ControllerLink local, ControllerLink remote, TMDbResolver resolver, Dictionary<TMDbRequest, IEnumerable<TMDbRequest>> autoAppend = null) : this(new Controller().SetNext(local), new Controller().SetNext(local).SetNext(remote), resolver, autoAppend) { }
-        public TMDbResources(Controller primary, Controller greedy, TMDbResolver resolver, Dictionary<TMDbRequest, IEnumerable<TMDbRequest>> autoAppend = null)
-        {
-            Primary = primary;
-            Greedy = greedy;
-            Resolver = resolver;
-
-            var kvps = autoAppend ?? Enumerable.Empty<KeyValuePair<TMDbRequest, IEnumerable<TMDbRequest>>>();
-            Appendable = new Dictionary<TMDbRequest, IEnumerable<TMDbRequest>>(kvps.Where(kvp => kvp.Key.SupportsAppendToResponse));
-            AppendsTo = new Dictionary<TMDbRequest, TMDbRequest>();
-
-            foreach (var kvp in kvps)
-            {
-                foreach (var request in kvp.Value)
-                {
-                    AppendsTo.Add(request, kvp.Key);
-                }
-            }
-        }
-
-        protected override Task GetAsync(IEnumerable<RestRequestArgs> e, ChainLinkEventHandler<MultiRestEventArgs> next) => HandleAsync(e, next, async (args) =>
-        {
-            await Primary.Get(args);
-
-            var unhandled = WhereUnhandled(args).ToArray();
-            var greedyUrls = unhandled.SelectMany(arg => GetUrlsGreedy(arg.Uri)).Distinct().ToArray();
-            var greedy = greedyUrls.Select(url => new RestRequestArgs(new Uri(url, UriKind.Relative)));
-
-            await Greedy.Get(unhandled.Concat(greedy).ToArray());
-        });
-
-        private IEnumerable<string> GetUrlsGreedy(Uri uri)
-        {
-            if (Resolver.TryGetRequest(uri, out var request) && Resolver.TryResolve(uri, out _, out var args))
-            {
-                if (AppendsTo.TryGetValue(request, out var temp))
-                {
-                    yield return Resolver.Resolve(request = temp, args);
-                }
-
-                if (Appendable.TryGetValue(request, out var appendable))
-                {
-                    foreach (var url in appendable.Select(req => Resolver.Resolve(req, args)))
-                    {
-                        yield return url;
-                    }
-                }
-            }
-        }
-    }
-
     public class TMDbLocalResources : ControllerLink//<HttpContent>
     {
         public IAsyncCollection<string> ChangeKeys { get; set; }
@@ -318,20 +355,20 @@ namespace Movies
             }
         });
 
-        public async Task HandleAsync(RestRequestArgs arg)
+        protected override Task PutAsync(IEnumerable<RestRequestArgs> e, ChainLinkEventHandler<MultiRestEventArgs> next) => HandleAsync(e, next, async e =>
         {
-            if (arg.Uri is UniformItemIdentifier uii && !IsCacheable(uii)) // && uii.Item.TryGetID(TMDB.ID, out var id) && Resolver.TryResolve(uii, out var url) && arg.Response is HttpContent content)// && Converter.TryConvert(resource, out var content))
+            if (e.Uri is UniformItemIdentifier uii && !IsCacheable(uii)) // && uii.Item.TryGetID(TMDB.ID, out var id) && Resolver.TryResolve(uii, out var url) && arg.Response is HttpContent content)// && Converter.TryConvert(resource, out var content))
             {
-                return;
+                //return;
             }
 
-            var url = Resolver.ResolveUrl(arg.Uri);
+            var url = Resolver.ResolveUrl(e.Uri);
 
-            if (arg.Response.TryGetRepresentation<HttpContent>(out var content))
+            if (e.Body?.TryGetRepresentation<string>(out var content) == true)
             {
                 await Cache.AddAsync(url, new JsonResponse(content));
             }
-        }
+        });
 
         /*public async Task HandleAsync1(GetEventArgs<HttpContent> arg)
         {
@@ -516,27 +553,120 @@ namespace Movies
         }
     }
 
+    public class ByteConverter : IConverter<string>, IConverter<byte[]>
+    {
+        public Encoding Encoding { get; }
+
+        public ByteConverter(Encoding encoding)
+        {
+            Encoding = encoding;
+        }
+
+        public bool TryConvert(string original, Type targetType, out object converted)
+        {
+            if (targetType == typeof(byte[]))
+            {
+                converted = Encoding.GetBytes(original);
+                return true;
+            }
+            else
+            {
+                converted = default;
+                return false;
+            }
+        }
+
+        public bool TryConvert(byte[] original, Type targetType, out object converted)
+        {
+            if (targetType == typeof(string))
+            {
+                converted = Encoding.GetString(original);
+                return true;
+            }
+            else
+            {
+                converted = default;
+                return false;
+            }
+        }
+    }
+
     public class TMDbClient : ControllerLink//<HttpContent>
     {
         public HttpClient Client { get; }
         private TMDbResolver Resolver { get; }
 
-        public TMDbClient(HttpClient client, TMDbResolver resolver)
+        public static readonly Dictionary<TMDbRequest, IEnumerable<TMDbRequest>> AutoAppend = new Dictionary<TMDbRequest, IEnumerable<TMDbRequest>>
+        {
+            [API.MOVIES.GET_DETAILS] = new List<TMDbRequest>
+            {
+                API.MOVIES.GET_CREDITS,
+                API.MOVIES.GET_KEYWORDS,
+                API.MOVIES.GET_RECOMMENDATIONS,
+                API.MOVIES.GET_RELEASE_DATES,
+                API.MOVIES.GET_VIDEOS,
+                API.MOVIES.GET_WATCH_PROVIDERS
+            },
+            [API.TV.GET_DETAILS] = new List<TMDbRequest>
+            {
+                API.TV.GET_AGGREGATE_CREDITS,
+                API.TV.GET_CONTENT_RATINGS,
+                API.TV.GET_KEYWORDS,
+                API.TV.GET_RECOMMENDATIONS,
+                API.TV.GET_VIDEOS,
+                API.TV.GET_WATCH_PROVIDERS
+            },
+            [API.TV_SEASONS.GET_DETAILS] = new List<TMDbRequest>
+            {
+                API.TV_SEASONS.GET_AGGREGATE_CREDITS,
+            },
+            [API.TV_EPISODES.GET_DETAILS] = new List<TMDbRequest>
+            {
+                API.TV_EPISODES.GET_CREDITS,
+            },
+            [API.PEOPLE.GET_DETAILS] = new List<TMDbRequest>
+            {
+                API.PEOPLE.GET_COMBINED_CREDITS,
+            }
+        };
+
+        private static readonly ByteConverter ByteConverter = new ByteConverter(Encoding.UTF8);
+
+        private Dictionary<TMDbRequest, IEnumerable<TMDbRequest>> Appendable { get; }
+        private Dictionary<TMDbRequest, TMDbRequest> AppendsTo { get; }
+
+        public TMDbClient(HttpClient client, TMDbResolver resolver, Dictionary<TMDbRequest, IEnumerable<TMDbRequest>> autoAppend = null)
         {
             Client = client;
             Resolver = resolver;
+
+            var kvps = autoAppend ?? AutoAppend;// Enumerable.Empty<KeyValuePair<TMDbRequest, IEnumerable<TMDbRequest>>>();
+            Appendable = new Dictionary<TMDbRequest, IEnumerable<TMDbRequest>>(kvps.Where(kvp => kvp.Key.SupportsAppendToResponse));
+            AppendsTo = new Dictionary<TMDbRequest, TMDbRequest>();
+
+            foreach (var kvp in kvps)
+            {
+                foreach (var request in kvp.Value)
+                {
+                    AppendsTo.Add(request, kvp.Key);
+                }
+            }
         }
 
         protected override Task GetAsync(IEnumerable<RestRequestArgs> e, ChainLinkEventHandler<MultiRestEventArgs> next) => HandleAsync(e, next, async (IEnumerable<RestRequestArgs> e) =>
         {
-            var trie = new Dictionary<string, List<(string Path, string Query, RestRequestArgs Arg)>>();
+            var greedyUrls = e.SelectMany(arg => GetUrlsGreedy(arg.Uri)).Distinct().ToArray();
+            var greedy = greedyUrls.Select(url => new RestRequestArgs(new Uri(url, UriKind.Relative)));
+            var args = e.Concat(greedy);
 
-            foreach (var arg in e)
+            var trie = new Dictionary<string, List<(string Url, string Path, string Query, RestRequestArgs Arg)>>();
+
+            foreach (var arg in args)
             {
                 //if (arg.Uri is UniformItemIdentifier uii && Resolver.TryGetRequest(uii, out var request))
                 var url = Resolver.ResolveUrl(arg.Uri);
                 var parts = url.Split('?');
-                AddToTrie(trie, parts[0], (parts[0], parts.Length > 1 ? parts[1] : string.Empty, arg));
+                AddToTrie(trie, parts[0], (url, parts[0], parts.Length > 1 ? parts[1] : string.Empty, arg));
             }
 
             foreach (var kvp in trie)
@@ -544,13 +674,19 @@ namespace Movies
                 var url = kvp.Key;
                 var paths = kvp.Value.Select(value => value.Path.Substring(url.Length).Trim('/')).ToArray();
                 var validPaths = paths.Where(path => !string.IsNullOrEmpty(path)).Distinct().ToArray();
-                IEnumerable<string> queries = kvp.Value.Select(value => value.Query).ToArray();
+                var queries = kvp.Value.Select(value => value.Query).ToArray();
 
+                var query = CombineQueries(queries);
                 if (validPaths.Length > 0)
                 {
-                    queries = queries.Append($"append_to_response={string.Join(',', validPaths)}");
+                    if (!string.IsNullOrEmpty(query))
+                    {
+                        query += "&";
+                    }
+
+                    query += $"append_to_response={string.Join(',', validPaths)}";
                 }
-                var query = CombineQueries(queries);
+
                 if (!string.IsNullOrEmpty(query))
                 {
                     url += "?" + query;
@@ -559,19 +695,81 @@ namespace Movies
 
                 if (response?.IsSuccessStatusCode == true)
                 {
-                    var json = Parse(response.Content, validPaths);
-                    var itr = kvp.Value.GetEnumerator();
+                    //var json = Parse(response.Content, validPaths);
+                    var json = new AnnotatedJson(await response.Content.ReadAsByteArrayAsync());
+                    var item = e.Select(arg => arg.Uri).OfType<UniformItemIdentifier>().FirstOrDefault()?.Item;
 
-                    for (int i = 0; i < paths.Length && itr.MoveNext(); i++)
+                    for (int i = 0; i < kvp.Value.Count; i++)
                     {
-                        var value = itr.Current;
+                        var path = paths[i];
+                        var temp = string.IsNullOrEmpty(path) ? new string[0] : new string[] { path };
+
+                        json.Add(new Uri(kvp.Value[i].Url, UriKind.Relative), temp);
+                        //json.Add(kvp.Value[i].Arg.Uri, temp);
+
+                        if (item != null)
+                        {
+                            foreach (var pair in Resolver.GetDetailsAnnotations(kvp.Value[i].Url))
+                            {
+                                var uii = new UniformItemIdentifier(item, pair.Key);
+
+                                if (pair.Key.Type == typeof(string))
+                                {
+                                    // Should do this for ALL types, but need to work around legacy Parsers
+                                    //
+                                    // Parsers expect full response, and then find the property and then convert
+                                    // So put the full response so the parser works UNLESS the expected type is string,
+                                    // in which case there's no conversion to do and the parser won't run
+                                    json.Add(uii, temp.Append(pair.Value).ToArray());
+                                }
+                                else
+                                {
+                                    json.Add(uii, temp);
+                                }
+                            }
+                        }
+                    }
+
+                    //var itr = kvp.Value.GetEnumerator();
+
+                    for (int i = 0; i < kvp.Value.Count; i++)
+                    {
+                        var value = kvp.Value[i];
                         var path = paths[i];
 
-                        value.Arg.Handle(new AppendedContent(json, path));
+                        value.Arg.HandleMany(json);
+
+                        if (value.Arg.Response?.TryGetRepresentation<string>(out var temp) == true && await Resolver.GetConverter(value.Arg.Uri, temp) is IConverter<string> converter)
+                        {
+                            //value.Arg.Handle(new AppendedContent(json, path));
+                            //value.Arg.Response.Add<string, byte[]>(ByteConverter);
+                            value.Arg.Handle(converter);
+                        }
                     }
                 }
             }
         });
+
+        private IEnumerable<string> GetUrlsGreedy(Uri uri)
+        {
+            if (Resolver.TryGetRequest(uri, out var request) && Resolver.TryResolve(uri, out _, out var args))
+            {
+                var original = request;
+
+                if (AppendsTo.TryGetValue(request, out var temp))
+                {
+                    yield return Resolver.Resolve(request = temp, args);
+                }
+
+                if (Appendable.TryGetValue(request, out var appendable))
+                {
+                    foreach (var url in appendable.Where(req => req != original).Select(req => Resolver.Resolve(req, args)))
+                    {
+                        yield return url;
+                    }
+                }
+            }
+        }
 
         private void AddToTrie<TValue>(Dictionary<string, List<TValue>> trie, string key, TValue value)
         {

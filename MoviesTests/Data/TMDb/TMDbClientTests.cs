@@ -25,7 +25,7 @@
             var url = "3/movie/0?language=en-US";
             var resource = await Controller.Get(url);
 
-            Assert.IsTrue(resource.Success);
+            Assert.IsTrue(resource.Handled);
             Assert.AreEqual(1, CallHistory.Count);
             Assert.AreEqual("3/movie/0?language=en-US", CallHistory.Last());
         }

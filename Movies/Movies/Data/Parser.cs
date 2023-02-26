@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
@@ -218,6 +219,8 @@ namespace Movies
 
         public abstract PropertyValuePair GetPair(Task<JsonNode> node);
         public virtual PropertyValuePair GetPair(Task<ArraySegment<byte>> bytes) => GetPair(Convert(bytes));
+        public Task<(bool Success, object Result)> TryGetValue(Task<ArraySegment<byte>> bytes) => TryGetValue(GetPair(bytes));
+        public abstract Task<(bool Success, object Result)> TryGetValue(PropertyValuePair pvp);
 
         protected async Task<JsonNode> Convert(Task<ArraySegment<byte>> bytes) => JsonNode.Parse(await bytes);
     }
@@ -271,6 +274,8 @@ namespace Movies
 
         protected override PropertyValuePair GetPairInternal(Task<ArraySegment<byte>> value) => Parser.GetPair(value);
 
+        public override Task<(bool Success, object Result)> TryGetValue(PropertyValuePair pvp) => Parser.TryGetValue(pvp);
+
         //public override PropertyValuePair GetPair(Task<JsonNode> node) => Parser.GetPair(Unwrap(node));
 
         //private async Task<JsonNode> Unwrap(Task<JsonNode> json) => JsonParser?.TryGetValue(await json, out var unwrapped) == true ? unwrapped : new JsonObject();
@@ -296,6 +301,8 @@ namespace Movies
             value = null;
             return false;
         }
+
+        public override async Task<(bool Success, object Result)> TryGetValue(PropertyValuePair pvp) => pvp.Value is Task<T> task ? (true, await task) : (false, (object)null);
     }
 
     public class MultiParser<T> : Parser<IEnumerable<T>>

@@ -9,9 +9,12 @@ namespace MoviesTests.Data
 
         public ResourceTests()
         {
-            //var tMDbResources = new TMDbResources(null);
+            var resolver = new TMDbResolver(TMDB.ITEM_PROPERTIES);
             var resourceCache = new ResourceCache();
-            //Resources = new Controller().SetNext(resourceCache).SetNext(tMDbResources);
+            Resources = new Controller()
+                .SetNext(resourceCache)
+                .SetNext(new TMDbLocalResources(new DummyJsonCache(), resolver))
+                .SetNext(new TMDbClient(TMDB.WebClient, resolver));
 
             resourceCache.Post(new UniformItemIdentifier(Constants.Movie, Media.TAGLINE), Task.FromResult(Constants.TAGLINE));
             resourceCache.Post(new UniformItemIdentifier(Constants.Movie, Media.ORIGINAL_LANGUAGE), Task.FromResult(Constants.LANGUAGE));
@@ -45,13 +48,6 @@ namespace MoviesTests.Data
 
     public static class DataHelpers
     {
-        public static Task<(bool Success, HttpContent Resource)> Get(this ControllerLink link, string url) => Get(link, new Uri(url, UriKind.Relative));
-        public static Task<(bool Success, HttpContent Resource)> Get(this ControllerLink link, Uri uri)
-        {
-            var controller = new Controller().SetNext(link);
-            return controller.Get(uri);
-        }
-
         public static Task<(bool Success, T Resource)> Get<T>(this ControllerLink link, string url) => Get<T>(link, new Uri(url, UriKind.Relative));
         public static Task<(bool Success, T Resource)> Get<T>(this ControllerLink link, Uri uri)
         {

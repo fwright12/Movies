@@ -6,7 +6,6 @@
         private List<string> CallHistory => Movies.HttpClient.CallHistory;
 
         private Controller Controller { get; }
-        private TMDbResources TMDbResources { get; }
 
         public ResourceTests()
         {
@@ -17,8 +16,8 @@
             };
             var remote = new TMDbClient(TMDB.WebClient, resolver);
 
-            TMDbResources = new TMDbResources(local, remote, resolver, TMDbResources.AutoAppend);
-            Controller = new Controller().SetNext(TMDbResources);
+            //TMDbResources = new TMDbResources(local, remote, resolver, TMDbResources.AutoAppend);
+            Controller = new Controller().SetNext(local).SetNext(remote);
 
             //TMDbResources.Post(new UniformItemIdentifier(Constants.Movie, Media.TAGLINE), Task.FromResult(Constants.TAGLINE));
             //TMDbResources.Post(new UniformItemIdentifier(Constants.Movie, Media.ORIGINAL_LANGUAGE), Task.FromResult(Constants.LANGUAGE));
@@ -28,6 +27,18 @@
         public void ClearCallHistory()
         {
             CallHistory.Clear();
+        }
+
+        [TestMethod]
+        public async Task SingleStringResource()
+        {
+            var response = await Controller.Get<string>(new UniformItemIdentifier(Constants.Movie, Media.TITLE));
+
+            Assert.IsTrue(response.Success);
+            Assert.AreEqual("Harry Potter and the Deathly Hallows: Part 2", response.Resource);
+
+            Assert.AreEqual(1, CallHistory.Count);
+            Assert.AreEqual($"3/movie/0?language=en-US&{Constants.APPEND_TO_RESPONSE}=credits,keywords,recommendations,release_dates,videos,watch/providers", CallHistory.Last());
         }
 
         [TestMethod]
@@ -63,7 +74,7 @@
         {
             Media.RUNTIME,
             Media.CREW,
-            Media.RECOMMENDED,
+            //Media.RECOMMENDED,
             Media.KEYWORDS,
             Media.TRAILER_PATH,
             Movie.RELEASE_DATE,
@@ -97,12 +108,12 @@
         {
             var backup = DebugConfig.SimulatedDelay;
             DebugConfig.SimulatedDelay = 0;
-            return;
+
             await AllResources(Constants.Movie, typeof(Media));
             await AllResources(Constants.Movie);
-            //await AllResources(Constants.TVShow,
-            //await AllResources(Constants.TVSeason,
-            //await AllResources(Constants.TVEpisode,
+            await AllResources(Constants.TVShow);
+            await AllResources(Constants.TVSeason);
+            await AllResources(Constants.TVEpisode);
             await AllResources(Constants.Person);
 
             DebugConfig.SimulatedDelay = backup;
@@ -119,9 +130,33 @@
         {
             type ??= item.GetType();
             var properties = GetProperties(type);
+
+            foreach (var property in properties)
+            {
+                var uii = new UniformItemIdentifier(item, property);
+                var arg = new RestRequestArgs(uii, property.Type);
+                try
+                {
+                    await Controller.Get(arg);
+                }
+                catch (Exception e)
+                {
+                    Print.Log(e);
+                }
+
+                Assert.IsTrue(arg.Handled, $"Could not get value for property {property} of type {type}");
+                Assert.IsTrue(arg.Response.TryGetRepresentation(property.Type, out var value));//, $"Property: {property}. Resource of type {resourceType} cannot be assigned to ${propertyType}");
+                //Assert.IsNotNull(value, $"Value was null for {property}");
+            }
+        }
+
+        private async Task AllResources1(Item item, Type type = null)
+        {
+            type ??= item.GetType();
+            var properties = GetProperties(type);
             var uiis = properties.Select(property => new UniformItemIdentifier(Constants.Movie, property));
 
-            var controller = new Controller().SetNext(TMDbResources);
+            var controller = new Controller();//.SetNext(TMDbResources);
 
             foreach (var property in properties)
             {
