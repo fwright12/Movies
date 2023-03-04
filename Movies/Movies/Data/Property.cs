@@ -14,6 +14,8 @@ namespace Movies
         public Type Type { get; }
         public bool AllowsMultiple { get; }
 
+        public virtual Type FullType => Type;
+
         public Property(string name, Type type, IEnumerable values, bool allowsMultiple = false) : this(name, type, allowsMultiple)
         {
             Values = values;
@@ -43,6 +45,8 @@ namespace Movies
 
     public class MultiProperty<T> : Property<T>
     {
+        public override Type FullType => typeof(IEnumerable<T>);
+
         public MultiProperty(string name) : base(name, true) { }
         public MultiProperty(string name, IEnumerable values) : base(name, values, true) { }
     }

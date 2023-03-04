@@ -3,15 +3,20 @@
     [TestClass]
     public class ResourceTests
     {
-        private ControllerLink Controller => ResourceCache;
+        private IControllerLink Controller => ResourceCache;
         private ResourceCache ResourceCache { get; }
+        private Task SeedTask { get; }
 
         public ResourceTests()
         {
             ResourceCache = new ResourceCache();
+            SeedTask = Seed();
+        }
 
-            ResourceCache.Post(new UniformItemIdentifier(Constants.Movie, Media.TAGLINE), Task.FromResult(Constants.TAGLINE));
-            ResourceCache.Post(new UniformItemIdentifier(Constants.Movie, Media.ORIGINAL_LANGUAGE), Task.FromResult(Constants.LANGUAGE));
+        [TestInitialize]
+        public async Task WaitSeed()
+        {
+            await SeedTask;
         }
 
         [TestMethod]
@@ -19,6 +24,7 @@
         {
             var uii = new UniformItemIdentifier(Constants.Movie, Media.ORIGINAL_LANGUAGE);
             var response = await Controller.Get<Language>(uii);
+
             Assert.IsTrue(response.Success);
             Assert.AreEqual(Constants.LANGUAGE, response.Resource);
         }
@@ -28,6 +34,12 @@
         {
             var response1 = await Controller.Get<IEnumerable<Keyword>>(new UniformItemIdentifier(Constants.Movie, Media.KEYWORDS));
             Assert.IsFalse(response1.Success);
+        }
+
+        private async Task Seed()
+        {
+            await ResourceCache.Put(new UniformItemIdentifier(Constants.Movie, Media.TAGLINE), Constants.TAGLINE);
+            await ResourceCache.Put(new UniformItemIdentifier(Constants.Movie, Media.ORIGINAL_LANGUAGE), Constants.LANGUAGE);
         }
     }
 }

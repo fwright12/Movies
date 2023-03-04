@@ -1,14 +1,13 @@
 ﻿using Movies.Models;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Text;
-using System.Threading.Tasks;
-using System.Threading;
-using System.Collections;
-using static System.Net.Mime.MediaTypeNames;
 using System.Text.Json.Nodes;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Movies
 {
@@ -106,7 +105,13 @@ namespace Movies
             }
         }
 
-        public IEnumerable<KeyValuePair<Property, string>> GetDetailsAnnotations(string url)
+        public bool TryGetAnnotations(Uri uri, out KeyValuePair<TMDbRequest, List<Parser>> annotations)
+        {
+            var url = ResolveUrl(uri);
+            return Annotations.TryGetValue(url, out annotations);
+        }
+
+        public IEnumerable<KeyValuePair<Property, string[]>> Annotate(string url)
         {
             url = url.Split('?')[0];
             url = string.Join('/', url.Split('/').Skip(1));
@@ -133,15 +138,22 @@ namespace Movies
                     path = jpp.Property;
                 }
 
-                yield return new KeyValuePair<Property, string>(parser.Property, path);
+                // Should do this for ALL types, but need to work around legacy Parsers
+                //
+                // Parsers expect full response, and then find the property and then convert
+                // So put the full response so the parser works UNLESS the expected type is string,
+                // in which case there's no conversion to do and the parser won't run
+                yield return new KeyValuePair<Property, string[]>(parser.Property, parser.Property.FullType == typeof(string)
+                    ? new string[] { path }
+                    : new string[0]);
             }
         }
 
         private async Task<IEnumerable<T>> GetTVItems<T>(Task<ArraySegment<byte>> json, string property, AsyncEnumerable.TryParseFunc<JsonNode, T> parse) => TMDB.TryParseCollection(JsonNode.Parse(await json), new JsonPropertyParser<IEnumerable<JsonNode>>(property), out var result, new JsonNodeParser<T>(parse)) ? result : null;
 
-        public async Task<IConverter<string>> GetConverter(Uri uri, string target, bool parentCollectionWasRequested = true)
+        public async Task<IConverter<string>> GetConverter(Uri uri, string target, bool parentCollectionWasRequested = false)
         {
-            if (TryGetParser(uri, out var parser) && parser?.Property.Type != typeof(string))
+            if (TryGetParser(uri, out var parser) && parser?.Property.FullType != typeof(string))
             {
                 var uii = (UniformItemIdentifier)uri;
                 var success = false;
@@ -339,27 +351,44 @@ namespace Movies
             Resolver = resolver;
         }
 
-        protected override Task GetAsync(IEnumerable<RestRequestArgs> e, ChainLinkEventHandler<MultiRestEventArgs> next) => HandleAsync(e, next, async (arg) =>
+        protected override Task GetAsync(IEnumerable<RestRequestArgs> e, ChainLinkEventHandler<MultiRestEventArgs> next) => HandleAsync(e, next, async e =>
         {
-            if (arg.Uri is UniformItemIdentifier uii && !IsCacheable(uii))
+            if (!IsCacheable(e.Uri))
             {
                 return;
             }
 
-            var url = Resolver.ResolveUrl(arg.Uri);
+            var url = Resolver.ResolveUrl(e.Uri);
             var response = await Cache.TryGetValueAsync(url);
 
             if (response != null)
             {
-                arg.Handle(response.Content);
+                var bytes = Encoding.UTF8.GetString(await response.Content.ReadAsByteArrayAsync());
+                var json = new AnnotatedJson(await response.Content.ReadAsByteArrayAsync());
+
+                if (e.Uri is UniformItemIdentifier uii)
+                {
+                    foreach (var annotation in Resolver.Annotate(url))
+                    {
+                        json.Add(new UniformItemIdentifier(uii.Item, annotation.Key), annotation.Value);
+                    }
+                }
+
+                e.HandleMany(json);
+
+                if (e.Response?.TryGetRepresentation<string>(out var temp) == true && await Resolver.GetConverter(e.Uri, temp) is IConverter<string> converter)
+                {
+                    e.Handle(converter);
+                }
             }
         });
 
         protected override Task PutAsync(IEnumerable<RestRequestArgs> e, ChainLinkEventHandler<MultiRestEventArgs> next) => HandleAsync(e, next, async e =>
         {
-            if (e.Uri is UniformItemIdentifier uii && !IsCacheable(uii)) // && uii.Item.TryGetID(TMDB.ID, out var id) && Resolver.TryResolve(uii, out var url) && arg.Response is HttpContent content)// && Converter.TryConvert(resource, out var content))
+            //if (e.Uri is UniformItemIdentifier uii && !IsCacheable(uii)) // && uii.Item.TryGetID(TMDB.ID, out var id) && Resolver.TryResolve(uii, out var url) && arg.Response is HttpContent content)// && Converter.TryConvert(resource, out var content))
+            if (e.Uri is UniformItemIdentifier || !IsCacheable(e.Uri))
             {
-                //return;
+                return;
             }
 
             var url = Resolver.ResolveUrl(e.Uri);
@@ -449,8 +478,31 @@ namespace Movies
 
         public static async Task<string> GetContent(JsonResponse json) => await json.Content.ReadAsStringAsync();
 
-        public bool IsCacheable(UniformItemIdentifier uii) => CACHEABLE_TYPES.HasFlag(uii.Item.ItemType) && (CHANGES_IGNORED.Contains(uii.Property) || ContainsChangeKey(uii.Property));
+        public bool IsCacheable(Uri uri)
+        {
+            if (uri is UniformItemIdentifier uii)
+            {
+                return CACHEABLE_TYPES.HasFlag(uii.Item.ItemType) && IsCacheable(uii.Property);
+            }
+            else
+            {
+                var url = Resolver.ResolveUrl(uri);
 
+                if (!url.StartsWith("3/movie") && !url.StartsWith("3/tv") && !url.StartsWith("3/person"))
+                {
+                    return false;
+                }
+
+                if (Resolver.TryGetAnnotations(uri, out var annotations) && annotations.Value.All(parser => !IsCacheable(parser.Property)))
+                {
+                    return false;
+                }
+
+                return true;
+            }
+        }
+
+        private bool IsCacheable(Property property) => CHANGES_IGNORED.Contains(property) || ContainsChangeKey(property);
         private bool ContainsChangeKey(Property property) => Resolver.TryResolveJsonPropertyName(property, out string changeKey) && ChangeKeys.Contains(changeKey);
     }
 
@@ -655,11 +707,13 @@ namespace Movies
 
         protected override Task GetAsync(IEnumerable<RestRequestArgs> e, ChainLinkEventHandler<MultiRestEventArgs> next) => HandleAsync(e, next, async (IEnumerable<RestRequestArgs> e) =>
         {
+            var parentCollectionWasRequested = new Lazy<bool>(() => e.OfType<UniformItemIdentifier>().Any(uii => uii.Property == Movie.PARENT_COLLECTION));
             var greedyUrls = e.SelectMany(arg => GetUrlsGreedy(arg.Uri)).Distinct().ToArray();
             var greedy = greedyUrls.Select(url => new RestRequestArgs(new Uri(url, UriKind.Relative)));
             var args = e.Concat(greedy);
 
             var trie = new Dictionary<string, List<(string Url, string Path, string Query, RestRequestArgs Arg)>>();
+            //var trie1 = new Trie<string, (string Url, string Path, string Query, RestRequestArgs Arg)>();
 
             foreach (var arg in args)
             {
@@ -667,7 +721,19 @@ namespace Movies
                 var url = Resolver.ResolveUrl(arg.Uri);
                 var parts = url.Split('?');
                 AddToTrie(trie, parts[0], (url, parts[0], parts.Length > 1 ? parts[1] : string.Empty, arg));
+
+                //IEnumerable<string> keys = parts[0].Split('/');
+
+                //if (parts.Length > 1)
+                //{
+                //    keys = keys.Append(parts[1]);
+                //}
+
+                //var value = (url, parts[0], parts.Length > 1 ? parts[1] : string.Empty, arg);
+                //trie1.Add(value, keys.ToArray());
             }
+
+            //IEnumerable<KeyValuePair<IEnumerable<string>, (string, string, string, RestRequestArgs)>> asdfasd = trie1;
 
             foreach (var kvp in trie)
             {
@@ -697,35 +763,24 @@ namespace Movies
                 {
                     //var json = Parse(response.Content, validPaths);
                     var json = new AnnotatedJson(await response.Content.ReadAsByteArrayAsync());
-                    var item = e.Select(arg => arg.Uri).OfType<UniformItemIdentifier>().FirstOrDefault()?.Item;
 
-                    for (int i = 0; i < kvp.Value.Count; i++)
+                    if (e.Select(arg => arg.Uri).OfType<UniformItemIdentifier>().FirstOrDefault()?.Item is Item item)
                     {
-                        var path = paths[i];
-                        var temp = string.IsNullOrEmpty(path) ? new string[0] : new string[] { path };
+                        var values = Enumerable.Range(0, kvp.Value.Count).Select(i => (kvp.Value[i].Url, paths[i])).Distinct();
 
-                        json.Add(new Uri(kvp.Value[i].Url, UriKind.Relative), temp);
-                        //json.Add(kvp.Value[i].Arg.Uri, temp);
-
-                        if (item != null)
+                        foreach (var value in values)
                         {
-                            foreach (var pair in Resolver.GetDetailsAnnotations(kvp.Value[i].Url))
-                            {
-                                var uii = new UniformItemIdentifier(item, pair.Key);
+                            var uri = value.Url;
+                            var path = value.Item2;
+                            var temp = string.IsNullOrEmpty(path) ? new string[0] : new string[] { path };
 
-                                if (pair.Key.Type == typeof(string))
-                                {
-                                    // Should do this for ALL types, but need to work around legacy Parsers
-                                    //
-                                    // Parsers expect full response, and then find the property and then convert
-                                    // So put the full response so the parser works UNLESS the expected type is string,
-                                    // in which case there's no conversion to do and the parser won't run
-                                    json.Add(uii, temp.Append(pair.Value).ToArray());
-                                }
-                                else
-                                {
-                                    json.Add(uii, temp);
-                                }
+                            json.Add(new Uri(uri, UriKind.Relative), temp);
+                            //json.Add(kvp.Value[i].Arg.Uri, temp);
+
+                            foreach (var annotation in Resolver.Annotate(uri))
+                            {
+                                var uii = new UniformItemIdentifier(item, annotation.Key);
+                                json.Add(uii, temp.Concat(annotation.Value).ToArray());
                             }
                         }
                     }
@@ -826,6 +881,82 @@ namespace Movies
             }
 
             return string.Join('&', result.Select(kvp => $"{kvp.Key}={kvp.Value}"));
+        }
+    }
+
+    public class Trie<TKey, TValue> : IEnumerable<KeyValuePair<IEnumerable<TKey>, TValue>>
+    {
+        public TValue Value { get; private set; }
+        private Dictionary<TKey, Trie<TKey, TValue>> Children { get; } = new Dictionary<TKey, Trie<TKey, TValue>>();
+
+        public void Add(TValue value, params TKey[] keys)
+        {
+            var root = this;
+
+            foreach (var key in keys)
+            {
+                if (!root.Children.TryGetValue(key, out var trie))
+                {
+                    root.Children.Add(key, trie = new Trie<TKey, TValue>());
+                }
+
+                root = trie;
+            }
+
+            root.Value = value;
+        }
+
+        public IEnumerator<KeyValuePair<IEnumerable<TKey>, TValue>> GetEnumerator()
+        {
+            if (Children.Count == 0)
+            {
+                yield return new KeyValuePair<IEnumerable<TKey>, TValue>(Enumerable.Empty<TKey>(), Value);
+            }
+            else
+            {
+                foreach (var kvp in Children)
+                {
+                    foreach (var value in kvp.Value)
+                    {
+                        yield return new KeyValuePair<IEnumerable<TKey>, TValue>(value.Key.Prepend(kvp.Key), value.Value);
+                    }
+                }
+            }
+        }
+
+        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+
+        private class Enumerator : IEnumerator<KeyValuePair<IEnumerable<TKey>, TValue>>
+        {
+            public KeyValuePair<IEnumerable<TKey>, TValue> Current { get; private set; }
+
+            object IEnumerator.Current => Current;
+
+            private readonly Stack<Trie<TKey, TValue>> Tries = new Stack<Trie<TKey, TValue>>();
+
+            public Enumerator(Trie<TKey, TValue> root)
+            {
+                Tries.Push(root);
+            }
+
+            public void Dispose() { }
+
+            public bool MoveNext()
+            {
+                while (Tries.Peek().Children.Count > 0)
+                {
+                    //Tries.Push(Tries.Peek().Children[0].Value);
+                }
+
+                return false;
+            }
+
+            public void Reset()
+            {
+                var root = Tries.First();
+                Tries.Clear();
+                Tries.Push(root);
+            }
         }
     }
 }

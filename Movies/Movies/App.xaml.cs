@@ -213,6 +213,12 @@ namespace Movies
             _ = tmdb.SetItemCache(LocalDatabase.ItemCache, Session.LastAccessed);
             Session.LastAccessed = DateTime.Now;
 
+            var resolver = new TMDbResolver(TMDB.ITEM_PROPERTIES);
+            DataService.Controller = new Controller()
+                .AddLast(new ResourceCache())
+                .AddLast(new TMDbLocalResources(LocalDatabase.ItemCache, resolver))
+                .AddLast(new TMDbClient(TMDB.WebClient, resolver));
+
             //var inMemory = new ResourceCache();
             //var local = new LocalResources(LocalDatabase.ItemCache);
             //var tmdbResources = new TMDbResources();

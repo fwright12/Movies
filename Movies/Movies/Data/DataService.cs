@@ -74,6 +74,7 @@ namespace Movies
     public class DataService
     {
         public static readonly DataService Instance = new DataService();
+        public static Controller Controller;
 
         public event EventHandler<ItemEventArgs> GetItemDetails;
         public event EventHandler BatchBegan;

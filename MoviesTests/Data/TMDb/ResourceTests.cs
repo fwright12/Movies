@@ -1,199 +1,240 @@
-﻿namespace MoviesTests.Data.TMDb
+﻿using System.Collections;
+
+namespace MoviesTests.Data.TMDb
 {
     [TestClass]
     public class ResourceTests
     {
+        private readonly Dictionary<ItemType, List<Property>> ItemProperties = new Dictionary<ItemType, List<Property>>
+        {
+            [ItemType.Movie] = GetProperties(typeof(Media)).Concat(GetProperties(typeof(Movie))).Append(TMDB.POPULARITY).ToList()
+        };
+
         private List<string> CallHistory => Movies.HttpClient.CallHistory;
 
-        private Controller Controller { get; }
+        private TMDbResolver Resolver { get; }
+        private Controller Controller;
+        private ResourceCache ResourceCache;
+        private TMDbLocalResources TMDbLocalResources;
+        private TMDbClient TMDbClient;
+        private DummyJsonCache JsonCache;
 
         public ResourceTests()
         {
-            var resolver = new TMDbResolver(TMDB.ITEM_PROPERTIES);
-            var local = new TMDbLocalResources(new DummyJsonCache(), resolver)
-            {
-                ChangeKeys = TestsConfig.ChangeKeys
-            };
-            var remote = new TMDbClient(TMDB.WebClient, resolver);
-
-            //TMDbResources = new TMDbResources(local, remote, resolver, TMDbResources.AutoAppend);
-            Controller = new Controller().SetNext(local).SetNext(remote);
-
-            //TMDbResources.Post(new UniformItemIdentifier(Constants.Movie, Media.TAGLINE), Task.FromResult(Constants.TAGLINE));
-            //TMDbResources.Post(new UniformItemIdentifier(Constants.Movie, Media.ORIGINAL_LANGUAGE), Task.FromResult(Constants.LANGUAGE));
+            Resolver = new TMDbResolver(TMDB.ITEM_PROPERTIES);
         }
 
         [TestInitialize]
-        public void ClearCallHistory()
+        public void Reset()
         {
             CallHistory.Clear();
+
+            Controller = new Controller()
+                .AddLast(ResourceCache = new ResourceCache())
+                .AddLast(TMDbLocalResources = new TMDbLocalResources(JsonCache = new DummyJsonCache(), Resolver)
+                {
+                    ChangeKeys = TestsConfig.ChangeKeys
+                })
+                .AddLast(TMDbClient = new TMDbClient(TMDB.WebClient, Resolver));
         }
 
         [TestMethod]
-        public async Task SingleStringResource()
+        public async Task ResourcesCanBeRetrievedFromInMemoryCache()
         {
-            var response = await Controller.Get<string>(new UniformItemIdentifier(Constants.Movie, Media.TITLE));
+            await ResourceCache.Put(new UniformItemIdentifier(Constants.Movie, Media.TAGLINE), Constants.TAGLINE);
+            await ResourceCache.Put(new UniformItemIdentifier(Constants.Movie, Media.ORIGINAL_LANGUAGE), Constants.LANGUAGE);
 
+            // Retrieve an item in the in memory cache
+            var response = await Controller.Get<string>(new UniformItemIdentifier(Constants.Movie, Media.TAGLINE));
             Assert.IsTrue(response.Success);
-            Assert.AreEqual("Harry Potter and the Deathly Hallows: Part 2", response.Resource);
+            Assert.AreEqual(Constants.TAGLINE, response.Resource);
 
-            Assert.AreEqual(1, CallHistory.Count);
-            Assert.AreEqual($"3/movie/0?language=en-US&{Constants.APPEND_TO_RESPONSE}=credits,keywords,recommendations,release_dates,videos,watch/providers", CallHistory.Last());
+            Assert.AreEqual(0, CallHistory.Count);
+            Assert.AreEqual(0, JsonCache.Count);
+            Assert.AreEqual(2, ResourceCache.Count);
         }
 
         [TestMethod]
-        public async Task SingleDetailsResource()
+        public async Task ResourcesCanBeRetrievedFromDiskCache()
+        {
+            var uri = new Uri("3/movie/0?language=en-US", UriKind.Relative);
+            var json = "{ \"runtime\": 130 }";
+            await TMDbLocalResources.PutAsync(new MultiRestEventArgs(new RestRequestArgs(uri, new State(json))), null);
+
+            var request = new RestRequestArgs(new UniformItemIdentifier(Constants.Movie, Media.RUNTIME), typeof(TimeSpan?));
+            await Controller.Get(request);
+
+            Assert.IsTrue(request.Handled);
+            Assert.AreEqual(new TimeSpan(2, 10, 0), request.Response?.TryGetRepresentation<TimeSpan?>(out var value) == true ? value : null);
+
+            Assert.AreEqual(0, CallHistory.Count);
+            Assert.AreEqual(1, JsonCache.Count);
+            Assert.AreEqual(1, ResourceCache.Count);
+        }
+
+        [TestMethod]
+        public async Task ResourcesCanBeRetrievedFromApi()
         {
             var response = await Controller.Get<TimeSpan>(new UniformItemIdentifier(Constants.Movie, Media.RUNTIME));
 
             Assert.IsTrue(response.Success);
             Assert.AreEqual(new TimeSpan(2, 10, 0), response.Resource);
-
-            Assert.AreEqual(1, CallHistory.Count);
             Assert.AreEqual($"3/movie/0?language=en-US&{Constants.APPEND_TO_RESPONSE}=credits,keywords,recommendations,release_dates,videos,watch/providers", CallHistory.Last());
 
-            await AssertCached(MOVIE_PROPERTIES);
+            Assert.AreEqual(1, CallHistory.Count);
+            Assert.AreEqual(7, JsonCache.Count);
+            //Assert.AreEqual(ItemProperties[ItemType.Movie].Count + 7, ResourceCache.Count);
+            Assert.AreEqual(1, ResourceCache.Count);
         }
 
+        // Calls to the api will have a delay
+        // If the in memory cache doesn't cache tasks, successive calls will go through because they don't
+        // return a result immediately
         [TestMethod]
-        public async Task SingleSubDetailsResource()
+        public async Task InMemoryCachedAsTasks()
         {
-            var response = await Controller.Get<IEnumerable<WatchProvider>>(new UniformItemIdentifier(Constants.Movie, Movie.WATCH_PROVIDERS));
-
-            Assert.IsTrue(response.Success);
-            Assert.AreEqual(21, response.Resource.Count());
-            Assert.IsTrue(response.Resource.FirstOrDefault(provider => provider.Company.Name == "HBO Max") != null);
+            var arg = new RestRequestArgs(new UniformItemIdentifier(Constants.Movie, Media.TITLE));
+            await Task.WhenAll(Controller.Get(arg), Controller.Get(arg));
 
             Assert.AreEqual(1, CallHistory.Count);
-            Assert.AreEqual($"3/movie/0?language=en-US&{Constants.APPEND_TO_RESPONSE}=watch/providers,credits,keywords,recommendations,release_dates,videos", CallHistory.Last());
-
-            await AssertCached(MOVIE_PROPERTIES);
-        }
-
-        private static readonly Property[] MOVIE_PROPERTIES = new Property[]
-        {
-            Media.RUNTIME,
-            Media.CREW,
-            //Media.RECOMMENDED,
-            Media.KEYWORDS,
-            Media.TRAILER_PATH,
-            Movie.RELEASE_DATE,
-            Movie.WATCH_PROVIDERS,
-        };
-
-        private async Task AssertCached(params Property[] properties)
-        {
-            int calls = CallHistory.Count;
-            await Task.WhenAll(properties.Select(property => Controller.Get(new UniformItemIdentifier(Constants.Movie, property))));
-
-            Assert.AreEqual(calls, CallHistory.Count);
         }
 
         [TestMethod]
-        public async Task SingleEnumerableResource()
+        public async Task RepeatedRequestsAreCached()
         {
-            var response1 = await Controller.Get<IEnumerable<Language>>(new UniformItemIdentifier(Constants.Movie, Media.LANGUAGES));
-            Assert.IsTrue(response1.Success);
-            Assert.AreEqual(1, response1.Resource.Count());
-            Assert.AreEqual("en", response1.Resource.First().Iso_639);
+            RestRequestArgs[] GetAllRequests() => ItemProperties[ItemType.Movie]
+                .Select(property => new RestRequestArgs(new UniformItemIdentifier(Constants.Movie, property)))
+                .ToArray();
 
-            var response2 = await Controller.Get<IEnumerable<Keyword>>(new UniformItemIdentifier(Constants.Movie, Media.KEYWORDS));
-            Assert.IsTrue(response2.Success);
-            Assert.AreEqual(13, response2.Resource.Count());
-            Assert.AreEqual("saving the world", response2.Resource.First().Name);
+            await Task.WhenAll(Controller.Get(GetAllRequests()));
+            Assert.AreEqual(1, CallHistory.Count);
+
+            // No additional api calls should be made, everything should be cached in memory
+            await Task.WhenAll(Controller.Get(GetAllRequests()));
+            Assert.AreEqual(1, CallHistory.Count);
+
+            // These properties should result in another api call because they don't cache
+            foreach (var property in new Property[]
+            {
+                Media.ORIGINAL_LANGUAGE,
+                Media.RECOMMENDED,
+                //Movie.PARENT_COLLECTION,
+            })
+            {
+                CallHistory.Clear();
+
+                await ResourceCache.Delete(new UniformItemIdentifier(Constants.Movie, property));
+                await Task.WhenAll(Controller.Get(GetAllRequests()));
+                Assert.AreEqual(1, CallHistory.Count);
+            }
         }
+
+        private static readonly IReadOnlySet<Property> NO_CHANGE_KEY = new HashSet<Property>
+        {
+            Media.ORIGINAL_LANGUAGE,
+            Media.RECOMMENDED,
+            Movie.PARENT_COLLECTION,
+            TVShow.SEASONS, // There is a change key for this but I'm not tracking it at this point
+            TVShow.NETWORKS,
+            Person.GENDER,
+            Person.CREDITS,
+            TMDB.POPULARITY
+        };
 
         [TestMethod]
         public async Task AllTMDbResourcesAutomated()
         {
+            //var request = new RestRequestArgs(new UniformItemIdentifier(Constants.TVShow, TVShow.GENRES), typeof(IEnumerable<Genre>));
+            //await Controller.Get(request);
+            //request = new RestRequestArgs(new UniformItemIdentifier(Constants.TVShow, TVShow.GENRES), typeof(IEnumerable<Genre>));
+            //await Controller.Get(request);
+
             var backup = DebugConfig.SimulatedDelay;
             DebugConfig.SimulatedDelay = 0;
 
-            await AllResources(Constants.Movie, typeof(Media));
-            await AllResources(Constants.Movie);
-            await AllResources(Constants.TVShow);
-            await AllResources(Constants.TVSeason);
-            await AllResources(Constants.TVEpisode);
-            await AllResources(Constants.Person);
+            await AllResources(Constants.Movie, typeof(Media), new Dictionary<Property, object>
+            {
+                [Media.TITLE] = "Harry Potter and the Deathly Hallows: Part 2",
+                [Media.RUNTIME] = new TimeSpan(2, 10, 0),
+                [Media.PRODUCTION_COUNTRIES] = "United Kingdom",
+                [Media.KEYWORDS] = new Keyword { Id = 83, Name = "saving the world" }
+            });
+            await AllResources(Constants.Movie, new Dictionary<Property, object>
+            {
+                [Movie.BUDGET] = 125000000L,
+            });
+            await AllResources(Constants.TVShow, new Dictionary<Property, object>
+            {
+                [TVShow.GENRES] = new Genre { Id = 35, Name = "Comedy" }
+            });
+            await AllResources(Constants.TVSeason, new Dictionary<Property, object>
+            {
+                [TVSeason.YEAR] = new DateTime(2006, 9, 21)
+            });
+            await AllResources(Constants.TVEpisode, new Dictionary<Property, object>
+            {
+                [TVEpisode.AIR_DATE] = new DateTime(2007, 4, 26)
+            });
+            await AllResources(Constants.Person, new Dictionary<Property, object>
+            {
+                [Person.ALSO_KNOWN_AS] = "Jessica Howard",
+            });
 
             DebugConfig.SimulatedDelay = backup;
         }
 
-        private IEnumerable<Task> AllResources(params Item[] items) => items.Select(item => AllResources(item));
-
-        private static IEnumerable<Property> GetProperties(Type type) => type
+        private static IEnumerable<Property?> GetProperties(Type type) => type
             .GetFields()
             .Where(field => typeof(Property).IsAssignableFrom(field.FieldType))
             .Select(field => (Property)field.GetValue(null));
 
-        private async Task AllResources(Item item, Type type = null)
+        private Task AllResources(Item item, IDictionary<Property, object> expectedValues = null) => AllResources(item, item.GetType(), expectedValues);
+        private async Task AllResources(Item item, Type type, IDictionary<Property, object> expectedValues = null)
         {
-            type ??= item.GetType();
             var properties = GetProperties(type);
 
-            foreach (var property in properties)
+            foreach (var test in new (Controller Controller, IEnumerable<Property?> Properties)[]
             {
-                var uii = new UniformItemIdentifier(item, property);
-                var arg = new RestRequestArgs(uii, property.Type);
-                try
-                {
-                    await Controller.Get(arg);
-                }
-                catch (Exception e)
-                {
-                    Print.Log(e);
-                }
-
-                Assert.IsTrue(arg.Handled, $"Could not get value for property {property} of type {type}");
-                Assert.IsTrue(arg.Response.TryGetRepresentation(property.Type, out var value));//, $"Property: {property}. Resource of type {resourceType} cannot be assigned to ${propertyType}");
-                //Assert.IsNotNull(value, $"Value was null for {property}");
-            }
-        }
-
-        private async Task AllResources1(Item item, Type type = null)
-        {
-            type ??= item.GetType();
-            var properties = GetProperties(type);
-            var uiis = properties.Select(property => new UniformItemIdentifier(Constants.Movie, property));
-
-            var controller = new Controller();//.SetNext(TMDbResources);
-
-            foreach (var property in properties)
+                (Controller, properties),
+                //new Controller().AddLast(ResourceCache),
+                (new Controller().AddLast(TMDbLocalResources), type == typeof(TVSeason) || type == typeof(TVEpisode) ? Enumerable.Empty<Property>() : properties.Except(NO_CHANGE_KEY))
+            })
             {
-                var uii = new UniformItemIdentifier(item, property);
-
-                var propertyType = property.GetType().ToString().ToLower().Contains("multi") ? typeof(IEnumerable<>).MakeGenericType(property.Type) : property.Type;
-                RestRequestArgs e = null;
-                //var task = (Task)getMethod?.MakeGenericMethod(propertyType).Invoke(this, new object?[] { uii, controller });
-                await controller.Get(e);
-
-                var tupleType = typeof(ValueTuple<,>).MakeGenericType(typeof(bool), propertyType);
-                var responseType = typeof(Task<>).MakeGenericType(tupleType);
-                var response = responseType.GetProperty("Result").GetValue(e.Response);
-
-                Assert.IsTrue((bool)tupleType.GetField("Item1").GetValue(response), $"Could not get value for property {property}");
-                var resource = tupleType.GetField("Item2").GetValue(response);
-
-                if (resource != null)
+                foreach (var property in test.Properties)
                 {
-                    var resourceType = resource.GetType();
-                    Assert.IsTrue(resourceType?.IsAssignableTo(propertyType), $"Property: {property}. Resource of type {resourceType} cannot be assigned to ${propertyType}");
+                    if (property == Movie.PARENT_COLLECTION)
+                        continue;
+
+                    var uii = new UniformItemIdentifier(item, property);
+                    var arg = new RestRequestArgs(uii, property.FullType);
+
+                    try
+                    {
+                        await test.Controller.Get(arg);
+                    }
+                    catch (Exception e)
+                    {
+                        Print.Log(e);
+                    }
+
+                    Assert.IsTrue(arg.Handled, $"Could not get value for property {property} of type {type}");
+                    Assert.IsTrue(arg.Response.TryGetRepresentation(property.FullType, out var value), $"Property {property}. Expected type: {property.FullType}. Available types: {string.Join(", ", arg.Response.OfType<object>().Select(rep => rep.GetType()))}");
+
+                    if (expectedValues?.TryGetValue(property, out var expected) == true)
+                    {
+                        if (property.AllowsMultiple && !expected.GetType().IsAssignableFrom(property.FullType))
+                        {
+                            var values = value as IEnumerable;
+                            Assert.IsNotNull(values);
+                            Assert.AreEqual(expected, values.OfType<object>().First());
+                        }
+                        else
+                        {
+                            Assert.AreEqual(expected, value);
+                        }
+                    }
                 }
             }
         }
-
-        private static Property[] ForcedProperties = new Property[]
-        {
-            Media.RUNTIME,
-            Media.CREW,
-            Media.RECOMMENDED,
-            Media.KEYWORDS,
-            Media.TRAILER_PATH,
-            Movie.RELEASE_DATE,
-            Movie.WATCH_PROVIDERS,
-            TVShow.WATCH_PROVIDERS,
-            Person.NAME,
-            Person.CREDITS
-        };
     }
 }

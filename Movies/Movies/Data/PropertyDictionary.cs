@@ -21,7 +21,7 @@ namespace Movies
         public Item Item { get; }
         public Property Property { get; }
 
-        public UniformItemIdentifier(Item item, Property property) : base($"urn:{item.Name}:{property.Name}")
+        public UniformItemIdentifier(Item item, Property property) : base($"urn:{item.ItemType}:{property.Name}")
         {
             Item = item;
             Property = property;
@@ -69,39 +69,50 @@ namespace Movies
 
     public class Controller : IRestService
     {
-        public ChainLink<MultiRestEventArgs> GetChain { get; private set; }
-        public ChainLink<MultiRestEventArgs> PostChain { get; private set; }
+        public enum HttpMethod { GET, PUT }
 
-        public Controller SetNext<T>(ControllerLink<T> controller)
+        public ChainLink<MultiRestEventArgs> GetChain => GetFirst(HttpMethod.GET);
+        public ChainLink<MultiRestEventArgs> PutChain => GetFirst(HttpMethod.PUT);
+
+        private ChainLink<MultiRestEventArgs>[] ChainFirst { get; }
+        private ChainLink<MultiRestEventArgs>[] ChainLast { get; }
+        private int MethodCount { get; }
+
+        public Controller()
         {
-            var handler = new ChainLink<MultiRestEventArgs>(controller.GetAsync);
+            MethodCount = Enum.GetValues(typeof(HttpMethod)).Length;
 
-            if (GetChain == null)
+            ChainFirst = new ChainLink<MultiRestEventArgs>[MethodCount];
+            ChainLast = new ChainLink<MultiRestEventArgs>[MethodCount];
+        }
+
+        public ChainLink<MultiRestEventArgs> GetFirst(HttpMethod method) => ChainFirst[(int)method];
+        private ChainLink<MultiRestEventArgs> GetLast(HttpMethod method) => ChainLast[(int)method];
+
+        public ChainLink<MultiRestEventArgs> AddLast(HttpMethod method, ChainLink<MultiRestEventArgs> link)
+        {
+            ChainLast[(int)method] = link;
+            return link;
+        }
+
+        public Controller AddLast(IControllerLink controller)
+        {
+            var handlers = new Dictionary<HttpMethod, ChainLink<MultiRestEventArgs>>
             {
-                GetChain = handler;
-            }
-            else
+                [HttpMethod.GET] = new ChainLink<MultiRestEventArgs>(controller.GetAsync),
+                [HttpMethod.PUT] = new ChainLink<MultiRestEventArgs>(controller.PutAsync),
+            };
+
+            foreach (var kvp in handlers)
             {
-                GetChain.SetNext(handler);
+                var method = kvp.Key;
+                var handler = kvp.Value;
+                var index = (int)method;
+
+                ChainLast[index] = GetLast(method)?.SetNext(handler) ?? (ChainFirst[index] = handler);
             }
 
             return this;
-        }
-
-        public ChainLink<MultiRestEventArgs> SetNext(ChainEventHandler<MultiRestEventArgs> handler)
-        {
-            var link = new ChainLink<MultiRestEventArgs>(handler);
-
-            if (PostChain == null)
-            {
-                PostChain = link;
-            }
-            else
-            {
-                PostChain.SetNext(link);
-            }
-
-            return link;
         }
 
         public async Task<(bool Success, T Resource)> TryGet<T>(string url)
@@ -118,8 +129,6 @@ namespace Movies
                 return (false, default);
             }
         }
-
-        public Task GetAsync(MultiRestEventArgs e, ChainLinkEventHandler<MultiRestEventArgs> next) => GetChain.HandleAsync(e);
 
         public Task Get(params RestRequestArgs[] args) => Get((IEnumerable<RestRequestArgs>)args);
         public Task Get(IEnumerable<RestRequestArgs> args) => GetChain.HandleAsync(new MultiRestEventArgs(args));
@@ -164,31 +173,32 @@ namespace Movies
         }
     }
 
-    public abstract class ControllerLink<T> : IConverter<T>
+    public interface IControllerLink
+    {
+        Task GetAsync(MultiRestEventArgs e, ChainLinkEventHandler<MultiRestEventArgs> next);
+        Task PutAsync(MultiRestEventArgs e, ChainLinkEventHandler<MultiRestEventArgs> next);
+    }
+
+    public abstract class ControllerLink<T> : IControllerLink, IConverter<T>
     {
         public bool CacheAside { get; set; } = true;
-
-        //public Task GetAsync(MultiRestEventArgs e, ChainLinkEventHandler<MultiRestEventArgs> next) => HandleAsync(e, next);
-
-        //public Task PostAsync(MultiRestEventArgs e, ChainLinkEventHandler<MultiRestEventArgs> next) => HandleAsync(e, next);
 
         public async Task GetAsync(MultiRestEventArgs e, ChainLinkEventHandler<MultiRestEventArgs> next)
         {
             await GetAsync(e.Args, null);
-            AddRepresentations(WhereUnhandled(e.Args));
+            AddRepresentations(e.Args.Where(Unhandled).ToArray());
 
-            var unhandled = WhereUnhandled(e.Args).ToArray();
             if (next != null)
             {
+                var unhandled = e.Args.Where(Unhandled).ToArray();
                 await next(new MultiRestEventArgs(unhandled));
             }
 
             if (CacheAside)
             {
-                var handled = unhandled.Where(arg => arg.Handled).ToArray();
-                var posts = handled.Select(arg => new RestRequestArgs(arg.Uri)).ToArray();
+                var handled = e.Args.Where(arg => arg.Handled).ToArray();
 
-                foreach (var arg in e.Args)
+                foreach (var arg in handled)
                 {
                     if (arg.Response != null)
                     {
@@ -209,6 +219,8 @@ namespace Movies
             }
         }
 
+        public Task PutAsync(MultiRestEventArgs e, ChainLinkEventHandler<MultiRestEventArgs> next) => PutAsync(e.Args, next);
+
         protected virtual Task GetAsync(IEnumerable<RestRequestArgs> e, ChainLinkEventHandler<MultiRestEventArgs> next) => HandleAsync(e, next);
 
         protected virtual Task PutAsync(IEnumerable<RestRequestArgs> e, ChainLinkEventHandler<MultiRestEventArgs> next) => HandleAsync(e, next);
@@ -223,27 +235,27 @@ namespace Movies
             }
         }
 
-        protected Task HandleAsync(IEnumerable<RestRequestArgs> e, ChainLinkEventHandler<MultiRestEventArgs> next) => next?.Invoke(new MultiRestEventArgs(WhereUnhandled(e).ToArray())) ?? Task.CompletedTask;
+        protected Task HandleAsync(IEnumerable<RestRequestArgs> e, ChainLinkEventHandler<MultiRestEventArgs> next) => next?.Invoke(new MultiRestEventArgs(e.Where(Unhandled).ToArray())) ?? Task.CompletedTask;
         protected async Task HandleAsync(IEnumerable<RestRequestArgs> e, ChainLinkEventHandler<MultiRestEventArgs> next, Func<IEnumerable<RestRequestArgs>, Task> handler)
         {
             await handler(e);
-            await HandleAsync(e, next);
+            await HandleAsync(e.Where(Unhandled).ToArray(), next);
         }
         protected async Task HandleAsync(IEnumerable<RestRequestArgs> e, ChainLinkEventHandler<MultiRestEventArgs> next, Func<RestRequestArgs, ChainLinkEventHandler<RestRequestArgs>, Task> handler)
         {
             Task sendNext(RestRequestArgs e) => next(new MultiRestEventArgs(e));
             await Task.WhenAll(e.Select(arg => handler(arg, sendNext)));
-            await HandleAsync(e, next);
+            await HandleAsync(e.Where(Unhandled).ToArray(), next);
         }
         protected async Task HandleAsync(IEnumerable<RestRequestArgs> e, ChainLinkEventHandler<MultiRestEventArgs> next, Func<RestRequestArgs, Task> handler)
         {
             await Task.WhenAll(e.Select(handler));
-            await HandleAsync(e, next);
+            await HandleAsync(e.Where(Unhandled).ToArray(), next);
         }
 
-        protected IEnumerable<RestRequestArgs> WhereUnhandled(IEnumerable<RestRequestArgs> e) => e.Where(NotHandled);
+        //protected IEnumerable<RestRequestArgs> WhereUnhandled(IEnumerable<RestRequestArgs> e) => e.Where(NotHandled);
 
-        protected bool NotHandled(RestRequestArgs arg) => !arg.Handled;
+        protected bool Unhandled(RestRequestArgs arg) => !arg.Handled;
     }
 
     public interface IRestService
@@ -411,7 +423,7 @@ namespace Movies
             };
         }
 
-        public static State Create<T>(T value) => new State(typeof(T), value);
+        public static State Create<T>(T value) => value as State ?? new State(typeof(T), value);
 
         public bool Add<TExisting, TNew>(IConverter<TExisting> converter) => Add<TExisting>(typeof(TNew), converter);
         public bool Add<T>(Type type, IConverter<T> converter)
@@ -561,25 +573,6 @@ namespace Movies
 
             return false;
         }
-
-        private bool TryLocateState(IDictionary<Uri, State> substates, out State state)
-        {
-            if (substates.TryGetValue(Uri, out state))
-            {
-                return true;
-            }
-
-            foreach (var kvp in substates)
-            {
-                if (kvp.Value.TryGetRepresentation<IDictionary<Uri, State>>(out var temp) && TryLocateState(temp, out state))
-                {
-                    return true;
-                }
-            }
-
-            state = default;
-            return false;
-        }
     }
 
     public class RestRequestArgs<T> : RestRequestArgs
@@ -587,36 +580,125 @@ namespace Movies
         public RestRequestArgs(Uri uri) : base(uri, typeof(T)) { }
     }
 
-    public class ResourceCache : ControllerLink
+    public class ResourceCache : IControllerLink
     {
-        private Dictionary<Item, Dictionary<Property, object>> Cache = new Dictionary<Item, Dictionary<Property, object>>();
+        public int Count => Cache.Count;
 
-        protected override Task GetAsync(IEnumerable<RestRequestArgs> e, ChainLinkEventHandler<MultiRestEventArgs> next) => HandleAsync(e, next, (RestRequestArgs e) =>
+        private Dictionary<Uri, Task<State>> Cache { get; } = new Dictionary<Uri, Task<State>>();
+        private readonly SemaphoreSlim CacheSemaphore = new SemaphoreSlim(1, 1);
+
+        public async Task GetAsync(MultiRestEventArgs e, ChainLinkEventHandler<MultiRestEventArgs> next)
         {
-            if (e.Uri is UniformItemIdentifier uii && Cache.TryGetValue(uii.Item, out var properties) && properties.TryGetValue(uii.Property, out var response))// && PropertyDictionary.TryCastTask<T>(response, out var resource) && resource.IsCompletedSuccessfully)
+            foreach (var arg in e.Args)
             {
-                e.Handle(response);
+                //if (e.Uri is UniformItemIdentifier uii && Cache.TryGetValue(uii.Item, out var properties) && properties.TryGetValue(uii.Property, out var response))// && PropertyDictionary.TryCastTask<T>(response, out var resource) && resource.IsCompletedSuccessfully)
+                await CacheSemaphore.WaitAsync();
+
+                try
+                {
+                    if (Cache.TryGetValue(arg.Uri, out var state))
+                    {
+                        arg.Handle(await state);
+                    }
+                }
+                finally
+                {
+                    CacheSemaphore.Release();
+                }
             }
 
-            return Task.CompletedTask;
-        });
-
-        public Task PostAsync<T>(Uri uri, T resource)
-        {
-            Post(uri, resource);
-            return Task.CompletedTask;
-        }
-
-        public void Post<T>(Uri uri, T resource)
-        {
-            if (uri is UniformItemIdentifier uii)
+            if (next == null)
             {
-                if (!Cache.TryGetValue(uii.Item, out var properties))
+                return;
+            }
+
+            var unhandled = e.Args.Where(arg => !arg.Handled).ToArray();
+
+            if (unhandled.Length == 0)
+            {
+                return;
+            }
+
+            await CacheSemaphore.WaitAsync();
+            var response = next(new MultiRestEventArgs(unhandled));
+
+            try
+            {
+                for (int i = 0; i < unhandled.Length; i++)
                 {
-                    Cache[uii.Item] = properties = new Dictionary<Property, object>();
+                    var arg = unhandled[i];
+                    Cache[arg.Uri] = Unwrap(response, unhandled, i);
+                }
+            }
+            finally
+            {
+                CacheSemaphore.Release();
+            }
+
+            await response;
+
+            foreach (var arg in e.Args.Where(arg => arg.Handled))
+            {
+                var data = Enumerable.Empty<KeyValuePair<Uri, State>>();
+
+                if (arg.Response != null)
+                {
+                    data = data.Append(new KeyValuePair<Uri, State>(arg.Uri, arg.Response));
+                }
+                if (arg.AdditionalState != null)
+                {
+                    //data = data.Concat(arg.AdditionalState);
                 }
 
-                properties[uii.Property] = resource;
+                foreach (var kvp in data)
+                {
+                    await CacheSemaphore.WaitAsync();
+
+                    try
+                    {
+                        Cache[kvp.Key] = Task.FromResult(kvp.Value);
+                    }
+                    finally
+                    {
+                        CacheSemaphore.Release();
+                    }
+                }
+            }
+        }
+
+        private async Task<State> Unwrap(Task response, RestRequestArgs[] args, int index)
+        {
+            await response;
+            return args[index].Response;
+        }
+
+        public Task PutAsync(MultiRestEventArgs e, ChainLinkEventHandler<MultiRestEventArgs> next) => Task.WhenAll(e.Args.Select(arg => Put(arg.Uri, arg.Body)));
+
+        public async Task Put<T>(Uri uri, T resource)
+        {
+            await CacheSemaphore.WaitAsync();
+
+            try
+            {
+                Cache[uri] = Task.FromResult(State.Create(resource));
+            }
+            finally
+            {
+                CacheSemaphore.Release();
+            }
+        }
+
+        public async Task Delete(Uri uri)
+        {
+            await CacheSemaphore.WaitAsync();
+
+            try
+            {
+                Cache.Remove(uri);
+            }
+            finally
+            {
+                CacheSemaphore.Release();
             }
         }
     }

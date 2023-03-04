@@ -10,7 +10,7 @@
         public TMDbClientTests()
         {
             Client = new TMDbClient(TMDB.WebClient, new TMDbResolver(TMDB.ITEM_PROPERTIES));
-            Controller = new Controller().SetNext(Client);
+            Controller = new Controller().AddLast(Client);
         }
 
         [TestInitialize]
