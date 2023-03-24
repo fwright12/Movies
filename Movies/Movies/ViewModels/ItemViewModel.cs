@@ -28,6 +28,7 @@ namespace Movies.ViewModels
         public ICommand AddToListCommand { get; }
 
         protected PropertyDictionary Properties;
+        private Controller Controller => DataService.Instance.Controller;
 
         public ItemViewModel(Item item)
         {
@@ -46,6 +47,49 @@ namespace Movies.ViewModels
 
         private Dictionary<string, Property> Batched = new Dictionary<string, Property>();
 
+        protected delegate bool TryGet<T>(out T value);
+
+#if true
+        private async void BatchEnded(object sender, EventArgs e)
+        {
+            var requests = Batched.Values
+                .Select(property => new RestRequestArgs(new UniformItemIdentifier(Item, property), property.FullType))
+                .ToArray();
+            await Controller.Get(requests);
+
+            foreach (var propertyName in Batched.Keys)
+            {
+                OnPropertyChanged(propertyName);
+            }
+        }
+
+        protected bool TryGetValue<T>(Property property, out T value, [CallerMemberName] string propertyName = null)
+        {
+            if (DataService.Instance.Batched)
+            {
+                Batched[propertyName] = property;
+                DataService.Instance.BatchCommitted -= BatchEnded;
+                DataService.Instance.BatchCommitted += BatchEnded;
+
+                value = default;
+                return false;
+            }
+
+            value = default;
+            return TryGetValue(GetValue<T>(property), out value, propertyName);
+        }
+
+        private async Task<T> GetValue<T>(Property property)
+        {
+            var request = new RestRequestArgs(new UniformItemIdentifier(Item, property), typeof(T));
+            await Controller.Get(request);
+
+            return request.Handled && request.Response.TryGetRepresentation<T>(out T value) ? value : default;
+        }
+
+        protected bool TryRequestValue<T>(Property<T> property, out T value, [CallerMemberName] string propertyName = null) => TryGetValue(property, out value, propertyName);
+        protected bool TryRequestValue<T>(MultiProperty<T> property, out IEnumerable<T> value, [CallerMemberName] string propertyName = null) => TryGetValue(property, out value, propertyName);
+#else
         private async void BatchEnded(object sender, EventArgs e)
         {
             Properties.RequestValues(Batched.Values);
@@ -83,16 +127,6 @@ namespace Movies.ViewModels
             }
         }
 
-        protected delegate bool TryGet<T>(out T value);
-
-        protected bool TryRequestValue<T>(Property property, out T value, [CallerMemberName] string propertyName = null)
-        {
-            var uii = new UniformItemIdentifier(Item, property);
-            //var resource = DataService.Locator.Locate(uii);
-
-            return TryGetValue(null, out value);
-        }
-
         protected bool TryRequestValue<T>(TryGet<Task<T>> getTask, Property property, out T value, [CallerMemberName] string propertyName = null)
         {
             if (DataService.Instance.Batched)
@@ -117,13 +151,13 @@ namespace Movies.ViewModels
         }
 
         protected bool TryRequestValue<T>(Property<T> property, out T value, [CallerMemberName] string propertyName = null) => TryRequestValue((out Task<T> task) => Properties.TryGetValue(property, out task), property, out value, propertyName);
-
         protected bool TryRequestValue<T>(MultiProperty<T> property, out IEnumerable<T> value, [CallerMemberName] string propertyName = null) => TryRequestValue((out Task<IEnumerable<T>> task) => Properties.TryGetValues(property, out task), property, out value, propertyName);
+
+        private bool Invalidate(Property property, Task value) => value.Exception?.InnerExceptions.All(exception => exception is System.Net.Http.HttpRequestException) == true && Properties.Invalidate(property, value);
+#endif
 
         protected T RequestValue<T>(Property<T> property, [CallerMemberName] string propertyName = null) => TryRequestValue(property, out var value, propertyName) ? value : default;
         protected IEnumerable<T> RequestValue<T>(MultiProperty<T> property, [CallerMemberName] string propertyName = null) => TryRequestValue(property, out var value, propertyName) ? value : default;
-
-        private bool Invalidate(Property property, Task value) => value.Exception?.InnerExceptions.All(exception => exception is System.Net.Http.HttpRequestException) == true && Properties.Invalidate(property, value);
 
         public override string ToString() => Item?.ToString() ?? base.ToString();
     }

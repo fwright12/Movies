@@ -247,6 +247,8 @@ namespace Movies
                     {
                         var items = ParseCollection(array, new JsonNodeParser<TVSeason>((JsonNode json, out TVSeason season) => TMDB.TryParseTVSeason(json, show, out season)));
                         dict.Add(TVShow.SEASONS, Task.FromResult(items));
+
+                        Data.ResourceCache.Put(new UniformItemIdentifier(item, TVShow.SEASONS), items);
                     }
                 }
                 else if (parser.Property == TVSeason.EPISODES)
@@ -255,6 +257,8 @@ namespace Movies
                     {
                         var items = ParseCollection(array, new JsonNodeParser<TVEpisode>((JsonNode json, out TVEpisode episode) => TMDB.TryParseTVEpisode(json, season, out episode)));
                         dict.Add(TVSeason.EPISODES, Task.FromResult(items));
+
+                        Data.ResourceCache.Put(new UniformItemIdentifier(item, TVSeason.EPISODES), items);
                     }
                 }
                 else if (parser is IJsonParser<PropertyValuePair> pvp && pvp.TryGetValue(json, out var pair))
@@ -262,6 +266,8 @@ namespace Movies
                     dict.Add(pair);
                     //dict.Add(parser.GetPair(Task.FromResult(property.Value)));
                     //break;
+
+                    Data.ResourceCache.Put(new UniformItemIdentifier(item, pair.Property), pair.Value);
                 }
             }
         }

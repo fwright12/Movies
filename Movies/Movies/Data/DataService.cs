@@ -74,7 +74,9 @@ namespace Movies
     public class DataService
     {
         public static readonly DataService Instance = new DataService();
-        public static Controller Controller;
+
+        public Controller Controller { get; }
+        public ResourceCache ResourceCache { get; }
 
         public event EventHandler<ItemEventArgs> GetItemDetails;
         public event EventHandler BatchBegan;
@@ -84,7 +86,10 @@ namespace Movies
 
         private Dictionary<Item, PropertyDictionary> Cache = new Dictionary<Item, PropertyDictionary>();
 
-        private DataService() { }
+        private DataService()
+        {
+            Controller = new Controller().AddLast(ResourceCache = new ResourceCache());
+        }
 
         public void BatchBegin()
         {

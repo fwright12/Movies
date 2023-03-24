@@ -235,7 +235,10 @@ namespace Movies
                 //content = null;
             }*/
 
-            Print.Log($"web request{(content != null ? " (mock)" : string.Empty)}: " + endpoint);
+            if (DebugConfig.LOG_WEB_REQUESTS)
+            {
+                Print.Log($"web request{(content != null ? " (mock)" : string.Empty)}: " + endpoint);
+            }
             CallHistory.Add(endpoint);
 
             if (DebugConfig.SimulatedDelay > 0)

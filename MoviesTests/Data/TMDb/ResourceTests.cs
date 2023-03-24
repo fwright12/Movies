@@ -1,4 +1,7 @@
 ﻿using System.Collections;
+using System.Text;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace MoviesTests.Data.TMDb
 {
@@ -41,8 +44,8 @@ namespace MoviesTests.Data.TMDb
         [TestMethod]
         public async Task ResourcesCanBeRetrievedFromInMemoryCache()
         {
-            await ResourceCache.Put(new UniformItemIdentifier(Constants.Movie, Media.TAGLINE), Constants.TAGLINE);
-            await ResourceCache.Put(new UniformItemIdentifier(Constants.Movie, Media.ORIGINAL_LANGUAGE), Constants.LANGUAGE);
+            await ResourceCache.PutAsync(new UniformItemIdentifier(Constants.Movie, Media.TAGLINE), Constants.TAGLINE);
+            await ResourceCache.PutAsync(new UniformItemIdentifier(Constants.Movie, Media.ORIGINAL_LANGUAGE), Constants.LANGUAGE);
 
             // Retrieve an item in the in memory cache
             var response = await Controller.Get<string>(new UniformItemIdentifier(Constants.Movie, Media.TAGLINE));
@@ -73,6 +76,25 @@ namespace MoviesTests.Data.TMDb
         }
 
         [TestMethod]
+        public void Index()
+        {
+            var bytes = Encoding.UTF8.GetBytes(DUMMY_TMDB_DATA.HARRY_POTTER_AND_THE_DEATHLY_HALLOWS_PART_2_RESPONSE);
+            var index = new JsonIndex(bytes);
+
+            //index.TryGetValue("belongs_to_collection", out var a);
+            //foreach (var _ in a) { }
+            //index.TryGetValue("keywords", out _);
+            //index.TryGetValue("recommendations", out _);
+            //index.TryGetValue("release_dates", out _);
+            //index.TryGetValue("budget", out _);
+            
+            foreach (var kvp in index)
+            {
+                ;
+            }
+        }
+
+        [TestMethod]
         public async Task ResourcesCanBeRetrievedFromApi()
         {
             var response = await Controller.Get<TimeSpan>(new UniformItemIdentifier(Constants.Movie, Media.RUNTIME));
@@ -85,6 +107,20 @@ namespace MoviesTests.Data.TMDb
             Assert.AreEqual(7, JsonCache.Count);
             //Assert.AreEqual(ItemProperties[ItemType.Movie].Count + 7, ResourceCache.Count);
             Assert.AreEqual(1, ResourceCache.Count);
+        }
+
+        [TestMethod]
+        public async Task RetrieveMovieParentCollection()
+        {
+            var request = new RestRequestArgs(new UniformItemIdentifier(Constants.Movie, Movie.PARENT_COLLECTION), Movie.PARENT_COLLECTION.FullType);
+            await Controller.Get(request);
+
+            Assert.IsTrue(request.Handled);
+            Assert.AreEqual(new Collection().WithID(TMDB.IDKey, 1241), request.Response.TryGetRepresentation<Collection>(out var value) ? value : null);
+
+            Assert.AreEqual(2, CallHistory.Count);
+            Assert.AreEqual($"3/movie/0?language=en-US&{Constants.APPEND_TO_RESPONSE}=credits,keywords,recommendations,release_dates,videos,watch/providers", CallHistory[0]);
+            Assert.AreEqual("3/collection/1241?language=en-US", CallHistory[1]);
         }
 
         // Calls to the api will have a delay
@@ -106,11 +142,12 @@ namespace MoviesTests.Data.TMDb
                 .Select(property => new RestRequestArgs(new UniformItemIdentifier(Constants.Movie, property)))
                 .ToArray();
 
-            await Task.WhenAll(Controller.Get(GetAllRequests()));
+            var requests = GetAllRequests();
+            await Task.WhenAll(Controller.Get(requests));
             Assert.AreEqual(1, CallHistory.Count);
 
             // No additional api calls should be made, everything should be cached in memory
-            await Task.WhenAll(Controller.Get(GetAllRequests()));
+            await Task.WhenAll(Controller.Get(requests = GetAllRequests()));
             Assert.AreEqual(1, CallHistory.Count);
 
             // These properties should result in another api call because they don't cache
@@ -123,7 +160,7 @@ namespace MoviesTests.Data.TMDb
             {
                 CallHistory.Clear();
 
-                await ResourceCache.Delete(new UniformItemIdentifier(Constants.Movie, property));
+                await ResourceCache.DeleteAsync(new UniformItemIdentifier(Constants.Movie, property));
                 await Task.WhenAll(Controller.Get(GetAllRequests()));
                 Assert.AreEqual(1, CallHistory.Count);
             }
@@ -142,9 +179,50 @@ namespace MoviesTests.Data.TMDb
         };
 
         [TestMethod]
+        public void saldjlksfdj()
+        {
+            var str = DUMMY_TMDB_DATA.HARRY_POTTER_AND_THE_DEATHLY_HALLOWS_PART_2_RESPONSE;
+            var bytes = Encoding.UTF8.GetBytes(str);
+
+            var watch = new System.Diagnostics.Stopwatch();
+            watch.Start();
+
+            int iterations = 10000;
+            for (int i = 0; i < iterations; i++)
+            {
+                //var json = JsonNode.Parse(bytes);
+                //var lsdjf = json["watch/providers"];
+
+                //var json = JsonDocument.Parse(str);
+                //var asdf = json.RootElement.TryGetProperty("budget", out var value);
+
+                //continue;
+                //if (i % 100 == 0) Print.Log(i, watch.Elapsed);
+                var index = new JsonIndex(bytes);
+                //var asdf = index.TryGetValue("budget", out _);
+                foreach (var kvp in index) { }
+
+                continue;
+
+                var reader = new Utf8JsonReader(bytes);
+                while (reader.Read())
+                {
+                    if (reader.TokenType == JsonTokenType.PropertyName && reader.GetString() == "title")
+                    {
+                        reader.Skip();
+                        break;
+                    }
+                }
+            }
+
+            watch.Stop();
+            var adsfsdf = watch.Elapsed;
+        }
+
+        [TestMethod]
         public async Task AllTMDbResourcesAutomated()
         {
-            //var request = new RestRequestArgs(new UniformItemIdentifier(Constants.TVShow, TVShow.GENRES), typeof(IEnumerable<Genre>));
+            //var request = new RestRequestArgs(new UniformItemIdentifier(Constants.Movie, Media.TAGLINE), typeof(string));
             //await Controller.Get(request);
             //request = new RestRequestArgs(new UniformItemIdentifier(Constants.TVShow, TVShow.GENRES), typeof(IEnumerable<Genre>));
             //await Controller.Get(request);
@@ -157,15 +235,18 @@ namespace MoviesTests.Data.TMDb
                 [Media.TITLE] = "Harry Potter and the Deathly Hallows: Part 2",
                 [Media.RUNTIME] = new TimeSpan(2, 10, 0),
                 [Media.PRODUCTION_COUNTRIES] = "United Kingdom",
-                [Media.KEYWORDS] = new Keyword { Id = 83, Name = "saving the world" }
+                [Media.KEYWORDS] = new Keyword { Id = 83, Name = "saving the world" },
             });
             await AllResources(Constants.Movie, new Dictionary<Property, object>
             {
                 [Movie.BUDGET] = 125000000L,
+                [Movie.CONTENT_RATING] = "PG-13",
+                [Movie.PARENT_COLLECTION] = new Collection().WithID(TMDB.IDKey, 1241)
             });
             await AllResources(Constants.TVShow, new Dictionary<Property, object>
             {
-                [TVShow.GENRES] = new Genre { Id = 35, Name = "Comedy" }
+                [TVShow.GENRES] = new Genre { Id = 35, Name = "Comedy" },
+                [TVShow.CONTENT_RATING] = "TV-14",
             });
             await AllResources(Constants.TVSeason, new Dictionary<Property, object>
             {
@@ -202,15 +283,14 @@ namespace MoviesTests.Data.TMDb
             {
                 foreach (var property in test.Properties)
                 {
-                    if (property == Movie.PARENT_COLLECTION)
-                        continue;
-
                     var uii = new UniformItemIdentifier(item, property);
                     var arg = new RestRequestArgs(uii, property.FullType);
 
+                    await test.Controller.Get(arg);
+
                     try
                     {
-                        await test.Controller.Get(arg);
+                        
                     }
                     catch (Exception e)
                     {

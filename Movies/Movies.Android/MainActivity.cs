@@ -1,14 +1,9 @@
-﻿using System;
-
-using Android.App;
-using Android.Content.PM;
-using Android.Runtime;
-using Android.Views;
-using Android.Widget;
-using Android.OS;
+﻿using Android.App;
 using Android.Content;
-using Xamarin.Forms.Platform.Android.AppLinks;
+using Android.Content.PM;
+using Android.OS;
 using Firebase;
+using Xamarin.Forms.Platform.Android.AppLinks;
 
 namespace Movies.Droid
 {

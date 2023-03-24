@@ -125,7 +125,7 @@ namespace Movies.Models
 
         public static async Task<bool> Evaluate(Item item, FilterPredicate filter)//, PropertyDictionary properties = null, ItemInfoCache cache = null)
         {
-            var details = new Lazy<PropertyDictionary>(() => DataService.Instance.GetDetails(item));
+            //var details = new Lazy<PropertyDictionary>(() => DataService.Instance.GetDetails(item));
             var predicates = DefferedPredicates(filter, DataService.Instance.GetDetails(item), PersistentCache).GetAsyncEnumerator();
 
             object lhs = ViewModels.CollectionViewModel.ITEM_TYPE;
@@ -150,12 +150,20 @@ namespace Movies.Models
                     return false;
                 }
 
-                if (await predicates.MoveNextAsync() && predicates.Current.LHS is Property property && details.Value.TryGetValue(FixProperty(item, property), out var task))
+                if (await predicates.MoveNextAsync() && predicates.Current.LHS is Property property)// && details.Value.TryGetValue(FixProperty(item, property), out var task))
                 {
                     lhs = property;
                     try
                     {
-                        value = await task;
+                        property = FixProperty(item, property);
+                        var request = new RestRequestArgs(new UniformItemIdentifier(item, property), property.FullType);
+                        await DataService.Instance.Controller.Get(request);
+
+                        if (!request.Handled || !request.Response.TryGetRepresentation(property.FullType, out value))
+                        {
+                            return false;
+                        }
+                        //value = await task;
                     }
                     catch
                     {

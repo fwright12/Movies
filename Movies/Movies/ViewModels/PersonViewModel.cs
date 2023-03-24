@@ -28,7 +28,7 @@ namespace Movies.ViewModels
         public override string PrimaryImagePath => ProfilePath;
         public override string Description => Bio;
 
-        public PersonViewModel(Person person) : base(person)
+        public PersonViewModel(Person person) : base(person.Name, new ItemHelpers.FilterableWrapper<Item>(GetCredits(person)), ItemType.Movie | ItemType.TVShow, person)
         {
             //List.Description = Bio;
             //OnPropertyChanged(nameof(Item));
@@ -62,7 +62,11 @@ namespace Movies.ViewModels
         {
             //var credits = await service.CreditsRequested.GetSingle(person);
 
-            if (!DataService.Instance.GetDetails(person).TryGetValues(Person.CREDITS, out var task) || !(await task is IEnumerable<Item> credits))
+            //if (!DataService.Instance.GetDetails(person).TryGetValues(Person.CREDITS, out var task) || !(await task is IEnumerable<Item> credits))
+            var request = new RestRequestArgs(new UniformItemIdentifier(person, Person.CREDITS), Person.CREDITS.FullType);
+            await DataService.Instance.Controller.Get(request);
+            //if (!DataService.Instance.GetDetails(person).TryGetValues(Person.CREDITS, out var task) || !(await task is IEnumerable<Item> credits))
+            if (!request.Handled || request.Response.TryGetRepresentation<IEnumerable<Item>>(out var credits) == false)
             {
                 yield break;
             }

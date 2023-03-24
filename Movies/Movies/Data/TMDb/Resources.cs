@@ -6,8 +6,10 @@ using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
+using TrieValue = System.Collections.Generic.List<(string Url, string Path, string Query, Movies.RestRequestArgs Arg)>;
 
 namespace Movies
 {
@@ -111,7 +113,7 @@ namespace Movies
             return Annotations.TryGetValue(url, out annotations);
         }
 
-        public IEnumerable<KeyValuePair<Property, string[]>> Annotate(string url)
+        public IEnumerable<KeyValuePair<Property, JsonConverterWrapper<string>>> Annotate(string url, params string[] basePath)
         {
             url = url.Split('?')[0];
             url = string.Join('/', url.Split('/').Skip(1));
@@ -131,11 +133,11 @@ namespace Movies
 
             foreach (var parser in info.Value)
             {
-                var path = string.Empty;
+                var propertyName = string.Empty;
 
                 if ((parser as ParserWrapper)?.JsonParser is JsonPropertyParser jpp)
                 {
-                    path = jpp.Property;
+                    propertyName = jpp.Property;
                 }
 
                 // Should do this for ALL types, but need to work around legacy Parsers
@@ -143,39 +145,55 @@ namespace Movies
                 // Parsers expect full response, and then find the property and then convert
                 // So put the full response so the parser works UNLESS the expected type is string,
                 // in which case there's no conversion to do and the parser won't run
-                yield return new KeyValuePair<Property, string[]>(parser.Property, parser.Property.FullType == typeof(string)
-                    ? new string[] { path }
-                    : new string[0]);
+                var path = parser.Property.FullType == typeof(string) ? new string[] { propertyName } : new string[0];
+                var converter = (JsonConverter<string>)StringConverter.Instance;
+                path = new string[0];
+
+                if (parser.Property == Movie.CONTENT_RATING)
+                {
+                    converter = TMDB.MovieCertificationConverter.Instance;
+                }
+                else if (parser.Property == TVShow.CONTENT_RATING)
+                {
+                    converter = TMDB.TVCertificationConverter.Instance;
+                }
+
+                yield return new KeyValuePair<Property, JsonConverterWrapper<string>>(parser.Property, new JsonConverterWrapper<string>(basePath.Concat(path).ToArray(), converter));
             }
         }
 
         private async Task<IEnumerable<T>> GetTVItems<T>(Task<ArraySegment<byte>> json, string property, AsyncEnumerable.TryParseFunc<JsonNode, T> parse) => TMDB.TryParseCollection(JsonNode.Parse(await json), new JsonPropertyParser<IEnumerable<JsonNode>>(property), out var result, new JsonNodeParser<T>(parse)) ? result : null;
 
-        public async Task<IConverter<string>> GetConverter(Uri uri, string target, bool parentCollectionWasRequested = false)
+        public async Task<IConverter<ArraySegment<byte>>> GetConverter(Uri uri, ArraySegment<byte> target)
         {
-            if (TryGetParser(uri, out var parser) && parser?.Property.FullType != typeof(string))
+            if (TryGetParser(uri, out var parser))
             {
                 var uii = (UniformItemIdentifier)uri;
                 var success = false;
                 object converted = null;
+                var task = Task.FromResult(target);
 
                 if (parser.Property == TVShow.SEASONS)
                 {
                     success = true;
-                    converted = await GetTVItems(Convert(target), "seasons", (JsonNode json, out TVSeason season) => TMDB.TryParseTVSeason(json, (TVShow)uii.Item, out season));
+                    converted = await GetTVItems(task, "seasons", (JsonNode json, out TVSeason season) => TMDB.TryParseTVSeason(json, (TVShow)uii.Item, out season));
                 }
                 else if (parser.Property == TVSeason.EPISODES)
                 {
                     if (uii.Item is TVSeason season)
                     {
                         success = true;
-                        converted = await GetTVItems(Convert(target), "episodes", (JsonNode json, out TVEpisode episode) => TMDB.TryParseTVEpisode(json, season, out episode));
+                        converted = await GetTVItems(task, "episodes", (JsonNode json, out TVEpisode episode) => TMDB.TryParseTVEpisode(json, season, out episode));
                     }
                 }
-                // Avoid parsing a movie's parent collection unless it was specifically requested because it requires an additional api call
-                else if (parser.Property != Movie.PARENT_COLLECTION || parentCollectionWasRequested)
+                //else if (parser.Property.FullType == typeof(string))
+                //{
+                //    success = true;
+                //    converted = Encoding.UTF8.GetString(target);
+                //}
+                else
                 {
-                    var response = await parser.TryGetValue(Convert(target));
+                    var response = await parser.TryGetValue(task);
                     success = response.Success;
                     converted = response.Result;
                 }
@@ -189,18 +207,18 @@ namespace Movies
             return null;
         }
 
-        private class DummyConverter : IConverter<string>
+        private class DummyConverter : IConverter<ArraySegment<byte>>
         {
-            private string Original { get; }
+            private ArraySegment<byte> Original { get; }
             private object Converted { get; }
 
-            public DummyConverter(string original, object converted)
+            public DummyConverter(ArraySegment<byte> original, object converted)
             {
                 Original = original;
                 Converted = converted;
             }
 
-            public bool TryConvert(string original, Type targetType, out object converted)
+            public bool TryConvert(ArraySegment<byte> original, Type targetType, out object converted)
             {
                 converted = Converted;
                 return original == Original;
@@ -351,37 +369,39 @@ namespace Movies
             Resolver = resolver;
         }
 
-        protected override Task GetAsync(IEnumerable<RestRequestArgs> e, ChainLinkEventHandler<MultiRestEventArgs> next) => HandleAsync(e, next, async e =>
+        protected override async Task GetInternalAsync(MultiRestEventArgs args, ChainLinkEventHandler<MultiRestEventArgs> next) //=> HandleAsync(e, next, async e =>
         {
-            if (!IsCacheable(e.Uri))
+            foreach (var e in args.Args)
             {
-                return;
-            }
-
-            var url = Resolver.ResolveUrl(e.Uri);
-            var response = await Cache.TryGetValueAsync(url);
-
-            if (response != null)
-            {
-                var bytes = Encoding.UTF8.GetString(await response.Content.ReadAsByteArrayAsync());
-                var json = new AnnotatedJson(await response.Content.ReadAsByteArrayAsync());
-
-                if (e.Uri is UniformItemIdentifier uii)
+                if (!IsCacheable(e.Uri))
                 {
-                    foreach (var annotation in Resolver.Annotate(url))
+                    return;
+                }
+
+                var url = Resolver.ResolveUrl(e.Uri);
+                var response = await Cache.TryGetValueAsync(url);
+
+                if (response != null)
+                {
+                    var json = new AnnotatedJson(await response.Content.ReadAsByteArrayAsync());
+
+                    if (e.Uri is UniformItemIdentifier uii)
                     {
-                        json.Add(new UniformItemIdentifier(uii.Item, annotation.Key), annotation.Value);
+                        foreach (var annotation in Resolver.Annotate(url))
+                        {
+                            json.Add(new UniformItemIdentifier(uii.Item, annotation.Key), annotation.Value);
+                        }
+                    }
+
+                    args.HandleMany(json);
+
+                    if (!e.Handled && e.Response?.TryGetRepresentation<ArraySegment<byte>>(out var temp) == true && await Resolver.GetConverter(e.Uri, temp) is IConverter<ArraySegment<byte>> converter)
+                    {
+                        e.Handle(converter);
                     }
                 }
-
-                e.HandleMany(json);
-
-                if (e.Response?.TryGetRepresentation<string>(out var temp) == true && await Resolver.GetConverter(e.Uri, temp) is IConverter<string> converter)
-                {
-                    e.Handle(converter);
-                }
             }
-        });
+        }//);
 
         protected override Task PutAsync(IEnumerable<RestRequestArgs> e, ChainLinkEventHandler<MultiRestEventArgs> next) => HandleAsync(e, next, async e =>
         {
@@ -393,9 +413,9 @@ namespace Movies
 
             var url = Resolver.ResolveUrl(e.Uri);
 
-            if (e.Body?.TryGetRepresentation<string>(out var content) == true)
+            if (e.Body?.TryGetRepresentation<ArraySegment<byte>>(out var content) == true)
             {
-                await Cache.AddAsync(url, new JsonResponse(content));
+                await Cache.AddAsync(url, new JsonResponse(content.ToArray()));
             }
         });
 
@@ -705,12 +725,134 @@ namespace Movies
             }
         }
 
-        protected override Task GetAsync(IEnumerable<RestRequestArgs> e, ChainLinkEventHandler<MultiRestEventArgs> next) => HandleAsync(e, next, async (IEnumerable<RestRequestArgs> e) =>
+        public override Task Get(MultiRestEventArgs e, ChainLinkEventHandler<MultiRestEventArgs> next)
         {
-            var parentCollectionWasRequested = new Lazy<bool>(() => e.OfType<UniformItemIdentifier>().Any(uii => uii.Property == Movie.PARENT_COLLECTION));
-            var greedyUrls = e.SelectMany(arg => GetUrlsGreedy(arg.Uri)).Distinct().ToArray();
+            //var parentCollectionWasRequested = new Lazy<bool>(() => e.Args.OfType<UniformItemIdentifier>().Any(uii => uii.Property == Movie.PARENT_COLLECTION));
+            var greedyUrls = e.Args.SelectMany(arg => GetUrlsGreedy(arg.Uri)).Distinct().ToArray();
             var greedy = greedyUrls.Select(url => new RestRequestArgs(new Uri(url, UriKind.Relative)));
-            var args = e.Concat(greedy);
+            var args = e.Args.Concat(greedy);
+
+            var trie = new Dictionary<string, TrieValue>();
+            //var trie1 = new Trie<string, (string Url, string Path, string Query, RestRequestArgs Arg)>();
+
+            foreach (var arg in args)
+            {
+                //if (arg.Uri is UniformItemIdentifier uii && Resolver.TryGetRequest(uii, out var request))
+                var url = Resolver.ResolveUrl(arg.Uri);
+                var parts = url.Split('?');
+                AddToTrie(trie, parts[0], (url, parts[0], parts.Length > 1 ? parts[1] : string.Empty, arg));
+
+                //IEnumerable<string> keys = parts[0].Split('/');
+
+                //if (parts.Length > 1)
+                //{
+                //    keys = keys.Append(parts[1]);
+                //}
+
+                //var value = (url, parts[0], parts.Length > 1 ? parts[1] : string.Empty, arg);
+                //trie1.Add(value, keys.ToArray());
+            }
+
+            //IEnumerable<KeyValuePair<IEnumerable<string>, (string, string, string, RestRequestArgs)>> asdfasd = trie1;
+
+            var tasks = new List<Task>();
+
+            foreach (var kvp in trie)
+            {
+                var url = kvp.Key;
+                var paths = kvp.Value.Select(value => value.Path.Substring(url.Length).Trim('/')).ToArray();
+                var validPaths = paths.Where(path => !string.IsNullOrEmpty(path)).Distinct().ToArray();
+                var queries = kvp.Value.Select(value => value.Query).ToArray();
+
+                var query = CombineQueries(queries);
+                if (validPaths.Length > 0)
+                {
+                    if (!string.IsNullOrEmpty(query))
+                    {
+                        query += "&";
+                    }
+
+                    query += $"append_to_response={string.Join(',', validPaths)}";
+                }
+
+                if (!string.IsNullOrEmpty(query))
+                {
+                    url += "?" + query;
+                }
+
+                var json = GetResponse(e, url, kvp, paths);
+                tasks.Add(json);
+                e.Handle(kvp.Value.ToDictionary(info => info.Arg.Uri, info => Handle(json, info)));
+            }
+
+            return Task.WhenAll(tasks);
+        }
+
+        private async Task<AnnotatedJson> GetResponse(MultiRestEventArgs e, string url, KeyValuePair<string, TrieValue> kvp, string[] paths)
+        {
+            var response = await Client.TrySendAsync(url);
+
+            if (response?.IsSuccessStatusCode == false)
+            {
+                return null;
+            }
+
+            var json = new AnnotatedJson(await response.Content.ReadAsByteArrayAsync());
+
+            if (e.Args.Select(arg => arg.Uri).OfType<UniformItemIdentifier>().FirstOrDefault()?.Item is Item item)
+            {
+                var values = Enumerable.Range(0, kvp.Value.Count).Select(i => (kvp.Value[i].Url, paths[i])).Distinct();
+
+                foreach (var value in values)
+                {
+                    var uri = value.Url;
+                    var path = value.Item2;
+                    var temp = string.IsNullOrEmpty(path) ? new string[0] : new string[] { path };
+
+                    json.Add(new Uri(uri, UriKind.Relative), temp);
+                    //json.Add(kvp.Value[i].Arg.Uri, temp);
+
+                    foreach (var annotation in Resolver.Annotate(uri, temp))
+                    {
+                        var uii = new UniformItemIdentifier(item, annotation.Key);
+                        json.Add(uii, annotation.Value);
+                    }
+                }
+            }
+
+            return json;
+        }
+
+        private async Task<ArraySegment<byte>> Handle(Task<AnnotatedJson> jsonTask, (string Url, string Path, string Query, Movies.RestRequestArgs Arg) value)
+        {
+            var json = await jsonTask;
+
+            if (json.TryGetValue(value.Arg.Uri, out var bytes))
+            {
+                if (value.Arg.Response == null)
+                {
+                    value.Arg.Handle(bytes);
+                }
+
+                if (!value.Arg.Handled && value.Arg.Response?.TryGetRepresentation<ArraySegment<byte>>(out var temp) == true && await Resolver.GetConverter(value.Arg.Uri, temp) is IConverter<ArraySegment<byte>> converter)
+                {
+                    //value.Arg.Handle(new AppendedContent(json, path));
+                    //value.Arg.Response.Add<string, byte[]>(ByteConverter);
+                    value.Arg.Handle(converter);
+                }
+
+                return bytes;
+            }
+
+            return default;
+        }
+
+        protected override async Task GetInternalAsync(MultiRestEventArgs e, ChainLinkEventHandler<MultiRestEventArgs> next) //=> HandleAsync(e, next, async (IEnumerable<RestRequestArgs> e) =>
+        {
+            //var parentCollectionWasRequested = new Lazy<bool>(() => e.Args.OfType<UniformItemIdentifier>().Any(uii => uii.Property == Movie.PARENT_COLLECTION));
+            var greedyUrls = e.Args.SelectMany(arg => GetUrlsGreedy(arg.Uri)).Distinct().ToArray();
+            var greedy = greedyUrls.Select(url => new RestRequestArgs(new Uri(url, UriKind.Relative)));
+            var args = e.Args.Concat(greedy);
 
             var trie = new Dictionary<string, List<(string Url, string Path, string Query, RestRequestArgs Arg)>>();
             //var trie1 = new Trie<string, (string Url, string Path, string Query, RestRequestArgs Arg)>();
@@ -764,7 +906,7 @@ namespace Movies
                     //var json = Parse(response.Content, validPaths);
                     var json = new AnnotatedJson(await response.Content.ReadAsByteArrayAsync());
 
-                    if (e.Select(arg => arg.Uri).OfType<UniformItemIdentifier>().FirstOrDefault()?.Item is Item item)
+                    if (e.Args.Select(arg => arg.Uri).OfType<UniformItemIdentifier>().FirstOrDefault()?.Item is Item item)
                     {
                         var values = Enumerable.Range(0, kvp.Value.Count).Select(i => (kvp.Value[i].Url, paths[i])).Distinct();
 
@@ -777,24 +919,29 @@ namespace Movies
                             json.Add(new Uri(uri, UriKind.Relative), temp);
                             //json.Add(kvp.Value[i].Arg.Uri, temp);
 
-                            foreach (var annotation in Resolver.Annotate(uri))
+                            foreach (var annotation in Resolver.Annotate(uri, temp))
                             {
                                 var uii = new UniformItemIdentifier(item, annotation.Key);
-                                json.Add(uii, temp.Concat(annotation.Value).ToArray());
+                                json.Add(uii, annotation.Value);
                             }
                         }
                     }
 
                     //var itr = kvp.Value.GetEnumerator();
 
+                    e.HandleMany(json);
+
                     for (int i = 0; i < kvp.Value.Count; i++)
                     {
                         var value = kvp.Value[i];
                         var path = paths[i];
 
-                        value.Arg.HandleMany(json);
+                        if (value.Arg.Response == null && json.TryGetValue(value.Arg.Uri, out var bytes))
+                        {
+                            value.Arg.Handle(bytes);
+                        }
 
-                        if (value.Arg.Response?.TryGetRepresentation<string>(out var temp) == true && await Resolver.GetConverter(value.Arg.Uri, temp) is IConverter<string> converter)
+                        if (!value.Arg.Handled && value.Arg.Response?.TryGetRepresentation<ArraySegment<byte>>(out var temp) == true && await Resolver.GetConverter(value.Arg.Uri, temp) is IConverter<ArraySegment<byte>> converter)
                         {
                             //value.Arg.Handle(new AppendedContent(json, path));
                             //value.Arg.Response.Add<string, byte[]>(ByteConverter);
@@ -803,7 +950,7 @@ namespace Movies
                     }
                 }
             }
-        });
+        }
 
         private IEnumerable<string> GetUrlsGreedy(Uri uri)
         {

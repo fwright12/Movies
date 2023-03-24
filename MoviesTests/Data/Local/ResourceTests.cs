@@ -38,8 +38,8 @@
 
         private async Task Seed()
         {
-            await ResourceCache.Put(new UniformItemIdentifier(Constants.Movie, Media.TAGLINE), Constants.TAGLINE);
-            await ResourceCache.Put(new UniformItemIdentifier(Constants.Movie, Media.ORIGINAL_LANGUAGE), Constants.LANGUAGE);
+            await ResourceCache.PutAsync(new UniformItemIdentifier(Constants.Movie, Media.TAGLINE), Constants.TAGLINE);
+            await ResourceCache.PutAsync(new UniformItemIdentifier(Constants.Movie, Media.ORIGINAL_LANGUAGE), Constants.LANGUAGE);
         }
     }
 }

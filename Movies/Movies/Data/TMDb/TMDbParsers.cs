@@ -222,6 +222,7 @@ namespace Movies
             public CollectionParser(Property<Collection> property) : base(property, new JsonNodeParser<Collection>(TryParseCollection)) { }
 
             public override PropertyValuePair GetPair(Task<JsonNode> json) => new PropertyValuePair<Collection>((Property<Collection>)Property, FullCollectionDetails(json));
+            public override PropertyValuePair GetPair(Task<ArraySegment<byte>> bytes) => GetPair(Convert(bytes));
 
             private async Task<Collection> FullCollectionDetails(Task<JsonNode> task)
             {
@@ -238,9 +239,13 @@ namespace Movies
 
         private static async IAsyncEnumerable<T> GetTVItems<T>(Item tv, MultiProperty<T> property)
         {
-            if (Data.GetDetails(tv).TryGetValues(property, out var items))
+            var request = new RestRequestArgs(new UniformItemIdentifier(tv, property), property.FullType);
+            await Data.Controller.Get(request);
+
+            //if (Data.GetDetails(tv).TryGetValues(property, out var items))
+            if (request.Handled && request.Response.TryGetRepresentation<IEnumerable<T>>(out var items))
             {
-                foreach (var item in await items)
+                foreach (var item in items)
                 {
                     yield return item;
                 }
@@ -271,6 +276,55 @@ namespace Movies
 
             airDate = null;
             return false;
+        }
+
+        public class MovieCertificationConverter : JsonConverter<string>
+        {
+            public static MovieCertificationConverter Instance = new MovieCertificationConverter();
+
+            public override string Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+            {
+                reader.Read();
+
+                if (reader.TokenType != JsonTokenType.StartArray)
+                {
+                    throw new JsonException("Expected an array of releases");
+                }
+
+                while (reader.Read())
+                {
+                    if (reader.TokenType == JsonTokenType.PropertyName && reader.GetString() == "iso_3166_1")
+                    {
+                        if (reader.Read() && reader.TokenType == JsonTokenType.String && reader.GetString() == ISO_3166_1)
+                        {
+                            reader.Read();
+                            var root = JsonDocument.ParseValue(ref reader).RootElement;
+
+                            if (root.ValueKind == JsonValueKind.Array)
+                            {
+                                foreach (var release in root.EnumerateArray().OrderBy(release => release.TryGetValue(out int type, "type") ? type : int.MaxValue))
+                                {
+                                    if (release.TryGetValue(out string certification, "certification") && !string.IsNullOrEmpty(certification))
+                                    {
+                                        return certification;
+                                    }
+                                }
+                            }
+                        }
+
+                        reader.Skip();
+
+                        //if (property == "iso_3166_1" && )
+                    }
+                }
+
+                throw new JsonException();
+            }
+
+            public override void Write(Utf8JsonWriter writer, string value, JsonSerializerOptions options)
+            {
+                throw new NotImplementedException();
+            }
         }
 
         public static string ParseMovieCertification(JsonNode json)
@@ -330,6 +384,49 @@ namespace Movies
 
             providers = null;
             return false;
+        }
+
+        public class TVCertificationConverter : JsonConverter<string>
+        {
+            public static TVCertificationConverter Instance = new TVCertificationConverter();
+
+            public override string Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+            {
+                reader.Read();
+
+                if (reader.TokenType != JsonTokenType.StartArray)
+                {
+                    throw new JsonException("Expected an array of releases");
+                }
+
+                while (reader.Read())
+                {
+                    if (reader.TokenType == JsonTokenType.PropertyName && reader.GetString() == "iso_3166_1")
+                    {
+                        if (reader.Read() && reader.TokenType == JsonTokenType.String && reader.GetString() == ISO_3166_1)
+                        {
+                            reader.Read();
+                            //var root = JsonDocument.ParseValue(ref reader).RootElement;
+
+                            if (reader.TokenType == JsonTokenType.PropertyName && reader.GetString() == "rating" && reader.Read())
+                            {
+                                return reader.GetString();
+                            }
+                        }
+
+                        reader.Skip();
+
+                        //if (property == "iso_3166_1" && )
+                    }
+                }
+
+                throw new JsonException();
+            }
+
+            public override void Write(Utf8JsonWriter writer, string value, JsonSerializerOptions options)
+            {
+                throw new NotImplementedException();
+            }
         }
 
         public static string ParseTVCertification(JsonNode json)

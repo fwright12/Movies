@@ -256,7 +256,6 @@ namespace Movies.ViewModels
 
         private void Refresh() => Source.Reset();
 
-        public CollectionViewModel(Person person) : this(person.Name, new ItemHelpers.FilterableWrapper<Item>(PersonViewModel.GetCredits(person)), ItemType.Movie | ItemType.TVShow, person) { }
         public CollectionViewModel(Collection collection) : this(collection.Name, collection, (collection as List)?.AllowedTypes, collection) { }
 
         public CollectionViewModel(string name, IAsyncEnumerable<Item> items, ItemType? allowedTypes = null) : this(name, items, allowedTypes, null) { }

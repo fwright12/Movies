@@ -213,10 +213,18 @@ namespace Movies
             _ = tmdb.SetItemCache(LocalDatabase.ItemCache, Session.LastAccessed);
             Session.LastAccessed = DateTime.Now;
 
+            async Task<IEnumerable<string>> GetChangeKeys()
+            {
+                await tmdb.LoadChangeKeys;
+                return tmdb.ChangeKeys;
+            }
+
             var resolver = new TMDbResolver(TMDB.ITEM_PROPERTIES);
-            DataService.Controller = new Controller()
-                .AddLast(new ResourceCache())
-                .AddLast(new TMDbLocalResources(LocalDatabase.ItemCache, resolver))
+            DataService.Instance.Controller
+                .AddLast(new TMDbLocalResources(LocalDatabase.ItemCache, resolver)
+                {
+                    ChangeKeys = new ListAsyncWrapper<string>(GetChangeKeys())
+                })
                 .AddLast(new TMDbClient(TMDB.WebClient, resolver));
 
             //var inMemory = new ResourceCache();

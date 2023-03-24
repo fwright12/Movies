@@ -5,6 +5,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
+using System.Reflection;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -21,7 +22,7 @@ namespace Movies
         public Item Item { get; }
         public Property Property { get; }
 
-        public UniformItemIdentifier(Item item, Property property) : base($"urn:{item.ItemType}:{property.Name}")
+        public UniformItemIdentifier(Item item, Property property) : base($"urn:{item.ItemType}:{(item.TryGetID(TMDB.ID, out var id) ? id.ToString() : item.Name)}:{property.Name}")
         {
             Item = item;
             Property = property;
@@ -67,7 +68,7 @@ namespace Movies
         }
     }
 
-    public class Controller : IRestService
+    public class Controller
     {
         public enum HttpMethod { GET, PUT }
 
@@ -130,9 +131,6 @@ namespace Movies
             }
         }
 
-        public Task Get(params RestRequestArgs[] args) => Get((IEnumerable<RestRequestArgs>)args);
-        public Task Get(IEnumerable<RestRequestArgs> args) => GetChain.HandleAsync(new MultiRestEventArgs(args));
-
         public async Task<RestRequestArgs> Get(string url) => (await Get(new string[] { url }))[0];
         public Task<RestRequestArgs[]> Get(params string[] urls) => Get(urls.Select(url => new Uri(url, UriKind.Relative)));
         public Task<RestRequestArgs[]> Get(params Uri[] uris) => Get((IEnumerable<Uri>)uris);
@@ -158,10 +156,16 @@ namespace Movies
             }
         }
 
-        public Task PostAsync<T>(Uri uri, T resource)
+        public Task Get(params RestRequestArgs[] args) => Get((IEnumerable<RestRequestArgs>)args);
+        public Task Get(IEnumerable<RestRequestArgs> args) => GetChain.HandleAsync(new MultiRestEventArgs(args));
+
+        public async Task Put<T>(Uri uri, T value)
         {
-            throw new NotImplementedException();
+            var request = new RestRequestArgs(uri, State.Create(value));
+            await Put(request);
         }
+        public Task Put(params RestRequestArgs[] args) => Put((IEnumerable<RestRequestArgs>)args);
+        public Task Put(IEnumerable<RestRequestArgs> args) => PutChain.HandleAsync(new MultiRestEventArgs(args));
     }
 
     public abstract class ControllerLink : ControllerLink<object>
@@ -183,18 +187,39 @@ namespace Movies
     {
         public bool CacheAside { get; set; } = true;
 
+        public virtual Task Get(MultiRestEventArgs e, ChainLinkEventHandler<MultiRestEventArgs> next)
+        {
+            var response = GetInternalAsync(e, next);
+
+            foreach (var arg in e.Args)
+            {
+                arg.Handle(Unwrap(response, arg));
+            }
+
+            return response;
+        }
+
+        private async Task<State> Unwrap(Task response, RestRequestArgs args)
+        {
+            await response;
+            return args.Response;
+        }
+
         public async Task GetAsync(MultiRestEventArgs e, ChainLinkEventHandler<MultiRestEventArgs> next)
         {
-            await GetAsync(e.Args, null);
+            await GetInternalAsync(e, null);
             AddRepresentations(e.Args.Where(Unhandled).ToArray());
 
             if (next != null)
             {
                 var unhandled = e.Args.Where(Unhandled).ToArray();
-                await next(new MultiRestEventArgs(unhandled));
+                var nextE = new MultiRestEventArgs(unhandled);
+                await next(nextE);
+
+                e.Handle(nextE);
             }
 
-            if (CacheAside)
+            if (CacheAside && false)
             {
                 var handled = e.Args.Where(arg => arg.Handled).ToArray();
 
@@ -204,15 +229,12 @@ namespace Movies
                     {
                         await PutAsync(new RestRequestArgs(arg.Uri, arg.Response).AsEnumerable(), null);
                     }
+                }
 
-                    if (arg.AdditionalState != null)
-                    {
-                        foreach (var kvp in arg.AdditionalState.Where(kvp => kvp.Key is UniformItemIdentifier == false))
-                        {
-                            //kvp.Value.Add(arg.Expected, this);
-                            await PutAsync(new RestRequestArgs(kvp.Key, kvp.Value).AsEnumerable(), null);
-                        }
-                    }
+                foreach (var kvp in e.GetAdditionalState().Where(kvp => kvp.Key is UniformItemIdentifier == false))
+                {
+                    //kvp.Value.Add(arg.Expected, this);
+                    await PutAsync(new RestRequestArgs(kvp.Key, kvp.Value).AsEnumerable(), null);
                 }
 
                 //await HandleAsync(posts, null);
@@ -221,7 +243,7 @@ namespace Movies
 
         public Task PutAsync(MultiRestEventArgs e, ChainLinkEventHandler<MultiRestEventArgs> next) => PutAsync(e.Args, next);
 
-        protected virtual Task GetAsync(IEnumerable<RestRequestArgs> e, ChainLinkEventHandler<MultiRestEventArgs> next) => HandleAsync(e, next);
+        protected virtual Task GetInternalAsync(MultiRestEventArgs e, ChainLinkEventHandler<MultiRestEventArgs> next) => HandleAsync(e.Args, next);
 
         protected virtual Task PutAsync(IEnumerable<RestRequestArgs> e, ChainLinkEventHandler<MultiRestEventArgs> next) => HandleAsync(e, next);
 
@@ -299,110 +321,368 @@ namespace Movies
         public IEnumerator GetEnumerator() => Converters.Values.GetEnumerator();
     }
 
-    public class AnnotatedJson : IReadOnlyDictionary<Uri, string>
+    public class JsonIndex : IReadOnlyDictionary<string, JsonIndex>
     {
-        public string this[Uri key] => Cache.TryGetValue(key, out var value) || (Paths.TryGetValue(key, out var paths) && TryGetJson(paths, out value)) ? value : throw new KeyNotFoundException();
+        public JsonIndex this[string key] => TryGetValue(key, out var value) ? value : throw new KeyNotFoundException();
 
-        public IEnumerable<Uri> Keys => this.Select(kvp => kvp.Key);
-
-        public IEnumerable<string> Values => this.Select(kvp => kvp.Value);
-
-        public int Count => this.Count();
-
-        private Dictionary<Uri, List<string[]>> Paths { get; } = new Dictionary<Uri, List<string[]>>();
-        private Dictionary<Uri, string> Cache { get; } = new Dictionary<Uri, string>();
-        private JsonDocument Json { get; }
-
-        public AnnotatedJson(string json)
+        public ArraySegment<byte> Bytes
         {
-            Json = JsonDocument.Parse(json);
-        }
-
-        public AnnotatedJson(byte[] bytes)
-        {
-            Json = JsonDocument.Parse(bytes);
-        }
-
-        public void Add(Uri uri, string path) => Add(uri, path.Split("/").ToArray());
-        public void Add(Uri uri, params string[][] paths)
-        {
-            if (!Paths.TryGetValue(uri, out var value))
+            get
             {
-                Paths.Add(uri, value = new List<string[]>());
-            }
+                if (!IsByteCountComputed)
+                {
+                    foreach (var kvp in Read()) { }
+                }
 
-            value.AddRange(paths);
+                return _Bytes;
+            }
         }
 
-        public bool ContainsKey(Uri key) => Cache.ContainsKey(key) || Paths.ContainsKey(key);
+        private ArraySegment<byte> _Bytes;
+        private bool IsByteCountComputed;
 
-        public bool TryGetValue(Uri key, out string value)
+        public IEnumerable<string> Keys => ((IReadOnlyDictionary<string, JsonIndex>)Index).Keys;
+
+        public IEnumerable<JsonIndex> Values => ((IReadOnlyDictionary<string, JsonIndex>)Index).Values;
+
+        public int Count => ((IReadOnlyCollection<KeyValuePair<string, JsonIndex>>)Index).Count;
+
+        private Dictionary<string, JsonIndex> Index { get; } = new Dictionary<string, JsonIndex>();
+        private Enumerator Itr { get; }
+
+        //public JsonIndex(string json) : this(JsonDocument.Parse(json).RootElement) { }
+
+        public JsonIndex(byte[] json) : this(new ArraySegment<byte>(json))
         {
-            if (Cache.TryGetValue(key, out value))
+            IsByteCountComputed = true;
+        }
+
+        public JsonIndex(ArraySegment<byte> bytes)
+        {
+            _Bytes = bytes;
+            Itr = new Enumerator(this);
+        }
+
+        private JsonIndex(ArraySegment<byte> bytes, JsonReaderState state) : this(bytes)
+        {
+            Itr = new Enumerator(this, state);
+        }
+
+        public bool ContainsKey(string key)
+        {
+            return ((IReadOnlyDictionary<string, JsonIndex>)Index).ContainsKey(key);
+        }
+
+        public bool TryGetValue(string key, out JsonIndex value)
+        {
+            if (Index.TryGetValue(key, out value))
             {
                 return true;
             }
-            else if (Paths.TryGetValue(key, out var paths))
+
+            foreach (var kvp in Read())
             {
-                return TryGetJson(paths, out value);
+                if (kvp.Key == key)
+                {
+                    value = kvp.Value;
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+
+        public IEnumerator<KeyValuePair<string, JsonIndex>> GetEnumerator() => Index.Concat(Read()).GetEnumerator();
+
+        private IEnumerable<KeyValuePair<string, JsonIndex>> Read()
+        {
+            while (Itr.MoveNext())
+            {
+                //ICollection<KeyValuePair<string, JsonIndex>> cache = Index;
+                //cache.Add(Itr.Current);
+
+                yield return Itr.Current;
+            }
+        }
+
+        private bool Read(ref Utf8JsonReader reader)
+        {
+            if (Itr.MoveNext(ref reader))
+            {
+                ICollection<KeyValuePair<string, JsonIndex>> cache = Index;
+                cache.Add(Itr.Current);
+
+                return true;
             }
             else
             {
+                _Bytes = new ArraySegment<byte>(_Bytes.Array, _Bytes.Offset, (int)Itr.Consumed);
+                IsByteCountComputed = true;
+
                 return false;
             }
         }
 
-        private bool TryGetJson(List<string[]> paths, out string json)
+        private class Enumerator : IEnumerator<KeyValuePair<string, JsonIndex>>
         {
-            if (paths.Count == 0)
+            public KeyValuePair<string, JsonIndex> Current { get; private set; }
+            object IEnumerator.Current => Current;
+
+            public long Consumed { get; private set; }
+            private JsonIndex Index { get; }
+            private ArraySegment<byte> Bytes { get; }
+            private JsonReaderState State;
+
+            public Enumerator(JsonIndex index)
             {
-                json = Json.RootElement.GetRawText();
-                return true;
+                Index = index;
+                Bytes = new ArraySegment<byte>(index._Bytes.Array).Slice(index._Bytes.Offset);
+
+                Reset();
             }
-            if (paths.Count == 1)
+
+            public Enumerator(JsonIndex index, JsonReaderState state) : this(index)
             {
-                if (TryGetSubProperty(paths[0], out var elem))
+                State = state;
+            }
+
+            public void Dispose() { }
+
+            public bool MoveNext()
+            {
+                var start = Consumed;
+                if (Current.Value != null)
                 {
-                    json = elem.ValueKind == JsonValueKind.String ? elem.GetString() : elem.GetRawText();
-                    return true;
+                    State = Current.Value.Itr.State;
+                    start += Current.Value.Itr.Consumed;
                 }
+
+                var reader = new Utf8JsonReader(Bytes.Slice((int)start), true, State);
+                return Index.Read(ref reader);
+                //return MoveNext(ref reader);
+            }
+
+            public bool MoveNext(ref Utf8JsonReader reader)
+            {
+                if (Index.IsByteCountComputed && Consumed >= Index.Bytes.Count)
+                {
+                    return false;
+                }
+
+                if (Current.Value != null)
+                {
+                    //long before = Current.Value.Itr.Consumed;
+                    while (Current.Value.Read(ref reader)) { }
+                    Consumed += Current.Value.Bytes.Count;
+                    //State = Current.Value.Itr.State;
+                }
+
+                var start = reader.BytesConsumed;
+
+                if (reader.Read())
+                {
+                    //if (reader.TokenType != JsonTokenType.PropertyName && reader.TokenType != JsonTokenType.StartObject)
+                    if (reader.TokenType == JsonTokenType.StartArray)
+                    {
+                        reader.Skip();
+                    }
+
+                    Consumed += reader.BytesConsumed - start;
+                    State = reader.CurrentState;
+
+                    if (reader.TokenType == JsonTokenType.StartObject)
+                    {
+                        return MoveNext(ref reader);
+                    }
+                    else if (reader.TokenType == JsonTokenType.PropertyName)
+                    {
+                        var propertyName = reader.GetString();
+                        var index = new JsonIndex(Bytes.Slice((int)Consumed), reader.CurrentState);
+
+                        Current = new KeyValuePair<string, JsonIndex>(propertyName, index);
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+
+            public void Reset()
+            {
+                Current = default;
+                State = default;
+                Consumed = 0;
+            }
+        }
+    }
+
+    public class StringConverter : JsonConverter<string>
+    {
+        public static readonly StringConverter Instance = new StringConverter();
+
+        private StringConverter() { }
+
+        public override string Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            using (var json = JsonDocument.ParseValue(ref reader))
+            {
+                var root = json.RootElement;
+                return root.ValueKind == JsonValueKind.String ? root.GetString() : root.GetRawText();
+            }
+
+            var start = reader.BytesConsumed;
+            if (reader.TokenType == JsonTokenType.String) return reader.GetString();
+            reader.Skip();
+            return Encoding.UTF8.GetString(reader.ValueSpan);
+        }
+
+        public override void Write(Utf8JsonWriter writer, string value, JsonSerializerOptions options)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    public class JsonConverterWrapper<T> : JsonConverter<T>
+    {
+        public string[] Path { get; }
+        public JsonConverter<T> Converter { get; }
+
+        public JsonConverterWrapper(string[] path) : this(path, null) { }
+
+        public JsonConverterWrapper(JsonConverter<T> converter, params string[] path) : this(path, converter) { }
+
+        public JsonConverterWrapper(string[] path, JsonConverter<T> converter)
+        {
+            Path = path;
+            Converter = converter;
+        }
+
+        public override T Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override void Write(Utf8JsonWriter writer, T value, JsonSerializerOptions options)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    public class AnnotatedJson : IReadOnlyDictionary<Uri, ArraySegment<byte>>
+    {
+        public ArraySegment<byte> this[Uri key] => Paths.TryGetValue(key, out var paths) && TryGetJson(paths, out var value) ? value : throw new KeyNotFoundException();
+
+        public IEnumerable<Uri> Keys => this.Select(kvp => kvp.Key);
+
+        public IEnumerable<ArraySegment<byte>> Values => this.Select(kvp => kvp.Value);
+
+        public int Count => this.Count();
+
+        private Dictionary<Uri, JsonConverterWrapper<string>> Paths { get; } = new Dictionary<Uri, JsonConverterWrapper<string>>();
+        private JsonIndex Index { get; }
+        private byte[] Bytes { get; }
+        private string StringValue => _StringValue ??= Encoding.UTF8.GetString(Bytes);
+        private string _StringValue;
+
+        public AnnotatedJson(string json)
+        {
+            Bytes = Encoding.UTF8.GetBytes(json);
+            Index = new JsonIndex(Bytes);
+        }
+
+        public AnnotatedJson(byte[] bytes)
+        {
+            Bytes = bytes;
+            Index = new JsonIndex(bytes);
+        }
+
+        //public bool Add(Uri uri, string value) => Cache.TryAdd(uri, value);
+        //public void Add(Uri uri, string path) => Add(uri, path.Split("/").ToArray());
+        /*public void Add(Uri uri, params string[] paths)
+        {
+            Paths.TryAdd(uri, new Location(paths.ToList<string>()));
+            return;
+
+            if (!Paths.TryGetValue(uri, out var value))
+            {
+                //Paths.Add(uri, value = new List<string[]>());
+            }
+
+            //value.AddRange(paths);
+        }*/
+
+        public void Add(Uri uri, JsonConverterWrapper<string> wrapper) => Paths.TryAdd(uri, wrapper);
+        public void Add(Uri uri, params string[] path) => Paths.TryAdd(uri, new JsonConverterWrapper<string>(path, StringConverter.Instance));
+        public void Add(Uri uri, string[] path, JsonConverter<string> converter) => Paths.TryAdd(uri, new JsonConverterWrapper<string>(path, converter));
+
+        public bool ContainsKey(Uri key) => Paths.ContainsKey(key);
+
+        public bool TryGetValue(Uri key, out ArraySegment<byte> value)
+        {
+            if (Paths.TryGetValue(key, out var wrapper))
+            {
+                return TryGetJson(wrapper, out value);
             }
             else
             {
-                throw new NotImplementedException();
+                value = default;
+                return false;
+            }
+        }
+
+        private bool TryGetJson(JsonConverterWrapper<string> wrapper, out ArraySegment<byte> json)
+        {
+            //if (paths.Count == 0)
+            //{
+            //    json = Json.RootElement.GetRawText();
+            //    return true;
+            //}
+
+            if (TryGetSubProperty(wrapper.Path, out json))
+            {
+                return true;
+
+                if (wrapper.Converter == StringConverter.Instance)
+                {
+                    //return true;
+                }
+
+                //json = elem.ValueKind == JsonValueKind.String ? elem.GetString() : elem.GetRawText();
+                var reader = new Utf8JsonReader(json);
+                json = Encoding.UTF8.GetBytes(wrapper.Converter.Read(ref reader, typeof(string), null));
+                return true;
             }
 
             json = default;
             return false;
         }
 
-        private bool TryGetSubProperty(string[] path, out JsonElement value)
+        private bool TryGetSubProperty(IEnumerable<string> path, out ArraySegment<byte> value)
         {
-            value = Json.RootElement;
+            var index = Index;
 
             foreach (var property in path)
             {
-                if (!value.TryGetProperty(property, out value))
+                if (!index.TryGetValue(property, out index))
                 {
+                    value = default;
                     return false;
                 }
             }
 
+            value = index.Bytes;
             return true;
         }
 
-        public IEnumerator<KeyValuePair<Uri, string>> GetEnumerator()
+        public IEnumerator<KeyValuePair<Uri, ArraySegment<byte>>> GetEnumerator()
         {
-            foreach (var kvp in Cache)
-            {
-                yield return kvp;
-            }
-
             foreach (var kvp in Paths)
             {
                 if (TryGetJson(kvp.Value, out var json))
                 {
-                    yield return new KeyValuePair<Uri, string>(kvp.Key, json);
+                    yield return new KeyValuePair<Uri, ArraySegment<byte>>(kvp.Key, json);
                 }
             }
         }
@@ -424,6 +704,7 @@ namespace Movies
         }
 
         public static State Create<T>(T value) => value as State ?? new State(typeof(T), value);
+        public static State Null(Type type) => new State(type, null);
 
         public bool Add<TExisting, TNew>(IConverter<TExisting> converter) => Add<TExisting>(typeof(TNew), converter);
         public bool Add<T>(Type type, IConverter<T> converter)
@@ -483,47 +764,54 @@ namespace Movies
     public class MultiRestEventArgs : ChainEventArgs // where T : RestEventArgs
     {
         public IEnumerable<RestRequestArgs> Args { get; }
+        private IEnumerable<KeyValuePair<Uri, State>> AdditionalState;// { get; private set; }
 
         public MultiRestEventArgs(params RestRequestArgs[] args) : this((IEnumerable<RestRequestArgs>)args) { }
         public MultiRestEventArgs(IEnumerable<RestRequestArgs> args)
         {
             Args = args;
         }
-    }
 
-    public class RestRequestArgs : ChainEventArgs
-    {
-        public Uri Uri { get; }
-        public State Body { get; }
-        public State Response { get; private set; }
-        public Type Expected { get; }
-        public IEnumerable<KeyValuePair<Uri, State>> AdditionalState { get; private set; }
-
-        public RestRequestArgs(Uri uri, Type expected = null)
+        public IEnumerable<KeyValuePair<Uri, State>> GetAdditionalState()
         {
-            Uri = uri;
-            Expected = expected;
+            var set = Args.Select(arg => arg.Uri).ToHashSet();
+            return AdditionalState?.Where(kvp => !set.Contains(kvp.Key)) ?? Enumerable.Empty<KeyValuePair<Uri, State>>();
         }
 
-        public RestRequestArgs(Uri uri, State body)
+        public void Handle(MultiRestEventArgs e)
         {
-            Uri = uri;
-            Body = body;
+            if (e.AdditionalState != null)
+            {
+                AdditionalState = AdditionalState?.Concat(e.AdditionalState) ?? e.AdditionalState;
+            }
+        }
+
+        public bool Handle<T>(IEnumerable<KeyValuePair<Uri, Task<T>>> data)
+        {
+            var success = true;
+
+            foreach (var arg in Args)
+            {
+                success &= TryGetValue(data, arg.Uri, out var value) && arg.Handle(value);
+            }
+
+            //AdditionalState = data as IEnumerable<KeyValuePair<Uri, State>> ?? data.Select(kvp => new KeyValuePair<Uri, State>(kvp.Key, new State(kvp.Value)));
+
+            return success;
         }
 
         public bool HandleMany<T>(IEnumerable<KeyValuePair<Uri, T>> data)
         {
-            if (TryGetValue(data, Uri, out var value))
+            var success = true;
+
+            foreach (var arg in Args)
             {
-                var handled = Handle(value);
-
-                AdditionalState = data as IEnumerable<KeyValuePair<Uri, State>> ?? data.Select(kvp => new KeyValuePair<Uri, State>(kvp.Key, new State(kvp.Value)));
-                AdditionalState = AdditionalState.Where(kvp => kvp.Key != Uri);
-
-                return handled;
+                success &= TryGetValue(data, arg.Uri, out var value) && arg.Handle(value);
             }
 
-            return false;
+            AdditionalState = data as IEnumerable<KeyValuePair<Uri, State>> ?? data.Select(kvp => new KeyValuePair<Uri, State>(kvp.Key, new State(kvp.Value)));
+
+            return success;
         }
 
         private static bool TryGetValue<T>(IEnumerable<KeyValuePair<Uri, T>> data, Uri uri, out T value)
@@ -544,6 +832,32 @@ namespace Movies
 
             value = default;
             return false;
+        }
+    }
+
+    public class RestRequestArgs : ChainEventArgs
+    {
+        public Uri Uri { get; }
+        public State Body { get; }
+        public Task<State> ResponseAsync { get; private set; }
+        public State Response { get; private set; }
+        public Type Expected { get; }
+
+        public RestRequestArgs(Uri uri, Type expected = null)
+        {
+            Uri = uri;
+            Expected = expected;
+        }
+
+        public RestRequestArgs(Uri uri, State body)
+        {
+            Uri = uri;
+            Body = body;
+        }
+
+        public void Handle(Task<State> response)
+        {
+
         }
 
         public bool Handle(object response) => Handle(new State(response));
@@ -619,50 +933,48 @@ namespace Movies
                 return;
             }
 
-            await CacheSemaphore.WaitAsync();
-            var response = next(new MultiRestEventArgs(unhandled));
+            var nextE = new MultiRestEventArgs(unhandled);
+            var response = next(nextE);
 
-            try
+            for (int i = 0; i < unhandled.Length; i++)
             {
-                for (int i = 0; i < unhandled.Length; i++)
-                {
-                    var arg = unhandled[i];
-                    Cache[arg.Uri] = Unwrap(response, unhandled, i);
-                }
-            }
-            finally
-            {
-                CacheSemaphore.Release();
+                var arg = unhandled[i];
+                await PutAsync(arg.Uri, Unwrap(response, unhandled, i));
             }
 
             await response;
+            e.Handle(nextE);
+            var put = Enumerable.Empty<KeyValuePair<Uri, State>>();
 
-            foreach (var arg in e.Args.Where(arg => arg.Handled))
+            foreach (var arg in e.Args)
             {
-                var data = Enumerable.Empty<KeyValuePair<Uri, State>>();
-
-                if (arg.Response != null)
+                if (arg.Handled)
                 {
-                    data = data.Append(new KeyValuePair<Uri, State>(arg.Uri, arg.Response));
+                    if (arg.Response != null)
+                    {
+                        put = put.Append(new KeyValuePair<Uri, State>(arg.Uri, arg.Response));
+                    }
                 }
-                if (arg.AdditionalState != null)
-                {
-                    //data = data.Concat(arg.AdditionalState);
-                }
-
-                foreach (var kvp in data)
+                else
                 {
                     await CacheSemaphore.WaitAsync();
 
                     try
                     {
-                        Cache[kvp.Key] = Task.FromResult(kvp.Value);
+                        Cache.Remove(arg.Uri);
                     }
                     finally
                     {
                         CacheSemaphore.Release();
                     }
                 }
+            }
+
+            put = put.Concat(e.GetAdditionalState());
+
+            foreach (var kvp in put)
+            {
+                await PutAsync(kvp.Key, Task.FromResult(kvp.Value));
             }
         }
 
@@ -672,15 +984,15 @@ namespace Movies
             return args[index].Response;
         }
 
-        public Task PutAsync(MultiRestEventArgs e, ChainLinkEventHandler<MultiRestEventArgs> next) => Task.WhenAll(e.Args.Select(arg => Put(arg.Uri, arg.Body)));
+        public Task PutAsync(MultiRestEventArgs e, ChainLinkEventHandler<MultiRestEventArgs> next) => Task.WhenAll(e.Args.Select(arg => PutAsync(arg.Uri, arg.Body)));
 
-        public async Task Put<T>(Uri uri, T resource)
+        public async Task PutAsync<T>(Uri uri, T resource)
         {
             await CacheSemaphore.WaitAsync();
 
             try
             {
-                Cache[uri] = Task.FromResult(State.Create(resource));
+                Put(uri, resource);
             }
             finally
             {
@@ -688,7 +1000,45 @@ namespace Movies
             }
         }
 
-        public async Task Delete(Uri uri)
+        public void Put<T>(Uri uri, T resource)
+        {
+            Cache[uri] = Convert(resource);
+        }
+
+        private Task<State> Convert(object resource)
+        {
+            if (resource is Task<State> temp)
+            {
+                return temp;
+            }
+
+            if (resource is Task task && task.GetType() != typeof(Task))
+            {
+                try
+                {
+                    return ConvertTask(task);
+                }
+                catch { }
+            }
+
+            return Task.FromResult(State.Create(resource));
+        }
+
+        private async Task<State> ConvertTask(Task task)
+        {
+            var value = await (dynamic)task;
+
+            if (value == null)
+            {
+                return State.Null(task.GetType().GetGenericArguments()[0]);
+            }
+            else
+            {
+                return value as State ?? new State(value);
+            }
+        }
+
+        public async Task DeleteAsync(Uri uri)
         {
             await CacheSemaphore.WaitAsync();
 
