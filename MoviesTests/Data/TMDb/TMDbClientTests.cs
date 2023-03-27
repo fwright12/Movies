@@ -3,7 +3,7 @@
     [TestClass]
     public class TMDbClientTests
     {
-        private List<string> CallHistory => Movies.HttpClient.CallHistory;
+        private List<string> CallHistory => MockHandler.CallHistory;
         private Controller Controller { get; }
         private TMDbClient Client { get; }
 
@@ -108,6 +108,15 @@
 
             AssertHandled(args);
             Assert.AreEqual(4, CallHistory.Count);
+        }
+
+        [TestMethod]
+        public async Task BufferedGetRequests()
+        {
+            var url = "3/movie/0?language=en-US";
+            await Task.WhenAll(Controller.Get(url), Controller.Get(url));
+
+            Assert.AreEqual(1, CallHistory.Count);
         }
 
         private void AssertHandled(params RestRequestArgs[] e) => Assert.IsTrue(e.All(arg => arg.Handled), "The following uris where not handled:\n" + string.Join('\n', e.Where(arg => !arg.Handled).Select(arg => arg.Uri.ToString())));

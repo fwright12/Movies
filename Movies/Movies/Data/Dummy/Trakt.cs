@@ -5,7 +5,7 @@ using System.Text;
 
 namespace Movies
 {
-    public partial class HttpClient
+    public partial class MockHandler
     {
         public static readonly string TRAKT_ACCOUNT_LAST_ACTIVITIES_RESPONSE = @"{
     ""all"": ""2022-10-16T20:53:26.000Z"",

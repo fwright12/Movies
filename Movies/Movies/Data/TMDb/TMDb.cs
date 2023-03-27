@@ -52,11 +52,13 @@ namespace Movies
             HandleDataRequests(DataService.Instance);
 
             //Config = Client.GetConfigAsync();
-            WebClient = new HttpClient
+#if DEBUG && true
+            WebClient = new HttpClient(new MockHandler())
             {
-#if DEBUG && false
                 BaseAddress = new Uri("https://mock.themoviedb/"),
 #else
+            WebClient = new HttpClient
+            {
                 BaseAddress = new Uri(BASE_ADDRESS),
 #endif
                 DefaultRequestHeaders =

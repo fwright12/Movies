@@ -13,7 +13,7 @@ namespace MoviesTests.Data.TMDb
             [ItemType.Movie] = GetProperties(typeof(Media)).Concat(GetProperties(typeof(Movie))).Append(TMDB.POPULARITY).ToList()
         };
 
-        private List<string> CallHistory => Movies.HttpClient.CallHistory;
+        private List<string> CallHistory => MockHandler.CallHistory;
 
         private TMDbResolver Resolver { get; }
         private Controller Controller;

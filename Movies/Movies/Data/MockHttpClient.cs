@@ -35,13 +35,13 @@ namespace Movies
         }
     }
 
-    public partial class HttpClient : System.Net.Http.HttpClient
+    public partial class MockHandler : HttpClientHandler
     {
         public static List<string> CallHistory = new List<string>();
 
         public static void ClearCallHistory() => CallHistory.Clear();
 
-        private Dictionary<object, string> DetailsRoutes = new Dictionary<object, string>
+        private static Dictionary<object, string> DetailsRoutes = new Dictionary<object, string>
         {
             [API.MOVIES.GET_DETAILS] = DUMMY_TMDB_DATA.HARRY_POTTER_AND_THE_DEATHLY_HALLOWS_PART_2_RESPONSE,
             [API.TV.GET_DETAILS] = DUMMY_TMDB_DATA.THE_OFFICE_RESPONSE,
@@ -51,7 +51,7 @@ namespace Movies
             [API.COLLECTIONS.GET_DETAILS] = DUMMY_TMDB_DATA.HARRY_POTTER_COLLECTION_RESPONSE,
         };
 
-        private Dictionary<object, string> TMDbRoutes = new Dictionary<TMDbRequest, string>
+        private static Dictionary<object, string> TMDbRoutes = new Dictionary<TMDbRequest, string>
         {
             [string.Format(API.TRENDING.GET_TRENDING.Endpoint, "movie", ".*")] = DUMMY_TMDB_DATA.TRENDING_MOVIES_RESPONSE,
             [API.DISCOVER.MOVIE_DISCOVER] = DUMMY_TMDB_DATA.TRENDING_MOVIES_RESPONSE,
@@ -76,7 +76,7 @@ namespace Movies
             [API.CONFIGURATION.GET_API_CONFIGURATION] = DUMMY_TMDB_CONFIG.CONFIGURATION,
         }.ToDictionary(kvp => (object)kvp.Key, kvp => kvp.Value);
 
-        private Dictionary<object, string> TraktRoutes = new Dictionary<object, string>
+        private static Dictionary<object, string> TraktRoutes = new Dictionary<object, string>
         {
             ["users/me/lists"] = TRAKT_ACCOUNT_LISTS_RESPONSE,
             ["users/me/lists/{0}"] = TRAKT_ACCOUNT_FAVORITES_RESPONSE,
@@ -84,9 +84,9 @@ namespace Movies
             ["sync/last_activities"] = "{}",
         };
 
-        private Router Router { get; }
+        private static Router Router { get; }
 
-        public HttpClient()
+        static MockHandler()
         {
             Router = new Router(DetailsRoutes.Concat(TMDbRoutes).Concat(TraktRoutes).Select<KeyValuePair<object, string>, (string, string)>(kvp =>
             {
@@ -105,14 +105,12 @@ namespace Movies
             }));
         }
 
-        new public Task<HttpResponseMessage> GetAsync(Uri requestUri) => SendAsync(new HttpRequestMessage(HttpMethod.Get, requestUri));
-        new public Task<HttpResponseMessage> GetAsync(string requestUri, CancellationToken cancellationToken = default) => SendAsync(new HttpRequestMessage(HttpMethod.Get, requestUri), cancellationToken);
-        new public Task<HttpResponseMessage> SendAsync(HttpRequestMessage request) => SendAsync(request, new CancellationToken());
+        //new public Task<HttpResponseMessage> GetAsync(Uri requestUri) => SendAsync(new HttpRequestMessage(HttpMethod.Get, requestUri));
+        //new public Task<HttpResponseMessage> GetAsync(string requestUri, CancellationToken cancellationToken = default) => SendAsync(new HttpRequestMessage(HttpMethod.Get, requestUri), cancellationToken);
+        //new public Task<HttpResponseMessage> SendAsync(HttpRequestMessage request) => SendAsync(request, new CancellationToken());
 
-        public override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
-            //return await base.SendAsync(request, cancellationToken);
-
             var endpoint = request.RequestUri.ToString();
             var content = DebugConfig.AllowLiveRequests ? null : "{}";
 
@@ -250,7 +248,8 @@ namespace Movies
             {
                 return new HttpResponseMessage
                 {
-                    Content = new StringContent(content)
+                    Content = new StringContent(content),
+                    RequestMessage = request
                 };
             }
             else

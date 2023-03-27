@@ -665,7 +665,7 @@ namespace Movies
 
     public class TMDbClient : ControllerLink//<HttpContent>
     {
-        public HttpClient Client { get; }
+        //public HttpClient Client { get; }
         private TMDbResolver Resolver { get; }
 
         public static readonly Dictionary<TMDbRequest, IEnumerable<TMDbRequest>> AutoAppend = new Dictionary<TMDbRequest, IEnumerable<TMDbRequest>>
@@ -707,9 +707,8 @@ namespace Movies
         private Dictionary<TMDbRequest, IEnumerable<TMDbRequest>> Appendable { get; }
         private Dictionary<TMDbRequest, TMDbRequest> AppendsTo { get; }
 
-        public TMDbClient(HttpClient client, TMDbResolver resolver, Dictionary<TMDbRequest, IEnumerable<TMDbRequest>> autoAppend = null)
+        public TMDbClient(HttpClient client, TMDbResolver resolver, Dictionary<TMDbRequest, IEnumerable<TMDbRequest>> autoAppend = null) : base(new BufferedHandler { InnerHandler = new MockHandler() })
         {
-            Client = client;
             Resolver = resolver;
 
             var kvps = autoAppend ?? AutoAppend;// Enumerable.Empty<KeyValuePair<TMDbRequest, IEnumerable<TMDbRequest>>>();
@@ -725,7 +724,7 @@ namespace Movies
             }
         }
 
-        public override Task Get(MultiRestEventArgs e, ChainLinkEventHandler<MultiRestEventArgs> next)
+        public override void Handle(MultiRestEventArgs e, ChainLinkEventHandler<MultiRestEventArgs> next)
         {
             //var parentCollectionWasRequested = new Lazy<bool>(() => e.Args.OfType<UniformItemIdentifier>().Any(uii => uii.Property == Movie.PARENT_COLLECTION));
             var greedyUrls = e.Args.SelectMany(arg => GetUrlsGreedy(arg.Uri)).Distinct().ToArray();
@@ -785,7 +784,7 @@ namespace Movies
                 e.Handle(kvp.Value.ToDictionary(info => info.Arg.Uri, info => Handle(json, info)));
             }
 
-            return Task.WhenAll(tasks);
+            //return Task.WhenAll(tasks);
         }
 
         private async Task<AnnotatedJson> GetResponse(MultiRestEventArgs e, string url, KeyValuePair<string, TrieValue> kvp, string[] paths)

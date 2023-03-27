@@ -1,5 +1,4 @@
 ﻿using System.Collections;
-using HttpClient = Movies.HttpClient;
 
 namespace MoviesTests.Data.TMDb
 {
@@ -28,7 +27,7 @@ namespace MoviesTests.Data.TMDb
 
         private async Task AssertExpired(DateTime from, DateTime to, params string[] calls)
         {
-            HttpClient.ClearCallHistory();
+            MockHandler.ClearCallHistory();
 
             //await TMDB.GetExpiredIds(ItemType.Movie, from, to);
             //AssertAreEqual(calls, HttpClient.CallHistory);
