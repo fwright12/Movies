@@ -3,6 +3,7 @@ using Movies.Models;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -104,6 +105,251 @@ namespace Movies
             Handler.Invoke(e, Next == null ? (ChainLinkEventHandler<T>)null : Next.Handle);
             await e.IsHandled();
         }
+    }
+
+    public class RestRequest
+    {
+        public HttpMethod Method { get; }
+        public Uri Uri { get; }
+
+        public Task<State> Body { get; set; }
+
+        public RestRequest(HttpMethod method, Uri uri)
+        {
+            Method = method;
+            Uri = uri;
+        }
+    }
+
+    public class RestResponse
+    {
+        public State Body { get; set; }
+    }
+
+    public class RestArgs : ChainEventArgs
+    {
+        public RestRequest Request { get; }
+
+        public Task<RestResponse> Response { get; private set; }
+
+        public IEnumerable<Uri> Uris { get; private set; }
+        public Task<IReadOnlyDictionary<Uri, object>> Resources { get; private set; }
+
+        public RestArgs(RestRequest request)
+        {
+            Request = request;
+        }
+
+        public void Handle(State state)
+        {
+            Handle();
+        }
+
+        public bool Handle(Task<State> response)
+        {
+            Response = GetResponse(response);
+            Handle();
+            return true;
+        }
+
+        private async Task<RestResponse> GetResponse(Task<State> state) => new RestResponse 
+        { 
+            Body = await state 
+        };
+
+        public bool Handle(Task<IReadOnlyDictionary<Uri, object>> resources, IEnumerable<Uri> uris)
+        {
+            Uris = uris;
+            Resources = resources;
+
+            return Handle(GetValueAsync(resources, Request.Uri));
+        }
+
+        private async Task<State> GetValueAsync(Task<IReadOnlyDictionary<Uri, object>> task, Uri key)
+        {
+            var resources = await task;
+
+            if (resources.TryGetValue(key, out var value))
+            {
+                return new State(value);
+            }
+            else
+            {
+                return State.Create(resources);
+            }
+        }
+    }
+
+    public static class AsyncAccess
+    {
+        public static async Task<TValue> GetAsync<TKey, TValue>(this Task<IReadOnlyDictionary<TKey, TValue>> dict, TKey key) => (await dict)[key];
+    }
+
+    public class Controller1
+    {
+        public Controller1 Next { get; set; }
+
+        public Task Send(HttpMethod method, Uri uri) => Send(new RestArgs(new RestRequest(method, uri)));
+
+        public Task Send(params RestArgs[] args) => Send((IEnumerable<RestArgs>)args);
+        public virtual Task Send(IEnumerable<RestArgs> args) => Task.WhenAll(args.Select(Send));
+
+        public virtual async Task Send(IEnumerable<RestArgs> e, Controller1 next)
+        {
+            var args = e.ToArray();
+            await Task.WhenAll(e.Select(arg => arg.Response));
+            var unhandled = e.Where(arg => !arg.Handled).ToArray();
+
+            await next.Send(unhandled, Next?.Next);
+        }
+
+        private async Task Send(RestArgs e)
+        {
+            if (Next == null)
+            {
+                return;
+            }
+            
+            var response = Next.Send(e);
+
+            _ = Send(new RestArgs(new RestRequest(HttpMethod.Put, e.Request.Uri)
+            {
+                Body = null
+            }));
+
+            foreach (var uri in e.Uris)
+            {
+                _ = Send(new RestArgs(new RestRequest(HttpMethod.Put, uri)
+                {
+                    //Body = e.Resources.GetAsync(uri)
+                }));
+            }
+
+            await response;
+        }
+    }
+
+    public class HttpContentWrapper : HttpContent
+    {
+        public HttpContent Content { get; }
+
+        public HttpContentWrapper(HttpContent content)
+        {
+            Content = content;
+        }
+
+        protected override async Task SerializeToStreamAsync(Stream stream, TransportContext context) => stream.Write(await Content.ReadAsByteArrayAsync());
+
+        protected override bool TryComputeLength(out long length)
+        {
+            length = default;
+            return false;
+        }
+    }
+
+    public abstract class HttpController : Controller1
+    {
+        public HttpMessageInvoker Invoker { get; }
+        public ResourceMap Resources { get; }
+
+        public HttpController(HttpMessageInvoker invoker)
+        {
+            Invoker = invoker;
+        }
+
+        private class StateContent : HttpContent
+        {
+            public Task<State> State { get; }
+
+            public StateContent(Task<State> state)
+            {
+                State = state;
+            }
+
+
+            protected override async Task SerializeToStreamAsync(Stream stream, TransportContext context)
+            {
+                var state = await State;
+
+                if (state.TryGetRepresentation<string>(out var content))
+                {
+                    stream.Write(Encoding.UTF8.GetBytes(content));
+                }
+            }
+
+            protected override bool TryComputeLength(out long length)
+            {
+                length = default;
+                return false;
+            }
+        }
+
+        private static async Task<IReadOnlyDictionary<Uri, object>> Convert(Task<HttpResponseMessage> response, HttpResourceCollectionConverter collection) => await collection.Convert((await response).Content);
+        public override Task Send(IEnumerable<RestArgs> args1)
+        {
+            var args = args1.ToArray();
+            var requests = new List<HttpRequestMessage>();
+
+            foreach (var e in args)
+            {
+                var request = GetHttpMessage(e);
+
+                if (e.Request.Body != null)
+                {
+                    request.Content = new StateContent(e.Request.Body);
+                }
+
+                requests.Add(request);
+            }
+
+            var responses = Invoker.SendAsync(requests, default);
+            var results = new List<Task>();
+
+            for (int i = 0; i < args.Length; i++)
+            {
+                var e = args[i];
+                var response = responses[i];
+
+                if (TryGetResource(e.Request.Uri, out var resource))
+                {
+                    //if (resource.Converter is HttpResourceCollectionConverter collection)
+                    //{
+                    //    e.Handle(Convert(response, collection), collection.Resources);
+                    //}
+                    //else
+                    //{
+                    //    //e.Handle(resource.Converter.Convert(response.Content));
+                    //}
+
+                    results.Add(e.Response);
+                }
+                else
+                {
+                    results.Add(base.Send(e));
+                }
+            }
+
+            return Task.WhenAll(results);
+        }
+
+        private async Task Handle(RestArgs e)
+        {
+            var response = await e.Response;
+
+            if (response == null)
+            {
+                await base.Send(e);
+                response = await e.Response;
+            }
+        }
+
+        public virtual bool TryGetResource(Uri uri, out Resource resource)
+        {
+            resource = default;
+            return false;
+        }
+
+        public virtual HttpRequestMessage GetHttpMessage(RestArgs e) => new HttpRequestMessage(e.Request.Method, e.Request.Uri);
     }
 
     public class Controller
@@ -236,104 +482,6 @@ namespace Movies
         Task PutAsync(MultiRestEventArgs e, ChainLinkEventHandler<MultiRestEventArgs> next);
     }
 
-    public class RestService
-    {
-        public Task Get(RestRequestArgs e)
-        {
-            return Task.CompletedTask;
-        }
-
-        public Task Put(RestRequestArgs e)
-        {
-            return Task.CompletedTask;
-        }
-    }
-
-    public class ControllerHandler : DelegatingHandler
-    {
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-        {
-            if (request.Method == HttpMethod.Get) return Get(request.RequestUri);
-            else return base.SendAsync(request, cancellationToken);
-        }
-
-        protected virtual Task<HttpResponseMessage> Get(Uri requestUri) => base.SendAsync(new HttpRequestMessage(HttpMethod.Get, requestUri), default);
-    }
-
-    public class CacheAsideHandler : DelegatingHandler
-    {
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-        {
-            var response = base.SendAsync(request, cancellationToken);
-            
-            if (request.Method == HttpMethod.Get)
-            {
-                SendAsync(new HttpRequestMessage(HttpMethod.Put, request.RequestUri)
-                {
-                    Content = new HttpContentWrapper(response)
-                }, default);
-            }
-
-            return response;
-        }
-
-        private class HttpContentWrapper : HttpContent
-        {
-            private Task<HttpResponseMessage> Response { get; }
-
-            public HttpContentWrapper(Task<HttpResponseMessage> response)
-            {
-                Response = response;
-            }
-
-            protected override async Task SerializeToStreamAsync(Stream stream, TransportContext context) => await (await Response).Content.CopyToAsync(stream);
-
-            protected override bool TryComputeLength(out long length)
-            {
-                length = default;
-                return false;
-            }
-        }
-    }
-
-    public class BufferedHandler : DelegatingHandler
-    {
-        private Dictionary<Uri, Task<HttpResponseMessage>> Buffer = new Dictionary<Uri, Task<HttpResponseMessage>>();
-
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-        {
-            if (Buffer.TryGetValue(request.RequestUri, out var buffered))
-            {
-                return RespondBuffered(buffered);
-            }
-
-            var response = base.SendAsync(request, cancellationToken);
-            Buffer.Add(request.RequestUri, response);
-            return response;
-        }
-
-        private async Task<HttpResponseMessage> RespondBuffered(Task<HttpResponseMessage> buffered)
-        {
-            var response = await buffered;
-            var request = response.RequestMessage;
-            HttpContent content;
-
-            if (request.Method == HttpMethod.Get)
-            {
-                content = response.Content;
-            }
-            else
-            {
-                content = request.Content;
-            }
-
-            return new HttpResponseMessage(response.StatusCode)
-            {
-                Content = content,
-            };
-        }
-    }
-
     public abstract class ControllerLink<T> : IControllerLink, IConverter<T>
     {
         public bool CacheAside { get; set; } = true;
@@ -359,15 +507,28 @@ namespace Movies
 
         public virtual void Handle(MultiRestEventArgs e, ChainLinkEventHandler<MultiRestEventArgs> next)
         {
-            var task = HandleAsync(e, next);
+            var responses = HandleAsync(e, next);
+            var itr = e.Args.GetEnumerator();
 
-            foreach (var arg in e.Args)
+            for (int i = 0; itr.MoveNext(); i++)
             {
-                arg.BeginHandle(task);
+                itr.Current.Handle(Unwrap(responses, i));
             }
         }
 
-        public virtual Task HandleAsync(MultiRestEventArgs e, ChainLinkEventHandler<MultiRestEventArgs> next) => HandleAsync(e.Args, next);
+        private async Task<State> Unwrap(Task<HttpResponseMessage[]> responses, int index)
+        {
+            var response = (await responses)[index];
+            return new State(await response.Content.ReadAsStringAsync());
+        }
+
+        //public virtual Task<HttpResponseMessage[]> HandleAsync(multire)
+
+        public virtual async Task<HttpResponseMessage[]> HandleAsync(MultiRestEventArgs e, ChainLinkEventHandler<MultiRestEventArgs> next)
+        {
+            await HandleAsync(e.Args, next);
+            return e.Args.Select(arg => new HttpResponseMessage()).ToArray();
+        }
 
         private Dictionary<HttpMethod, Dictionary<Uri, RestRequestArgs>> Pending { get; } = new Dictionary<HttpMethod, Dictionary<Uri, RestRequestArgs>>();
 
@@ -506,13 +667,6 @@ namespace Movies
         //protected IEnumerable<RestRequestArgs> WhereUnhandled(IEnumerable<RestRequestArgs> e) => e.Where(NotHandled);
 
         protected bool Unhandled(RestRequestArgs arg) => !arg.Handled;
-    }
-
-    public interface IRestService
-    {
-        Task<(bool Success, T Resource)> Get<T>(Uri uri);
-        Task PostAsync<T>(Uri uri, T resource);
-        //void Delete(Uri uri);
     }
 
     public class AsyncChainEventArgs : ChainEventArgs
@@ -973,6 +1127,10 @@ namespace Movies
 
             return false;
         }
+        public void Add<T>(T value)
+        {
+            Representations.Add(typeof(T), value);
+        }
 
         public bool HasRepresentation<T>() => HasRepresentation(typeof(T));
         public bool HasRepresentation(Type type) => TryGetRepresentation(type, out _);
@@ -1093,19 +1251,6 @@ namespace Movies
         }
     }
 
-    public class RestRequest
-    {
-        public Uri Uri { get; }
-        public HttpMethod Method { get; }
-        public State Body { get; }
-        public Type Expected { get; }
-    }
-
-    public class RestResponse
-    {
-        public State State { get; }
-    }
-
     public class RestRequestArgs : AsyncChainEventArgs
     {
         public RestRequest Request { get; }
@@ -1113,7 +1258,8 @@ namespace Movies
 
         public void Handle(RestResponse response)
         {
-            if (Handle(response.State))
+            if (false)
+            //if (Handle(response.State))
             {
                 RestResponse = response;
             }

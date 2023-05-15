@@ -15,6 +15,10 @@ namespace MoviesTests.Data.TMDb
 
         private List<string> CallHistory => MockHandler.CallHistory;
 
+        private HttpMessageHandler InMemoryHandler;
+        private HttpMessageHandler TMDbLocalHandler;
+        private HttpMessageHandler TMDbRemoteHandler;
+
         private TMDbResolver Resolver { get; }
         private Controller Controller;
         private ResourceCache ResourceCache;
@@ -22,23 +26,72 @@ namespace MoviesTests.Data.TMDb
         private TMDbClient TMDbClient;
         private DummyJsonCache JsonCache;
 
+        private HttpMessageInvoker Invoker;
+
         public ResourceTests()
         {
             Resolver = new TMDbResolver(TMDB.ITEM_PROPERTIES);
+            JsonCache = new DummyJsonCache();
+
+            TMDbLocalHandler = new BufferedHandler(new TMDbLocalHandler(JsonCache, Resolver) { InnerHandler = ChainEndHandler.Instance, ChangeKeys = TestsConfig.ChangeKeys });
+            TMDbRemoteHandler = new TMDbReroutingHandler(new BufferedHandler(new TMDbBatchHandler(new InvokerHandlerWrapper(TMDB.WebClient), Resolver)), Resolver, TMDbApi.AutoAppend);
+            
+            Invoker = new HttpMessageInvoker(new CacheHandler(TMDbLocalHandler)
+            {
+                InnerHandler = TMDbRemoteHandler
+            });
+
+            DebugConfig.LOG_WEB_REQUESTS = true;
+        }
+
+        [TestMethod]
+        public async Task Test()
+        {
+            var request = new HttpRequestMessage(HttpMethod.Get, new UniformItemIdentifier(Constants.Movie, Movie.TITLE));
+            await Task.WhenAll(new HttpMessageInvoker(TMDbRemoteHandler).SendAsync(request.AsEnumerable(), default));
+
+            var client = new HttpClient(new Handler { InnerHandler = new Batched { InnerHandler = ChainEndHandler.Instance } });
+            var urls = new string[] { "https://test.com", "https://test.com/a" };
+
+            var responses = await Task.WhenAll(client.SendAsync(urls.Select(url => new HttpRequestMessage(HttpMethod.Get, url)).ToArray()));
+        }
+
+        private class Handler : DelegatingHandler
+        {
+            protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+            {
+                if (request.RequestUri.ToString().Contains("/a"))
+                    await Task.Delay(2000);
+                return await base.SendAsync(request, cancellationToken);
+            }
+        }
+
+        private class Batched : BatchHandler
+        {
+            protected override Task<HttpResponseMessage>[] SendAsync(IEnumerable<HttpRequestMessage> requests, CancellationToken cancellationToken)
+            {
+                return base.SendAsync(requests, cancellationToken);
+            }
         }
 
         [TestInitialize]
         public void Reset()
         {
             CallHistory.Clear();
+            JsonCache.Clear();
 
+            return;
             Controller = new Controller()
-                .AddLast(ResourceCache = new ResourceCache())
-                .AddLast(TMDbLocalResources = new TMDbLocalResources(JsonCache = new DummyJsonCache(), Resolver)
-                {
-                    ChangeKeys = TestsConfig.ChangeKeys
-                })
-                .AddLast(TMDbClient = new TMDbClient(TMDB.WebClient, Resolver));
+                .AddLast(new TMDbClient(new TMDbLocalHandler(JsonCache = new DummyJsonCache(), Resolver), Resolver))
+                .AddLast(new TMDbApi(TMDB.WebClient, Resolver));
+            
+            //Controller = new Controller()
+            //    .AddLast(ResourceCache = new ResourceCache())
+            //    .AddLast(TMDbLocalResources = new TMDbLocalResources(JsonCache = new DummyJsonCache(), Resolver)
+            //    {
+            //        ChangeKeys = TestsConfig.ChangeKeys
+            //    })
+            //    .AddLast(TMDbClient = new TMDbClient(TMDB.WebClient, Resolver));
         }
 
         [TestMethod]
@@ -80,6 +133,8 @@ namespace MoviesTests.Data.TMDb
         {
             var bytes = Encoding.UTF8.GetBytes(DUMMY_TMDB_DATA.HARRY_POTTER_AND_THE_DEATHLY_HALLOWS_PART_2_RESPONSE);
             var index = new JsonIndex(bytes);
+            var reader = new Utf8JsonReader(bytes);
+            JsonDom.JsonIndex.Parse(ref reader);
 
             //index.TryGetValue("belongs_to_collection", out var a);
             //foreach (var _ in a) { }

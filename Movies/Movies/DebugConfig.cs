@@ -5,9 +5,9 @@ namespace Movies
     {
         public const bool ALLOW_TMDB_REQUESTS = false;
         public const bool ALLOW_TMDB_IMAGES = false;
-        public const bool LOG_WEB_REQUESTS = false;
+        public static bool LOG_WEB_REQUESTS = false;
 
-        public static bool AllowLiveRequests = true;
+        public static bool AllowLiveRequests = false;
         public static bool BreakOnRequest = true;
         public static int SimulatedDelay = 0;
 

@@ -112,7 +112,7 @@ namespace Movies
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             var endpoint = request.RequestUri.ToString();
-            var content = DebugConfig.AllowLiveRequests ? null : "{}";
+            string content;
 
             if (endpoint.Contains("changes"))
             {
@@ -233,6 +233,10 @@ namespace Movies
                 //content = null;
             }*/
 
+            if (!DebugConfig.AllowLiveRequests)
+            {
+                content ??= "{}";
+            }
             if (DebugConfig.LOG_WEB_REQUESTS)
             {
                 Print.Log($"web request{(content != null ? " (mock)" : string.Empty)}: " + endpoint);
