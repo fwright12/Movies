@@ -1,7 +1,5 @@
 ﻿using System.Collections;
 using System.Text;
-using System.Text.Json;
-using System.Text.Json.Nodes;
 
 namespace MoviesTests.Data.TMDb
 {
@@ -14,10 +12,6 @@ namespace MoviesTests.Data.TMDb
         };
 
         private List<string> CallHistory => MockHandler.CallHistory;
-
-        private HttpMessageHandler InMemoryHandler;
-        private HttpMessageHandler TMDbLocalHandler;
-        private HttpMessageHandler TMDbRemoteHandler;
 
         private TMDbResolver Resolver { get; }
         private Controller Controller;
@@ -32,46 +26,17 @@ namespace MoviesTests.Data.TMDb
         {
             Resolver = new TMDbResolver(TMDB.ITEM_PROPERTIES);
             JsonCache = new DummyJsonCache();
+            Invoker = new HttpMessageInvoker(new BufferedHandler(new TMDbBufferedHandler(new MockHandler())));
 
-            TMDbLocalHandler = new BufferedHandler(new TMDbLocalHandler(JsonCache, Resolver) { InnerHandler = ChainEndHandler.Instance, ChangeKeys = TestsConfig.ChangeKeys });
-            TMDbRemoteHandler = new TMDbReroutingHandler(new BufferedHandler(new TMDbBatchHandler(new InvokerHandlerWrapper(TMDB.WebClient), Resolver)), Resolver, TMDbApi.AutoAppend);
+            //TMDbLocalHandler = new BufferedHandler(new TMDbLocalHandler(JsonCache, Resolver) { InnerHandler = ChainEndHandler.Instance, ChangeKeys = TestsConfig.ChangeKeys });
+            //TMDbRemoteHandler = new TMDbReroutingHandler(new BufferedHandler(new TMDbBatchHandler(new InvokerHandlerWrapper(TMDB.WebClient), Resolver)), Resolver, TMDbApi.AutoAppend);
             
-            Invoker = new HttpMessageInvoker(new CacheHandler(TMDbLocalHandler)
-            {
-                InnerHandler = TMDbRemoteHandler
-            });
+            //Invoker = new HttpMessageInvoker(new CacheHandler(TMDbLocalHandler)
+            //{
+            //    InnerHandler = TMDbRemoteHandler
+            //});
 
             DebugConfig.LOG_WEB_REQUESTS = true;
-        }
-
-        [TestMethod]
-        public async Task Test()
-        {
-            var request = new HttpRequestMessage(HttpMethod.Get, new UniformItemIdentifier(Constants.Movie, Movie.TITLE));
-            await Task.WhenAll(new HttpMessageInvoker(TMDbRemoteHandler).SendAsync(request.AsEnumerable(), default));
-
-            var client = new HttpClient(new Handler { InnerHandler = new Batched { InnerHandler = ChainEndHandler.Instance } });
-            var urls = new string[] { "https://test.com", "https://test.com/a" };
-
-            var responses = await Task.WhenAll(client.SendAsync(urls.Select(url => new HttpRequestMessage(HttpMethod.Get, url)).ToArray()));
-        }
-
-        private class Handler : DelegatingHandler
-        {
-            protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-            {
-                if (request.RequestUri.ToString().Contains("/a"))
-                    await Task.Delay(2000);
-                return await base.SendAsync(request, cancellationToken);
-            }
-        }
-
-        private class Batched : BatchHandler
-        {
-            protected override Task<HttpResponseMessage>[] SendAsync(IEnumerable<HttpRequestMessage> requests, CancellationToken cancellationToken)
-            {
-                return base.SendAsync(requests, cancellationToken);
-            }
         }
 
         [TestInitialize]
@@ -79,10 +44,19 @@ namespace MoviesTests.Data.TMDb
         {
             CallHistory.Clear();
             JsonCache.Clear();
+            TMDB.CollectionCache.Clear();
+
+            Controller = new Controller()
+                .AddLast(ResourceCache = new ResourceCache())
+                .AddLast(TMDbLocalResources = new TMDbLocalResources(JsonCache = new DummyJsonCache(), Resolver)
+                {
+                    ChangeKeys = TestsConfig.ChangeKeys
+                })
+                .AddLast(TMDbClient = new TMDbClient(Invoker, Resolver, TMDbApi.AutoAppend));;
 
             return;
             Controller = new Controller()
-                .AddLast(new TMDbClient(new TMDbLocalHandler(JsonCache = new DummyJsonCache(), Resolver), Resolver))
+                //.AddLast(new TMDbClient(new TMDbLocalHandler(JsonCache = new DummyJsonCache(), Resolver), Resolver, TMDbApi.AutoAppend))
                 .AddLast(new TMDbApi(TMDB.WebClient, Resolver));
             
             //Controller = new Controller()
@@ -101,7 +75,8 @@ namespace MoviesTests.Data.TMDb
             await ResourceCache.PutAsync(new UniformItemIdentifier(Constants.Movie, Media.ORIGINAL_LANGUAGE), Constants.LANGUAGE);
 
             // Retrieve an item in the in memory cache
-            var response = await Controller.Get<string>(new UniformItemIdentifier(Constants.Movie, Media.TAGLINE));
+            var uii = new UniformItemIdentifier(Constants.Movie, Media.TAGLINE);
+            var response = await Controller.Get<string>(uii);
             Assert.IsTrue(response.Success);
             Assert.AreEqual(Constants.TAGLINE, response.Resource);
 
@@ -115,7 +90,8 @@ namespace MoviesTests.Data.TMDb
         {
             var uri = new Uri("3/movie/0?language=en-US", UriKind.Relative);
             var json = "{ \"runtime\": 130 }";
-            await TMDbLocalResources.PutAsync(new MultiRestEventArgs(new RestRequestArgs(uri, new State(json))), null);
+            var e = new MultiRestEventArgs(new RestRequestArgs(uri, State.Create<ArraySegment<byte>>(Encoding.UTF8.GetBytes(json))));
+            await TMDbLocalResources.PutAsync(e, null);
 
             var request = new RestRequestArgs(new UniformItemIdentifier(Constants.Movie, Media.RUNTIME), typeof(TimeSpan?));
             await Controller.Get(request);
@@ -125,43 +101,23 @@ namespace MoviesTests.Data.TMDb
 
             Assert.AreEqual(0, CallHistory.Count);
             Assert.AreEqual(1, JsonCache.Count);
-            Assert.AreEqual(1, ResourceCache.Count);
-        }
-
-        [TestMethod]
-        public void Index()
-        {
-            var bytes = Encoding.UTF8.GetBytes(DUMMY_TMDB_DATA.HARRY_POTTER_AND_THE_DEATHLY_HALLOWS_PART_2_RESPONSE);
-            var index = new JsonIndex(bytes);
-            var reader = new Utf8JsonReader(bytes);
-            JsonDom.JsonIndex.Parse(ref reader);
-
-            //index.TryGetValue("belongs_to_collection", out var a);
-            //foreach (var _ in a) { }
-            //index.TryGetValue("keywords", out _);
-            //index.TryGetValue("recommendations", out _);
-            //index.TryGetValue("release_dates", out _);
-            //index.TryGetValue("budget", out _);
-            
-            foreach (var kvp in index)
-            {
-                ;
-            }
+            Assert.AreEqual(18, ResourceCache.Count);
         }
 
         [TestMethod]
         public async Task ResourcesCanBeRetrievedFromApi()
         {
-            var response = await Controller.Get<TimeSpan>(new UniformItemIdentifier(Constants.Movie, Media.RUNTIME));
+            var uii = new UniformItemIdentifier(Constants.Movie, Media.RUNTIME);
+            var response = await Controller.Get<TimeSpan>(uii);
 
             Assert.IsTrue(response.Success);
             Assert.AreEqual(new TimeSpan(2, 10, 0), response.Resource);
             Assert.AreEqual($"3/movie/0?language=en-US&{Constants.APPEND_TO_RESPONSE}=credits,keywords,recommendations,release_dates,videos,watch/providers", CallHistory.Last());
 
             Assert.AreEqual(1, CallHistory.Count);
-            Assert.AreEqual(7, JsonCache.Count);
+            Assert.AreEqual(6, JsonCache.Count);
             //Assert.AreEqual(ItemProperties[ItemType.Movie].Count + 7, ResourceCache.Count);
-            Assert.AreEqual(1, ResourceCache.Count);
+            Assert.AreEqual(25, ResourceCache.Count);
         }
 
         [TestMethod]
@@ -232,47 +188,6 @@ namespace MoviesTests.Data.TMDb
             Person.CREDITS,
             TMDB.POPULARITY
         };
-
-        [TestMethod]
-        public void saldjlksfdj()
-        {
-            var str = DUMMY_TMDB_DATA.HARRY_POTTER_AND_THE_DEATHLY_HALLOWS_PART_2_RESPONSE;
-            var bytes = Encoding.UTF8.GetBytes(str);
-
-            var watch = new System.Diagnostics.Stopwatch();
-            watch.Start();
-
-            int iterations = 10000;
-            for (int i = 0; i < iterations; i++)
-            {
-                //var json = JsonNode.Parse(bytes);
-                //var lsdjf = json["watch/providers"];
-
-                //var json = JsonDocument.Parse(str);
-                //var asdf = json.RootElement.TryGetProperty("budget", out var value);
-
-                //continue;
-                //if (i % 100 == 0) Print.Log(i, watch.Elapsed);
-                var index = new JsonIndex(bytes);
-                //var asdf = index.TryGetValue("budget", out _);
-                foreach (var kvp in index) { }
-
-                continue;
-
-                var reader = new Utf8JsonReader(bytes);
-                while (reader.Read())
-                {
-                    if (reader.TokenType == JsonTokenType.PropertyName && reader.GetString() == "title")
-                    {
-                        reader.Skip();
-                        break;
-                    }
-                }
-            }
-
-            watch.Stop();
-            var adsfsdf = watch.Elapsed;
-        }
 
         [TestMethod]
         public async Task AllTMDbResourcesAutomated()

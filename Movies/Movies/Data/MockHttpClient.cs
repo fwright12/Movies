@@ -241,7 +241,7 @@ namespace Movies
             {
                 Print.Log($"web request{(content != null ? " (mock)" : string.Empty)}: " + endpoint);
             }
-            CallHistory.Add(endpoint);
+            CallHistory.Add(request.RequestUri.IsAbsoluteUri ? request.RequestUri.PathAndQuery.TrimStart('/') : request.RequestUri.ToString());
 
             if (DebugConfig.SimulatedDelay > 0)
             {

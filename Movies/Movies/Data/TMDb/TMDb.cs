@@ -23,6 +23,8 @@ namespace Movies
         public static Region FALLBACK_REGION { get; set; } = new RegionInfo("US");
         public static bool ADULT { get; set; } = false;
 
+        public static readonly string APPEND_TO_RESPONSE = "append_to_response";
+
         public static string ISO_639_1 => LANGUAGE.Iso_639;
         public static string ISO_3166_1 => REGION.Iso_3166;
 
@@ -302,7 +304,7 @@ namespace Movies
 
         Task<Item> IAssignID<int>.GetItem(ItemType type, int id) => GetItem(type, id);
 
-        private static Dictionary<int, Collection> CollectionCache = new Dictionary<int, Collection>();
+        public static Dictionary<int, Collection> CollectionCache = new Dictionary<int, Collection>();
         private static readonly SemaphoreSlim CollectionCacheSemaphore = new SemaphoreSlim(1, 1);
 
         public static async Task<Collection> GetCollection(int id)

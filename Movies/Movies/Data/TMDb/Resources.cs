@@ -79,6 +79,17 @@ namespace Movies
             }
         }
 
+        public string RemoveVariables(Uri uri, out List<object> args)
+        {
+            var url = ResolveUrl(uri);
+
+            url = url.Split('?')[0];
+            url = string.Join('/', url.Split('/').Skip(1));
+            url = RemoveVariables(url, out args);
+
+            return url;
+        }
+
         public string RemoveVariables(string url, out List<object> args)
         {
             args = new List<object>();
@@ -117,12 +128,7 @@ namespace Movies
 
         public bool TryGetAnnotations(Uri uri, out KeyValuePair<TMDbRequest, List<Parser>> annotations)
         {
-            var url = ResolveUrl(uri);
-
-            url = url.Split('?')[0];
-            url = string.Join('/', url.Split('/').Skip(1));
-            url = RemoveVariables(url, out var args);
-
+            var url = RemoveVariables(uri, out _);
             return Annotations.TryGetValue(url, out annotations);
         }
 
@@ -328,6 +334,11 @@ namespace Movies
             {
                 return true;
             }
+            else if (TryGetAnnotations(uri, out var annotations))
+            {
+                request = annotations.Key;
+                return true;
+            }
 
             request = null;
             return false;
@@ -345,12 +356,19 @@ namespace Movies
         {
             args = new object[0];
 
-            if (uri is UniformItemIdentifier uii && TryGetRequest(uii, out request))
+            //if (uri is UniformItemIdentifier uii && TryGetRequest(uii, out request))
+            if (TryGetRequest(uri, out request))
             {
-                if (TMDB.TryGetParameters(uii.Item, out var temp))
+                if (uri is UniformItemIdentifier uii && TMDB.TryGetParameters(uii.Item, out var temp))
                 {
                     args = temp.ToArray();
                 }
+                else
+                {
+                    RemoveVariables(uri, out var args1);
+                    args = args1.ToArray();
+                }
+
                 return true;
             }
 
@@ -468,7 +486,7 @@ namespace Movies
 
         protected override async Task GetInternalAsync(MultiRestEventArgs args, ChainLinkEventHandler<MultiRestEventArgs> next) //=> HandleAsync(e, next, async e =>
         {
-            foreach (var e in args.Args)
+            foreach (var e in args.Unhandled)
             {
                 if (!IsCacheable(e.Uri))
                 {
@@ -722,6 +740,24 @@ namespace Movies
         }
     }
 
+    public class LocalController : Controller1
+    {
+        public IJsonCache Cache { get; }
+
+        public override async Task Send(IEnumerable<RestArgs> args)
+        {
+            foreach (var arg in args)
+            {
+                var response = await Cache.TryGetValueAsync(arg.Request.Uri.ToString());
+
+                if (response != null)
+                {
+                    arg.Handle(State.Create(await response.Content.ReadAsStringAsync()));
+                }
+            }
+        }
+    }
+
     public class TMDbController : HttpController
     {
         public TMDbResolver Resolver { get; }
@@ -827,14 +863,17 @@ namespace Movies
                     var url = value.Url;
                     var uri = new Uri(url, UriKind.Relative);
 
-                    value.Arg?.Handle(GetValue(request.Resources, uri), request.Uris);
+                    if (request.Resource is ResourceCollection collection)
+                    {
+                        value.Arg?.Handle(new ResourceCollection(GetValue(collection, uri), collection.Uris));
+                    }
                 }
             }
 
             return response;
         }
 
-        private static async Task<IReadOnlyDictionary<Uri, object>> GetValue(Task<IReadOnlyDictionary<Uri, object>> task, Uri key)
+        private static async Task<IReadOnlyDictionary<Uri, object>> GetValue(ResourceCollection task, Uri key)
         {
             var dict = await task;
 
@@ -872,7 +911,7 @@ namespace Movies
             }
         }
 
-        public override bool TryGetResource(Uri uri, out Resource resource)
+        public override bool TryGetConverter(Uri uri, out IHttpConverter<object> resource)
         {
             var url = Resolver.ResolveUrl(uri);
             var rawQuery = url.Split('?').LastOrDefault();
@@ -919,7 +958,7 @@ namespace Movies
             }
             else
             {
-                resource = new Resource(typeof(IReadOnlyDictionary<Uri, object>), new Converter((uri as DummyUri)?.Item, data));
+                resource = new Converter((uri as DummyUri)?.Item, data);
                 return true;
             }
         }
@@ -1435,12 +1474,12 @@ namespace Movies
             }
         };
 
-        public TMDbApi(HttpClient client, TMDbResolver resolver) : base(new BufferedHandler { InnerHandler = new MockHandler() }, resolver, AutoAppend) { }
+        public TMDbApi(HttpClient client, TMDbResolver resolver) : base(client, resolver, AutoAppend) { }
     }
 
     public class TMDbClient : ControllerLink//<HttpContent>
     {
-        //public HttpClient Client { get; }
+        public HttpMessageInvoker Client { get; }
         private TMDbResolver Resolver { get; }
 
         private static readonly ByteConverter ByteConverter = new ByteConverter(Encoding.UTF8);
@@ -1448,16 +1487,13 @@ namespace Movies
         private Dictionary<TMDbRequest, IEnumerable<TMDbRequest>> Appendable { get; }
         private Dictionary<TMDbRequest, TMDbRequest> AppendsTo { get; }
 
-        public TMDbClient(HttpClient client, TMDbResolver resolver, Dictionary<TMDbRequest, IEnumerable<TMDbRequest>> autoAppend = null)
+        public TMDbClient(HttpMessageHandler handler, TMDbResolver resolver, Dictionary<TMDbRequest, IEnumerable<TMDbRequest>> autoAppend = null) : this(new HttpMessageInvoker(handler), resolver, autoAppend) { }
+        public TMDbClient(HttpMessageInvoker client, TMDbResolver resolver, Dictionary<TMDbRequest, IEnumerable<TMDbRequest>> autoAppend = null)
         {
-
-        }
-
-        public TMDbClient(DelegatingHandler handler, TMDbResolver resolver, Dictionary<TMDbRequest, IEnumerable<TMDbRequest>> autoAppend = null) : base(handler)
-        {
+            Client = client;
             Resolver = resolver;
 
-            var kvps = autoAppend;// Enumerable.Empty<KeyValuePair<TMDbRequest, IEnumerable<TMDbRequest>>>();
+            var kvps = autoAppend ?? Enumerable.Empty<KeyValuePair<TMDbRequest, IEnumerable<TMDbRequest>>>();
             Appendable = new Dictionary<TMDbRequest, IEnumerable<TMDbRequest>>(kvps.Where(kvp => kvp.Key.SupportsAppendToResponse));
             AppendsTo = new Dictionary<TMDbRequest, TMDbRequest>();
 
@@ -1470,134 +1506,12 @@ namespace Movies
             }
         }
 
-        public override void Handle(MultiRestEventArgs e, ChainLinkEventHandler<MultiRestEventArgs> next)
-        {
-            //var parentCollectionWasRequested = new Lazy<bool>(() => e.Args.OfType<UniformItemIdentifier>().Any(uii => uii.Property == Movie.PARENT_COLLECTION));
-            var greedyUrls = e.Args.SelectMany(arg => GetUrlsGreedy(arg.Uri)).Distinct().ToArray();
-            var greedy = greedyUrls.Select(url => new RestRequestArgs(new Uri(url, UriKind.Relative)));
-            var args = e.Args.Concat(greedy);
-
-            var trie = new Dictionary<string, OldTrieValue>();
-            //var trie1 = new Trie<string, (string Url, string Path, string Query, RestRequestArgs Arg)>();
-
-            foreach (var arg in args)
-            {
-                //if (arg.Uri is UniformItemIdentifier uii && Resolver.TryGetRequest(uii, out var request))
-                var url = Resolver.ResolveUrl(arg.Uri);
-                var parts = url.Split('?');
-                AddToTrie(trie, parts[0], (url, parts[0], parts.Length > 1 ? parts[1] : string.Empty, arg));
-
-                //IEnumerable<string> keys = parts[0].Split('/');
-
-                //if (parts.Length > 1)
-                //{
-                //    keys = keys.Append(parts[1]);
-                //}
-
-                //var value = (url, parts[0], parts.Length > 1 ? parts[1] : string.Empty, arg);
-                //trie1.Add(value, keys.ToArray());
-            }
-
-            //IEnumerable<KeyValuePair<IEnumerable<string>, (string, string, string, RestRequestArgs)>> asdfasd = trie1;
-
-            var tasks = new List<Task>();
-
-            foreach (var kvp in trie)
-            {
-                var url = kvp.Key;
-                var paths = kvp.Value.Select(value => value.Path.Substring(url.Length).Trim('/')).ToArray();
-                var validPaths = paths.Where(path => !string.IsNullOrEmpty(path)).Distinct().ToArray();
-                var queries = kvp.Value.Select(value => value.Query).ToArray();
-
-                var query = CombineQueries(queries);
-                if (validPaths.Length > 0)
-                {
-                    if (!string.IsNullOrEmpty(query))
-                    {
-                        query += "&";
-                    }
-
-                    query += $"append_to_response={string.Join(',', validPaths)}";
-                }
-
-                if (!string.IsNullOrEmpty(query))
-                {
-                    url += "?" + query;
-                }
-
-                var json = GetResponse(e, url, kvp, paths);
-                tasks.Add(json);
-                e.Handle(kvp.Value.ToDictionary(info => info.Arg.Uri, info => Handle(json, info)));
-            }
-
-            //return Task.WhenAll(tasks);
-        }
-
-        private async Task<AnnotatedJson> GetResponse(MultiRestEventArgs e, string url, KeyValuePair<string, OldTrieValue> kvp, string[] paths)
-        {
-            var response = await Client.TrySendAsync(url);
-
-            if (response?.IsSuccessStatusCode == false)
-            {
-                return null;
-            }
-
-            var json = new AnnotatedJson(await response.Content.ReadAsByteArrayAsync());
-
-            if (e.Args.Select(arg => arg.Uri).OfType<UniformItemIdentifier>().FirstOrDefault()?.Item is Item item)
-            {
-                var values = Enumerable.Range(0, kvp.Value.Count).Select(i => (kvp.Value[i].Url, paths[i])).Distinct();
-
-                foreach (var value in values)
-                {
-                    var uri = value.Url;
-                    var path = value.Item2;
-                    var temp = string.IsNullOrEmpty(path) ? new string[0] : new string[] { path };
-
-                    json.Add(new Uri(uri, UriKind.Relative), temp);
-                    //json.Add(kvp.Value[i].Arg.Uri, temp);
-
-                    foreach (var annotation in Resolver.Annotate(uri, temp))
-                    {
-                        var uii = new UniformItemIdentifier(item, annotation.Key);
-                        json.Add(uii, annotation.Value);
-                    }
-                }
-            }
-
-            return json;
-        }
-
-        private async Task<ArraySegment<byte>> Handle(Task<AnnotatedJson> jsonTask, (string Url, string Path, string Query, Movies.RestRequestArgs Arg) value)
-        {
-            var json = await jsonTask;
-
-            if (json.TryGetValue(value.Arg.Uri, out var bytes))
-            {
-                if (value.Arg.Response == null)
-                {
-                    value.Arg.Handle(bytes);
-                }
-
-                if (!value.Arg.Handled && value.Arg.Response?.TryGetRepresentation<ArraySegment<byte>>(out var temp) == true && await Resolver.GetConverter(value.Arg.Uri, temp) is IConverter<ArraySegment<byte>> converter)
-                {
-                    //value.Arg.Handle(new AppendedContent(json, path));
-                    //value.Arg.Response.Add<string, byte[]>(ByteConverter);
-                    value.Arg.Handle(converter);
-                }
-
-                return bytes;
-            }
-
-            return default;
-        }
-
         protected override async Task GetInternalAsync(MultiRestEventArgs e, ChainLinkEventHandler<MultiRestEventArgs> next) //=> HandleAsync(e, next, async (IEnumerable<RestRequestArgs> e) =>
         {
             //var parentCollectionWasRequested = new Lazy<bool>(() => e.Args.OfType<UniformItemIdentifier>().Any(uii => uii.Property == Movie.PARENT_COLLECTION));
-            var greedyUrls = e.Args.SelectMany(arg => GetUrlsGreedy(arg.Uri)).Distinct().ToArray();
+            var greedyUrls = e.Unhandled.SelectMany(arg => GetUrlsGreedy(arg.Uri)).Distinct().ToArray();
             var greedy = greedyUrls.Select(url => new RestRequestArgs(new Uri(url, UriKind.Relative)));
-            var args = e.Args.Concat(greedy);
+            var args = e.Unhandled.Concat(greedy);
 
             var trie = new Dictionary<string, List<(string Url, string Path, string Query, RestRequestArgs Arg)>>();
             //var trie1 = new Trie<string, (string Url, string Path, string Query, RestRequestArgs Arg)>();
@@ -1650,20 +1564,21 @@ namespace Movies
                 {
                     //var json = Parse(response.Content, validPaths);
                     var json = new AnnotatedJson(await response.Content.ReadAsByteArrayAsync());
+                    var item = e.AllArgs.Select(arg => arg.Uri).OfType<UniformItemIdentifier>().FirstOrDefault()?.Item as Item;
 
-                    if (e.Args.Select(arg => arg.Uri).OfType<UniformItemIdentifier>().FirstOrDefault()?.Item is Item item)
+                    var values = Enumerable.Range(0, kvp.Value.Count).Select(i => (kvp.Value[i].Url, paths[i])).Distinct();
+
+                    foreach (var value in values)
                     {
-                        var values = Enumerable.Range(0, kvp.Value.Count).Select(i => (kvp.Value[i].Url, paths[i])).Distinct();
+                        var uri = value.Url;
+                        var path = value.Item2;
+                        var temp = string.IsNullOrEmpty(path) ? new string[0] : new string[] { path };
 
-                        foreach (var value in values)
+                        json.Add(new Uri(uri, UriKind.Relative), temp);
+                        //json.Add(kvp.Value[i].Arg.Uri, temp);
+
+                        if (item != null)
                         {
-                            var uri = value.Url;
-                            var path = value.Item2;
-                            var temp = string.IsNullOrEmpty(path) ? new string[0] : new string[] { path };
-
-                            json.Add(new Uri(uri, UriKind.Relative), temp);
-                            //json.Add(kvp.Value[i].Arg.Uri, temp);
-
                             foreach (var annotation in Resolver.Annotate(uri, temp))
                             {
                                 var uii = new UniformItemIdentifier(item, annotation.Key);
@@ -1699,7 +1614,7 @@ namespace Movies
 
         private IEnumerable<string> GetUrlsGreedy(Uri uri)
         {
-            if (Resolver.TryGetRequest(uri, out var request) && Resolver.TryResolve(uri, out _, out var args))
+            if (Resolver.TryResolve(uri, out var request, out var args))
             {
                 var original = request;
 

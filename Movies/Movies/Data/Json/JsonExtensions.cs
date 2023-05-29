@@ -9,8 +9,8 @@ namespace Movies
 {
     public static class JsonExtensions
     {
-        public static Task<JsonResponse> TryGetCachedAsync(this HttpClient client, string url, IJsonCache cache) => TryGetCachedAsync(client, new HttpRequestMessage(HttpMethod.Get, url), cache);
-        public static async Task<JsonResponse> TryGetCachedAsync(this HttpClient client, HttpRequestMessage request, IJsonCache cache)
+        public static Task<JsonResponse> TryGetCachedAsync(this HttpMessageInvoker client, string url, IJsonCache cache) => TryGetCachedAsync(client, new HttpRequestMessage(HttpMethod.Get, url), cache);
+        public static async Task<JsonResponse> TryGetCachedAsync(this HttpMessageInvoker client, HttpRequestMessage request, IJsonCache cache)
         {
             var url = request.RequestUri.ToString();
             var cached = await cache.TryGetValueAsync(url);
@@ -31,8 +31,8 @@ namespace Movies
             return response;
         }
 
-        public static Task<string> TryGetContentAsync(this HttpClient client, string url) => TryGetContentAsync(client, new HttpRequestMessage(HttpMethod.Get, url));
-        public static async Task<string> TryGetContentAsync(this HttpClient client, HttpRequestMessage request)
+        public static Task<string> TryGetContentAsync(this HttpMessageInvoker client, string url) => TryGetContentAsync(client, new HttpRequestMessage(HttpMethod.Get, url));
+        public static async Task<string> TryGetContentAsync(this HttpMessageInvoker client, HttpRequestMessage request)
         {
             var response = await TrySendAsync(client, request);
 
@@ -44,12 +44,12 @@ namespace Movies
             return null;
         }
 
-        public static Task<HttpResponseMessage> TryGetAsync(this HttpClient client, string url) => TrySendAsync(client, url);
-        public static Task<HttpResponseMessage> TryPostAsync(this HttpClient client, string url, string content) => TrySendAsync(client, url, content, HttpMethod.Post);
+        public static Task<HttpResponseMessage> TryGetAsync(this HttpMessageInvoker client, string url) => TrySendAsync(client, url);
+        public static Task<HttpResponseMessage> TryPostAsync(this HttpMessageInvoker client, string url, string content) => TrySendAsync(client, url, content, HttpMethod.Post);
 
-        public static Task<HttpResponseMessage> TrySendAsync(this HttpClient client, string url, string content, HttpMethod method = null) => TrySendAsync(client, url, new StringContent(content, Encoding.UTF8, "application/json"), method);
+        public static Task<HttpResponseMessage> TrySendAsync(this HttpMessageInvoker client, string url, string content, HttpMethod method = null) => TrySendAsync(client, url, new StringContent(content, Encoding.UTF8, "application/json"), method);
 
-        public static Task<HttpResponseMessage> TrySendAsync(this HttpClient client, string url, HttpContent content = null, HttpMethod method = null)
+        public static Task<HttpResponseMessage> TrySendAsync(this HttpMessageInvoker client, string url, HttpContent content = null, HttpMethod method = null)
         {
             var request = new HttpRequestMessage
             {
@@ -67,11 +67,11 @@ namespace Movies
             return TrySendAsync(client, request);
         }
 
-        public static async Task<HttpResponseMessage> TrySendAsync(this HttpClient client, HttpRequestMessage request)
+        public static async Task<HttpResponseMessage> TrySendAsync(this HttpMessageInvoker client, HttpRequestMessage request)
         {
             try
             {
-                return await client.SendAsync(request);
+                return await client.SendAsync(request, default);
             }
             catch (HttpRequestException)
             {

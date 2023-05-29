@@ -22,7 +22,7 @@ namespace MoviesTests.Data.TMDb
         {
             var uii = new UniformItemIdentifier(Constants.Movie, Media.RUNTIME);
             var e = new RestArgs(new RestRequest(HttpMethod.Get, uii));
-            
+
             await Controller.Send(e);
             Assert.IsTrue(e.Handled);
 
@@ -78,6 +78,51 @@ namespace MoviesTests.Data.TMDb
     }
 
     [TestClass]
+    public class TMDbHttpTests
+    {
+        private List<string> CallHistory => MockHandler.CallHistory;
+        private HttpMessageInvoker Invoker { get; }
+
+        public TMDbHttpTests()
+        {
+            Invoker = new HttpMessageInvoker(new BufferedHandler(new MockHandler()));
+        }
+
+        [TestInitialize]
+        public void ClearCallHistory()
+        {
+            CallHistory.Clear();
+        }
+
+        [TestMethod]
+        public async Task SingleDetailsRequest()
+        {
+            var message = new HttpRequestMessage(HttpMethod.Get, "3/movie/0?language=en-US");
+            var response = await Invoker.SendAsync(message, default);
+
+            Assert.IsTrue(response.IsSuccessStatusCode);
+            Assert.AreEqual(1, CallHistory.Count);
+            Assert.AreEqual("3/movie/0?language=en-US", CallHistory.Last());
+        }
+
+        [TestMethod]
+        public async Task BufferedGetRequests()
+        {
+            var first = new HttpRequestMessage(HttpMethod.Get, "3/movie/0?language=en-US");
+            var second = new HttpRequestMessage(HttpMethod.Get, "3/movie/0?language=en-US");
+
+            var tasks = new List<Task>
+            {
+                Invoker.SendAsync(first, default),
+                Invoker.SendAsync(second, default)
+            };
+            await Task.WhenAll(tasks);
+
+            Assert.AreEqual(1, CallHistory.Count);
+        }
+    }
+
+    [TestClass]
     public class TMDbClientTests
     {
         private List<string> CallHistory => MockHandler.CallHistory;
@@ -86,7 +131,7 @@ namespace MoviesTests.Data.TMDb
 
         public TMDbClientTests()
         {
-            Client = new TMDbClient(TMDB.WebClient, new TMDbResolver(TMDB.ITEM_PROPERTIES));
+            Client = new TMDbClient(new BufferedHandler(new TMDbBufferedHandler(new MockHandler())), new TMDbResolver(TMDB.ITEM_PROPERTIES));
             Controller = new Controller().AddLast(Client);
         }
 
@@ -145,7 +190,7 @@ namespace MoviesTests.Data.TMDb
                 var args = await Controller.Get(urls.ToArray());
 
                 AssertHandled(args);
-                Assert.AreEqual(1, CallHistory.Count, string.Join('\n', urls));
+                Assert.AreEqual(1, CallHistory.Count, "\n" + string.Join('\n', urls));
 
                 urls.Add(urls.First());
                 urls.RemoveAt(0);
@@ -188,10 +233,13 @@ namespace MoviesTests.Data.TMDb
         }
 
         [TestMethod]
-        public async Task BufferedGetRequests()
+        public async Task ApiRequestsBuffered()
         {
-            var url = "3/movie/0?language=en-US";
-            await Task.WhenAll(Controller.Get(url), Controller.Get(url));
+            await Task.WhenAll(new List<Task>
+            {
+                Controller.Get("3/tv/0?language=en-US&append_to_response=aggregate_credits,content_ratings,keywords,recommendations,videos,watch/providers"),
+                Controller.Get("3/tv/0?language=en-US&append_to_response=keywords,watch/providers")
+            });
 
             Assert.AreEqual(1, CallHistory.Count);
         }

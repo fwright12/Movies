@@ -12,6 +12,7 @@ using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Web;
 using static Xamarin.Essentials.AppleSignInAuthenticator;
 
 namespace Movies
@@ -337,10 +338,11 @@ namespace Movies
 
             var response = base.SendAsync(request, cancellationToken);
             Buffer.Add(uri, response);
+            response.ContinueWith(res => Buffer.Remove(uri));
             return response;
         }
 
-        private async Task<HttpResponseMessage> RespondBuffered(Task<HttpResponseMessage> buffered)
+        public static async Task<HttpResponseMessage> RespondBuffered(Task<HttpResponseMessage> buffered)
         {
             var response = await buffered;
             var request = response.RequestMessage;
@@ -362,6 +364,67 @@ namespace Movies
         }
     }
 
+    public class TMDbBufferedHandler : DelegatingHandler
+    {
+        private Dictionary<Uri, List<(ISet<string> Appended, Task<HttpResponseMessage> Response)>> Buffer = new Dictionary<Uri, List<(ISet<string> Appended, Task<HttpResponseMessage> Response)>>();
+
+        public TMDbBufferedHandler() : base() { }
+        public TMDbBufferedHandler(HttpMessageHandler innerHandler) : base(innerHandler) { }
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            var parts = request.RequestUri.ToString().Split('?');
+            var query = HttpUtility.ParseQueryString(parts.LastOrDefault() ?? string.Empty);
+            var append = query.GetValues(TMDB.APPEND_TO_RESPONSE);
+
+            if (append != null)
+            {
+                var set = append.SelectMany(value => value.Replace(" ", "").Split(",")).ToHashSet();
+                query.Remove(TMDB.APPEND_TO_RESPONSE);
+
+                var url = parts[0];
+                if (query.Count > 0)
+                {
+                    url += "?" + query.ToString();
+                }
+
+                var uri = new Uri(url, UriKind.Relative);
+                if (Buffer.TryGetValue(uri, out var list))
+                {
+                    foreach (var pair in list)
+                    {
+                        if (set.IsSubsetOf(pair.Appended))
+                        {
+                            return BufferedHandler.RespondBuffered(pair.Response);
+                        }
+                    }
+                }
+                else
+                {
+                    Buffer.Add(uri, list = new List<(ISet<string> Appended, Task<HttpResponseMessage> Response)>());
+                }
+
+                var response = base.SendAsync(request, cancellationToken);
+                var value = (set, response);
+
+                list.Add(value);
+                response.ContinueWith(res =>
+                {
+                    list.Remove(value);
+                    
+                    if (list.Count == 0)
+                    {
+                        Buffer.Remove(uri);
+                    }
+                });
+
+                return response;
+            }
+
+            return base.SendAsync(request, cancellationToken);
+        }
+    }
+
     public interface IConvertTo<out T>
     {
         T Convert(object value);
@@ -380,15 +443,9 @@ namespace Movies
     public class Resource
     {
         public Type Type { get; }
-        public Task Task { get; }
-        //public IHttpConverter<object> Converter { get; }
+        private Task Task { get; }
 
-        public Resource(Type type, IHttpConverter<object> converter)
-        {
-            Type = type;
-        }
-
-        public Resource(Type type, Task task, IHttpConverter<object> converter)
+        public Resource(Type type, Task task)
         {
             Type = type;
             Task = task;
@@ -401,14 +458,24 @@ namespace Movies
 
     public class Resource<T> : Resource
     {
-        new public Task<T> Task { get; }
+        private Task<T> Task { get; }
 
-        public Resource(Type type, IHttpConverter<object> converter) : base(type, converter)
+        public Resource(Task<T> task) : base(typeof(T), task)
         {
-            
+            Task = task;
         }
 
-        public TaskAwaiter<T> GetAwaiter() => Task.GetAwaiter();
+        new public TaskAwaiter<T> GetAwaiter() => Task.GetAwaiter();
+    }
+
+    public class ResourceCollection : Resource<IReadOnlyDictionary<Uri, object>>
+    {
+        public IEnumerable<Uri> Uris { get; }
+
+        public ResourceCollection(Task<IReadOnlyDictionary<Uri, object>> task, IEnumerable<Uri> uris) : base(task)
+        {
+            Uris = uris;
+        }
     }
 
     public abstract class HttpResourceCollectionConverter : IHttpConverter<IReadOnlyDictionary<Uri, object>>, IHttpConverter<object>
