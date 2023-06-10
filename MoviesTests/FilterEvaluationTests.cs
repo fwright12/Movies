@@ -16,7 +16,7 @@
 
         private static JsonResponse EmptyJSON = new JsonResponse(string.Empty);
 
-        private IJsonCache PersistentCache = new DummyJsonCache
+        private IJsonCache PersistentCache = new DummyCache
         {
             { API.MOVIES.GET_WATCH_PROVIDERS.GetURL(), EmptyJSON },
             { API.TV.GET_WATCH_PROVIDERS.GetURL(), EmptyJSON },
@@ -25,7 +25,7 @@
 
         public FilterEvaluationTests()
         {
-            new TMDB(string.Empty, string.Empty, new DummyJsonCache());
+            new TMDB(string.Empty, string.Empty, new DummyCache());
         }
 
         [TestMethod]

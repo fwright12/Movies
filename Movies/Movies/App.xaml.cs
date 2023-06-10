@@ -225,7 +225,11 @@ namespace Movies
                 {
                     ChangeKeys = new ListAsyncWrapper<string>(GetChangeKeys())
                 })
-                .AddLast(new TMDbClient(TMDB.WebClient, resolver));
+                .AddLast(new TMDbClient(TMDB.WebClient, resolver, TMDbApi.AutoAppend));
+
+            var client = new TMDbClient(TMDB.WebClient, resolver, TMDbApi.AutoAppend);
+            var chain = new ChainLinkAsync<MultiRestEventArgs>(new ResourceCache().GetAsync);
+            chain.SetNext(new CacheAsideLink(client.GetAsync, client.PutAsync));
 
             //var inMemory = new ResourceCache();
             //var local = new LocalResources(LocalDatabase.ItemCache);

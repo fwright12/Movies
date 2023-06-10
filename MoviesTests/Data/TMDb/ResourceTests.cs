@@ -6,37 +6,47 @@ namespace MoviesTests.Data.TMDb
     [TestClass]
     public class ResourceTests
     {
-        private readonly Dictionary<ItemType, List<Property>> ItemProperties = new Dictionary<ItemType, List<Property>>
-        {
-            [ItemType.Movie] = GetProperties(typeof(Media)).Concat(GetProperties(typeof(Movie))).Append(TMDB.POPULARITY).ToList()
-        };
+        private Controller Controller { get; }
+        private TMDbResolver Resolver { get; }
+
+        private ResourceCache ResourceCache { get; }
+        private TMDbLocalResources TMDbLocalResources { get; }
+        private TMDbClient Client { get; }
+
+        private DummyCache JsonCache { get; }
+        private HttpMessageInvoker Invoker { get; }
 
         private List<string> CallHistory => MockHandler.CallHistory;
-
-        private TMDbResolver Resolver { get; }
-        private Controller Controller;
-        private ResourceCache ResourceCache;
-        private TMDbLocalResources TMDbLocalResources;
-        private TMDbClient TMDbClient;
-        private DummyJsonCache JsonCache;
-
-        private HttpMessageInvoker Invoker;
 
         public ResourceTests()
         {
             Resolver = new TMDbResolver(TMDB.ITEM_PROPERTIES);
-            JsonCache = new DummyJsonCache();
+            JsonCache = new DummyCache();
             Invoker = new HttpMessageInvoker(new BufferedHandler(new TMDbBufferedHandler(new MockHandler())));
 
-            //TMDbLocalHandler = new BufferedHandler(new TMDbLocalHandler(JsonCache, Resolver) { InnerHandler = ChainEndHandler.Instance, ChangeKeys = TestsConfig.ChangeKeys });
-            //TMDbRemoteHandler = new TMDbReroutingHandler(new BufferedHandler(new TMDbBatchHandler(new InvokerHandlerWrapper(TMDB.WebClient), Resolver)), Resolver, TMDbApi.AutoAppend);
-            
-            //Invoker = new HttpMessageInvoker(new CacheHandler(TMDbLocalHandler)
-            //{
-            //    InnerHandler = TMDbRemoteHandler
-            //});
+            Controller = new Controller()
+                .AddLast(ResourceCache = new ResourceCache())
+                .AddLast(TMDbLocalResources = new TMDbLocalResources(JsonCache = new DummyCache(), Resolver)
+                {
+                    ChangeKeys = TestsConfig.ChangeKeys
+                })
+                .AddLast(Client = new TMDbClient(Invoker, Resolver, TMDbApi.AutoAppend));
 
-            DebugConfig.LOG_WEB_REQUESTS = true;
+            var tmdb = new TMDbReadHandler(Invoker, Resolver, TMDbApi.AutoAppend);
+            var local = new LocalTMDbDatastore(JsonCache, Resolver)
+            {
+                ChangeKeys = TestsConfig.ChangeKeys
+            };
+
+            Controller = new Controller(new CacheAsideLink(ResourceCache));
+            //Controller = new Controller(new CacheAsideLink(e => ResourceCache.GetAsync(e, null), e => ResourceCache.PutAsync(e, null)));
+            //Controller = new Controller().AddLast(ResourceCache = new ResourceCache());
+            Controller.GetChain
+                //.SetNext(new ChainLinkAsync<MultiRestEventArgs>(TMDbLocalResources.GetAsync))
+                //.SetNext(new CacheAsideLink(e => TMDbLocalResources.GetAsync(e, null), e => TMDbLocalResources.PutAsync(e, null)))
+                .SetNext(new CacheAsideLink(local, new TMDbLocalHandlers(local, Resolver).HandleAsync))
+                //.SetNext(new ChainLinkAsync<MultiRestEventArgs>(Client.GetAsync));
+                .SetNext(new ChainLinkAsync<MultiRestEventArgs>(tmdb.HandleAsync));
         }
 
         [TestInitialize]
@@ -45,27 +55,6 @@ namespace MoviesTests.Data.TMDb
             CallHistory.Clear();
             JsonCache.Clear();
             TMDB.CollectionCache.Clear();
-
-            Controller = new Controller()
-                .AddLast(ResourceCache = new ResourceCache())
-                .AddLast(TMDbLocalResources = new TMDbLocalResources(JsonCache = new DummyJsonCache(), Resolver)
-                {
-                    ChangeKeys = TestsConfig.ChangeKeys
-                })
-                .AddLast(TMDbClient = new TMDbClient(Invoker, Resolver, TMDbApi.AutoAppend));;
-
-            return;
-            Controller = new Controller()
-                //.AddLast(new TMDbClient(new TMDbLocalHandler(JsonCache = new DummyJsonCache(), Resolver), Resolver, TMDbApi.AutoAppend))
-                .AddLast(new TMDbApi(TMDB.WebClient, Resolver));
-            
-            //Controller = new Controller()
-            //    .AddLast(ResourceCache = new ResourceCache())
-            //    .AddLast(TMDbLocalResources = new TMDbLocalResources(JsonCache = new DummyJsonCache(), Resolver)
-            //    {
-            //        ChangeKeys = TestsConfig.ChangeKeys
-            //    })
-            //    .AddLast(TMDbClient = new TMDbClient(TMDB.WebClient, Resolver));
         }
 
         [TestMethod]
@@ -149,16 +138,14 @@ namespace MoviesTests.Data.TMDb
         [TestMethod]
         public async Task RepeatedRequestsAreCached()
         {
-            RestRequestArgs[] GetAllRequests() => ItemProperties[ItemType.Movie]
-                .Select(property => new RestRequestArgs(new UniformItemIdentifier(Constants.Movie, property)))
-                .ToArray();
+            RestRequestArgs[] getAllRequests() => GetAllRequests(AllMovieProperties().Except(new Property[] { Movie.PARENT_COLLECTION }));
 
-            var requests = GetAllRequests();
+            var requests = getAllRequests();
             await Task.WhenAll(Controller.Get(requests));
             Assert.AreEqual(1, CallHistory.Count);
 
             // No additional api calls should be made, everything should be cached in memory
-            await Task.WhenAll(Controller.Get(requests = GetAllRequests()));
+            await Task.WhenAll(Controller.Get(requests = getAllRequests()));
             Assert.AreEqual(1, CallHistory.Count);
 
             // These properties should result in another api call because they don't cache
@@ -176,6 +163,29 @@ namespace MoviesTests.Data.TMDb
                 Assert.AreEqual(1, CallHistory.Count);
             }
         }
+
+        [TestMethod]
+        public async Task GetAllResources()
+        {
+            await ResourceCache.PutAsync(new UniformItemIdentifier(Constants.Movie, Media.RUNTIME), new TimeSpan(2, 10, 0));
+
+            var requests = GetAllRequests();
+            await Task.WhenAll(Controller.Get(requests));
+
+            var runtime = requests.Where(request => (request.Uri as UniformItemIdentifier)?.Property == Media.RUNTIME).FirstOrDefault();
+            var watchProviders = requests.Where(request => (request.Uri as UniformItemIdentifier)?.Property == Movie.WATCH_PROVIDERS).FirstOrDefault();
+
+            Assert.AreEqual(2, CallHistory.Count);
+            Assert.AreEqual(new TimeSpan(2, 10, 0), runtime.Response?.TryGetRepresentation<TimeSpan?>(out var value) == true ? value : null);
+            Assert.AreEqual("Apple iTunes", watchProviders.Response?.TryGetRepresentation<IEnumerable<WatchProvider>>(out var value1) == true ? value1.FirstOrDefault()?.Company.Name : null);
+        }
+
+        private Property[] AllMovieProperties() => GetProperties(typeof(Media)).Concat(GetProperties(typeof(Movie))).Append(TMDB.POPULARITY).ToArray();
+
+        private RestRequestArgs[] GetAllRequests() => GetAllRequests(AllMovieProperties());
+        private RestRequestArgs[] GetAllRequests(IEnumerable<Property> properties) => properties
+                        .Select(property => new RestRequestArgs(new UniformItemIdentifier(Constants.Movie, property), property.FullType))
+                        .ToArray();
 
         private static readonly IReadOnlySet<Property> NO_CHANGE_KEY = new HashSet<Property>
         {

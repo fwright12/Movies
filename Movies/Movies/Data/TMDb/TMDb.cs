@@ -55,11 +55,11 @@ namespace Movies
 
             //Config = Client.GetConfigAsync();
 #if DEBUG && true
-            WebClient = new HttpClient(new MockHandler())
+            WebClient = new HttpClient(new BufferedHandler(new TMDbBufferedHandler(new MockHandler())))
             {
                 BaseAddress = new Uri("https://mock.themoviedb/"),
 #else
-            WebClient = new HttpClient
+            WebClient = new HttpClient(new BufferedHandler(new TMDbBufferedHandler()))
             {
                 BaseAddress = new Uri(BASE_ADDRESS),
 #endif
@@ -241,7 +241,7 @@ namespace Movies
 
         private static void CacheItem(Item item, JsonNode json, IEnumerable<Parser> parsers)
         {
-            var dict = Data.GetDetails(item);
+            //var dict = Data.GetDetails(item);
 
             foreach (var parser in parsers)
             {
@@ -250,7 +250,7 @@ namespace Movies
                     if (item is TVShow show && json["seasons"] is JsonArray array)
                     {
                         var items = ParseCollection(array, new JsonNodeParser<TVSeason>((JsonNode json, out TVSeason season) => TMDB.TryParseTVSeason(json, show, out season)));
-                        dict.Add(TVShow.SEASONS, Task.FromResult(items));
+                        //dict.Add(TVShow.SEASONS, Task.FromResult(items));
 
                         Data.ResourceCache.Put(new UniformItemIdentifier(item, TVShow.SEASONS), items);
                     }
@@ -260,14 +260,14 @@ namespace Movies
                     if (item is TVSeason season && json["episodes"] is JsonArray array)
                     {
                         var items = ParseCollection(array, new JsonNodeParser<TVEpisode>((JsonNode json, out TVEpisode episode) => TMDB.TryParseTVEpisode(json, season, out episode)));
-                        dict.Add(TVSeason.EPISODES, Task.FromResult(items));
+                        //dict.Add(TVSeason.EPISODES, Task.FromResult(items));
 
                         Data.ResourceCache.Put(new UniformItemIdentifier(item, TVSeason.EPISODES), items);
                     }
                 }
                 else if (parser is IJsonParser<PropertyValuePair> pvp && pvp.TryGetValue(json, out var pair))
                 {
-                    dict.Add(pair);
+                    //dict.Add(pair);
                     //dict.Add(parser.GetPair(Task.FromResult(property.Value)));
                     //break;
 
