@@ -3,7 +3,7 @@ using System.Net.Http;
 
 namespace Movies
 {
-    public class TMDbApi : TMDbClient
+    public class TMDbApi
     {
         public static readonly Dictionary<TMDbRequest, IEnumerable<TMDbRequest>> AutoAppend = new Dictionary<TMDbRequest, IEnumerable<TMDbRequest>>
         {
@@ -39,6 +39,6 @@ namespace Movies
             }
         };
 
-        public TMDbApi(HttpClient client, TMDbResolver resolver) : base(client, resolver, AutoAppend) { }
+        public TMDbApi(HttpClient client, TMDbResolver resolver) { }
     }
 }

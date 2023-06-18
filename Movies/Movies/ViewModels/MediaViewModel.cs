@@ -38,7 +38,11 @@ namespace Movies.ViewModels
         public override string PrimaryImagePath => RequestValue(Media.TRAILER_PATH);
         public string PosterPath => RequestValue(Media.POSTER_PATH);
         public string BackdropPath => RequestValue(Media.BACKDROP_PATH);
+#if DEBUG
+        public string TrailerPath => null;
+#else
         public string TrailerPath => RequestValue(Media.TRAILER_PATH);
+#endif
         //public override string PrimaryImagePath => TrailerPath;
 
         public IEnumerable<Rating> Ratings => RequestValue(Media.RATING) is Rating rating ? new List<Rating> { rating } : null;

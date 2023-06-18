@@ -26,4 +26,9 @@
             return TMDb.ChangeKeys;
         }
     }
+
+    public class Resources
+    {
+        protected List<string> WebHistory => MockHandler.CallHistory;
+    }
 }

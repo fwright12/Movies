@@ -1,13 +1,16 @@
 ﻿using SQLite;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Net;
+using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace Movies
 {
-    public class ItemInfoCache : IJsonCache, IAsyncEnumerable<KeyValuePair<string, JsonResponse>>
+    public class ItemInfoCache : IJsonCache, IDataStore<Uri, State>, IAsyncEnumerable<KeyValuePair<string, JsonResponse>>
     {
         public static readonly Table.Column ID = new Table.Column("id", "integer");
         public static readonly Table.Column TYPE = new Table.Column("type", "integer");
@@ -71,11 +74,11 @@ namespace Movies
             Batch = ExecuteBatched(CancelBatch.Token);
         }
 
-        private List<Task<IEnumerable<object>>> BatchInsert = new List<Task<IEnumerable<object>>>();
+        private List<(ItemType Type, int ID, string Url, Task<JsonResponse> Response)> BatchInsert = new List<(ItemType Type, int ID, string Url, Task<JsonResponse> Response)>();
 
-        private void InsertBatched(params object[] args) => InsertBatched(Task.FromResult<IEnumerable<object>>(args));
+        //private void InsertBatched(params object[] args) => InsertBatched(Task.FromResult<IEnumerable<object>>(args));
 
-        private void InsertBatched(Task<IEnumerable<object>> args)
+        private void InsertBatched((ItemType, int, string, Task<JsonResponse>) args)
         {
             CancelBatch?.Cancel();
             CancelBatch = new CancellationTokenSource();
@@ -103,7 +106,7 @@ namespace Movies
             CancelBatch?.Cancel();
 
             var cols = string.Join(", ", SQLJsonCache.URL, SQLJsonCache.RESPONSE, SQLJsonCache.TIMESTAMP, TYPE, ID);
-            var rows = await Task.WhenAll(BatchInsert);
+            var rows = await Task.WhenAll(BatchInsert.Select(Unwrap));
             var values = string.Join(", ", rows.Select(row => "(" + string.Join(", ", Enumerable.Repeat("?", row.Count())) + ")"));
             var query = $"insert or replace into {(await Cache).Table} ({cols}) values {values}";
 
@@ -115,7 +118,7 @@ namespace Movies
             Print.Log($"flushed {rows.Length} items");
         }
 
-        async Task IJsonCache.AddAsync(string url, JsonResponse response) => InsertBatched(url, await response.Content.ReadAsByteArrayAsync(), response.Timestamp, 0, 0);
+        async Task IJsonCache.AddAsync(string url, JsonResponse response) => InsertBatched((0, 0, url, Task.FromResult(response)));
 
         public Task AddAsync(ItemType type, int id, string url, JsonResponse response) => AddAsync(type, id, url, Task.FromResult(response));
         public async Task AddAsync(ItemType type, int id, string url, Task<JsonResponse> response)
@@ -124,7 +127,7 @@ namespace Movies
             //var cols = InsertCols(SQLJsonCache.URL, SQLJsonCache.RESPONSE, SQLJsonCache.TIMESTAMP, TYPE, ID);
             //ExecuteBatched($"insert into {cache.Table} {cols}", url, response.Json, response.Timestamp, (int)type, id);
             //InsertBatched(url, response.Json, response.Timestamp, (int)type, id);
-            InsertBatched(Unwrap(url, response, type, id));
+            InsertBatched((type, id, url, response));
 
             if (BatchInsert.Count >= MAX_BATCH_SIZE)
             {
@@ -135,10 +138,10 @@ namespace Movies
             //await cache.DB.ExecuteAsync($"update {cache.Table} set {TYPE} = ?, {ID} = ? where {SQLJsonCache.URL} = ?", (int)type, id, url);
         }
 
-        private static async Task<IEnumerable<object>> Unwrap(string url, Task<JsonResponse> response, ItemType type, int id)
+        private static async Task<IEnumerable<object>> Unwrap((ItemType type, int id, string url, Task<JsonResponse> response) item)
         {
-            var json = await response;
-            return new object[] { url, await json.Content.ReadAsByteArrayAsync(), json.Timestamp, (int)type, id };
+            var json = await item.response;
+            return new object[] { item.url, await json.Content.ReadAsByteArrayAsync(), json.Timestamp, (int)item.type, item.id };
         }
 
         public async Task Clear() => await (await Cache).Clear();
@@ -207,6 +210,58 @@ namespace Movies
             await foreach (var value in cache)
             {
                 yield return value;
+            }
+        }
+
+        public Task<bool> CreateAsync(Uri key, State value) => UpdateAsync(key, value);
+
+        public async Task<State> ReadAsync(Uri key)
+        {
+            var response = await TryGetValueAsync(key.ToString());
+
+            if (response == null)
+            {
+                return null;
+            }
+
+            return State.Create(await response.Content.ReadAsByteArrayAsync());
+        }
+
+        public async Task<bool> UpdateAsync(Uri key, State updatedValue)
+        {
+            if (!updatedValue.TryGetRepresentation<IEnumerable<byte>>(out var bytes))
+            {
+                return false;
+            }
+
+            await AddAsync(ItemType.Movie, 0, key.ToString(), new JsonResponse(new LazyContent(bytes)));
+            return true;
+        }
+
+        public Task<State> DeleteAsync(Uri key)
+        {
+            throw new NotImplementedException();
+        }
+
+        private class LazyContent : System.Net.Http.HttpContent
+        {
+            public IEnumerable<byte> Bytes { get; }
+
+            public byte[] ByteArray => _Bytes ??= Bytes as byte[] ?? Bytes.ToArray();
+
+            private byte[] _Bytes = null;
+
+            public LazyContent(IEnumerable<byte> bytes)
+            {
+                Bytes = bytes;
+            }
+
+            protected override async Task SerializeToStreamAsync(Stream stream, TransportContext context) => await stream.WriteAsync(ByteArray);
+
+            protected override bool TryComputeLength(out long length)
+            {
+                length = ByteArray.Length;
+                return true;
             }
         }
     }

@@ -145,7 +145,7 @@ namespace Movies
                 var arg = pair.Item2;
 
                 var parts = url.Split('?');
-                TMDbClient.AddToTrie(trie, parts[0], (url, parts[0], parts.Length > 1 ? parts[1] : string.Empty, arg));
+                //TMDbClient.AddToTrie(trie, parts[0], (url, parts[0], parts.Length > 1 ? parts[1] : string.Empty, arg));
             }
 
             foreach (var kvp in trie)

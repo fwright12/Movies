@@ -9,7 +9,7 @@ namespace Movies
 
         public static bool AllowLiveRequests = false;
         public static bool BreakOnRequest = true;
-        public static int SimulatedDelay = 0;
+        public static int SimulatedDelay { get; set; } = 0;
 
         public static void Breakpoint(object arg1)
         {

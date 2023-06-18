@@ -125,7 +125,9 @@ namespace Movies.Models
 
         public static async Task<bool> Evaluate(Item item, FilterPredicate filter)//, PropertyDictionary properties = null, ItemInfoCache cache = null)
         {
+#if DEBUG
             //var details = new Lazy<PropertyDictionary>(() => DataService.Instance.GetDetails(item));
+#endif
             var predicates = DefferedPredicates(filter, DataService.Instance.GetDetails(item), PersistentCache).GetAsyncEnumerator();
 
             object lhs = ViewModels.CollectionViewModel.ITEM_TYPE;
@@ -150,9 +152,11 @@ namespace Movies.Models
                     return false;
                 }
 
-                if (await predicates.MoveNextAsync() && predicates.Current.LHS is Property property)// && details.Value.TryGetValue(FixProperty(item, property), out var task))
+#if true
+                if (await predicates.MoveNextAsync() && predicates.Current.LHS is Property property)
                 {
                     lhs = property;
+
                     try
                     {
                         property = FixProperty(item, property);
@@ -163,7 +167,6 @@ namespace Movies.Models
                         {
                             return false;
                         }
-                        //value = await task;
                     }
                     catch
                     {
@@ -174,6 +177,25 @@ namespace Movies.Models
                 {
                     return false;
                 }
+#else
+                if (await predicates.MoveNextAsync() && predicates.Current.LHS is Property property && details.Value.TryGetValue(FixProperty(item, property), out var task))
+                {
+                    lhs = property;
+                    try
+                    {
+                        property = FixProperty(item, property);
+                        value = await task;
+                    }
+                    catch
+                    {
+                        return false;
+                    }
+                }
+                else
+                {
+                    return false;
+                }
+#endif
             }
         }
 

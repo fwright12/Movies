@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading;
@@ -8,7 +9,7 @@ namespace Movies
 {
     public class BufferedHandler : DelegatingHandler
     {
-        private Dictionary<Uri, Task<HttpResponseMessage>> Buffer = new Dictionary<Uri, Task<HttpResponseMessage>>();
+        private ConcurrentDictionary<Uri, Task<HttpResponseMessage>> Buffer = new ConcurrentDictionary<Uri, Task<HttpResponseMessage>>();
 
         public BufferedHandler() : base() { }
         public BufferedHandler(HttpMessageHandler innerHandler) : base(innerHandler) { }
@@ -22,8 +23,8 @@ namespace Movies
             }
 
             var response = base.SendAsync(request, cancellationToken);
-            Buffer.Add(uri, response);
-            response.ContinueWith(res => Buffer.Remove(uri));
+            Buffer.TryAdd(uri, response);
+            response.ContinueWith(res => Buffer.Remove(uri, out _));
             return response;
         }
 

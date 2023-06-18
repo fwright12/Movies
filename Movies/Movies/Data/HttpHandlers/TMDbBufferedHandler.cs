@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
@@ -10,7 +11,7 @@ namespace Movies
 {
     public class TMDbBufferedHandler : DelegatingHandler
     {
-        private Dictionary<Uri, List<(ISet<string> Appended, Task<HttpResponseMessage> Response)>> Buffer = new Dictionary<Uri, List<(ISet<string> Appended, Task<HttpResponseMessage> Response)>>();
+        private ConcurrentDictionary<Uri, List<(ISet<string> Appended, Task<HttpResponseMessage> Response)>> Buffer = new ConcurrentDictionary<Uri, List<(ISet<string> Appended, Task<HttpResponseMessage> Response)>>();
 
         public TMDbBufferedHandler() : base() { }
         public TMDbBufferedHandler(HttpMessageHandler innerHandler) : base(innerHandler) { }
@@ -45,7 +46,7 @@ namespace Movies
                 }
                 else
                 {
-                    Buffer.Add(uri, list = new List<(ISet<string> Appended, Task<HttpResponseMessage> Response)>());
+                    Buffer.TryAdd(uri, list = new List<(ISet<string> Appended, Task<HttpResponseMessage> Response)>());
                 }
 
                 var response = base.SendAsync(request, cancellationToken);
@@ -58,7 +59,7 @@ namespace Movies
                     
                     if (list.Count == 0)
                     {
-                        Buffer.Remove(uri);
+                        Buffer.Remove(uri, out _);
                     }
                 });
 

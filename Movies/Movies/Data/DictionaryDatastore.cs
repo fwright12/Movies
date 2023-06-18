@@ -1,0 +1,53 @@
+﻿using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace Movies
+{
+    public class UiiDictionaryDatastore : IDataStore<Uri, State>
+    {
+        public int Count => Datastore.Count;
+
+        private DictionaryDatastore Datastore { get; } = new DictionaryDatastore();
+
+        public Task<bool> CreateAsync(Uri key, State value) => UpdateAsync(key, value);
+        public async Task<bool> CreateAsync(Uri key, Task<State> value) => await UpdateAsync(key, await value);
+
+        public Task<State> DeleteAsync(Uri key) => Datastore.DeleteAsync(key);
+
+        public Task<State> ReadAsync(Uri key) => Datastore.ReadAsync(key);
+
+        public Task<bool> UpdateAsync(Uri key, State updatedValue) => key is UniformItemIdentifier ? Datastore.UpdateAsync(key, updatedValue) : Task.FromResult(false);
+
+        public void Clear()
+        {
+            Datastore.Clear();
+        }
+    }
+
+    public class DictionaryDatastore : IDataStore<Uri, State>
+    {
+        public int Count => Cache.Count;
+
+        private ConcurrentDictionary<Uri, Task<State>> Cache { get; } = new ConcurrentDictionary<Uri, Task<State>>();
+
+        public Task<bool> CreateAsync(Uri key, State value) => UpdateAsync(key, value);
+
+        public Task<State> ReadAsync(Uri key) => Cache.TryGetValue(key, out var value) ? value : Task.FromResult<State>(null);
+
+        public Task<bool> UpdateAsync(Uri key, State updatedValue)
+        {
+            Cache[key] = Task.FromResult(updatedValue);
+            return Task.FromResult(true);
+        }
+
+        public Task<State> DeleteAsync(Uri key) => Cache.TryRemove(key, out var value) ? value : Task.FromResult<State>(null);
+
+        public void Clear()
+        {
+            Cache.Clear();
+        }
+    }
+}

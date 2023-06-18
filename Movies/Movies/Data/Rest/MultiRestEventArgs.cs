@@ -87,14 +87,18 @@ namespace Movies
                 success &= TryGetValue(data, arg.Uri, out var value) && arg.Handle(value);
             }
 
-            AdditionalState = data as IEnumerable<KeyValuePair<Uri, State>> ?? data.Select(kvp => new KeyValuePair<Uri, State>(kvp.Key, new State(kvp.Value)));
+            AdditionalState = data as IEnumerable<KeyValuePair<Uri, State>> ?? data.Select(kvp => new KeyValuePair<Uri, State>(kvp.Key, State.Create(kvp.Value)));
 
             return success;
         }
 
-        private static bool TryGetValue<T>(IEnumerable<KeyValuePair<Uri, T>> data, Uri uri, out T value)
+        public static bool TryGetValue<T>(IEnumerable<KeyValuePair<Uri, T>> data, Uri uri, out T value)
         {
-            if (data is IReadOnlyDictionary<Uri, T> dict)
+            if (data is IReadOnlyDictionary<Uri, T> ROdict)
+            {
+                return ROdict.TryGetValue(uri, out value);
+            }
+            else if (data is IDictionary<Uri, T> dict)
             {
                 return dict.TryGetValue(uri, out value);
             }

@@ -75,8 +75,8 @@ namespace Movies
     {
         public static readonly DataService Instance = new DataService();
 
-        public Controller Controller { get; }
-        public ResourceCache ResourceCache { get; }
+        public ChainLink<MultiRestEventArgs> Controller { get; }
+        public UiiDictionaryDatastore ResourceCache { get; }
 
         public event EventHandler<ItemEventArgs> GetItemDetails;
         public event EventHandler BatchBegan;
@@ -88,7 +88,9 @@ namespace Movies
 
         private DataService()
         {
-            Controller = new Controller().AddLast(ResourceCache = new ResourceCache());
+            ResourceCache = new UiiDictionaryDatastore();
+            //Controller = new Controller().AddLast(ResourceCache);
+            Controller = new CacheAsideLink(ResourceCache);
         }
 
         public void BatchBegin()

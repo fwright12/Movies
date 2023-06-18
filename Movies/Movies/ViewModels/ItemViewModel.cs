@@ -28,7 +28,7 @@ namespace Movies.ViewModels
         public ICommand AddToListCommand { get; }
 
         protected PropertyDictionary Properties;
-        private Controller Controller => DataService.Instance.Controller;
+        private ChainLink<MultiRestEventArgs> Controller => DataService.Instance.Controller;
 
         public ItemViewModel(Item item)
         {

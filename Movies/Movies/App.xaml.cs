@@ -6,6 +6,7 @@ using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Globalization;
 using System.Linq;
+using System.Security.Claims;
 using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
@@ -220,16 +221,24 @@ namespace Movies
             }
 
             var resolver = new TMDbResolver(TMDB.ITEM_PROPERTIES);
-            DataService.Instance.Controller
-                .AddLast(new TMDbLocalResources(LocalDatabase.ItemCache, resolver)
-                {
-                    ChangeKeys = new ListAsyncWrapper<string>(GetChangeKeys())
-                })
-                .AddLast(new TMDbClient(TMDB.WebClient, resolver, TMDbApi.AutoAppend));
+            var tmdbHandlers = new TMDbReadHandler(TMDB.WebClient, resolver, TMDbApi.AutoAppend);
+            var localTMDbDatastore = new LocalTMDbDatastore(LocalDatabase.ItemCache, resolver)
+            {
+                ChangeKeys = new ListAsyncWrapper<string>(GetChangeKeys())
+            };
 
-            var client = new TMDbClient(TMDB.WebClient, resolver, TMDbApi.AutoAppend);
-            var chain = new ChainLinkAsync<MultiRestEventArgs>(new ResourceCache().GetAsync);
-            chain.SetNext(new CacheAsideLink(client.GetAsync, client.PutAsync));
+            DataService.Instance.Controller
+                .SetNext(new CacheAsideLink(localTMDbDatastore, new TMDbLocalHandlers(localTMDbDatastore, resolver).HandleAsync))
+                .SetNext(new ChainLinkAsync<MultiRestEventArgs>(tmdbHandlers.HandleAsync));
+                //.AddLast(new TMDbLocalResources(LocalDatabase.ItemCache, resolver)
+                //{
+                //    ChangeKeys = new ListAsyncWrapper<string>(GetChangeKeys())
+                //});
+                //.AddLast(new TMDbClient(TMDB.WebClient, resolver, TMDbApi.AutoAppend));
+
+            //var client = new TMDbClient(TMDB.WebClient, resolver, TMDbApi.AutoAppend);
+            //var chain = new ChainLinkAsync<MultiRestEventArgs>(new ResourceCache().GetAsync);
+            //chain.SetNext(new CacheAsideLink(client.GetAsync, client.PutAsync));
 
             //var inMemory = new ResourceCache();
             //var local = new LocalResources(LocalDatabase.ItemCache);

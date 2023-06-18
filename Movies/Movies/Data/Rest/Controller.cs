@@ -38,27 +38,6 @@ namespace Movies
             return link;
         }
 
-        public Controller AddLast(IControllerLink controller)
-        {
-            var handlers = new Dictionary<HttpMethod, ChainLink<MultiRestEventArgs>>
-            {
-                [HttpMethod.GET] = new ChainLinkAsync<MultiRestEventArgs>(controller.GetAsync),
-                //[HttpMethod.GET] = controller is ResourceCache cache ? new ChainLink<MultiRestEventArgs>(cache.Get) : new ChainLinkAsync<MultiRestEventArgs>(controller.GetAsync),
-                //[HttpMethod.PUT] = new ChainLink<MultiRestEventArgs>(controller.PutAsync),
-            };
-
-            foreach (var kvp in handlers)
-            {
-                var method = kvp.Key;
-                var handler = kvp.Value;
-                var index = (int)method;
-
-                ChainLast[index] = GetLast(method)?.SetNext(handler) ?? (ChainFirst[index] = handler);
-            }
-
-            return this;
-        }
-
         public async Task<(bool Success, T Resource)> TryGet<T>(string url)
         {
             var args = new RestRequestArgs(new Uri(url, UriKind.Relative));

@@ -46,7 +46,7 @@ namespace Movies
             if (HasRegionParameter) parameters.Add($"region={region}");
             if (HasAdultParameter) parameters.Add($"adult={adult}");
 
-            parameters.AddRange(otherParameters);
+            parameters.AddRange(otherParameters.Where(p => !string.IsNullOrEmpty(p)));
 
             return TMDB.BuildApiCall((Version >= 0 ? $"{Version}/" : string.Empty) + Endpoint, parameters);
         }

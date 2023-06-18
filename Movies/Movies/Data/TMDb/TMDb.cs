@@ -252,7 +252,7 @@ namespace Movies
                         var items = ParseCollection(array, new JsonNodeParser<TVSeason>((JsonNode json, out TVSeason season) => TMDB.TryParseTVSeason(json, show, out season)));
                         //dict.Add(TVShow.SEASONS, Task.FromResult(items));
 
-                        Data.ResourceCache.Put(new UniformItemIdentifier(item, TVShow.SEASONS), items);
+                        Data.ResourceCache.CreateAsync(new UniformItemIdentifier(item, TVShow.SEASONS), State.Create(items));
                     }
                 }
                 else if (parser.Property == TVSeason.EPISODES)
@@ -262,7 +262,7 @@ namespace Movies
                         var items = ParseCollection(array, new JsonNodeParser<TVEpisode>((JsonNode json, out TVEpisode episode) => TMDB.TryParseTVEpisode(json, season, out episode)));
                         //dict.Add(TVSeason.EPISODES, Task.FromResult(items));
 
-                        Data.ResourceCache.Put(new UniformItemIdentifier(item, TVSeason.EPISODES), items);
+                        Data.ResourceCache.CreateAsync(new UniformItemIdentifier(item, TVSeason.EPISODES), State.Create(items));
                     }
                 }
                 else if (parser is IJsonParser<PropertyValuePair> pvp && pvp.TryGetValue(json, out var pair))
@@ -271,8 +271,41 @@ namespace Movies
                     //dict.Add(parser.GetPair(Task.FromResult(property.Value)));
                     //break;
 
-                    Data.ResourceCache.Put(new UniformItemIdentifier(item, pair.Property), pair.Value);
+                    _ = Data.ResourceCache.CreateAsync(new UniformItemIdentifier(item, pair.Property), Convert(pair.Value));
                 }
+            }
+        }
+
+        private static Task<State> Convert(object resource)
+        {
+            if (resource is Task<State> temp)
+            {
+                return temp;
+            }
+
+            if (resource is Task task && task.GetType() != typeof(Task))
+            {
+                try
+                {
+                    return ConvertTask(task);
+                }
+                catch { }
+            }
+
+            return Task.FromResult(new State(resource));
+        }
+
+        private static async Task<State> ConvertTask(Task task)
+        {
+            var value = await (dynamic)task;
+
+            if (value == null)
+            {
+                return State.Null(task.GetType().GetGenericArguments()[0]);
+            }
+            else
+            {
+                return value as State ?? new State(value);
             }
         }
 

@@ -7,13 +7,31 @@ using System.Text;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
+using static Movies.TMDbRemoteDatastore;
+using System.Web;
+using Xamarin.Forms;
+using System.Collections.Specialized;
+using System.Collections;
 
 namespace Movies
 {
+    public static class HttpUtilityExtensions
+    {
+        public static string GetAndRemove(this NameValueCollection collection, string name)
+        {
+            var value = collection.Get(name);
+            collection.Remove(name);
+            return value;
+        }
+    }
+
     public class TMDbResolver
     {
+        public static readonly string APPEND_TO_RESPONSE = "append_to_response";
+
         private Dictionary<ItemType, Dictionary<Property, Parser>> Index { get; }
         private Dictionary<string, KeyValuePair<TMDbRequest, List<Parser>>> Annotations { get; }
+        private Dictionary<ItemType, IReadOnlyDictionary<Property, TMDbRequest>> Lookup { get; }
         private Dictionary<Property, string> ChangeKeys { get; } = new Dictionary<Property, string>
         {
             [Media.KEYWORDS] = "plot_keywords",
@@ -37,6 +55,7 @@ namespace Movies
 
             Index = new Dictionary<ItemType, Dictionary<Property, Parser>>();
             Annotations = new Dictionary<string, KeyValuePair<TMDbRequest, List<Parser>>>();
+            Lookup = new Dictionary<ItemType, IReadOnlyDictionary<Property, TMDbRequest>>();
 
             foreach (var kvp in Properties)
             {
@@ -54,6 +73,7 @@ namespace Movies
                 }
 
                 Index[kvp.Key] = index;
+                Lookup[kvp.Key] = kvp.Value.PropertyLookup;
 
                 foreach (var parser in kvp.Value.Info.SelectMany(kvp => kvp.Value))
                 {
@@ -65,6 +85,20 @@ namespace Movies
                         ChangeKeys.TryAdd(property, changeKey);
                     }
                 }
+            }
+        }
+
+        public bool TryGetParser(ItemType type, Property property, out Parser parser)
+        {
+            if (Index.TryGetValue(type, out var map) && map.TryGetValue(property, out var temp))
+            {
+                parser = temp;
+                return true;
+            }
+            else
+            {
+                parser = default;
+                return false;
             }
         }
 
@@ -170,7 +204,268 @@ namespace Movies
             }
         }
 
-        private async Task<IEnumerable<T>> GetTVItems<T>(Task<ArraySegment<byte>> json, string property, AsyncEnumerable.TryParseFunc<JsonNode, T> parse) => TMDB.TryParseCollection(JsonNode.Parse(await json), new JsonPropertyParser<IEnumerable<JsonNode>>(property), out var result, new JsonNodeParser<T>(parse)) ? result : null;
+        public bool TryGetConverter(Uri uri, out IHttpConverter<object> resource)
+        {
+            var url = ResolveUrl(uri);
+            var rawQuery = url.Split('?').LastOrDefault();
+            //var rawQuery = new Uri(url, UriKind.Relative).Query;
+            var query = HttpUtility.ParseQueryString(rawQuery);
+
+            var language = query.GetAndRemove("language") ?? TMDB.LANGUAGE.Iso_639;
+            var region = query.GetAndRemove("region") ?? TMDB.REGION.Iso_3166;
+            var adult = (query.GetAndRemove("adult") ?? TMDB.ADULT.ToString().ToLower()) == "true";
+            var append = query.GetAndRemove(APPEND_TO_RESPONSE)?.Split(',') ?? new string[0];
+
+            var basePath = uri.ToString().Split('?')[0];
+            var queryString = query.ToString();
+            var data = new Dictionary<TMDbRequest, (Uri Uri, string Path, List<Parser> Parsers)>();
+            var partial = (uri as DummyUri)?.RequestedProperties != null;
+
+            foreach (var appended in append.Prepend(string.Empty))
+            {
+                var fullUrl = basePath;
+                if (!string.IsNullOrEmpty(appended))
+                {
+                    fullUrl += "/" + appended;
+                }
+                fullUrl += "?" + queryString;
+
+                var fullUri = new Uri(fullUrl, UriKind.Relative);
+                var deparameterizedUrl = RemoveVariables(fullUri, out var args);
+
+                if (Annotations.TryGetValue(deparameterizedUrl, out var annotation))
+                {
+                    var childUrl = string.Format(annotation.Key.GetURL(language, region, adult, queryString), args.ToArray());
+                    fullUri = new Uri(childUrl, UriKind.Relative);
+
+                    data.Add(annotation.Key, (fullUri, appended, partial ? new List<Parser>() : annotation.Value));
+                }
+            }
+
+            if (data.Count > 0 && uri is DummyUri dummyUri && Lookup.TryGetValue(dummyUri.Item.ItemType, out var lookup))
+            {
+                if (dummyUri.RequestedProperties != null)
+                {
+                    foreach (var property in dummyUri.RequestedProperties)
+                    {
+                        if (lookup.TryGetValue(property, out var request) &&
+                            data.TryGetValue(request, out var value) &&
+                            TryGetParser(dummyUri.Item.ItemType, property, out var parser))
+                        {
+                            value.Parsers.Add(parser);
+                        }
+                    }
+                }
+
+                resource = new HttpConverter(dummyUri.Item, data.Select(kvp => kvp.Value), dummyUri.ParentCollectionWasRequested);
+                return true;
+            }
+
+            resource = default;
+            return false;
+        }
+
+        public abstract class LazyBytes : IEnumerable<byte>
+        {
+            public JsonIndex Index { get; }
+            public ArraySegment<byte> Bytes => _Bytes ??= GetBytes();
+
+            private ArraySegment<byte>? _Bytes = null;
+
+            public LazyBytes(JsonIndex index)
+            {
+                Index = index;
+            }
+
+            protected abstract ArraySegment<byte> GetBytes();
+
+            public IEnumerator<byte> GetEnumerator() => Bytes.GetEnumerator();
+
+            IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+        }
+
+        private class PropertyBytes : LazyBytes
+        {
+            public string Path { get; }
+
+            public PropertyBytes(JsonIndex index, string path) : base(index)
+            {
+                Path = path;
+            }
+
+            protected override ArraySegment<byte> GetBytes() => (Index.TryGetValue(Path, out var index) ? index : Index).Bytes;
+        }
+
+        private class ExceptBytes : LazyBytes
+        {
+            public IEnumerable<string> Paths { get; }
+
+            private static readonly IEnumerable<byte> OPEN = Encoding.UTF8.GetBytes("{\r\n  ");
+            private static readonly IEnumerable<byte> DELIMITER = Encoding.UTF8.GetBytes(",\r\n  ");
+            private static readonly IEnumerable<byte> CLOSE = Encoding.UTF8.GetBytes("\r\n}");
+
+            public ExceptBytes(JsonIndex index, IEnumerable<string> paths) : base(index)
+            {
+                Paths = paths;
+            }
+
+            protected override ArraySegment<byte> GetBytes() => OPEN.Concat(GetBytesEnumerable()
+                .Aggregate((first, second) => first.Concat(DELIMITER).Concat(second)))
+                .Concat(CLOSE)
+                .ToArray();
+
+            private IEnumerable<IEnumerable<byte>> GetBytesEnumerable()
+            {
+                var set = Paths.ToHashSet();
+                return Index.Where(kvp => !set.Contains(kvp.Key)).Select(kvp => Encoding.UTF8.GetBytes($"\"{kvp.Key}\":").Concat((IEnumerable<byte>) kvp.Value.Bytes));
+            }
+        }
+
+        private class HttpConverter : HttpResourceCollectionConverter
+        {
+            public Item Item { get; }
+            public bool ParentCollectionWasRequested { get; }
+            public IEnumerable<(Uri Uri, string Path, List<Parser> Parsers)> Annotations { get; }
+            public override IEnumerable<Uri> Resources { get; }
+
+            public HttpConverter(Item item, IEnumerable<(Uri, string, List<Parser>)> annotations, bool parentCollectionWasRequested)
+            {
+                Item = item;
+                Resources = annotations.Select(temp => temp.Item1).ToArray();
+                Annotations = annotations;
+                ParentCollectionWasRequested = parentCollectionWasRequested;
+            }
+
+            public override async Task<IReadOnlyDictionary<Uri, object>> Convert(HttpContent content)
+            {
+                var result = new Dictionary<Uri, object>();
+                var bytes = content.ReadAsByteArrayAsync();
+                var json = new JsonIndex(await bytes);
+
+                foreach (var annotation in Annotations)
+                {
+                    var lazyJson = string.IsNullOrEmpty(annotation.Path) ? new ExceptBytes(json, Annotations.Select(annotation => annotation.Path).Where(path => !string.IsNullOrEmpty(path))) : (LazyBytes) new PropertyBytes(json, annotation.Path);
+                    //JsonIndex index;
+
+                    //if (string.IsNullOrEmpty(annotation.Path))
+                    //{
+                    //    index = json;
+                    //}
+                    //else if (!json.TryGetValue(annotation.Path, out index))
+                    //{
+                    //    continue;
+                    //}
+
+                    var inner = new Dictionary<Uri, object>();
+                    var state1 = State.Create(lazyJson);
+                    state1.Add(inner);
+                    result.Add(annotation.Uri, state1);
+
+                    foreach (var parser in annotation.Parsers)
+                    {
+                        if (parser.Property == Movie.PARENT_COLLECTION && !ParentCollectionWasRequested)
+                        {
+                            continue;
+                        }
+
+                        bool success;
+                        object converted;
+
+                        if (parser.Property == TVShow.SEASONS)
+                        {
+                            success = true;
+                            converted = await GetTVItems(bytes, "seasons", (JsonNode json, out TVSeason season) => TMDB.TryParseTVSeason(json, (TVShow)Item, out season));
+                        }
+                        else if (parser.Property == TVSeason.EPISODES)
+                        {
+                            if (Item is TVSeason season)
+                            {
+                                success = true;
+                                converted = await GetTVItems(bytes, "episodes", (JsonNode json, out TVEpisode episode) => TMDB.TryParseTVEpisode(json, season, out episode));
+                            }
+                            else
+                            {
+                                success = false;
+                                converted = default;
+                            }
+                        }
+                        else
+                        {
+                            var value = await parser.TryGetValue(parser.GetPair(Task.FromResult(lazyJson.Bytes)));
+                            success = value.Success;
+                            converted = value.Result;
+                        }
+
+                        var uii = new UniformItemIdentifier(Item, parser.Property);
+                        var state = State.Create(lazyJson.Bytes);
+
+                        if (success)
+                        {
+                            //var state = converted == null ? State.Null(parser.Property.FullType) : new State(converted);
+                            state.Add(parser.Property.FullType, converted);
+                        }
+
+                        inner.Add(uii, state);
+                    }
+
+                    foreach (var kvp in inner)
+                    {
+                        result.Add(kvp.Key, kvp.Value);
+                    }
+                }
+
+                return result;
+            }
+        }
+
+        public class DummyUri : Uri
+        {
+            public Item Item { get; }
+            public bool ParentCollectionWasRequested { get; }
+            public IEnumerable<Property> RequestedProperties { get; set; }
+
+            public DummyUri(string url, Item item, bool parentCollectionWasRequested) : base(url, UriKind.Relative)
+            {
+                Item = item;
+                ParentCollectionWasRequested = parentCollectionWasRequested;
+            }
+        }
+
+        private static async Task<IEnumerable<T>> GetTVItems<T>(Task<byte[]> json, string property, AsyncEnumerable.TryParseFunc<JsonNode, T> parse) => TMDB.TryParseCollection(JsonNode.Parse(await json), new JsonPropertyParser<IEnumerable<JsonNode>>(property), out var result, new JsonNodeParser<T>(parse)) ? result : null;
+
+        private static async Task<IEnumerable<T>> GetTVItems<T>(Task<ArraySegment<byte>> json, string property, AsyncEnumerable.TryParseFunc<JsonNode, T> parse) => TMDB.TryParseCollection(JsonNode.Parse(await json), new JsonPropertyParser<IEnumerable<JsonNode>>(property), out var result, new JsonNodeParser<T>(parse)) ? result : null;
+
+        public async Task Handle(MultiRestEventArgs e, IDataStore<Uri, State> Datastore, string url)
+        {
+            var item = e.AllArgs.Select(arg => arg.Uri).OfType<UniformItemIdentifier>().FirstOrDefault()?.Item as Item;
+            var properties = e.Unhandled
+                .Select(arg => arg.Uri)
+                .OfType<UniformItemIdentifier>()
+                .Select(uii => uii.Property);
+
+            bool parentCollectionWasRequested = e.Unhandled
+                    .Select(arg => arg.Uri)
+                    .OfType<UniformItemIdentifier>()
+                    .Select(uii => uii.Property)
+                    .Contains(Movie.PARENT_COLLECTION);
+            var response = await Datastore.ReadAsync(new TMDbResolver.DummyUri(url, item, parentCollectionWasRequested)
+            {
+                RequestedProperties = properties
+            });
+
+            if (response?.TryGetRepresentation<IEnumerable<KeyValuePair<Uri, object>>>(out var collection) == true)
+            {
+                e.HandleMany(collection);
+
+                foreach (var arg in e.Unhandled)
+                {
+                    if (MultiRestEventArgs.TryGetValue(collection, arg.Uri, out var obj))
+                    {
+                        arg.Handle(State.Create(obj));
+                    }
+                }
+            }
+        }
 
         public async Task<IConverter<ArraySegment<byte>>> GetConverter(Uri uri, ArraySegment<byte> target)
         {

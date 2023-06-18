@@ -1,33 +1,37 @@
-﻿namespace MoviesTests.Data.TMDb
+﻿using FFImageLoading.Cache;
+using Movies;
+
+namespace MoviesTests.Data.TMDb
 {
     [TestClass]
-    public class TMDbClientTests
+    public class TMDbClientTests : Resources
     {
-        private List<string> CallHistory => MockHandler.CallHistory;
-        private Controller Controller { get; }
-        private TMDbClient Client { get; }
+        private ChainLink<MultiRestEventArgs> Chain { get; }
 
         public TMDbClientTests()
         {
-            Client = new TMDbClient(new BufferedHandler(new TMDbBufferedHandler(new MockHandler())), new TMDbResolver(TMDB.ITEM_PROPERTIES));
-            Controller = new Controller().AddLast(Client);
+            var resolver = new TMDbResolver(TMDB.ITEM_PROPERTIES);
+            var invoker = new HttpMessageInvoker(new BufferedHandler(new TMDbBufferedHandler(new MockHandler())));
+
+            var tmdb = new TMDbReadHandler(invoker, resolver, TMDbApi.AutoAppend);
+            Chain = new ChainLinkAsync<MultiRestEventArgs>(tmdb.HandleAsync);
         }
 
         [TestInitialize]
         public void ClearCallHistory()
         {
-            CallHistory.Clear();
+            WebHistory.Clear();
         }
 
         [TestMethod]
         public async Task SingleDetailsRequest()
         {
             var url = "3/movie/0?language=en-US";
-            var resource = await Controller.Get(url);
+            var resource = await Chain.Get(url);
 
             Assert.IsTrue(resource.Handled);
-            Assert.AreEqual(1, CallHistory.Count);
-            Assert.AreEqual("3/movie/0?language=en-US", CallHistory.Last());
+            Assert.AreEqual(1, WebHistory.Count);
+            Assert.AreEqual("3/movie/0?language=en-US", WebHistory.Last());
         }
 
         [TestMethod]
@@ -39,12 +43,12 @@
                 "3/movie/0/keywords",
                 "3/movie/0/recommendations?language=en-US",
             };
-            var args = await Controller.Get(urls);
+            var args = await Chain.Get(urls);
 
             AssertHandled(args);
-            Assert.AreEqual(1, CallHistory.Count);
+            Assert.AreEqual(1, WebHistory.Count);
 
-            var parts = CallHistory.Last().Split('?');
+            var parts = WebHistory.Last().Split('?');
             var path = parts[0];
             var query = parts[1];
             Assert.AreEqual("3/movie/0", path);
@@ -64,11 +68,11 @@
 
             for (int i = 0; i < 3; i++)
             {
-                CallHistory.Clear();
-                var args = await Controller.Get(urls.ToArray());
+                WebHistory.Clear();
+                var args = await Chain.Get(urls.ToArray());
 
                 AssertHandled(args);
-                Assert.AreEqual(1, CallHistory.Count, "\n" + string.Join('\n', urls));
+                Assert.AreEqual(1, WebHistory.Count, "\n" + string.Join('\n', urls));
 
                 urls.Add(urls.First());
                 urls.RemoveAt(0);
@@ -83,12 +87,12 @@
                 "3/movie/0?language=en-US",
                 "3/tv/0/keywords"
             };
-            var args = await Controller.Get(urls);
+            var args = await Chain.Get(urls);
 
             AssertHandled(args);
-            Assert.AreEqual(2, CallHistory.Count);
-            Assert.AreEqual("3/movie/0?language=en-US", CallHistory.SkipLast(1).Last());
-            Assert.AreEqual("3/tv/0/keywords", CallHistory.Last());
+            Assert.AreEqual(2, WebHistory.Count);
+            Assert.AreEqual("3/movie/0?language=en-US", WebHistory.SkipLast(1).Last());
+            Assert.AreEqual("3/tv/0/keywords", WebHistory.Last());
         }
 
         [TestMethod]
@@ -104,10 +108,10 @@
                 "3/tv/0?language=en-US",
                 "3/movie/0/recommendations?language=en-US",
             };
-            var args = await Controller.Get(urls);
+            var args = await Chain.Get(urls);
 
             AssertHandled(args);
-            Assert.AreEqual(4, CallHistory.Count);
+            Assert.AreEqual(4, WebHistory.Count);
         }
 
         [TestMethod]
@@ -115,11 +119,11 @@
         {
             await Task.WhenAll(new List<Task>
             {
-                Controller.Get("3/tv/0?language=en-US&append_to_response=aggregate_credits,content_ratings,keywords,recommendations,videos,watch/providers"),
-                Controller.Get("3/tv/0?language=en-US&append_to_response=keywords,watch/providers")
+                Chain.Get("3/tv/0?language=en-US&append_to_response=aggregate_credits,content_ratings,keywords,recommendations,videos,watch/providers"),
+                Chain.Get("3/tv/0?language=en-US&append_to_response=keywords,watch/providers")
             });
 
-            Assert.AreEqual(1, CallHistory.Count);
+            Assert.AreEqual(1, WebHistory.Count);
         }
 
         private void AssertHandled(params RestRequestArgs[] e) => Assert.IsTrue(e.All(arg => arg.Handled), "The following uris where not handled:\n" + string.Join('\n', e.Where(arg => !arg.Handled).Select(arg => arg.Uri.ToString())));

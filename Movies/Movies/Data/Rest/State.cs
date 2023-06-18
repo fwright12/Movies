@@ -19,6 +19,7 @@ namespace Movies
         }
 
         public static State Create<T>(T value) => value as State ?? new State(typeof(T), value);
+        public static State Create(object value) => value as State ?? new State(value);
         public static State Null(Type type) => new State(type, null);
 
         public bool Add<TExisting, TNew>(IConverter<TExisting> converter) => Add<TExisting>(typeof(TNew), converter);

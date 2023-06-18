@@ -1,7 +1,47 @@
-﻿namespace MoviesTests
+﻿using System.Collections.Concurrent;
+
+namespace MoviesTests
 {
+    public class DummyDatastore<T> : ConcurrentDictionary<Uri, T>, IDataStore<Uri, State>
+    {
+        public int SimulatedDelay { get; set; }
+
+        public Task<bool> CreateAsync(Uri key, State value) => UpdateAsync(key, value);
+
+        public async Task<State> DeleteAsync(Uri key)
+        {
+            await Delay();
+            return TryRemove(key, out var value) ? State.Create(value) : null;
+        }
+
+        public async Task<State> ReadAsync(Uri key)
+        {
+            await Delay();
+            return TryGetValue(key, out var value) ? State.Create(value) : null;
+        }
+
+        public async Task<bool> UpdateAsync(Uri key, State updatedValue)
+        {
+            await Delay();
+
+            if (updatedValue.TryGetRepresentation<T>(out var value))
+            {
+                this[key] = value;
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        private Task Delay() => Task.Delay(SimulatedDelay);
+    }
+
     public class DummyCache : Dictionary<string, JsonResponse>, IJsonCache, IDataStore<Uri, State>
     {
+        public int SimulatedDelay { get; set; }
+
         public DummyCache() : base() { }
 
         public DummyCache(IEnumerable<KeyValuePair<string, JsonResponse>> collection) : base(collection) { }
@@ -9,7 +49,7 @@
         public Task AddAsync(string url, JsonResponse response)
         {
             TryAdd(url, response);
-            return Task.CompletedTask;
+            return Delay();
         }
 
         public Task<bool> CreateAsync(Uri key, State value) => UpdateAsync(key, value);
@@ -20,11 +60,19 @@
             return null;
         }
 
-        public Task<bool> Expire(string url) => Task.FromResult(Remove(url));
+        public async Task<bool> Expire(string url)
+        {
+            await Delay();
+            return Remove(url);
+        }
 
         public IAsyncEnumerator<KeyValuePair<string, JsonResponse>> GetAsyncEnumerator(CancellationToken cancellationToken = default) => AsyncEnumerable.ToAsyncEnumerable(Task.FromResult<IEnumerable<KeyValuePair<string, JsonResponse>>>(this)).GetAsyncEnumerator();
 
-        public Task<bool> IsCached(string url) => Task.FromResult(ContainsKey(url));
+        public async Task<bool> IsCached(string url)
+        {
+            await Delay();
+            return ContainsKey(url);
+        }
 
         public async Task<State> ReadAsync(Uri key)
         {
@@ -35,10 +83,14 @@
                 return null;
             }
 
-            return State.Create(await response.Content.ReadAsByteArrayAsync());
+            return State.Create(new ArraySegment<byte>(await response.Content.ReadAsByteArrayAsync()));
         }
 
-        public Task<JsonResponse> TryGetValueAsync(string url) => Task.FromResult(TryGetValue(url, out var value) ? value : null);
+        public async Task<JsonResponse> TryGetValueAsync(string url)
+        {
+            await Delay();
+            return TryGetValue(url, out var value) ? value : null;
+        }
 
         public async Task<bool> UpdateAsync(Uri key, State updatedValue)
         {
@@ -56,7 +108,9 @@
         Task IJsonCache.Clear()
         {
             Clear();
-            return Task.CompletedTask;
+            return Delay();
         }
+
+        private Task Delay() => Task.Delay(SimulatedDelay);
     }
 }
