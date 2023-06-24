@@ -1,17 +1,14 @@
 ﻿using Movies.Models;
 using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Collections.Specialized;
 using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json.Nodes;
-using System.Text.Json.Serialization;
 using System.Threading.Tasks;
-using static Movies.TMDbRemoteDatastore;
 using System.Web;
-using Xamarin.Forms;
-using System.Collections.Specialized;
-using System.Collections;
 
 namespace Movies
 {
@@ -155,59 +152,10 @@ namespace Movies
             return Annotations.TryGetValue(url, out annotations);
         }
 
-        public IEnumerable<KeyValuePair<Property, JsonConverterWrapper<string>>> Annotate(string url, params string[] basePath)
-        {
-            url = url.Split('?')[0];
-            url = string.Join('/', url.Split('/').Skip(1));
-            var key = RemoveVariables(url, out var args);
-
-            //ItemType type;
-            //if (Equals(args[0], "movie")) type = ItemType.Movie;
-            //else if (Equals(args[0], "tv")) type = ItemType.TVShow;
-            //else if (Equals(args[0], "person")) type = ItemType.Person;
-            //else yield break;
-
-            //if (!Properties.TryGetValue(type, out var properties) || !Annotations.TryGetValue(key, out var request) || !properties.Info.TryGetValue(null, out var parsers))
-            if (!Annotations.TryGetValue(key, out var info))
-            {
-                yield break;
-            }
-
-            foreach (var parser in info.Value)
-            {
-                var propertyName = string.Empty;
-
-                if ((parser as ParserWrapper)?.JsonParser is JsonPropertyParser jpp)
-                {
-                    propertyName = jpp.Property;
-                }
-
-                // Should do this for ALL types, but need to work around legacy Parsers
-                //
-                // Parsers expect full response, and then find the property and then convert
-                // So put the full response so the parser works UNLESS the expected type is string,
-                // in which case there's no conversion to do and the parser won't run
-                var path = parser.Property.FullType == typeof(string) ? new string[] { propertyName } : new string[0];
-                var converter = (JsonConverter<string>)StringConverter.Instance;
-                path = new string[0];
-
-                if (parser.Property == Movie.CONTENT_RATING)
-                {
-                    converter = TMDB.MovieCertificationConverter.Instance;
-                }
-                else if (parser.Property == TVShow.CONTENT_RATING)
-                {
-                    converter = TMDB.TVCertificationConverter.Instance;
-                }
-
-                yield return new KeyValuePair<Property, JsonConverterWrapper<string>>(parser.Property, new JsonConverterWrapper<string>(basePath.Concat(path).ToArray(), converter));
-            }
-        }
-
         public bool TryGetConverter(Uri uri, out IHttpConverter<object> resource)
         {
             var url = ResolveUrl(uri);
-            var rawQuery = url.Split('?').LastOrDefault();
+            var rawQuery = url.Split('?').ElementAtOrDefault(1) ?? string.Empty;
             //var rawQuery = new Uri(url, UriKind.Relative).Query;
             var query = HttpUtility.ParseQueryString(rawQuery);
 
@@ -219,7 +167,7 @@ namespace Movies
             var basePath = uri.ToString().Split('?')[0];
             var queryString = query.ToString();
             var data = new Dictionary<TMDbRequest, (Uri Uri, string Path, List<Parser> Parsers)>();
-            var partial = (uri as DummyUri)?.RequestedProperties != null;
+            var partial = (uri as TrojanTMDbUri)?.RequestedProperties != null;
 
             foreach (var appended in append.Prepend(string.Empty))
             {
@@ -242,9 +190,9 @@ namespace Movies
                 }
             }
 
-            if (data.Count > 0 && uri is DummyUri dummyUri && Lookup.TryGetValue(dummyUri.Item.ItemType, out var lookup))
+            if (data.Count > 0 && uri is TrojanTMDbUri dummyUri)
             {
-                if (dummyUri.RequestedProperties != null)
+                if (dummyUri.Item != null && dummyUri.RequestedProperties != null && Lookup.TryGetValue(dummyUri.Item.ItemType, out var lookup))
                 {
                     foreach (var property in dummyUri.RequestedProperties)
                     {
@@ -317,7 +265,9 @@ namespace Movies
             private IEnumerable<IEnumerable<byte>> GetBytesEnumerable()
             {
                 var set = Paths.ToHashSet();
-                return Index.Where(kvp => !set.Contains(kvp.Key)).Select(kvp => Encoding.UTF8.GetBytes($"\"{kvp.Key}\":").Concat((IEnumerable<byte>) kvp.Value.Bytes));
+                return Index
+                    .Where(kvp => !set.Contains(kvp.Key))
+                    .Select(kvp => Encoding.UTF8.GetBytes($"\"{kvp.Key}\":").Concat((IEnumerable<byte>)kvp.Value.Bytes));
             }
         }
 
@@ -344,7 +294,7 @@ namespace Movies
 
                 foreach (var annotation in Annotations)
                 {
-                    var lazyJson = string.IsNullOrEmpty(annotation.Path) ? new ExceptBytes(json, Annotations.Select(annotation => annotation.Path).Where(path => !string.IsNullOrEmpty(path))) : (LazyBytes) new PropertyBytes(json, annotation.Path);
+                    var lazyJson = string.IsNullOrEmpty(annotation.Path) ? new ExceptBytes(json, Annotations.Select(annotation => annotation.Path).Where(path => !string.IsNullOrEmpty(path))) : (LazyBytes)new PropertyBytes(json, annotation.Path);
                     //JsonIndex index;
 
                     //if (string.IsNullOrEmpty(annotation.Path))
@@ -418,13 +368,13 @@ namespace Movies
             }
         }
 
-        public class DummyUri : Uri
+        public class TrojanTMDbUri : Uri
         {
             public Item Item { get; }
             public bool ParentCollectionWasRequested { get; }
             public IEnumerable<Property> RequestedProperties { get; set; }
 
-            public DummyUri(string url, Item item, bool parentCollectionWasRequested) : base(url, UriKind.Relative)
+            public TrojanTMDbUri(string url, Item item, bool parentCollectionWasRequested) : base(url, UriKind.Relative)
             {
                 Item = item;
                 ParentCollectionWasRequested = parentCollectionWasRequested;
@@ -435,156 +385,7 @@ namespace Movies
 
         private static async Task<IEnumerable<T>> GetTVItems<T>(Task<ArraySegment<byte>> json, string property, AsyncEnumerable.TryParseFunc<JsonNode, T> parse) => TMDB.TryParseCollection(JsonNode.Parse(await json), new JsonPropertyParser<IEnumerable<JsonNode>>(property), out var result, new JsonNodeParser<T>(parse)) ? result : null;
 
-        public async Task Handle(MultiRestEventArgs e, IDataStore<Uri, State> Datastore, string url)
-        {
-            var item = e.AllArgs.Select(arg => arg.Uri).OfType<UniformItemIdentifier>().FirstOrDefault()?.Item as Item;
-            var properties = e.Unhandled
-                .Select(arg => arg.Uri)
-                .OfType<UniformItemIdentifier>()
-                .Select(uii => uii.Property);
-
-            bool parentCollectionWasRequested = e.Unhandled
-                    .Select(arg => arg.Uri)
-                    .OfType<UniformItemIdentifier>()
-                    .Select(uii => uii.Property)
-                    .Contains(Movie.PARENT_COLLECTION);
-            var response = await Datastore.ReadAsync(new TMDbResolver.DummyUri(url, item, parentCollectionWasRequested)
-            {
-                RequestedProperties = properties
-            });
-
-            if (response?.TryGetRepresentation<IEnumerable<KeyValuePair<Uri, object>>>(out var collection) == true)
-            {
-                e.HandleMany(collection);
-
-                foreach (var arg in e.Unhandled)
-                {
-                    if (MultiRestEventArgs.TryGetValue(collection, arg.Uri, out var obj))
-                    {
-                        arg.Handle(State.Create(obj));
-                    }
-                }
-            }
-        }
-
-        public async Task<IConverter<ArraySegment<byte>>> GetConverter(Uri uri, ArraySegment<byte> target)
-        {
-            if (TryGetParser(uri, out var parser))
-            {
-                var uii = (UniformItemIdentifier)uri;
-                var success = false;
-                object converted = null;
-                var task = Task.FromResult(target);
-
-                if (parser.Property == TVShow.SEASONS)
-                {
-                    success = true;
-                    converted = await GetTVItems(task, "seasons", (JsonNode json, out TVSeason season) => TMDB.TryParseTVSeason(json, (TVShow)uii.Item, out season));
-                }
-                else if (parser.Property == TVSeason.EPISODES)
-                {
-                    if (uii.Item is TVSeason season)
-                    {
-                        success = true;
-                        converted = await GetTVItems(task, "episodes", (JsonNode json, out TVEpisode episode) => TMDB.TryParseTVEpisode(json, season, out episode));
-                    }
-                }
-                //else if (parser.Property.FullType == typeof(string))
-                //{
-                //    success = true;
-                //    converted = Encoding.UTF8.GetString(target);
-                //}
-                else
-                {
-                    var response = await parser.TryGetValue(task);
-                    success = response.Success;
-                    converted = response.Result;
-                }
-
-                if (success)
-                {
-                    return new DummyConverter(target, converted);
-                }
-            }
-
-            return null;
-        }
-
-        private class DummyConverter : IConverter<ArraySegment<byte>>
-        {
-            private ArraySegment<byte> Original { get; }
-            private object Converted { get; }
-
-            public DummyConverter(ArraySegment<byte> original, object converted)
-            {
-                Original = original;
-                Converted = converted;
-            }
-
-            public bool TryConvert(ArraySegment<byte> original, Type targetType, out object converted)
-            {
-                converted = Converted;
-                return original == Original;
-            }
-        }
-
-        private class Converter : IConverter<string>
-        {
-            public TMDbResolver Resolver { get; }
-            public Uri Uri { get; }
-
-            public Converter(TMDbResolver resolver, Uri uri)
-            {
-                Resolver = resolver;
-                Uri = uri;
-            }
-
-            public bool TryConvert(string original, Type targetType, out object converted)
-            {
-                if (Resolver.TryGetParser(Uri, out var parser))
-                {
-                    converted = parser.GetPair(Convert(original)).Value;
-                    return true;
-                }
-                else
-                {
-                    converted = default;
-                    return false;
-                }
-            }
-        }
-
-        /*public async Task Handle(MultiRestEventArgs<GetEventArgs> e, ChainLinkEventHandler<MultiRestEventArgs<GetEventArgs<HttpContent>>> typedHandler)
-        {
-            IEnumerable<GetEventArgs<HttpContent>> typedRequests = e.Args.Select(WrapGetEventArgs<HttpContent>).ToArray();
-            await typedHandler(new MultiRestEventArgs<GetEventArgs<HttpContent>>(typedRequests));
-
-            var typedItr = typedRequests.GetEnumerator();
-            var untypedItr = e.Args.GetEnumerator();
-
-            while (typedItr.MoveNext() && untypedItr.MoveNext())
-            {
-                var converter = DefaultConverter<HttpContent>.Instance;
-                var typed = typedItr.Current;
-                var untyped = untypedItr.Current;
-
-                if (typed.Handled && !untyped.Handle(typed.Resource, converter) && TryGetParser(untyped.Uri, out var parser))
-                {
-                    untyped.Handle(parser.GetPair(Convert(typed.Resource)).Value, Converter);
-                }
-            }
-        }*/
-
-        private bool TryGetParser(Uri uri, out Parser parser)
-        {
-            parser = null;
-            return uri is UniformItemIdentifier uii && Index.TryGetValue(uii.Item.ItemType, out var properties) && properties.TryGetValue(uii.Property, out parser);
-        }
-
-        private static Task<ArraySegment<byte>> Convert(string content) => Task.FromResult<ArraySegment<byte>>(Encoding.UTF8.GetBytes(content));
-        private static async Task<ArraySegment<byte>> Convert(HttpContent content) => await content.ReadAsByteArrayAsync();
-
-        public bool TryResolveJsonPropertyName(Property property, out string changeKey) => ChangeKeys.TryGetValue(property, out changeKey);
+        public bool TryGetChangeKey(Property property, out string changeKey) => ChangeKeys.TryGetValue(property, out changeKey);
 
         public string ResolveUrl(Uri uri)
         {

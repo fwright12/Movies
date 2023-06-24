@@ -11,6 +11,7 @@ using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
+using FFImageLoading.Cache;
 using Movies.Models;
 using Movies.ViewModels;
 using Movies.Views;
@@ -228,13 +229,13 @@ namespace Movies
             };
 
             DataService.Instance.Controller
-                .SetNext(new CacheAsideLink(localTMDbDatastore, new TMDbLocalHandlers(localTMDbDatastore, resolver).HandleAsync))
-                .SetNext(new ChainLinkAsync<MultiRestEventArgs>(tmdbHandlers.HandleAsync));
-                //.AddLast(new TMDbLocalResources(LocalDatabase.ItemCache, resolver)
-                //{
-                //    ChangeKeys = new ListAsyncWrapper<string>(GetChangeKeys())
-                //});
-                //.AddLast(new TMDbClient(TMDB.WebClient, resolver, TMDbApi.AutoAppend));
+                .SetNext(new CacheAsideLink(new TMDbLocalHandlers(localTMDbDatastore, resolver)))
+                .SetNext(new ChainLinkAsync<MultiRestEventArgs>(tmdbHandlers.HandleGet));
+            //.AddLast(new TMDbLocalResources(LocalDatabase.ItemCache, resolver)
+            //{
+            //    ChangeKeys = new ListAsyncWrapper<string>(GetChangeKeys())
+            //});
+            //.AddLast(new TMDbClient(TMDB.WebClient, resolver, TMDbApi.AutoAppend));
 
             //var client = new TMDbClient(TMDB.WebClient, resolver, TMDbApi.AutoAppend);
             //var chain = new ChainLinkAsync<MultiRestEventArgs>(new ResourceCache().GetAsync);

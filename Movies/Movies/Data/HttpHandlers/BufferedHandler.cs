@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading;
@@ -9,23 +8,44 @@ namespace Movies
 {
     public class BufferedHandler : DelegatingHandler
     {
-        private ConcurrentDictionary<Uri, Task<HttpResponseMessage>> Buffer = new ConcurrentDictionary<Uri, Task<HttpResponseMessage>>();
+        private Dictionary<Uri, Task<HttpResponseMessage>> Buffer = new Dictionary<Uri, Task<HttpResponseMessage>>();
 
         public BufferedHandler() : base() { }
         public BufferedHandler(HttpMessageHandler innerHandler) : base(innerHandler) { }
 
+        private readonly object BufferLock = new object();
+
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             var uri = request.RequestUri;
-            if (Buffer.TryGetValue(uri, out var buffered))
+            Task<HttpResponseMessage> response;
+            bool buffered;
+
+            lock (BufferLock)
             {
-                return RespondBuffered(buffered);
+                buffered = Buffer.TryGetValue(uri, out response);
+
+                if (!buffered)
+                {
+                    Buffer.TryAdd(uri, response = base.SendAsync(request, cancellationToken));
+                }
             }
 
-            var response = base.SendAsync(request, cancellationToken);
-            Buffer.TryAdd(uri, response);
-            response.ContinueWith(res => Buffer.Remove(uri, out _));
-            return response;
+            if (buffered)
+            {
+                return RespondBuffered(response);
+            }
+            else
+            {
+                response.ContinueWith(res =>
+                {
+                    lock (BufferLock)
+                    {
+                        Buffer.Remove(uri);
+                    }
+                });
+                return response;
+            }
         }
 
         public static async Task<HttpResponseMessage> RespondBuffered(Task<HttpResponseMessage> buffered)

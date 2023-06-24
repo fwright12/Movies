@@ -13,13 +13,14 @@ namespace MoviesTests.Data.TMDb
             var resolver = new TMDbResolver(TMDB.ITEM_PROPERTIES);
             var invoker = new HttpMessageInvoker(new BufferedHandler(new TMDbBufferedHandler(new MockHandler())));
 
-            var tmdb = new TMDbReadHandler(invoker, resolver, TMDbApi.AutoAppend);
-            Chain = new ChainLinkAsync<MultiRestEventArgs>(tmdb.HandleAsync);
+            var tmdb = new TMDbReadHandler(invoker, resolver);
+            Chain = new ChainLinkAsync<MultiRestEventArgs>(tmdb.HandleGet);
         }
 
         [TestInitialize]
         public void ClearCallHistory()
         {
+            DebugConfig.SimulatedDelay = 0;
             WebHistory.Clear();
         }
 
@@ -102,7 +103,7 @@ namespace MoviesTests.Data.TMDb
             {
                 "3/movie/0?language=en-US",
                 "3/person/0?language=en-US",
-                "3/tv/0/watch/providers?region=US",
+                "3/tv/0/watch/providers",
                 "3/movie/0/keywords",
                 "3/movie/1/keywords",
                 "3/tv/0?language=en-US",
@@ -117,11 +118,11 @@ namespace MoviesTests.Data.TMDb
         [TestMethod]
         public async Task ApiRequestsBuffered()
         {
-            await Task.WhenAll(new List<Task>
-            {
-                Chain.Get("3/tv/0?language=en-US&append_to_response=aggregate_credits,content_ratings,keywords,recommendations,videos,watch/providers"),
-                Chain.Get("3/tv/0?language=en-US&append_to_response=keywords,watch/providers")
-            });
+            DebugConfig.SimulatedDelay = 100;
+
+            var first = Chain.Get("3/tv/0?language=en-US&append_to_response=aggregate_credits,content_ratings,keywords,recommendations,videos,watch/providers");
+            var second = Chain.Get("3/tv/0?language=en-US&append_to_response=keywords,watch/providers");
+            await Task.WhenAll(first, second);
 
             Assert.AreEqual(1, WebHistory.Count);
         }

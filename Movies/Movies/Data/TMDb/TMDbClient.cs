@@ -20,19 +20,62 @@ namespace Movies
         protected override bool TryGetConverter(Uri uri, out IHttpConverter<object> resource) => Resolver.TryGetConverter(uri, out resource);
     }
 
-    public class TMDbReadHandler : DatastoreReadHandler
+    public abstract class TMDbRestCache : RestCache
     {
-        private TMDbResolver Resolver { get; }
+        public TMDbResolver Resolver { get; }
 
+        public TMDbRestCache(IDataStore<Uri, State> datastore, TMDbResolver resolver) : base(datastore)
+        {
+            Resolver = resolver;
+        }
+
+        public override async Task HandleGet(MultiRestEventArgs e)
+        {
+            var item = e.AllArgs.Select(arg => arg.Uri).OfType<UniformItemIdentifier>().FirstOrDefault()?.Item as Item;
+
+            foreach (var kvp in GroupRequests(e.Unhandled))
+            {
+                var url = kvp.Key;
+                var group = kvp.Value.ToArray();
+
+                var properties = group
+                    .Select(arg => arg.Uri)
+                    .OfType<UniformItemIdentifier>()
+                    .Select(uii => uii.Property)
+                    .ToHashSet();
+                bool parentCollectionWasRequested = properties.Contains(Movie.PARENT_COLLECTION);
+                var response = await Datastore.ReadAsync(new TMDbResolver.TrojanTMDbUri(url, item, parentCollectionWasRequested)
+                {
+                    RequestedProperties = properties
+                });
+
+                if (response?.TryGetRepresentation<IEnumerable<KeyValuePair<Uri, object>>>(out var collection) == true)
+                {
+                    //foreach (var arg in group)
+                    //{
+                    //    if (MultiRestEventArgs.TryGetValue(collection, arg.Uri, out var obj))
+                    //    {
+                    //        arg.Handle(State.Create(obj));
+                    //    }
+                    //}
+
+                    e.HandleMany(collection);
+                }
+            }
+        }
+
+        protected virtual IEnumerable<KeyValuePair<string, IEnumerable<RestRequestArgs>>> GroupRequests(IEnumerable<RestRequestArgs> args) => args.Select(arg => new KeyValuePair<string, IEnumerable<RestRequestArgs>>(Resolver.ResolveUrl(arg.Uri), arg.AsEnumerable()));
+    }
+
+    public class TMDbReadHandler : TMDbRestCache
+    {
         private Dictionary<TMDbRequest, IEnumerable<TMDbRequest>> Appendable { get; }
         private Dictionary<TMDbRequest, TMDbRequest> AppendsTo { get; }
 
         public TMDbReadHandler(HttpMessageHandler handler, TMDbResolver resolver, Dictionary<TMDbRequest, IEnumerable<TMDbRequest>> autoAppend = null) : this(new HttpMessageInvoker(handler), resolver, autoAppend) { }
-        public TMDbReadHandler(HttpMessageInvoker client, TMDbResolver resolver, Dictionary<TMDbRequest, IEnumerable<TMDbRequest>> autoAppend = null) : base(new TMDbRemoteDatastore(client, resolver)) //: this(new HttpDatastore(client), resolver, autoAppend) { }
+        public TMDbReadHandler(HttpMessageInvoker client, TMDbResolver resolver, Dictionary<TMDbRequest, IEnumerable<TMDbRequest>> autoAppend = null) : base(new TMDbRemoteDatastore(client, resolver), resolver) //: this(new HttpDatastore(client), resolver, autoAppend) { }
         //public TMDbReadHandler(IDataStore<Uri, State> datastore, TMDbResolver resolver, Dictionary<TMDbRequest, IEnumerable<TMDbRequest>> autoAppend = null) : base(datastore)
         {
-            Resolver = resolver;
-
             var kvps = autoAppend ?? Enumerable.Empty<KeyValuePair<TMDbRequest, IEnumerable<TMDbRequest>>>();
             Appendable = new Dictionary<TMDbRequest, IEnumerable<TMDbRequest>>(kvps.Where(kvp => kvp.Key.SupportsAppendToResponse));
             AppendsTo = new Dictionary<TMDbRequest, TMDbRequest>();
@@ -46,41 +89,22 @@ namespace Movies
             }
         }
 
-        public override async Task HandleAsync(MultiRestEventArgs e)
+        protected override IEnumerable<KeyValuePair<string, IEnumerable<RestRequestArgs>>> GroupRequests(IEnumerable<RestRequestArgs> args)
         {
             //var parentCollectionWasRequested = new Lazy<bool>(() => e.Args.OfType<UniformItemIdentifier>().Any(uii => uii.Property == Movie.PARENT_COLLECTION));
-            var greedyUrls = e.Unhandled.SelectMany(arg => GetUrlsGreedy(arg.Uri)).Distinct().ToArray();
+            var greedyUrls = args.SelectMany(arg => GetUrlsGreedy(arg.Uri)).Distinct().ToArray();
             var greedy = greedyUrls.Select(url => new RestRequestArgs(new Uri(url, UriKind.Relative)));
-            var args = e.Unhandled.Concat(greedy);
+            args = args.Concat(greedy);
 
             var trie = new Dictionary<string, List<(string Url, string Path, string Query, RestRequestArgs Arg)>>();
             //var trie1 = new Trie<string, (string Url, string Path, string Query, RestRequestArgs Arg)>();
 
             foreach (var arg in args)
             {
-                //if (arg.Uri is UniformItemIdentifier uii && Resolver.TryGetRequest(uii, out var request))
                 var url = Resolver.ResolveUrl(arg.Uri);
                 var parts = url.Split('?');
                 AddToTrie(trie, parts[0], (url, parts[0], parts.Length > 1 ? parts[1] : string.Empty, arg));
-
-                //IEnumerable<string> keys = parts[0].Split('/');
-
-                //if (parts.Length > 1)
-                //{
-                //    keys = keys.Append(parts[1]);
-                //}
-
-                //var value = (url, parts[0], parts.Length > 1 ? parts[1] : string.Empty, arg);
-                //trie1.Add(value, keys.ToArray());
             }
-
-            //IEnumerable<KeyValuePair<IEnumerable<string>, (string, string, string, RestRequestArgs)>> asdfasd = trie1;
-
-            var item = e.AllArgs.Select(arg => arg.Uri).OfType<UniformItemIdentifier>().FirstOrDefault()?.Item as Item;
-            var properties = e.Unhandled
-                .Select(arg => arg.Uri)
-                .OfType<UniformItemIdentifier>()
-                .Select(uii => uii.Property);
 
             foreach (var kvp in trie)
             {
@@ -104,28 +128,8 @@ namespace Movies
                 {
                     url += "?" + query;
                 }
-                bool parentCollectionWasRequested = e.Unhandled
-                    .Select(arg => arg.Uri)
-                    .OfType<UniformItemIdentifier>()
-                    .Select(uii => uii.Property)
-                    .Contains(Movie.PARENT_COLLECTION);
-                var response = await Datastore.ReadAsync(new TMDbResolver.DummyUri(url, item, parentCollectionWasRequested)
-                {
-                    RequestedProperties = properties
-                });
 
-                if (response?.TryGetRepresentation<IEnumerable<KeyValuePair<Uri, object>>>(out var collection) == true)
-                {
-                    e.HandleMany(collection);
-
-                    foreach (var arg in e.Unhandled)
-                    {
-                        if (MultiRestEventArgs.TryGetValue(collection, arg.Uri, out var obj))
-                        {
-                            arg.Handle(State.Create(obj));
-                        }
-                    }
-                }
+                yield return new KeyValuePair<string, IEnumerable<RestRequestArgs>>(url, kvp.Value.Select(value => value.Arg));
             }
         }
 

@@ -15,7 +15,7 @@ namespace Movies
         //public IEnumerable<RestRequestArgs> Unhandled { get; }
 
         private readonly LinkedList<RestRequestArgs> _Unhandled;
-        public readonly IEnumerable<RestRequestArgs> AllArgs;
+        public readonly RestRequestArgs[] AllArgs;
 
         public MultiRestEventArgs(params RestRequestArgs[] args) : this((IEnumerable<RestRequestArgs>)args) { }
         public MultiRestEventArgs(IEnumerable<RestRequestArgs> args)
@@ -52,35 +52,14 @@ namespace Movies
             return AdditionalState?.Where(kvp => !set.Contains(kvp.Key)) ?? Enumerable.Empty<KeyValuePair<Uri, State>>();
         }
 
-        public void Handle(MultiRestEventArgs e)
-        {
-            if (e.AdditionalState != null)
-            {
-                AdditionalState = AdditionalState?.Concat(e.AdditionalState) ?? e.AdditionalState;
-            }
-        }
-
-        public void Handle<T>(IEnumerable<KeyValuePair<Uri, Task<T>>> data)
-        {
-            //var success = true;
-
-            foreach (var arg in AllArgs)
-            {
-                //success &= TryGetValue(data, arg.Uri, out var value) && arg.Handle(value);
-                if (TryGetValue(data, arg.Uri, out var value))
-                {
-                    arg.Handle(value);
-                }
-            }
-
-            //AdditionalState = data as IEnumerable<KeyValuePair<Uri, State>> ?? data.Select(kvp => new KeyValuePair<Uri, State>(kvp.Key, new State(kvp.Value)));
-
-            //return success;
-        }
-
         public bool HandleMany<T>(IEnumerable<KeyValuePair<Uri, T>> data)
         {
             var success = true;
+
+            if (AllArgs.Length > 1 && data is IDictionary<Uri, T> == false && data is IReadOnlyDictionary<Uri, T> == false)
+            {
+                data = new Dictionary<Uri, T>(data);
+            }
 
             foreach (var arg in AllArgs)
             {
@@ -94,13 +73,13 @@ namespace Movies
 
         public static bool TryGetValue<T>(IEnumerable<KeyValuePair<Uri, T>> data, Uri uri, out T value)
         {
-            if (data is IReadOnlyDictionary<Uri, T> ROdict)
-            {
-                return ROdict.TryGetValue(uri, out value);
-            }
-            else if (data is IDictionary<Uri, T> dict)
+            if (data is IDictionary<Uri, T> dict)
             {
                 return dict.TryGetValue(uri, out value);
+            }
+            else if (data is IReadOnlyDictionary<Uri, T> ROdict)
+            {
+                return ROdict.TryGetValue(uri, out value);
             }
 
             foreach (var kvp in data)

@@ -11,44 +11,6 @@ using System.Threading.Tasks;
 
 namespace Movies
 {
-    public class LazyJsonContent : HttpContent
-    {
-        public AnnotatedJson Json { get; }
-        public Uri Uri { get; }
-
-        public LazyJsonContent(AnnotatedJson json, Uri uri)
-        {
-            Json = json;
-            Uri = uri;
-        }
-
-        protected override Task SerializeToStreamAsync(Stream stream, TransportContext context)
-        {
-            if (Json.TryGetValue(Uri, out var bytes))
-            {
-                return stream.WriteAsync(bytes).AsTask();
-            }
-            else
-            {
-                return Task.CompletedTask;
-            }
-        }
-
-        protected override bool TryComputeLength(out long length)
-        {
-            if (Json.TryGetValue(Uri, out var bytes))
-            {
-                length = bytes.Count;
-                return true;
-            }
-            else
-            {
-                length = default;
-                return false;
-            }
-        }
-    }
-
     public class ObjectContent : HttpContent
     {
         public State Value { get; }

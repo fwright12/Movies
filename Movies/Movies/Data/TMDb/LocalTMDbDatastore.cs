@@ -7,70 +7,19 @@ using System.Threading.Tasks;
 
 namespace Movies
 {
-    public class TMDbLocalHandlers : DatastoreReadHandler
+    public class TMDbLocalHandlers : TMDbRestCache
     {
         new public LocalTMDbDatastore Datastore { get; }
-        public TMDbResolver Resolver { get; }
 
-        public TMDbLocalHandlers(LocalTMDbDatastore datastore, TMDbResolver resolver) : base(datastore)
+        public TMDbLocalHandlers(LocalTMDbDatastore datastore, TMDbResolver resolver) : base(datastore, resolver)
         {
             Datastore = datastore;
-            Resolver = resolver;
         }
 
-        public override async Task HandleAsync(MultiRestEventArgs args)
-        {
-            bool parentCollectionWasRequested = args.Unhandled
-                .Select(arg => arg.Uri)
-                .OfType<UniformItemIdentifier>()
-                .Select(uii => uii.Property)
-                .Contains(Movie.PARENT_COLLECTION);
-
-            foreach (var e in args.Unhandled)
-            {
-                if (!Datastore.IsCacheable(e.Uri))
-                {
-                    continue;
-                }
-
-                var url = Resolver.ResolveUrl(e.Uri);
-                var uri = new TMDbResolver.DummyUri(url, (e.Uri as UniformItemIdentifier)?.Item, parentCollectionWasRequested);
-                var response = await Datastore.ReadAsync(uri);
-
-                if (response?.TryGetRepresentation<IEnumerable<KeyValuePair<Uri, object>>>(out var collection) == true)
-                {
-                    args.HandleMany(collection);
-
-                    foreach (var arg in args.Unhandled)
-                    {
-                        if (MultiRestEventArgs.TryGetValue(collection, arg.Uri, out var obj))
-                        {
-                            arg.Handle(State.Create(obj));
-                        }
-                    }
-                }
-
-                if (false && response?.TryGetRepresentation<ArraySegment<byte>>(out var bytes) == true)
-                {
-                    var json = new AnnotatedJson(bytes.ToArray());
-
-                    if (e.Uri is UniformItemIdentifier uii)
-                    {
-                        foreach (var annotation in Resolver.Annotate(url))
-                        {
-                            json.Add(new UniformItemIdentifier(uii.Item, annotation.Key), annotation.Value);
-                        }
-                    }
-
-                    args.HandleMany(json);
-
-                    if (!e.Handled && e.Response?.TryGetRepresentation<ArraySegment<byte>>(out var temp) == true && await Resolver.GetConverter(e.Uri, temp) is IConverter<ArraySegment<byte>> converter)
-                    {
-                        e.Handle(converter);
-                    }
-                }
-            }
-        }
+        protected override IEnumerable<KeyValuePair<string, IEnumerable<RestRequestArgs>>> GroupRequests(IEnumerable<RestRequestArgs> args) => args
+            .Where(arg => Datastore.IsCacheable(arg.Uri))
+            .Select(arg => new KeyValuePair<string, IEnumerable<RestRequestArgs>>(Resolver.ResolveUrl(arg.Uri), arg.AsEnumerable()))
+            .GroupBy(kvp => kvp.Key, (key, group) => new KeyValuePair<string, IEnumerable<RestRequestArgs>>(key, group.SelectMany(pair => pair.Value)));
     }
 
     public class LocalTMDbDatastore : IDataStore<Uri, State>
@@ -159,6 +108,6 @@ namespace Movies
         }
 
         private bool IsCacheable(Property property) => CHANGES_IGNORED.Contains(property) || ContainsChangeKey(property);
-        private bool ContainsChangeKey(Property property) => Resolver.TryResolveJsonPropertyName(property, out string changeKey) && ChangeKeys.Contains(changeKey);
+        private bool ContainsChangeKey(Property property) => Resolver.TryGetChangeKey(property, out string changeKey) && ChangeKeys.Contains(changeKey);
     }
 }
