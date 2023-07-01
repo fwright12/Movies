@@ -63,6 +63,7 @@ namespace Movies
                 }
 
                 Task handling;
+                List<Task> cached = new List<Task>();
                 MultiRestEventArgs eNext;
 
                 lock (CacheLock)
@@ -73,7 +74,7 @@ namespace Movies
 
                         if (Cache.TryGetValue(arg.Uri, out var task))
                         {
-                            _ = arg.Handle(task);
+                            cached.Add(arg.Handle(task));
                             unhandled.RemoveAt(i--);
                         }
                     }
@@ -87,7 +88,7 @@ namespace Movies
                     }
                 }
 
-                await handling;
+                await Task.WhenAll(cached.Prepend(handling));
                 e.HandleMany(eNext.GetAdditionalState());
 
                 var handledByNext = unhandled.Where(arg => arg.Handled).ToArray();
@@ -111,15 +112,95 @@ namespace Movies
                     }
                 }
 
-                await Handlers.HandleSet(new MultiRestEventArgs(put));
-                
+                var set = Handlers.HandleSet(new MultiRestEventArgs(put));
+                UpdateCacheOnWriteComplete(set, put);
+            }
+
+            private async void UpdateCacheOnWriteComplete(Task writing, IEnumerable<RestRequestArgs> args)
+            {
+                await writing;
+
                 lock (CacheLock)
                 {
-                    foreach (var arg in put)
+                    foreach (var arg in args)
                     {
                         Cache.Remove(arg.Uri);
                     }
                 }
+            }
+
+            private async Task GetAsync1(MultiRestEventArgs e, ChainLinkEventHandler<MultiRestEventArgs> next)
+            {
+                await Handlers.HandleGet(e);
+
+                if (next == null)
+                {
+                    return;
+                }
+
+                var unhandled = e.Unhandled.ToList();
+
+                if (unhandled.Count == 0)
+                {
+                    return;
+                }
+
+                Task handling;
+                List<Task> cached = new List<Task>();
+                MultiRestEventArgs eNext;
+
+                lock (CacheLock)
+                {
+                    for (int i = 0; i < unhandled.Count; i++)
+                    {
+                        var arg = unhandled[i];
+
+                        if (Cache.TryGetValue(arg.Uri, out var task))
+                        {
+                            cached.Add(arg.Handle(task));
+                            unhandled.RemoveAt(i--);
+                        }
+                    }
+
+                    eNext = new MultiRestEventArgs(unhandled);
+                    handling = next.InvokeAsync(eNext);
+
+                    foreach (var arg in unhandled)
+                    {
+                        Cache.Add(arg.Uri, GetResponseAsync(handling, arg));
+                    }
+                    foreach (var kvp in eNext.GetAdditionalState())
+                    {
+                        //Cache.TryAdd(kvp.Key, kvp.Value);
+                    }
+                }
+
+                await Task.WhenAll(cached.Prepend(handling));
+                e.HandleMany(eNext.GetAdditionalState());
+
+                var handledByNext = unhandled.Where(arg => arg.Handled).ToArray();
+                var put = handledByNext
+                    .ToDictionary(arg => arg.Uri, arg => Task.FromResult(arg.Response));
+
+                //var extra = new Dictionary<Uri, State>(handledByNext
+                //    .Select(arg => arg.Response.TryGetRepresentation<IDictionary<Uri, State>>(out var extra) ? extra : null)
+                //    .Where(values => values != null)
+                //    .SelectMany());
+
+                foreach (var kvp in e.GetAdditionalState())//.Where(kvp => kvp.Key is UniformItemIdentifier == false))
+                {
+                    //kvp.Value.Add(arg.Expected, this);
+                    //put.Add(kvp.Key, kvp.Value);
+
+                    lock (CacheLock)
+                    {
+                        //Cache.Add(kvp.Key, Task.FromResult(kvp.Value));
+                        //Cache.TryAdd(kvp.Key, kvp.Value);
+                    }
+                }
+
+                //var set = Handlers.HandleSet(new MultiRestEventArgs(put));
+                //UpdateCacheOnWriteComplete(put);
             }
 
             private static async Task<State> GetResponseAsync(Task task, RestRequestArgs e)

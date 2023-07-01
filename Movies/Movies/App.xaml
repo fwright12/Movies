@@ -46,9 +46,7 @@
             </Style>
 
             <DataTemplate x:Key="InlineBannerTemplate">
-                <ContentView WidthRequest="300"
-                             HeightRequest="250"
-                             CompressedLayout.IsHeadless="True">
+                <ContentView IsVisible="false">
                     <forms:AdView Style="{StaticResource InlineBannerAdStyle}"
                                   AdUnitID="{Static movies:App.ListInlineBannerAdUnitID}"
                                   AdSize="MediumRectangle"

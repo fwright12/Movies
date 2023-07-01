@@ -37,9 +37,8 @@ namespace Movies
         }
 
         public static Task Get(this ChainLink<MultiRestEventArgs> chain, params RestRequestArgs[] args) => Get(chain, (IEnumerable<RestRequestArgs>)args);
-        public static Task Get(this ChainLink<MultiRestEventArgs> chain, IEnumerable<RestRequestArgs> args1)
+        public static Task Get(this ChainLink<MultiRestEventArgs> chain, IEnumerable<RestRequestArgs> args)
         {
-            var args = args1.ToArray();
             var e = new MultiRestEventArgs(args);
             chain.Handle(e);
             return e.RequestedSuspension;

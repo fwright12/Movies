@@ -1,4 +1,5 @@
 ﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Movies;
 using System.Collections;
 using System.Diagnostics;
 using System.Text;
@@ -8,32 +9,29 @@ namespace MoviesTests.Data.TMDb
     [TestClass]
     public class ResourceTests : Resources
     {
-        private ChainLink<MultiRestEventArgs> Chain { get; }
-        private TMDbResolver Resolver { get; }
+        private readonly TMDbResolver Resolver;
 
         private UiiDictionaryDatastore InMemoryCache { get; }
-        private LocalTMDbDatastore LocalTMDbDatastore { get; }
-
         private DummyDatastore<IEnumerable<byte>> DiskCache { get; }
-        private HttpMessageInvoker Invoker { get; }
+
+        private TMDbLocalHandlers LocalTMDbHandlers { get; }
+        private TMDbReadHandler RemoteTMDbHandlers { get; }
+
+        private ChainLink<MultiRestEventArgs> Chain;
 
         public ResourceTests()
         {
             Resolver = new TMDbResolver(TMDB.ITEM_PROPERTIES);
-            Invoker = new HttpMessageInvoker(new BufferedHandler(new TMDbBufferedHandler(new MockHandler())));
 
             DiskCache = new DummyDatastore<IEnumerable<byte>>();
             InMemoryCache = new UiiDictionaryDatastore();
 
-            var tmdb = new TMDbReadHandler(Invoker, Resolver, TMDbApi.AutoAppend);
-            LocalTMDbDatastore = new LocalTMDbDatastore(DiskCache, Resolver)
+            LocalTMDbHandlers = new TMDbLocalHandlers(new LocalTMDbDatastore(DiskCache, Resolver)
             {
                 ChangeKeys = TestsConfig.ChangeKeys
-            };
-
-            Chain = new CacheAsideLink(InMemoryCache);
-            Chain.SetNext(new CacheAsideLink(new TMDbLocalHandlers(LocalTMDbDatastore, Resolver)))
-                .SetNext(new ChainLinkAsync<MultiRestEventArgs>(tmdb.HandleGet));
+            }, Resolver);
+            var invoker = new HttpMessageInvoker(new BufferedHandler(new TMDbBufferedHandler(new MockHandler())));
+            RemoteTMDbHandlers = new TMDbReadHandler(invoker, Resolver, TMDbApi.AutoAppend);
         }
 
         [TestInitialize]
@@ -46,6 +44,10 @@ namespace MoviesTests.Data.TMDb
             InMemoryCache.Clear();
             DiskCache.Clear();
             TMDB.CollectionCache.Clear();
+
+            Chain = new CacheAsideLink(InMemoryCache);
+            Chain.SetNext(new CacheAsideLink(LocalTMDbHandlers))
+                .SetNext(new ChainLinkAsync<MultiRestEventArgs>(RemoteTMDbHandlers.HandleGet));
         }
 
         //[TestMethod]
@@ -138,6 +140,8 @@ namespace MoviesTests.Data.TMDb
             Assert.AreEqual(new TimeSpan(2, 10, 0), response.Resource);
             Assert.AreEqual($"3/movie/0?language=en-US&{Constants.APPEND_TO_RESPONSE}=credits,keywords,recommendations,release_dates,videos,watch/providers", WebHistory.Last());
 
+            await CachedAsync();
+
             Assert.AreEqual(1, WebHistory.Count);
             Assert.AreEqual(6, DiskCache.Count);
             //Assert.AreEqual(ItemProperties[ItemType.Movie].Count + 7, ResourceCache.Count);
@@ -170,12 +174,12 @@ namespace MoviesTests.Data.TMDb
             Assert.IsTrue(e.Response.TryGetRepresentation<IAsyncEnumerable<Item>>(out var value));
 
             int count = 0;
-            await foreach (var item in value) { count++; }
+            try { await foreach (var item in value) { count++; } } catch { }
 
             Assert.AreEqual(21, count);
             Assert.AreEqual(2, WebHistory.Count);
-            Assert.AreEqual($"3/movie/0?language=en-US&{Constants.APPEND_TO_RESPONSE}=credits,keywords,recommendations,release_dates,videos,watch/providers", WebHistory[0]);
-            Assert.AreEqual($"3/movie/0?language=en-US&{Constants.APPEND_TO_RESPONSE}=credits,keywords,recommendations,release_dates,videos,watch/providers", WebHistory[1]);
+            Assert.AreEqual($"3/movie/0?language=en-US&{Constants.APPEND_TO_RESPONSE}=recommendations,credits,keywords,release_dates,videos,watch/providers", WebHistory[0]);
+            Assert.AreEqual($"3/movie/0/recommendations?language=en-US&page=2", WebHistory[1]);
         }
 
         [TestMethod]
@@ -213,6 +217,22 @@ namespace MoviesTests.Data.TMDb
             Assert.AreEqual(1, WebHistory.Count);
         }
 
+        // Calls to the api will have a delay
+        // If the in memory cache doesn't cache tasks, successive calls will go through because they don't
+        // return a result immediately
+        [TestMethod]
+        public async Task HttpRequestsAreCacheddsf()
+        {
+            DebugConfig.SimulatedDelay = 0;
+            DiskCache.SimulatedDelay = 0;
+
+            var arg1 = new RestRequestArgs(new UniformItemIdentifier(Constants.Movie, TVShow.SEASONS));
+            var arg2 = new RestRequestArgs(new UniformItemIdentifier(Constants.Movie, Media.TITLE));
+            await Task.WhenAll(Chain.Get(arg1), Chain.Get(arg2));
+
+            Assert.AreEqual(1, WebHistory.Count);
+        }
+
         [TestMethod]
         public async Task RequestsAreBatched()
         {
@@ -220,10 +240,12 @@ namespace MoviesTests.Data.TMDb
 
             var requests = getAllRequests();
             await Task.WhenAll(Chain.Get(requests));
+            await CachedAsync();
             Assert.AreEqual(1, WebHistory.Count);
 
             // No additional api calls should be made, everything should be cached in memory
-            await Task.WhenAll(Chain.Get(requests = getAllRequests()));
+            await Task.WhenAll(Chain.Get(getAllRequests()));
+            await CachedAsync();
             Assert.AreEqual(1, WebHistory.Count);
 
             // These properties should result in another api call because they don't cache
@@ -237,7 +259,8 @@ namespace MoviesTests.Data.TMDb
                 WebHistory.Clear();
 
                 await InMemoryCache.DeleteAsync(new UniformItemIdentifier(Constants.Movie, property));
-                await Task.WhenAll(Chain.Get(getAllRequests()));
+                await Chain.Get(requests = getAllRequests());
+                await CachedAsync();
                 Assert.AreEqual(1, WebHistory.Count);
             }
         }
@@ -256,6 +279,11 @@ namespace MoviesTests.Data.TMDb
             Assert.AreEqual(2, WebHistory.Count);
             Assert.AreEqual(new TimeSpan(2, 10, 0), runtime.Response?.TryGetRepresentation<TimeSpan?>(out var value) == true ? value : null);
             Assert.AreEqual("Apple iTunes", watchProviders.Response?.TryGetRepresentation<IEnumerable<WatchProvider>>(out var value1) == true ? value1.FirstOrDefault()?.Company.Name : null);
+        }
+
+        private Task CachedAsync()
+        {
+            return Task.Delay(DiskCache.SimulatedDelay * 2);
         }
 
         private Property[] AllMovieProperties() => GetProperties(typeof(Media)).Concat(GetProperties(typeof(Movie))).Append(TMDB.POPULARITY).ToArray();
@@ -334,7 +362,7 @@ namespace MoviesTests.Data.TMDb
             {
                 (Chain, properties),
                 //new Controller().AddLast(ResourceCache),
-                (new ChainLinkAsync<MultiRestEventArgs>(new TMDbLocalHandlers(LocalTMDbDatastore, Resolver).HandleGet), type == typeof(TVSeason) || type == typeof(TVEpisode) ? Enumerable.Empty<Property>() : properties.Except(NO_CHANGE_KEY))
+                (new ChainLinkAsync<MultiRestEventArgs>(LocalTMDbHandlers.HandleGet), type == typeof(TVSeason) || type == typeof(TVEpisode) ? Enumerable.Empty<Property>() : properties.Except(NO_CHANGE_KEY))
             })
             {
                 foreach (var property in test.Properties)

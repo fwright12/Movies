@@ -45,29 +45,28 @@ namespace Movies.ViewModels
             });
         }
 
-        private Dictionary<string, Property> Batched = new Dictionary<string, Property>();
-
         protected delegate bool TryGet<T>(out T value);
 
 #if true
+        private Dictionary<string, RestRequestArgs> Batched = new Dictionary<string, RestRequestArgs>();
+
         private async void BatchEnded(object sender, EventArgs e)
         {
-            var requests = Batched.Values
-                .Select(property => new RestRequestArgs(new UniformItemIdentifier(Item, property), property.FullType))
-                .ToArray();
-            await Controller.Get(requests);
+            await Controller.Get(Batched.Values);
 
             foreach (var propertyName in Batched.Keys)
             {
                 OnPropertyChanged(propertyName);
             }
+
+            Batched.Clear();
         }
 
         protected bool TryGetValue<T>(Property property, out T value, [CallerMemberName] string propertyName = null)
         {
             if (DataService.Instance.Batched)
             {
-                Batched[propertyName] = property;
+                Batched[propertyName] = new RestRequestArgs(new UniformItemIdentifier(Item, property), property.FullType);
                 DataService.Instance.BatchCommitted -= BatchEnded;
                 DataService.Instance.BatchCommitted += BatchEnded;
 
@@ -75,12 +74,22 @@ namespace Movies.ViewModels
                 return false;
             }
 
-            value = default;
+            //value = default;
+            //var state = DataService.Instance.ResourceCache.ReadAsync(new UniformItemIdentifier(Item, property));
+
+            //if (state.IsCompleted)
+            //{
+            //    state.Result.TryGetRepresentation<T>(out value);
+            //    return true;
+            //}
+
+            //return false;
             return TryGetValue(GetValue<T>(property), out value, propertyName);
         }
 
         private async Task<T> GetValue<T>(Property property)
         {
+            //return DataService.Instance.ResourceCache.ReadAsync(new UniformItemIdentifier(Item, property)).Result.TryGetRepresentation<T>(out var temp) ? temp : default;
             var request = new RestRequestArgs(new UniformItemIdentifier(Item, property), typeof(T));
             await Controller.Get(request);
 
@@ -90,6 +99,8 @@ namespace Movies.ViewModels
         protected bool TryRequestValue<T>(Property<T> property, out T value, [CallerMemberName] string propertyName = null) => TryGetValue(property, out value, propertyName);
         protected bool TryRequestValue<T>(MultiProperty<T> property, out IEnumerable<T> value, [CallerMemberName] string propertyName = null) => TryGetValue(property, out value, propertyName);
 #else
+        private Dictionary<string, Property> Batched = new Dictionary<string, Property>();
+
         private async void BatchEnded(object sender, EventArgs e)
         {
             Properties.RequestValues(Batched.Values);

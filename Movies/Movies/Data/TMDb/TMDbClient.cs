@@ -44,10 +44,17 @@ namespace Movies
                     .Select(uii => uii.Property)
                     .ToHashSet();
                 bool parentCollectionWasRequested = properties.Contains(Movie.PARENT_COLLECTION);
-                var response = await Datastore.ReadAsync(new TMDbResolver.TrojanTMDbUri(url, item, parentCollectionWasRequested)
+                var uri = new TMDbResolver.TrojanTMDbUri(url, item, parentCollectionWasRequested)
                 {
                     RequestedProperties = properties
-                });
+                };
+
+                if (Resolver.TryGetConverter(uri, out var converter))
+                {
+                    uri.Converter = converter;
+                }
+
+                var response = await Datastore.ReadAsync(uri);
 
                 if (response?.TryGetRepresentation<IEnumerable<KeyValuePair<Uri, object>>>(out var collection) == true)
                 {

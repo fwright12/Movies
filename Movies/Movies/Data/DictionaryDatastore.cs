@@ -10,7 +10,7 @@ namespace Movies
     {
         public int Count => Datastore.Count;
 
-        private DictionaryDatastore Datastore { get; } = new DictionaryDatastore();
+        public DictionaryDatastore Datastore { get; } = new DictionaryDatastore();
 
         public Task<bool> CreateAsync(Uri key, State value) => UpdateAsync(key, value);
         public async Task<bool> CreateAsync(Uri key, Task<State> value) => await UpdateAsync(key, await value);
@@ -31,11 +31,17 @@ namespace Movies
     {
         public int Count => Cache.Count;
 
-        private ConcurrentDictionary<Uri, Task<State>> Cache { get; } = new ConcurrentDictionary<Uri, Task<State>>();
+        private Dictionary<Uri, Task<State>> Cache { get; } = new Dictionary<Uri, Task<State>>();
 
         public Task<bool> CreateAsync(Uri key, State value) => UpdateAsync(key, value);
 
         public Task<State> ReadAsync(Uri key) => Cache.TryGetValue(key, out var value) ? value : Task.FromResult<State>(null);
+
+        public bool Update(Uri key, Task<State> updatedValue)
+        {
+            Cache[key] = updatedValue;
+            return true;
+        }
 
         public Task<bool> UpdateAsync(Uri key, State updatedValue)
         {
@@ -43,7 +49,7 @@ namespace Movies
             return Task.FromResult(true);
         }
 
-        public Task<State> DeleteAsync(Uri key) => Cache.TryRemove(key, out var value) ? value : Task.FromResult<State>(null);
+        public Task<State> DeleteAsync(Uri key) => Cache.Remove(key, out var value) ? value : Task.FromResult<State>(null);
 
         public void Clear()
         {

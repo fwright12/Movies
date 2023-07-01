@@ -22,7 +22,7 @@ namespace Movies
         {
             handler(e);
 
-            if (!e.Handled)
+            if (!e.Handled && next != null)
             {
                 next(e);
             }

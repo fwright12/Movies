@@ -118,7 +118,11 @@ namespace Movies
             Print.Log($"flushed {rows.Length} items");
         }
 
-        async Task IJsonCache.AddAsync(string url, JsonResponse response) => InsertBatched((0, 0, url, Task.FromResult(response)));
+        Task IJsonCache.AddAsync(string url, JsonResponse response)
+        {
+            InsertBatched((0, 0, url, Task.FromResult(response)));
+            return Task.CompletedTask;
+        }
 
         public Task AddAsync(ItemType type, int id, string url, JsonResponse response) => AddAsync(type, id, url, Task.FromResult(response));
         public async Task AddAsync(ItemType type, int id, string url, Task<JsonResponse> response)
@@ -188,14 +192,23 @@ namespace Movies
             }
 
             var cache = await Cache;
-            var itr = ids.OfType<object>().GetEnumerator();
-            var args = Take(itr, MAX_SQL_VARIABLES - 1).Prepend((int)type).ToArray();
-            var values = string.Join(",", Enumerable.Repeat("?", args.Length - 1));
-            var query = $"delete from {cache.Table} where {TYPE} = ? and {ID} in ({values})";
+            //var itr = ids.OfType<object>().GetEnumerator();
+            //var args = Take(itr, MAX_SQL_VARIABLES - 1).Prepend((int)type).ToArray();
+            //var values = string.Join(",", Enumerable.Repeat("?", args.Length - 1));
+            string typeStr;
 
-            var counts = await Task.WhenAll(
-                cache.DB.ExecuteAsync(query, args),
-                Expire(type, ToEnumerable(itr).OfType<int>()));
+            if (type == ItemType.Movie) typeStr = "movie";
+            else if (type == ItemType.TVShow) typeStr = "tv";
+            else if (type == ItemType.Person) typeStr = "person";
+            else return 0;
+
+            var counts = await Task.WhenAll(ids.Select(id => cache.DB.ExecuteAsync($"delete from {cache.Table} where {SQLJsonCache.URL} like '3/{typeStr}/{id}%'")));
+
+            //var query = $"delete from {cache.Table} where {TYPE} = ? and {ID} in ({values})";
+
+            //var counts = await Task.WhenAll(
+            //    cache.DB.ExecuteAsync(query, args),
+            //    Expire(type, ToEnumerable(itr).OfType<int>()));
             return counts.Sum();
         }
 

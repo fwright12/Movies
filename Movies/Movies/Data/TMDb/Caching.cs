@@ -31,12 +31,12 @@ namespace Movies
             var requests = new TMDbRequest[] { API.MOVIES.GET_WATCH_PROVIDERS, API.TV.GET_WATCH_PROVIDERS };
             var regexPattern = "{\\d+}";
             var sqlPattern = "%";
-            var patterns = requests.Select(request => new Regex(regexPattern).Replace(request.GetURL(), sqlPattern) + "%");
+            var patterns = requests.Select(request => new Regex(regexPattern).Replace("3/" + request.Endpoint, sqlPattern) + "%");
 
             //var values = await cache.ReadAll();
             var offset = DateTime.Now.AddDays(-WATCH_PROVIDERS_EXPIRED_AFTER_DAY_OF_MONTH + 1);
             var date = new DateTime(offset.Year, offset.Month, WATCH_PROVIDERS_EXPIRED_AFTER_DAY_OF_MONTH);
-            //date = DateTime.Now;
+            //date = DateTime.Now.AddDays(1);
 
             var adfsd = await Task.WhenAll(patterns.Select(pattern => cache.ExpireAll(pattern, date)));
         }

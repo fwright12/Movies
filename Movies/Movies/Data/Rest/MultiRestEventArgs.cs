@@ -20,7 +20,7 @@ namespace Movies
         public MultiRestEventArgs(params RestRequestArgs[] args) : this((IEnumerable<RestRequestArgs>)args) { }
         public MultiRestEventArgs(IEnumerable<RestRequestArgs> args)
         {
-            AllArgs = args.ToArray();
+            AllArgs = args as RestRequestArgs[] ?? args.ToArray();
             _Unhandled = args as LinkedList<RestRequestArgs> ?? new LinkedList<RestRequestArgs>(args);
         }
 

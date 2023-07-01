@@ -166,7 +166,7 @@ namespace Movies
 
             var basePath = uri.ToString().Split('?')[0];
             var queryString = query.ToString();
-            var data = new Dictionary<TMDbRequest, (Uri Uri, string Path, List<Parser> Parsers)>();
+            var data = new Dictionary<TMDbRequest, (Uri Uri, string Path, List<Parser> Parsers, IEnumerable<object> Args)>();
             var partial = (uri as TrojanTMDbUri)?.RequestedProperties != null;
 
             foreach (var appended in append.Prepend(string.Empty))
@@ -178,7 +178,7 @@ namespace Movies
                 }
                 fullUrl += "?" + queryString;
 
-                var fullUri = new Uri(fullUrl, UriKind.Relative);
+                var fullUri = new Uri(fullUrl, UriKind.RelativeOrAbsolute);
                 var deparameterizedUrl = RemoveVariables(fullUri, out var args);
 
                 if (Annotations.TryGetValue(deparameterizedUrl, out var annotation))
@@ -186,7 +186,7 @@ namespace Movies
                     var childUrl = string.Format(annotation.Key.GetURL(language, region, adult, queryString), args.ToArray());
                     fullUri = new Uri(childUrl, UriKind.Relative);
 
-                    data.Add(annotation.Key, (fullUri, appended, partial ? new List<Parser>() : annotation.Value));
+                    data.Add(annotation.Key, (fullUri, appended, partial ? new List<Parser>() : annotation.Value, args));
                 }
             }
 
@@ -200,6 +200,11 @@ namespace Movies
                             data.TryGetValue(request, out var value) &&
                             TryGetParser(dummyUri.Item.ItemType, property, out var parser))
                         {
+                            if (request is PagedTMDbRequest pagedRequest)
+                            {
+                                parser = ReplacePagedParsers(pagedRequest, parser, value.Args);
+                            }
+
                             value.Parsers.Add(parser);
                         }
                     }
@@ -212,6 +217,33 @@ namespace Movies
             resource = default;
             return false;
         }
+
+        private Parser ReplacePagedParsers(PagedTMDbRequest request, Parser parser, IEnumerable<object> args)
+        {
+            if (parser.Property is Property<IAsyncEnumerable<Item>> property == false)
+            {
+                return parser;
+            }
+
+            var pageParser = ParserToJsonParser<IAsyncEnumerable<Item>>(parser);
+            var pagedRequest = new ParameterizedPagedRequest(request, args.ToArray());
+            var pagedParser = new TMDB.PagedParser<Item>(pagedRequest, pageParser);
+            var listParser = new Parser<IAsyncEnumerable<Item>>(property, pagedParser);
+
+            return listParser;
+        }
+
+        private static IJsonParser<T> ParserToJsonParser<T>(Parser parser) => new JsonNodeParser<T>((JsonNode json, out T items) =>
+        {
+            if (parser.TryGetValue(json, out var pair) && pair.Value is Task<T> task && task.IsCompletedSuccessfully)
+            {
+                items = task.Result;
+                return true;
+            }
+
+            items = default;
+            return true;
+        });
 
         public abstract class LazyBytes : IEnumerable<byte>
         {
@@ -271,14 +303,14 @@ namespace Movies
             }
         }
 
-        private class HttpConverter : HttpResourceCollectionConverter
+        public class HttpConverter : HttpResourceCollectionConverter
         {
             public Item Item { get; }
             public bool ParentCollectionWasRequested { get; }
-            public IEnumerable<(Uri Uri, string Path, List<Parser> Parsers)> Annotations { get; }
+            public IEnumerable<(Uri Uri, string Path, List<Parser> Parsers, IEnumerable<object> Args)> Annotations { get; }
             public override IEnumerable<Uri> Resources { get; }
 
-            public HttpConverter(Item item, IEnumerable<(Uri, string, List<Parser>)> annotations, bool parentCollectionWasRequested)
+            public HttpConverter(Item item, IEnumerable<(Uri, string, List<Parser>, IEnumerable<object>)> annotations, bool parentCollectionWasRequested)
             {
                 Item = item;
                 Resources = annotations.Select(temp => temp.Item1).ToArray();
@@ -373,8 +405,9 @@ namespace Movies
             public Item Item { get; }
             public bool ParentCollectionWasRequested { get; }
             public IEnumerable<Property> RequestedProperties { get; set; }
+            public IHttpConverter<object> Converter { get; set; }
 
-            public TrojanTMDbUri(string url, Item item, bool parentCollectionWasRequested) : base(url, UriKind.Relative)
+            public TrojanTMDbUri(string url, Item item, bool parentCollectionWasRequested) : base(url, UriKind.RelativeOrAbsolute)
             {
                 Item = item;
                 ParentCollectionWasRequested = parentCollectionWasRequested;
