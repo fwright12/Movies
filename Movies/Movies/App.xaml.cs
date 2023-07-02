@@ -119,6 +119,23 @@ namespace Movies
 
         private CollectionViewModel _Popular;
 
+#if DEBUG
+        public static string Message
+        {
+            get => _Message;
+            set
+            {
+                if (_Message != value)
+                {
+                    (Current as App)?.OnPropertyChanged(nameof(Message));
+                    _Message = value;
+                }
+            }
+        }
+
+        private static string _Message;
+#endif
+
         public App()
         {
 #if DEBUG

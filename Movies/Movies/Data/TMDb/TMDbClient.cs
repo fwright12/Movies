@@ -1,5 +1,6 @@
 ﻿using Movies.Models;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
@@ -17,7 +18,17 @@ namespace Movies
             Resolver = resolver;
         }
 
-        protected override bool TryGetConverter(Uri uri, out IHttpConverter<object> resource) => Resolver.TryGetConverter(uri, out resource);
+        //protected override bool TryGetConverter(Uri uri, out IHttpConverter<object> resource) => Resolver.TryGetConverter(uri, out resource);
+        protected override bool TryGetConverter(Uri uri, out IHttpConverter<object> resource)
+        {
+            if (uri is TMDbResolver.TrojanTMDbUri trojan)
+            {
+                resource = trojan.Converter;
+                return resource != null;
+            }
+
+            return Resolver.TryGetConverter(uri, out resource);
+        }
     }
 
     public abstract class TMDbRestCache : RestCache
@@ -32,6 +43,7 @@ namespace Movies
         public override async Task HandleGet(MultiRestEventArgs e)
         {
             var item = e.AllArgs.Select(arg => arg.Uri).OfType<UniformItemIdentifier>().FirstOrDefault()?.Item as Item;
+            var responses = new List<(IEnumerable<RestRequestArgs> Args, Task<State> Response)>();
 
             foreach (var kvp in GroupRequests(e.Unhandled))
             {
@@ -54,21 +66,79 @@ namespace Movies
                     uri.Converter = converter;
                 }
 
-                var response = await Datastore.ReadAsync(uri);
+                var response = Datastore.ReadAsync(uri);
 
-                if (response?.TryGetRepresentation<IEnumerable<KeyValuePair<Uri, object>>>(out var collection) == true)
+                if (uri.Converter is HttpResourceCollectionConverter resources)
                 {
-                    //foreach (var arg in group)
-                    //{
-                    //    if (MultiRestEventArgs.TryGetValue(collection, arg.Uri, out var obj))
-                    //    {
-                    //        arg.Handle(State.Create(obj));
-                    //    }
-                    //}
+                    e.HandleMany(new TaskDictionary(resources.Resources, Convert(response)));
+                }
 
-                    e.HandleMany(collection);
+                responses.Add((kvp.Value, response));
+            }
+
+            foreach (var response in responses)
+            {
+                var state = await response.Response;
+
+                if (state?.TryGetRepresentation<IEnumerable<KeyValuePair<Uri, object>>>(out var collection) == true)
+                {
+                    foreach (var arg in response.Args)
+                    {
+                        if (MultiRestEventArgs.TryGetValue(collection, arg.Uri, out var value))
+                        {
+                            arg.Handle(value);
+                        }
+                    }
                 }
             }
+        }
+
+        private static async Task<IReadOnlyDictionary<Uri, object>> Convert(Task<State> response) => (await response)?.TryGetRepresentation<IReadOnlyDictionary<Uri, object>>(out var collection) == true ? collection : new Dictionary<Uri, object>();
+
+        private class TaskDictionary : IReadOnlyDictionary<Uri, Task<State>>
+        {
+            public IEnumerable<Uri> Keys => KeySet;
+
+            public IEnumerable<Task<State>> Values => throw new NotImplementedException();
+
+            public int Count => KeySet.Count;
+
+            public Task<State> this[Uri key] => TryGetValue(key, out var value) ? value : throw new KeyNotFoundException();
+
+            private ISet<Uri> KeySet { get; }
+            private Task<IReadOnlyDictionary<Uri, object>> Inner { get; }
+
+            public TaskDictionary(IEnumerable<Uri> keys, Task<IReadOnlyDictionary<Uri, object>> inner)
+            {
+                KeySet = keys as ISet<Uri> ?? new HashSet<Uri>(keys);
+                Inner = inner;
+            }
+
+            public bool ContainsKey(Uri key) => KeySet.Contains(key);
+
+            public bool TryGetValue(Uri key, out Task<State> value)
+            {
+                if (KeySet.Contains(key))
+                {
+                    value = GetAsync(key);
+                    return true;
+                }
+
+                value = default;
+                return false;
+            }
+
+            private async Task<State> GetAsync(Uri key) => (await Inner).TryGetValue(key, out var state) ? State.Create(state) : null;
+
+            public IEnumerator<KeyValuePair<Uri, Task<State>>> GetEnumerator()
+            {
+                foreach (var key in KeySet)
+                {
+                    yield return new KeyValuePair<Uri, Task<State>>(key, GetAsync(key));
+                }
+            }
+
+            IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
         }
 
         protected virtual IEnumerable<KeyValuePair<string, IEnumerable<RestRequestArgs>>> GroupRequests(IEnumerable<RestRequestArgs> args) => args.Select(arg => new KeyValuePair<string, IEnumerable<RestRequestArgs>>(Resolver.ResolveUrl(arg.Uri), arg.AsEnumerable()));

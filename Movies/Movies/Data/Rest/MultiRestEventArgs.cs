@@ -11,7 +11,7 @@ namespace Movies
         public IEnumerable<RestRequestArgs> Unhandled => GetUnhandled();
 
         //public IEnumerable<RestRequestArgs> Args { get; }
-        private IEnumerable<KeyValuePair<Uri, State>> AdditionalState;// { get; private set; }
+        private IEnumerable<KeyValuePair<Uri, Task<State>>> AdditionalState;// { get; private set; }
         //public IEnumerable<RestRequestArgs> Unhandled { get; }
 
         private readonly LinkedList<RestRequestArgs> _Unhandled;
@@ -46,10 +46,10 @@ namespace Movies
             }
         }
 
-        public IEnumerable<KeyValuePair<Uri, State>> GetAdditionalState()
+        public IEnumerable<KeyValuePair<Uri, Task<State>>> GetAdditionalState()
         {
             var set = AllArgs.Select(arg => arg.Uri).ToHashSet();
-            return AdditionalState?.Where(kvp => !set.Contains(kvp.Key)) ?? Enumerable.Empty<KeyValuePair<Uri, State>>();
+            return AdditionalState?.Where(kvp => !set.Contains(kvp.Key)) ?? Enumerable.Empty<KeyValuePair<Uri, Task<State>>>();
         }
 
         public bool HandleMany<T>(IEnumerable<KeyValuePair<Uri, T>> data)
@@ -66,7 +66,7 @@ namespace Movies
                 success &= TryGetValue(data, arg.Uri, out var value) && arg.Handle(value);
             }
 
-            AdditionalState = data as IEnumerable<KeyValuePair<Uri, State>> ?? data.Select(kvp => new KeyValuePair<Uri, State>(kvp.Key, State.Create(kvp.Value)));
+            AdditionalState = data as IEnumerable<KeyValuePair<Uri, Task<State>>> ?? data.Select(kvp => new KeyValuePair<Uri, Task<State>>(kvp.Key, Task.FromResult(State.Create(kvp.Value))));
 
             return success;
         }

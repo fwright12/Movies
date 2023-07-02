@@ -35,7 +35,7 @@ namespace Movies
 
         public Task<bool> CreateAsync(Uri key, State value) => UpdateAsync(key, value);
 
-        public Task<State> ReadAsync(Uri key) => Cache.TryGetValue(key, out var value) ? value : Task.FromResult<State>(null);
+        public Task<State> ReadAsync(Uri key) => Cache.TryGetValue(key, out var value) ? value : null;
 
         public bool Update(Uri key, Task<State> updatedValue)
         {

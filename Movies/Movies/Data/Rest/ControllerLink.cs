@@ -175,8 +175,8 @@ namespace Movies
             if (TryGetConverter(uri, out var converter))
             {
                 var converted = await converter.Convert(response.Content);
-                var type = converter is HttpResourceCollectionConverter ? typeof(IEnumerable<KeyValuePair<Uri, object>>) : converted.GetType();
-                state.Add(type, converted);
+                //var type = converter is HttpResourceCollectionConverter ? typeof(IEnumerable<KeyValuePair<Uri, object>>) : converted.GetType();
+                state.Add(converted.GetType(), converted);
             }
 
             return state;
@@ -210,11 +210,11 @@ namespace Movies
 
         public virtual async Task HandleGet(RestRequestArgs e)
         {
-            var state = await Datastore.ReadAsync(e.Uri);
+            var state = Datastore.ReadAsync(e.Uri);
 
             if (state != null)
             {
-                e.Handle(state);
+                e.Handle(await state);
             }
         }
 

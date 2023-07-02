@@ -105,17 +105,65 @@ namespace Movies
         {
             CancelBatch?.Cancel();
 
-            var cols = string.Join(", ", SQLJsonCache.URL, SQLJsonCache.RESPONSE, SQLJsonCache.TIMESTAMP, TYPE, ID);
-            var rows = await Task.WhenAll(BatchInsert.Select(Unwrap));
-            var values = string.Join(", ", rows.Select(row => "(" + string.Join(", ", Enumerable.Repeat("?", row.Count())) + ")"));
-            var query = $"insert or replace into {(await Cache).Table} ({cols}) values {values}";
-
+            var batched = BatchInsert;
+            BatchInsert = new List<(ItemType Type, int ID, string Url, Task<JsonResponse> Response)>();
             BatchQuery = null;
-            BatchInsert.Clear();
 
+            var cache = await Cache;
+            var cols = string.Join(", ", SQLJsonCache.URL, SQLJsonCache.RESPONSE, SQLJsonCache.TIMESTAMP);
+            var valueRow = "(?,?,?)";
+            using var itr = Segment(batched.GetEnumerator());
+
+#if DEBUG
+            var watch = System.Diagnostics.Stopwatch.StartNew();
             Print.Log("flushing");
-            await (await Cache).DB.ExecuteAsync(query, rows.SelectMany().ToArray());
-            Print.Log($"flushed {rows.Length} items");
+#endif
+
+            while (true)
+            {
+                var segment = itr.Take(1);
+                var rows = await Task.WhenAll(segment.Select(Unwrap));
+
+                if (rows.Length == 0)
+                {
+                    break;
+                }
+
+                var values = string.Join(", ", Enumerable.Repeat(valueRow, rows.Length));
+                var query = $"insert or replace into {cache.Table} ({cols}) values {values}";
+
+                await cache.DB.ExecuteAsync(query, rows.SelectMany().ToArray());
+            }
+
+#if DEBUG
+            watch.Stop();
+            Print.Log($"flushed {batched.Count} items in {watch.Elapsed}");
+#endif
+        }
+
+        private static SegmentedEnumerable<T> Segment<T>(IEnumerator<T> itr) => new SegmentedEnumerable<T>(itr);
+
+        private class SegmentedEnumerable<T> : IDisposable
+        {
+            private IEnumerator<T> Itr;
+
+            public SegmentedEnumerable(IEnumerator<T> itr)
+            {
+                Itr = itr;
+            }
+
+            public void Dispose()
+            {
+                Itr.Dispose();
+            }
+
+            public IEnumerable<T> Take(int count)
+            {
+                for (int i = 0; i < count && Itr.MoveNext(); i++)
+                {
+                    yield return Itr.Current;
+                }
+            }
         }
 
         Task IJsonCache.AddAsync(string url, JsonResponse response)

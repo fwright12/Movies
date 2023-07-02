@@ -283,7 +283,7 @@ namespace MoviesTests.Data.TMDb
 
         private Task CachedAsync()
         {
-            return Task.Delay(DiskCache.SimulatedDelay * 2);
+            return Task.Delay((DiskCache.SimulatedDelay + DebugConfig.SimulatedDelay) * 2);
         }
 
         private Property[] AllMovieProperties() => GetProperties(typeof(Media)).Concat(GetProperties(typeof(Movie))).Append(TMDB.POPULARITY).ToArray();

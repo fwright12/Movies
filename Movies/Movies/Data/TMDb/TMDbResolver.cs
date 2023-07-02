@@ -313,7 +313,7 @@ namespace Movies
             public HttpConverter(Item item, IEnumerable<(Uri, string, List<Parser>, IEnumerable<object>)> annotations, bool parentCollectionWasRequested)
             {
                 Item = item;
-                Resources = annotations.Select(temp => temp.Item1).ToArray();
+                Resources = annotations.SelectMany(temp => temp.Item3.Select(parser => new UniformItemIdentifier(Item, parser.Property)).Prepend(temp.Item1)).ToArray();
                 Annotations = annotations;
                 ParentCollectionWasRequested = parentCollectionWasRequested;
             }
