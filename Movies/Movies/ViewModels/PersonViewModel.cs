@@ -63,6 +63,7 @@ namespace Movies.ViewModels
             //var credits = await service.CreditsRequested.GetSingle(person);
 
             //if (!DataService.Instance.GetDetails(person).TryGetValues(Person.CREDITS, out var task) || !(await task is IEnumerable<Item> credits))
+            await DataService.Instance.Batch;
             var request = new RestRequestArgs(new UniformItemIdentifier(person, Person.CREDITS), Person.CREDITS.FullType);
             await DataService.Instance.Controller.Get(request);
             //if (!DataService.Instance.GetDetails(person).TryGetValues(Person.CREDITS, out var task) || !(await task is IEnumerable<Item> credits))

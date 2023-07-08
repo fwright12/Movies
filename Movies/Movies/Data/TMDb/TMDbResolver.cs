@@ -318,7 +318,7 @@ namespace Movies
                 ParentCollectionWasRequested = parentCollectionWasRequested;
             }
 
-            public override async Task<IReadOnlyDictionary<Uri, object>> Convert(HttpContent content)
+            public override async Task<IEnumerable<KeyValuePair<Uri, object>>> Convert(HttpContent content)
             {
                 var result = new Dictionary<Uri, object>();
                 var bytes = content.ReadAsByteArrayAsync();

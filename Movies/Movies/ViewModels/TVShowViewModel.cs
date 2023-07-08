@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using Movies.Models;
+using static Movies.API;
 
 namespace Movies.ViewModels
 {
@@ -35,7 +37,7 @@ namespace Movies.ViewModels
 
     public class TVShowViewModel : MediaViewModel
     {
-        public CollectionViewModel Seasons { get; }
+        public CollectionViewModel Seasons => _Seasons ??= (RequestValue(TVShow.SEASONS) is IEnumerable<TVSeason> items ? new CollectionViewModel("Seasons", items.ToAsyncEnumerable()) : null);
 
         public DateTime? FirstAirDate => TryRequestValue(TVShow.FIRST_AIR_DATE, out var first) ? first : (DateTime?)null;
         public DateTime? LastAirDate => TryRequestValue(TVShow.LAST_AIR_DATE, out var last) ? last : (DateTime?)null;
@@ -45,10 +47,9 @@ namespace Movies.ViewModels
         protected override MultiProperty<Genre> GenresProperty => TVShow.GENRES;
         protected override MultiProperty<WatchProvider> WatchProvidersProperty => TVShow.WATCH_PROVIDERS;
 
-        public TVShowViewModel(TVShow show) : base(show)
-        {
-            Seasons = new CollectionViewModel("Seasons", show);
-        }
+        private CollectionViewModel _Seasons;
+
+        public TVShowViewModel(TVShow show) : base(show) { }
     }
 
     public class TVSeasonViewModel : CollectionViewModel

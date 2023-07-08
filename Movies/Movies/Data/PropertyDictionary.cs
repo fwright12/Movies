@@ -67,11 +67,6 @@ namespace Movies
         public State Body { get; set; }
     }
 
-    public static class AsyncAccess
-    {
-        public static async Task<TValue> GetAsync<TKey, TValue>(this Task<IReadOnlyDictionary<TKey, TValue>> dict, TKey key) => (await dict)[key];
-    }
-
     public class Controller1
     {
         public Controller1 Next { get; set; }
@@ -201,7 +196,7 @@ namespace Movies
                 {
                     if (converter is HttpResourceCollectionConverter collection)
                     {
-                        e.Handle(new HttpResourceCollection(Convert<IReadOnlyDictionary<Uri, object>>(response, collection), collection.Resources));
+                        //e.Handle(new HttpResourceCollection(Convert<IReadOnlyDictionary<Uri, object>>(response, collection), collection.Resources));
                     }
                     else
                     {

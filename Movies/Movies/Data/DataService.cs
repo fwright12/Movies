@@ -84,6 +84,9 @@ namespace Movies
         public event EventHandler BatchBegan;
         public event EventHandler BatchCommitted;
 
+        public Task Batch => BatchSource?.Task ?? Task.CompletedTask;
+        private TaskCompletionSource<bool> BatchSource;
+
         public bool Batched { get; private set; }
 
         private Dictionary<Item, PropertyDictionary> Cache = new Dictionary<Item, PropertyDictionary>();
@@ -98,12 +101,14 @@ namespace Movies
         public void BatchBegin()
         {
             Batched = true;
+            BatchSource = new TaskCompletionSource<bool>();
             BatchBegan?.Invoke(this, EventArgs.Empty);
         }
 
         public void BatchEnd()
         {
             Batched = false;
+            BatchSource.SetResult(true);
             BatchCommitted?.Invoke(this, EventArgs.Empty);
         }
 

@@ -38,6 +38,11 @@ namespace Movies
     public partial class MockHandler : HttpClientHandler
     {
         public static List<string> CallHistory = new List<string>();
+        public List<string> LocalCallHistory = new List<string>();
+        public bool Connected { get; private set;  } = true;
+
+        public bool Reconnect() => Connected = true;
+        public bool Disconnect() => Connected = false;
 
         public static void ClearCallHistory() => CallHistory.Clear();
 
@@ -241,12 +246,20 @@ namespace Movies
             {
                 Print.Log($"web request{(content != null ? " (mock)" : string.Empty)}: " + endpoint);
             }
-            CallHistory.Add(request.RequestUri.IsAbsoluteUri ? request.RequestUri.PathAndQuery.TrimStart('/') : request.RequestUri.ToString());
 
             if (DebugConfig.SimulatedDelay > 0)
             {
                 await Task.Delay(DebugConfig.SimulatedDelay);
             }
+
+            if (!Connected)
+            {
+                throw new Exception("Mock HTTP handler is not connected");
+            }
+
+            string url = request.RequestUri.IsAbsoluteUri ? request.RequestUri.PathAndQuery.TrimStart('/') : request.RequestUri.ToString();
+            CallHistory.Add(url);
+            LocalCallHistory.Add(url);
 
             if (content != null)
             {

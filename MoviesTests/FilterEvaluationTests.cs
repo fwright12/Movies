@@ -7,7 +7,9 @@
         private TVShow Show = new TVShow("show").WithID(TMDB.IDKey, 0);
         private Person Person = new Person("person").WithID(TMDB.IDKey, 0);
 
-        private PropertyDictionary InMemoryCache = new PropertyDictionary
+        private UiiDictionaryDatastore InMemoryCache { get; }
+
+        private PropertyDictionary InMemoryCache1 = new PropertyDictionary
         {
             { Movie.RELEASE_DATE, Task.FromResult(DateTime.Now) },
             { Movie.WATCH_PROVIDERS, Task.FromResult(new WatchProvider()) },
@@ -23,9 +25,22 @@
             { API.MOVIES.GET_KEYWORDS.GetURL(), EmptyJSON }
         };
 
+        private ChainLink<MultiRestEventArgs> Chain;
+
         public FilterEvaluationTests()
         {
-            new TMDB(string.Empty, string.Empty, new DummyCache());
+            //new TMDB(string.Empty, string.Empty, new DummyCache());
+            var resolver = new TMDbResolver(TMDB.ITEM_PROPERTIES);
+            var invoker = new HttpMessageInvoker(new BufferedHandler(new TMDbBufferedHandler(new MockHandler())));
+            var RemoteTMDbHandlers = new TMDbReadHandler(invoker, resolver, TMDbApi.AutoAppend);
+
+            Chain = new ChainLinkAsync<MultiRestEventArgs>(RemoteTMDbHandlers.HandleGet);
+            DebugConfig.SimulatedDelay = 0;
+
+            InMemoryCache = new UiiDictionaryDatastore();
+            InMemoryCache.CreateAsync(new UniformItemIdentifier(Constants.Movie, Movie.RELEASE_DATE), State.Create(DateTime.Now));
+            InMemoryCache.CreateAsync(new UniformItemIdentifier(Constants.Movie, Movie.WATCH_PROVIDERS), State.Create(new WatchProvider()));
+            InMemoryCache.CreateAsync(new UniformItemIdentifier(Constants.TVShow, TVShow.WATCH_PROVIDERS), State.Create(new WatchProvider()));
         }
 
         [TestMethod]
@@ -46,13 +61,13 @@
         [TestMethod]
         public async Task AllOrNoneFilterTests()
         {
-            Assert.IsTrue(await ItemHelpers.Evaluate(Movie, FilterPredicate.TAUTOLOGY));
-            Assert.IsTrue(await ItemHelpers.Evaluate(Show, FilterPredicate.TAUTOLOGY));
-            Assert.IsTrue(await ItemHelpers.Evaluate(Person, FilterPredicate.TAUTOLOGY));
+            Assert.IsTrue(await Evaluate(Movie, FilterPredicate.TAUTOLOGY));
+            Assert.IsTrue(await Evaluate(Show, FilterPredicate.TAUTOLOGY));
+            Assert.IsTrue(await Evaluate(Person, FilterPredicate.TAUTOLOGY));
 
-            Assert.IsFalse(await ItemHelpers.Evaluate(Movie, FilterPredicate.CONTRADICTION));
-            Assert.IsFalse(await ItemHelpers.Evaluate(Show, FilterPredicate.CONTRADICTION));
-            Assert.IsFalse(await ItemHelpers.Evaluate(Person, FilterPredicate.CONTRADICTION));
+            Assert.IsFalse(await Evaluate(Movie, FilterPredicate.CONTRADICTION));
+            Assert.IsFalse(await Evaluate(Show, FilterPredicate.CONTRADICTION));
+            Assert.IsFalse(await Evaluate(Person, FilterPredicate.CONTRADICTION));
         }
 
         private static readonly Genre ADVENTURE_GENRE = new Genre { Id = 12, Name = "Adventure" };
@@ -74,12 +89,12 @@
             var adventureMovies = ADVENTURE_MOVIES;
             filter.Predicates.Add(adventureMovies);
 
-            Assert.IsTrue(await ItemHelpers.Evaluate(Movie, filter));
-            Assert.IsFalse(await ItemHelpers.Evaluate(Show, filter));
-            //Assert.IsFalse(await ItemHelpers.Evaluate(Person, filter));
+            Assert.IsTrue(await Evaluate(Movie, filter));
+            Assert.IsFalse(await Evaluate(Show, filter));
+            //Assert.IsFalse(await Evaluate(Person, filter));
             adventureMovies.RHS = new Genre { Id = -1, Name = "No genre" };
-            Assert.IsFalse(await ItemHelpers.Evaluate(Movie, filter));
-            Assert.IsFalse(await ItemHelpers.Evaluate(Show, filter));
+            Assert.IsFalse(await Evaluate(Movie, filter));
+            Assert.IsFalse(await Evaluate(Show, filter));
 
             var comedyTV = new OperatorPredicate
             {
@@ -89,12 +104,12 @@
             };
             filter.Predicates[0] = comedyTV;
 
-            Assert.IsFalse(await ItemHelpers.Evaluate(Movie, filter));
-            Assert.IsTrue(await ItemHelpers.Evaluate(Show, filter));
-            Assert.IsFalse(await ItemHelpers.Evaluate(Person, filter));
+            Assert.IsFalse(await Evaluate(Movie, filter));
+            Assert.IsTrue(await Evaluate(Show, filter));
+            Assert.IsFalse(await Evaluate(Person, filter));
             comedyTV.RHS = new Genre { Id = -1, Name = "No genre" };
-            Assert.IsFalse(await ItemHelpers.Evaluate(Movie, filter));
-            Assert.IsFalse(await ItemHelpers.Evaluate(Show, filter));
+            Assert.IsFalse(await Evaluate(Movie, filter));
+            Assert.IsFalse(await Evaluate(Show, filter));
 
             var keyword = new OperatorPredicate
             {
@@ -104,9 +119,9 @@
             };
             filter.Predicates[0] = keyword;
 
-            Assert.IsTrue(await ItemHelpers.Evaluate(Movie, filter));
-            Assert.IsFalse(await ItemHelpers.Evaluate(Show, filter));
-            Assert.IsFalse(await ItemHelpers.Evaluate(Person, filter));
+            Assert.IsTrue(await Evaluate(Movie, filter));
+            Assert.IsFalse(await Evaluate(Show, filter));
+            Assert.IsFalse(await Evaluate(Person, filter));
         }
 
         [TestMethod]
@@ -121,15 +136,15 @@
             var filter = new BooleanExpression();
             filter.Predicates.Add(shortAssMovies);
 
-            Assert.IsTrue(await ItemHelpers.Evaluate(Movie, filter));
-            Assert.IsFalse(await ItemHelpers.Evaluate(Person, filter));
+            Assert.IsTrue(await Evaluate(Movie, filter));
+            Assert.IsFalse(await Evaluate(Person, filter));
             shortAssMovies.Operator = Operators.LessThan;
-            Assert.IsFalse(await ItemHelpers.Evaluate(Movie, filter));
+            Assert.IsFalse(await Evaluate(Movie, filter));
             shortAssMovies.RHS = new TimeSpan(2, 10, 0);
-            Assert.IsFalse(await ItemHelpers.Evaluate(Movie, filter));
-            Assert.IsTrue(await ItemHelpers.Evaluate(Show, filter));
+            Assert.IsFalse(await Evaluate(Movie, filter));
+            Assert.IsTrue(await Evaluate(Show, filter));
             shortAssMovies.RHS = TimeSpan.Zero;
-            Assert.IsFalse(await ItemHelpers.Evaluate(Show, filter));
+            Assert.IsFalse(await Evaluate(Show, filter));
 
             var oldMovies = new OperatorPredicate
             {
@@ -139,12 +154,12 @@
             };
             filter.Predicates[0] = oldMovies;
 
-            Assert.IsFalse(await ItemHelpers.Evaluate(Movie, filter));
-            Assert.IsFalse(await ItemHelpers.Evaluate(Show, filter));
-            Assert.IsFalse(await ItemHelpers.Evaluate(Person, filter));
+            Assert.IsFalse(await Evaluate(Movie, filter));
+            Assert.IsFalse(await Evaluate(Show, filter));
+            Assert.IsFalse(await Evaluate(Person, filter));
             oldMovies.Operator = Operators.GreaterThan;
-            Assert.IsTrue(await ItemHelpers.Evaluate(Movie, filter));
-            Assert.IsFalse(await ItemHelpers.Evaluate(Show, filter));
+            Assert.IsTrue(await Evaluate(Movie, filter));
+            Assert.IsFalse(await Evaluate(Show, filter));
 
             var goodMovies = new OperatorPredicate
             {
@@ -153,9 +168,9 @@
                 RHS = 9.0,
             };
             filter.Predicates[0] = goodMovies;
-            Assert.IsFalse(await ItemHelpers.Evaluate(Movie, filter));
-            Assert.IsFalse(await ItemHelpers.Evaluate(Show, filter));
-            Assert.IsFalse(await ItemHelpers.Evaluate(Person, filter));
+            Assert.IsFalse(await Evaluate(Movie, filter));
+            Assert.IsFalse(await Evaluate(Show, filter));
+            Assert.IsFalse(await Evaluate(Person, filter));
         }
 
         [TestMethod]
@@ -170,9 +185,9 @@
             var filter = new BooleanExpression();
             filter.Predicates.Add(adventureMovies);
 
-            Assert.IsTrue(await ItemHelpers.Evaluate(Movie, filter));
-            Assert.IsFalse(await ItemHelpers.Evaluate(Show, filter));
-            Assert.IsFalse(await ItemHelpers.Evaluate(Person, filter));
+            Assert.IsTrue(await Evaluate(Movie, filter));
+            Assert.IsFalse(await Evaluate(Show, filter));
+            Assert.IsFalse(await Evaluate(Person, filter));
 
             var comedyTV = new OperatorPredicate
             {
@@ -182,9 +197,9 @@
             };
             filter.Predicates[0] = comedyTV;
 
-            Assert.IsFalse(await ItemHelpers.Evaluate(Movie, filter));
-            Assert.IsTrue(await ItemHelpers.Evaluate(Show, filter));
-            Assert.IsFalse(await ItemHelpers.Evaluate(Person, filter));
+            Assert.IsFalse(await Evaluate(Movie, filter));
+            Assert.IsTrue(await Evaluate(Show, filter));
+            Assert.IsFalse(await Evaluate(Person, filter));
 
             var hbo = new OperatorPredicate
             {
@@ -194,8 +209,8 @@
             };
             filter.Predicates[0] = hbo;
 
-            Assert.IsTrue(await ItemHelpers.Evaluate(Movie, filter));
-            Assert.IsFalse(await ItemHelpers.Evaluate(Show, filter));
+            Assert.IsTrue(await Evaluate(Movie, filter));
+            Assert.IsFalse(await Evaluate(Show, filter));
 
             var peacock = new OperatorPredicate
             {
@@ -205,8 +220,8 @@
             };
             filter.Predicates[0] = peacock;
 
-            Assert.IsFalse(await ItemHelpers.Evaluate(Movie, filter));
-            Assert.IsTrue(await ItemHelpers.Evaluate(Show, filter));
+            Assert.IsFalse(await Evaluate(Movie, filter));
+            Assert.IsTrue(await Evaluate(Show, filter));
         }
 
         [TestMethod]
@@ -220,22 +235,22 @@
                 Predicates = { ADVENTURE_MOVIES, exp }
             };
 
-            Assert.IsTrue(await ItemHelpers.Evaluate(Movie, filter));
-            Assert.IsFalse(await ItemHelpers.Evaluate(Show, filter));
-            Assert.IsFalse(await ItemHelpers.Evaluate(Person, filter));
+            Assert.IsTrue(await Evaluate(Movie, filter));
+            Assert.IsFalse(await Evaluate(Show, filter));
+            Assert.IsFalse(await Evaluate(Person, filter));
 
             exp = Helpers.DummyExpression(Enumerable.Repeat(Movie.WATCH_PROVIDERS, 5).ToArray());
             exp.IsAnd = false;
             (exp.Predicates[2] as OperatorPredicate).RHS = HBO;
             filter.Predicates[0] = exp;
 
-            Assert.IsTrue(await ItemHelpers.Evaluate(Movie, filter));
-            Assert.IsFalse(await ItemHelpers.Evaluate(Show, filter));
-            Assert.IsFalse(await ItemHelpers.Evaluate(Person, filter));
+            Assert.IsTrue(await Evaluate(Movie, filter));
+            Assert.IsFalse(await Evaluate(Show, filter));
+            Assert.IsFalse(await Evaluate(Person, filter));
 
             (exp.Predicates[2] as OperatorPredicate).RHS = null;
-            Assert.IsFalse(await ItemHelpers.Evaluate(Movie, filter));
-            Assert.IsFalse(await ItemHelpers.Evaluate(Show, filter));
+            Assert.IsFalse(await Evaluate(Movie, filter));
+            Assert.IsFalse(await Evaluate(Show, filter));
         }
 
         [TestMethod]
@@ -247,18 +262,18 @@
             exp.Predicates.Insert(1, ADVENTURE_MOVIES);
             var filter = exp;
 
-            Assert.IsTrue(await ItemHelpers.Evaluate(Movie, filter));
-            Assert.IsFalse(await ItemHelpers.Evaluate(Show, filter));
-            Assert.IsFalse(await ItemHelpers.Evaluate(Person, filter));
+            Assert.IsTrue(await Evaluate(Movie, filter));
+            Assert.IsFalse(await Evaluate(Show, filter));
+            Assert.IsFalse(await Evaluate(Person, filter));
 
             foreach (var i in Enumerable.Range(0, exp.Predicates.Count - 1).Reverse())
             {
                 exp.Predicates.Insert(i, i == 0 ? ADVENTURE_MOVIES : Helpers.DummyPredicate(Movie.GENRES));
             }
 
-            Assert.IsTrue(await ItemHelpers.Evaluate(Movie, filter));
-            Assert.IsFalse(await ItemHelpers.Evaluate(Show, filter));
-            Assert.IsFalse(await ItemHelpers.Evaluate(Person, filter));
+            Assert.IsTrue(await Evaluate(Movie, filter));
+            Assert.IsFalse(await Evaluate(Show, filter));
+            Assert.IsFalse(await Evaluate(Person, filter));
         }
 
         //[TestMethod]
@@ -267,13 +282,15 @@
 
         }
 
-        private Task AssertOrder(FilterPredicate filter, params Property[] expected) => AssertOrder(filter, null, null, expected);
-        private Task AssertOrderCached(FilterPredicate filter, params Property[] expected) => AssertOrder(filter, InMemoryCache, PersistentCache, expected);
+        private Task<bool> Evaluate(Item item, FilterPredicate filter) => ItemHelpers.Evaluate(Chain, item, filter);
+
+        private Task AssertOrder(FilterPredicate filter, params Property[] expected) => AssertOrder(Constants.Movie, filter, null, null, expected);
+        private Task AssertOrderCached(FilterPredicate filter, params Property[] expected) => AssertOrder(Constants.Movie, filter, InMemoryCache, PersistentCache, expected);
         //private Task AssertOrder(FilterPredicate filter, PropertyDictionary dict, IJsonCache cache, params Property[] expected) => AssertOrder(filter, dict, cache, (IEnumerable<Property>)expected);
 
-        private async Task AssertOrder(FilterPredicate filter, PropertyDictionary dict, IJsonCache cache, IEnumerable<Property> expected)
+        private async Task AssertOrder(Item item, FilterPredicate filter, UiiDictionaryDatastore datastore, IJsonCache cache, IEnumerable<Property> expected)
         {
-            var actual = (await ItemHelpers.DefferedPredicates(filter, dict, cache).ReadAll()).Select(predicate => predicate.LHS);
+            var actual = (await ItemHelpers.DefferedPredicates(item, filter, datastore, cache).ReadAll()).Select(predicate => predicate.LHS);
             Assert.IsTrue(actual.SequenceEqual(expected), $"Expected <[{string.Join(',', expected)}]>. Actual <[{string.Join(',', actual)}]>");
         }
     }

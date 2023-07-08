@@ -27,9 +27,12 @@ namespace Movies
             Body = body;
         }
 
-        public void Handle<T>(Task<T> response)
+        private static async Task<State> Convert<T>(Task<T> value) => State.Create(await value);
+
+        public async Task<bool> Handle<T>(Task<T> response)
         {
-            //BeginHandle(HandleAsync(response));
+            await Handle(Convert(response));
+            return true;
         }
 
         public bool Handle<T>(T response) => Handle(response as State ?? State.Create<T>(response));

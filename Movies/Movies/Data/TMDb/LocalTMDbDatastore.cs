@@ -60,8 +60,8 @@ namespace Movies
             if (state?.TryGetRepresentation<IEnumerable<byte>>(out var bytes) == true && Resolver.TryGetConverter(key, out var converter))
             {
                 var converted = await converter.Convert(new ByteArrayContent(bytes as byte[] ?? bytes.ToArray()));
-                var type = converter is HttpResourceCollectionConverter ? typeof(IEnumerable<KeyValuePair<Uri, object>>) : converted.GetType();
-                state.Add(type, converted);
+                //var type = converter is HttpResourceCollectionConverter ? typeof(IEnumerable<KeyValuePair<Uri, object>>) : converted.GetType();
+                state.Add(converted.GetType(), converted);
             }
 
             return state;

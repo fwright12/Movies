@@ -52,7 +52,16 @@ namespace Movies
             return AdditionalState?.Where(kvp => !set.Contains(kvp.Key)) ?? Enumerable.Empty<KeyValuePair<Uri, Task<State>>>();
         }
 
-        public bool HandleMany<T>(IEnumerable<KeyValuePair<Uri, T>> data)
+        public async Task<bool> HandleMany<T>(IReadOnlyDictionary<Uri, Task<T>> data)
+        {
+            var result = await Task.WhenAll(Unhandled.Select(arg => TryGetValue(data, arg.Uri, out var value) ? arg.Handle(value) : Task.FromResult(false)));
+
+            AdditionalState = data as IEnumerable<KeyValuePair<Uri, Task<State>>> ?? data.Select(kvp => new KeyValuePair<Uri, Task<State>>(kvp.Key, Task.FromResult(State.Create(kvp.Value))));
+
+            return result.All(value => value);
+        }
+
+        public bool HandleMany<T>(IReadOnlyDictionary<Uri, T> data)
         {
             var success = true;
 

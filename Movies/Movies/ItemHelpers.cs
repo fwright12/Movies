@@ -123,10 +123,117 @@ namespace Movies.Models
 
         public static IJsonCache PersistentCache { get; set; }
 
-        public static async Task<bool> Evaluate(Item item, FilterPredicate filter)//, PropertyDictionary properties = null, ItemInfoCache cache = null)
+        public static Task<bool> Evaluate(Item item, FilterPredicate filter) => Evaluate(DataService.Instance.Controller, item, filter);
+
+#if true
+        public static async Task<bool> Evaluate(ChainLink<MultiRestEventArgs> controller, Item item, FilterPredicate filter)
+        {
+            var predicates = DefferedPredicates(item, filter, DataService.Instance.ResourceCache, PersistentCache).GetAsyncEnumerator();
+
+            object lhs = ViewModels.CollectionViewModel.ITEM_TYPE;
+            object value = item.GetType();
+
+            if (filter is BooleanExpression exp)
+            {
+                filter = ViewModels.ExpressionBuilder.FormatFilters(exp.Predicates);
+            }
+            //var types = RemoveTypes(filter, out filter);
+
+            while (true)
+            {
+                filter = Reduce(filter as BooleanExpression ?? new BooleanExpression { Predicates = { filter } }, lhs, value);
+
+                if (filter == FilterPredicate.TAUTOLOGY)
+                {
+                    return true;
+                }
+                else if (filter == FilterPredicate.CONTRADICTION)
+                {
+                    return false;
+                }
+
+                if (await predicates.MoveNextAsync() && predicates.Current.LHS is Property property)
+                {
+                    lhs = property;
+
+                    try
+                    {
+                        property = FixProperty(item, property);
+                        var request = new RestRequestArgs(new UniformItemIdentifier(item, property), property.FullType);
+                        await controller.Get(request);
+
+                        if (!request.Handled || !request.Response.TryGetRepresentation(property.FullType, out value))
+                        {
+                            return false;
+                        }
+                    }
+                    catch
+                    {
+                        return false;
+                    }
+                }
+                else
+                {
+                    return false;
+                }
+            }
+        }
+
+        public static async IAsyncEnumerable<OperatorPredicate> DefferedPredicates(Item item, FilterPredicate predicate, UiiDictionaryDatastore datastore = null, IJsonCache cache = null)
+        {
+            var cachedInMemory = new Queue<OperatorPredicate>();
+            var cachedPersistent = new Queue<OperatorPredicate>();
+            var notCached = new Queue<OperatorPredicate>();
+
+            foreach (var child in Flatten(predicate))
+            {
+                if (child is OperatorPredicate op)
+                {
+                    if (op.LHS is Property property)
+                    {
+                        if (datastore != null && datastore.ReadAsync(new UniformItemIdentifier(item, property)) != null)
+                        {
+                            cachedInMemory.Enqueue(op);
+                        }
+                        else
+                        {
+                            cachedPersistent.Enqueue(op);
+                        }
+                    }
+                }
+                else //if (!Equals(op.LHS, ViewModels.CollectionViewModel.ITEM_TYPE))
+                {
+                    yield break;
+                }
+            }
+
+            foreach (var value in cachedInMemory)
+            {
+                yield return value;
+            }
+
+            foreach (var value in cachedPersistent)
+            {
+                if (value.LHS is Property property && cache != null && TryGetRequest(property, out var request) == true && await cache.IsCached(request.GetURL()))
+                {
+                    yield return value;
+                }
+                else
+                {
+                    notCached.Enqueue(value);
+                }
+            }
+
+            foreach (var value in notCached)
+            {
+                yield return value;
+            }
+        }
+#else
+        public static async Task<bool> Evaluate(ChainLink<MultiRestEventArgs> controller, Item item, FilterPredicate filter)//, PropertyDictionary properties = null, ItemInfoCache cache = null)
         {
 #if DEBUG
-            //var details = new Lazy<PropertyDictionary>(() => DataService.Instance.GetDetails(item));
+            var details = new Lazy<PropertyDictionary>(() => DataService.Instance.GetDetails(item));
 #endif
             var predicates = DefferedPredicates(filter, DataService.Instance.GetDetails(item), PersistentCache).GetAsyncEnumerator();
 
@@ -152,32 +259,6 @@ namespace Movies.Models
                     return false;
                 }
 
-#if true
-                if (await predicates.MoveNextAsync() && predicates.Current.LHS is Property property)
-                {
-                    lhs = property;
-
-                    try
-                    {
-                        property = FixProperty(item, property);
-                        var request = new RestRequestArgs(new UniformItemIdentifier(item, property), property.FullType);
-                        await DataService.Instance.Controller.Get(request);
-
-                        if (!request.Handled || !request.Response.TryGetRepresentation(property.FullType, out value))
-                        {
-                            return false;
-                        }
-                    }
-                    catch
-                    {
-                        return false;
-                    }
-                }
-                else
-                {
-                    return false;
-                }
-#else
                 if (await predicates.MoveNextAsync() && predicates.Current.LHS is Property property && details.Value.TryGetValue(FixProperty(item, property), out var task))
                 {
                     lhs = property;
@@ -195,36 +276,7 @@ namespace Movies.Models
                 {
                     return false;
                 }
-#endif
             }
-        }
-
-        private static Property FixProperty(Item item, Property property)
-        {
-            if (item is Movie)
-            {
-                if (property == TVShow.GENRES)
-                {
-                    property = Movie.GENRES;
-                }
-                else if (property == TVShow.WATCH_PROVIDERS)
-                {
-                    property = Movie.WATCH_PROVIDERS;
-                }
-            }
-            else if (item is TVShow)
-            {
-                if (property == Movie.GENRES)
-                {
-                    property = TVShow.GENRES;
-                }
-                else if (property == Movie.WATCH_PROVIDERS)
-                {
-                    property = TVShow.WATCH_PROVIDERS;
-                }
-            }
-
-            return property;
         }
 
         public static async IAsyncEnumerable<OperatorPredicate> DefferedPredicates(FilterPredicate predicate, PropertyDictionary properties = null, IJsonCache cache = null)
@@ -276,6 +328,35 @@ namespace Movies.Models
             {
                 yield return value;
             }
+        }
+#endif
+
+        private static Property FixProperty(Item item, Property property)
+        {
+            if (item is Movie)
+            {
+                if (property == TVShow.GENRES)
+                {
+                    property = Movie.GENRES;
+                }
+                else if (property == TVShow.WATCH_PROVIDERS)
+                {
+                    property = Movie.WATCH_PROVIDERS;
+                }
+            }
+            else if (item is TVShow)
+            {
+                if (property == Movie.GENRES)
+                {
+                    property = TVShow.GENRES;
+                }
+                else if (property == Movie.WATCH_PROVIDERS)
+                {
+                    property = TVShow.WATCH_PROVIDERS;
+                }
+            }
+
+            return property;
         }
 
         private static bool TryGetRequest(Property property, out TMDbRequest request)

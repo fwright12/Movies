@@ -48,7 +48,14 @@ namespace Movies
 
             public async Task GetAsync(MultiRestEventArgs e, ChainLinkEventHandler<MultiRestEventArgs> next)
             {
-                await Handlers.HandleGet(e);
+                try
+                {
+                    await Handlers.HandleGet(e);
+                }
+                catch
+                {
+                    return;
+                }
 
                 if (next == null)
                 {
@@ -64,7 +71,6 @@ namespace Movies
 
                 Task handling;
                 List<Task> cached = new List<Task>();
-                MultiRestEventArgs eNext;
 
                 lock (CacheLock)
                 {
@@ -79,20 +85,19 @@ namespace Movies
                         }
                     }
 
-                    eNext = e;// new MultiRestEventArgs(unhandled);
-                    handling = next.InvokeAsync(eNext);
+                    handling = next.InvokeAsync(e);
 
                     foreach (var arg in unhandled)
                     {
                         Cache.Add(arg.Uri, GetResponseAsync(handling, arg));
                     }
-                    foreach (var kvp in eNext.GetAdditionalState())
+                    foreach (var kvp in e.GetAdditionalState())
                     {
                         Cache.TryAdd(kvp.Key, kvp.Value);
                     }
                 }
 
-                await Task.WhenAll(cached.Prepend(handling));
+                await Task.WhenAll(cached.Prepend(handling).Select(Safe));
                 //e.HandleMany(eNext.GetAdditionalState());
 
                 var handledByNext = unhandled.Where(arg => arg.Handled).ToArray();
@@ -104,7 +109,7 @@ namespace Movies
                 //    .Where(values => values != null)
                 //    .SelectMany());
 
-                foreach (var kvp in eNext.GetAdditionalState())//.Where(kvp => kvp.Key is UniformItemIdentifier == false))
+                foreach (var kvp in e.GetAdditionalState())//.Where(kvp => kvp.Key is UniformItemIdentifier == false))
                 {
                     //kvp.Value.Add(arg.Expected, this);
                     put.TryAdd(kvp.Key, kvp.Value);
@@ -125,7 +130,16 @@ namespace Movies
 
             private async void UpdateCacheOnWriteComplete(Uri uri, Task<State> state)
             {
-                var body = await state;
+                State body;
+
+                try
+                {
+                    body = await state;
+                }
+                catch
+                {
+                    return;
+                }
 
                 if (body == null)
                 {
@@ -145,6 +159,15 @@ namespace Movies
             {
                 await task;
                 return e.Response;
+            }
+
+            private static async Task Safe(Task task)
+            {
+                try
+                {
+                    await task;
+                }
+                catch { }
             }
         }
     }

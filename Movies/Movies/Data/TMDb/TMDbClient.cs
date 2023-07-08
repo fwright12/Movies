@@ -70,7 +70,8 @@ namespace Movies
 
                 if (uri.Converter is HttpResourceCollectionConverter resources)
                 {
-                    e.HandleMany(new TaskDictionary(resources.Resources, Convert(response)));
+                    _ = e.HandleMany(resources.ConvertAhead(response.TransformAsync(Convert)).ConvertValues(async value => State.Create(await value)));
+                    //e.HandleMany(new TaskDictionary(resources.Resources, Convert(response)));
                 }
 
                 responses.Add((kvp.Value, response));
@@ -93,53 +94,7 @@ namespace Movies
             }
         }
 
-        private static async Task<IReadOnlyDictionary<Uri, object>> Convert(Task<State> response) => (await response)?.TryGetRepresentation<IReadOnlyDictionary<Uri, object>>(out var collection) == true ? collection : new Dictionary<Uri, object>();
-
-        private class TaskDictionary : IReadOnlyDictionary<Uri, Task<State>>
-        {
-            public IEnumerable<Uri> Keys => KeySet;
-
-            public IEnumerable<Task<State>> Values => throw new NotImplementedException();
-
-            public int Count => KeySet.Count;
-
-            public Task<State> this[Uri key] => TryGetValue(key, out var value) ? value : throw new KeyNotFoundException();
-
-            private ISet<Uri> KeySet { get; }
-            private Task<IReadOnlyDictionary<Uri, object>> Inner { get; }
-
-            public TaskDictionary(IEnumerable<Uri> keys, Task<IReadOnlyDictionary<Uri, object>> inner)
-            {
-                KeySet = keys as ISet<Uri> ?? new HashSet<Uri>(keys);
-                Inner = inner;
-            }
-
-            public bool ContainsKey(Uri key) => KeySet.Contains(key);
-
-            public bool TryGetValue(Uri key, out Task<State> value)
-            {
-                if (KeySet.Contains(key))
-                {
-                    value = GetAsync(key);
-                    return true;
-                }
-
-                value = default;
-                return false;
-            }
-
-            private async Task<State> GetAsync(Uri key) => (await Inner).TryGetValue(key, out var state) ? State.Create(state) : null;
-
-            public IEnumerator<KeyValuePair<Uri, Task<State>>> GetEnumerator()
-            {
-                foreach (var key in KeySet)
-                {
-                    yield return new KeyValuePair<Uri, Task<State>>(key, GetAsync(key));
-                }
-            }
-
-            IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
-        }
+        private static IEnumerable<KeyValuePair<Uri, object>> Convert(State response) => response.TryGetRepresentation<IEnumerable<KeyValuePair<Uri, object>>>(out var collection) == true ? collection : Enumerable.Empty<KeyValuePair<Uri, object>>();
 
         protected virtual IEnumerable<KeyValuePair<string, IEnumerable<RestRequestArgs>>> GroupRequests(IEnumerable<RestRequestArgs> args) => args.Select(arg => new KeyValuePair<string, IEnumerable<RestRequestArgs>>(Resolver.ResolveUrl(arg.Uri), arg.AsEnumerable()));
     }
