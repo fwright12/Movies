@@ -160,7 +160,7 @@ namespace MoviesTests.Data.TMDb
             await CachedAsync(handlers.DiskCache);
 
             Assert.AreEqual(1, handlers.WebHistory.Count);
-            Assert.AreEqual(6, handlers.DiskCache.Count);
+            Assert.AreEqual(6, handlers.DiskCache.Count, string.Join(", ", handlers.DiskCache.Keys));
             //Assert.AreEqual(ItemProperties[ItemType.Movie].Count + 7, ResourceCache.Count);
             // There are a total of 25 properties, but a movie's parent collection will not be parsed
             // (because it requires another API call) and therefore will not cached
@@ -250,6 +250,27 @@ namespace MoviesTests.Data.TMDb
         }
 
         [TestMethod]
+        public async Task CacheRequestsInTransit()
+        {
+            var handlers = new HandlerChain();
+            var chain = handlers.Chain;
+
+            DebugConfig.SimulatedDelay = 0;
+            handlers.DiskCache.SimulatedDelay = 100;
+
+            var arg1 = new RestRequestArgs(new UniformItemIdentifier(Constants.Movie, Media.TITLE));
+            var arg2 = new RestRequestArgs(new UniformItemIdentifier(Constants.Movie, Media.RECOMMENDED));
+            var arg3 = new RestRequestArgs(new UniformItemIdentifier(Constants.Movie, Media.RECOMMENDED));
+
+            // The request for arg1 and arg2 gets delayed reading from the disk cache, while arg3 goes through
+            // immediately because the disk cache knows that property is not cacheable. However, we already know
+            // we want recommended movies, so the web request should only be made once
+            await Task.WhenAll(chain.Get(arg1, arg2), chain.Get(arg3));
+
+            Assert.AreEqual(1, handlers.WebHistory.Count);
+        }
+
+        [TestMethod]
         public async Task HttpRequestsAreCached()
         {
             var handlers = new HandlerChain();
@@ -315,7 +336,7 @@ namespace MoviesTests.Data.TMDb
                 await handlers.InMemoryCache.DeleteAsync(new UniformItemIdentifier(Constants.Movie, property));
                 await chain.Get(requests = getAllRequests());
                 await CachedAsync(handlers.DiskCache);
-                Assert.AreEqual(1, handlers.WebHistory.Count);
+                Assert.AreEqual(1, handlers.WebHistory.Count, property.ToString());
             }
         }
 

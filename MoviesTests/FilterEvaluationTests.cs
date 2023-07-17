@@ -9,12 +9,12 @@
 
         private UiiDictionaryDatastore InMemoryCache { get; }
 
-        private PropertyDictionary InMemoryCache1 = new PropertyDictionary
-        {
-            { Movie.RELEASE_DATE, Task.FromResult(DateTime.Now) },
-            { Movie.WATCH_PROVIDERS, Task.FromResult(new WatchProvider()) },
-            { TVShow.WATCH_PROVIDERS, Task.FromResult(new WatchProvider()) },
-        };
+        //private PropertyDictionary InMemoryCache1 = new PropertyDictionary
+        //{
+        //    { Movie.RELEASE_DATE, Task.FromResult(DateTime.Now) },
+        //    { Movie.WATCH_PROVIDERS, Task.FromResult(new WatchProvider()) },
+        //    { TVShow.WATCH_PROVIDERS, Task.FromResult(new WatchProvider()) },
+        //};
 
         private static JsonResponse EmptyJSON = new JsonResponse(string.Empty);
 

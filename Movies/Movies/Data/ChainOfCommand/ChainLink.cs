@@ -7,6 +7,15 @@ namespace Movies
     public delegate void ChainEventHandler<T>(T e, ChainLinkEventHandler<T> next) where T : ChainEventArgs;
     public delegate Task AsyncChainEventHandler<T>(T e, ChainLinkEventHandler<T> next) where T : ChainEventArgs;
 
+    public static class ChainExtensions
+    {
+        public static Task InvokeAsync<T>(this ChainLinkEventHandler<T> handler, T e) where T : AsyncChainEventArgs
+        {
+            handler(e);
+            return e.RequestedSuspension;
+        }
+    }
+
     public class ChainLink<T> where T : ChainEventArgs
     {
         public ChainLink<T> Next { get; set; }

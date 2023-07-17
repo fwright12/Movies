@@ -18,17 +18,18 @@
             {
                 Assert.Fail("Couldn't find associated ItemProperties for " + type );
             }
-            var handler = new ItemProperties.RequestHandler(properties, new Movie("movie"));
+            Assert.Fail();
+            //var handler = new ItemProperties.RequestHandler(properties, new Movie("movie"));
 
-            await properties.ChangeKeysLoaded;
+            //await properties.ChangeKeysLoaded;
 
-            foreach (var kvp in properties.Info)
-            {
-                foreach (var parser in kvp.Value)
-                {
-                    Assert.IsTrue(ItemProperties.NO_CHANGE_KEY.Contains(parser.Property) ^ handler.IsCacheValid(parser.Property), parser.Property.ToString());
-                }
-            }
+            //foreach (var kvp in properties.Info)
+            //{
+            //    foreach (var parser in kvp.Value)
+            //    {
+            //        Assert.IsTrue(ItemProperties.NO_CHANGE_KEY.Contains(parser.Property) ^ handler.IsCacheValid(parser.Property), parser.Property.ToString());
+            //    }
+            //}
         }
     }
 }

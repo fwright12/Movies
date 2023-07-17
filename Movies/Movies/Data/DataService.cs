@@ -63,24 +63,14 @@ namespace Movies
         }
     }
 
-    public class ItemEventArgs : EventArgs
-    {
-        public PropertyDictionary Properties { get; }
-
-        public ItemEventArgs(PropertyDictionary properties)
-        {
-            Properties = properties;
-        }
-    }
-
-    public class DataService
+    public partial class DataService
     {
         public static readonly DataService Instance = new DataService();
 
         public ChainLink<MultiRestEventArgs> Controller { get; }
         public UiiDictionaryDatastore ResourceCache { get; }
+        public const int BATCH_TIMEOUT = 5000;
 
-        public event EventHandler<ItemEventArgs> GetItemDetails;
         public event EventHandler BatchBegan;
         public event EventHandler BatchCommitted;
 
@@ -88,8 +78,6 @@ namespace Movies
         private TaskCompletionSource<bool> BatchSource;
 
         public bool Batched { get; private set; }
-
-        private Dictionary<Item, PropertyDictionary> Cache = new Dictionary<Item, PropertyDictionary>();
 
         private DataService()
         {
@@ -101,29 +89,24 @@ namespace Movies
         public void BatchBegin()
         {
             Batched = true;
-            BatchSource = new TaskCompletionSource<bool>();
             BatchBegan?.Invoke(this, EventArgs.Empty);
+            BatchSource = new TaskCompletionSource<bool>();
+            TimeoutBatch();
         }
 
         public void BatchEnd()
         {
             Batched = false;
-            BatchSource.SetResult(true);
             BatchCommitted?.Invoke(this, EventArgs.Empty);
+            BatchSource?.TrySetResult(true);
+        }
+
+        private async void TimeoutBatch()
+        {
+            await Task.Delay(BATCH_TIMEOUT);
+            BatchEnd();
         }
 
         //public Task<object> GetValue(Item item, Property property) => GetDetails(item).TryGetValue(property, out var value) ? value : Task.FromResult<object>(null);
-
-        public PropertyDictionary GetDetails(Item item)
-        {
-            if (!Cache.TryGetValue(item, out var properties))
-            {
-                Cache.Add(item, properties = new PropertyDictionary());
-                var e = new ItemEventArgs(properties);
-                GetItemDetails?.Invoke(item, e);
-            }
-
-            return properties;
-        }
     }
 }

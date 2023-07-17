@@ -54,7 +54,7 @@ namespace Movies
                 }
                 catch
                 {
-                    return;
+                    //return;
                 }
 
                 if (next == null)
@@ -85,15 +85,18 @@ namespace Movies
                         }
                     }
 
-                    handling = next.InvokeAsync(e);
+                    var eNext = new MultiRestEventArgs(unhandled);
+                    handling = next.InvokeAsync(eNext);
+                    e.AddRequests(eNext.Where(request => !unhandled.Contains(request)));
+                    //_ = e.HandleMany(new Dictionary<Uri, Task<State>>(eNext.GetAdditionalState()));
 
                     foreach (var arg in unhandled)
                     {
                         Cache.Add(arg.Uri, GetResponseAsync(handling, arg));
                     }
-                    foreach (var kvp in e.GetAdditionalState())
+                    foreach (var request in eNext)
                     {
-                        Cache.TryAdd(kvp.Key, kvp.Value);
+                        Cache.TryAdd(request.Uri, GetResponseAsync(request));
                     }
                 }
 
@@ -109,15 +112,15 @@ namespace Movies
                 //    .Where(values => values != null)
                 //    .SelectMany());
 
-                foreach (var kvp in e.GetAdditionalState())//.Where(kvp => kvp.Key is UniformItemIdentifier == false))
+                foreach (var request in e)//.Where(kvp => kvp.Key is UniformItemIdentifier == false))
                 {
                     //kvp.Value.Add(arg.Expected, this);
-                    put.TryAdd(kvp.Key, kvp.Value);
+                    put.TryAdd(request.Uri, GetResponseAsync(request));
 
                     lock (CacheLock)
                     {
                         //Cache.Add(kvp.Key, Task.FromResult(kvp.Value));
-                        Cache.TryAdd(kvp.Key, kvp.Value);
+                        Cache.TryAdd(request.Uri, GetResponseAsync(request));
                     }
                 }
 
@@ -153,6 +156,12 @@ namespace Movies
                 {
                     Cache.Remove(uri);
                 }
+            }
+
+            private static async Task<State> GetResponseAsync(RestRequestArgs e)
+            {
+                await e.RequestedSuspension;
+                return e.Response;
             }
 
             private static async Task<State> GetResponseAsync(Task task, RestRequestArgs e)

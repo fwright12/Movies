@@ -6,6 +6,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
+using Xamarin.Essentials;
 
 namespace Movies
 {
@@ -24,7 +25,52 @@ namespace Movies
                 }
             }
 
-            async Task<object> Wrap(Task<Rating> result, bool score)
+#if true
+            async Task<object> ConvertAsync(Task<State> stateTask, Property property, Property sortProperty)
+            {
+                var state = await stateTask;
+
+                if (state.TryGetRepresentation(property.FullType, out var value))
+                {
+                    if (value is Rating rating)
+                    {
+                        if (sortProperty == SCORE)
+                        {
+                            value = rating.Score;
+                        }
+                        else
+                        {
+                            value = rating.TotalVotes;
+                        }
+                    }
+
+                    return value;
+                }
+                else
+                {
+                    return default;
+                }
+            }
+
+            bool TryGetValue(Item item, Property sortProperty, out Task<object> value)
+            {
+                Property property = sortProperty == SCORE || sortProperty == VOTE_COUNT ? Media.RATING : sortProperty;
+                var uri = new UniformItemIdentifier(item, property);
+                var response = Data.ResourceCache.ReadAsync(uri);
+
+                if (response != null)
+                {
+                    value = ConvertAsync(response, property, sortProperty);
+                    return true;
+                }
+                else
+                {
+                    value = null;
+                    return false;
+                }
+            }
+#else
+async Task<object> Wrap(Task<Rating> result, bool score)
             {
                 var rating = await result;
 
@@ -40,7 +86,7 @@ namespace Movies
 
             bool TryGetValue(Item item, Property property, out Task<object> value)
             {
-                var properties = Data.GetDetails(item);
+                var properties = Data.GetDetails1(item);
 
                 if (properties.TryGetValue(property, out value))
                 {
@@ -55,6 +101,7 @@ namespace Movies
                 value = null;
                 return false;
             }
+#endif
 
             while (itrs.Count > 0)
             {

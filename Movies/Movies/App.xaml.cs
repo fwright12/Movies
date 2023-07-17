@@ -43,6 +43,15 @@ namespace Movies
 
     /* Changelog:
      * 
+     * TMDbResolver.HttpConverter from dictionary to enumerable
+     * Batch timeout in DataService
+     * Clean database cache from movies not in lists
+     * Remove all reference to PropertyDictionary
+     *      GetItem in TMDb (when cached on disk)
+     *      Merge in TDMbDB
+     * Search issue
+     * MultiRestEventArgs additional state to list of requests
+     * 
      */
 
     public partial class App : Application
@@ -67,6 +76,20 @@ namespace Movies
             [ItemType.Network] = typeof(Company),
             [ItemType.WatchProvider] = typeof(WatchProvider),
         };
+
+        public static bool TryGetTypeString(ItemType type, out string typeStr)
+        {
+            if (type == ItemType.Movie) typeStr = "movie";
+            else if (type == ItemType.TVShow) typeStr = "tv";
+            else if (type == ItemType.Person) typeStr = "person";
+            else
+            {
+                typeStr = default;
+                return false;
+            }
+
+            return true;
+        }
 
         public UserPrefs Prefs { get; }
 
@@ -118,6 +141,10 @@ namespace Movies
         private Session Session { get; }
 
         private CollectionViewModel _Popular;
+
+#if DEBUG
+        public static Task Message(string message) => Xamarin.Forms.Application.Current.MainPage.DisplayAlert("Console", message, "OK");
+#endif
 
         public App()
         {

@@ -117,7 +117,14 @@ namespace Movies.Models
 
 #if DEBUG
             watch.Stop();
-            Print.Log($"loaded {count} items in {watch.Elapsed}");
+            if (Xamarin.Forms.Device.RuntimePlatform == Xamarin.Forms.Device.iOS && watch.ElapsedMilliseconds > 1000 && count > 0)
+            {
+                App.Message($"flushed {count} items in {watch.Elapsed}");
+            }
+            else
+            {
+                Print.Log($"flushed {count} items in {watch.Elapsed}");
+            }
 #endif
         }
 
@@ -232,9 +239,7 @@ namespace Movies.Models
 #else
         public static async Task<bool> Evaluate(ChainLink<MultiRestEventArgs> controller, Item item, FilterPredicate filter)//, PropertyDictionary properties = null, ItemInfoCache cache = null)
         {
-#if DEBUG
             var details = new Lazy<PropertyDictionary>(() => DataService.Instance.GetDetails(item));
-#endif
             var predicates = DefferedPredicates(filter, DataService.Instance.GetDetails(item), PersistentCache).GetAsyncEnumerator();
 
             object lhs = ViewModels.CollectionViewModel.ITEM_TYPE;

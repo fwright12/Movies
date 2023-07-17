@@ -27,17 +27,14 @@ namespace Movies.ViewModels
         public virtual string PrimaryImagePath => null;
         public ICommand AddToListCommand { get; }
 
-        protected PropertyDictionary Properties;
         private ChainLink<MultiRestEventArgs> Controller => DataService.Instance.Controller;
 
+        protected delegate bool TryGet<T>(out T value);
+
+#if true
         public ItemViewModel(Item item)
         {
             Item = item;
-
-            if (Item != null)
-            {
-                Properties = DataService.Instance.GetDetails(Item);
-            }
 
             AddToListCommand = new Command<IEnumerable<object>>(async lists =>
             {
@@ -45,27 +42,41 @@ namespace Movies.ViewModels
             });
         }
 
-        protected delegate bool TryGet<T>(out T value);
-
-#if true
         private Dictionary<string, RestRequestArgs> Batched = new Dictionary<string, RestRequestArgs>();
 
         private async void BatchEnded(object sender, EventArgs e)
         {
-            await Controller.Get(Batched.Values);
+            DataService.Instance.BatchCommitted -= BatchEnded;
 
-            foreach (var propertyName in Batched.Keys)
+            var batch = Batched;
+            Batched = new Dictionary<string, RestRequestArgs>();
+
+            await Controller.Get(batch.Values);
+
+            foreach (var kvp in batch)
             {
-                OnPropertyChanged(propertyName);
+                if (kvp.Value.Handled)
+                {
+                    OnPropertyChanged(kvp.Key);
+                }
             }
-
-            Batched.Clear();
         }
 
         protected bool TryGetValue<T>(Property property, out T value, [CallerMemberName] string propertyName = null)
         {
             if (DataService.Instance.Batched)
             {
+                if (this is PersonViewModel && Batched.Count == 0)
+                {
+                    Batched["credits"] = new RestRequestArgs(new UniformItemIdentifier(Item, Person.CREDITS), Person.CREDITS.FullType);
+                }
+                if (this is TVSeasonViewModel && Batched.Count == 0)
+                {
+                    Batched["episodes"] = new RestRequestArgs(new UniformItemIdentifier(Item, TVSeason.EPISODES), TVSeason.EPISODES.FullType);
+                    Batched[nameof(TVSeasonViewModel.Cast)] = new RestRequestArgs(new UniformItemIdentifier(Item, TVSeason.CAST), TVSeason.CAST.FullType);
+                    Batched[nameof(TVSeasonViewModel.Crew)] = new RestRequestArgs(new UniformItemIdentifier(Item, TVSeason.CREW), TVSeason.CREW.FullType);
+                }
+
                 Batched[propertyName] = new RestRequestArgs(new UniformItemIdentifier(Item, property), property.FullType);
                 DataService.Instance.BatchCommitted -= BatchEnded;
                 DataService.Instance.BatchCommitted += BatchEnded;
@@ -99,6 +110,23 @@ namespace Movies.ViewModels
         protected bool TryRequestValue<T>(Property<T> property, out T value, [CallerMemberName] string propertyName = null) => TryGetValue(property, out value, propertyName);
         protected bool TryRequestValue<T>(MultiProperty<T> property, out IEnumerable<T> value, [CallerMemberName] string propertyName = null) => TryGetValue(property, out value, propertyName);
 #else
+        protected PropertyDictionary Properties;
+
+        public ItemViewModel(Item item)
+        {
+            Item = item;
+
+            if (Item != null)
+            {
+                Properties = DataService.Instance.GetDetails(Item);
+            }
+
+            AddToListCommand = new Command<IEnumerable<object>>(async lists =>
+            {
+                await Task.WhenAll(lists.OfType<ListViewModel>().Select(list => Item != null && ((list.Item as List)?.AllowedTypes ?? ItemType.All).HasFlag(Item.ItemType) ? list.Add(Item) : Task.CompletedTask));
+            });
+        }
+
         private Dictionary<string, Property> Batched = new Dictionary<string, Property>();
 
         private async void BatchEnded(object sender, EventArgs e)

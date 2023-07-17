@@ -42,8 +42,8 @@ namespace Movies
 
         public override async Task HandleGet(MultiRestEventArgs e)
         {
-            var item = e.AllArgs.Select(arg => arg.Uri).OfType<UniformItemIdentifier>().FirstOrDefault()?.Item as Item;
-            var responses = new List<(IEnumerable<RestRequestArgs> Args, Task<State> Response)>();
+            var item = e.Select(arg => arg.Uri).OfType<UniformItemIdentifier>().FirstOrDefault()?.Item as Item;
+            var responses = new List<Task>();
 
             foreach (var kvp in GroupRequests(e.Unhandled))
             {
@@ -70,28 +70,27 @@ namespace Movies
 
                 if (uri.Converter is HttpResourceCollectionConverter resources)
                 {
-                    _ = e.HandleMany(resources.ConvertAhead(response.TransformAsync(Convert)).ConvertValues(async value => State.Create(await value)));
-                    //e.HandleMany(new TaskDictionary(resources.Resources, Convert(response)));
-                }
+                    var index = response.TransformAsync(Convert).TransformAsync(kvps => new Dictionary<Uri, object>(kvps));
+                    var values = resources.Resources.ToDictionary(uri => uri, uri => index.GetAsync(uri).TransformAsync(obj => State.Create(obj)));
 
-                responses.Add((kvp.Value, response));
-            }
-
-            foreach (var response in responses)
-            {
-                var state = await response.Response;
-
-                if (state?.TryGetRepresentation<IEnumerable<KeyValuePair<Uri, object>>>(out var collection) == true)
-                {
-                    foreach (var arg in response.Args)
+                    foreach (var request in kvp.Value)
                     {
-                        if (MultiRestEventArgs.TryGetValue(collection, arg.Uri, out var value))
+                        if (values.Remove(request.Uri, out var value))
                         {
-                            arg.Handle(value);
+                            responses.Add(request.Handle(value));
                         }
                     }
+
+                    e.AddRequests(values.Select(kvp =>
+                    {
+                        var request = new RestRequestArgs(kvp.Key);
+                        _ = request.Handle(kvp.Value);
+                        return request;
+                    }));
                 }
             }
+
+            await Task.WhenAll(responses);
         }
 
         private static IEnumerable<KeyValuePair<Uri, object>> Convert(State response) => response.TryGetRepresentation<IEnumerable<KeyValuePair<Uri, object>>>(out var collection) == true ? collection : Enumerable.Empty<KeyValuePair<Uri, object>>();
@@ -126,16 +125,18 @@ namespace Movies
             //var parentCollectionWasRequested = new Lazy<bool>(() => e.Args.OfType<UniformItemIdentifier>().Any(uii => uii.Property == Movie.PARENT_COLLECTION));
             var greedyUrls = args.SelectMany(arg => GetUrlsGreedy(arg.Uri)).Distinct().ToArray();
             var greedy = greedyUrls.Select(url => new RestRequestArgs(new Uri(url, UriKind.Relative)));
-            args = args.Concat(greedy);
+            var urls = args.Select(arg => (Resolver.ResolveUrl(arg.Uri), arg));
+            urls = urls.Concat(greedyUrls.Select(url => (url, (RestRequestArgs)null)));
+            //args = args.Concat(greedy);
 
             var trie = new Dictionary<string, List<(string Url, string Path, string Query, RestRequestArgs Arg)>>();
             //var trie1 = new Trie<string, (string Url, string Path, string Query, RestRequestArgs Arg)>();
 
-            foreach (var arg in args)
+            foreach (var url in urls)
             {
-                var url = Resolver.ResolveUrl(arg.Uri);
-                var parts = url.Split('?');
-                AddToTrie(trie, parts[0], (url, parts[0], parts.Length > 1 ? parts[1] : string.Empty, arg));
+                //var url = Resolver.ResolveUrl(arg.Uri);
+                var parts = url.Item1.Split('?');
+                AddToTrie(trie, parts[0], (url.Item1, parts[0], parts.Length > 1 ? parts[1] : string.Empty, url.arg));
             }
 
             foreach (var kvp in trie)
@@ -161,7 +162,7 @@ namespace Movies
                     url += "?" + query;
                 }
 
-                yield return new KeyValuePair<string, IEnumerable<RestRequestArgs>>(url, kvp.Value.Select(value => value.Arg));
+                yield return new KeyValuePair<string, IEnumerable<RestRequestArgs>>(url, kvp.Value.Select(value => value.Arg).Where(arg => arg != null));
             }
         }
 

@@ -213,7 +213,7 @@
   </ItemGroup>
   <ProjectExtensions>
     <VisualStudio>
-      <UserProperties XamarinHotReloadMonoInterpreterErrorInfoBarMoviesiOSHideInfoBar="True" />
+      <UserProperties XamarinHotReloadWrongLinkerErrorInfoBarMoviesiOSHideInfoBar="True" XamarinHotReloadMonoInterpreterErrorInfoBarMoviesiOSHideInfoBar="True" />
     </VisualStudio>
   </ProjectExtensions>
 </Project>

@@ -5,6 +5,11 @@ using System.Linq;
 
 namespace Movies
 {
+    public interface IConverter<T>// : IConverter1
+    {
+        bool TryConvert(T original, Type targetType, out object converted);
+    }
+
     public class State : IEnumerable
     {
         private Dictionary<Type, object> Representations { get; }

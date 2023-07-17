@@ -16,6 +16,31 @@ namespace Movies
     public static class DictionaryHelpers
     {
         public static Task<TValue> GetAsync<TKey, TValue>(this Task<IReadOnlyDictionary<TKey, TValue>> dict, TKey key) => dict.TransformAsync(dict => dict.TryGetValue(key, out var value) ? value : default);
+        public static Task<TValue> GetAsync<TKey, TValue>(this Task<Dictionary<TKey, TValue>> dict, TKey key) => dict.TransformAsync(dict => dict.TryGetValue(key, out var value) ? value : default);
+
+        public static bool TryGetValue<TKey, TValue>(this IEnumerable<KeyValuePair<TKey, TValue>> data, TKey key, out TValue value)
+        {
+            if (data is IDictionary<TKey, TValue> dict)
+            {
+                return dict.TryGetValue(key, out value);
+            }
+            else if (data is IReadOnlyDictionary<TKey, TValue> ROdict)
+            {
+                return ROdict.TryGetValue(key, out value);
+            }
+
+            foreach (var kvp in data)
+            {
+                if (Equals(key, kvp.Key))
+                {
+                    value = kvp.Value;
+                    return true;
+                }
+            }
+
+            value = default;
+            return false;
+        }
 
         public static IReadOnlyDictionary<TKey, TValue> ToReadOnlyDictionary<TKey, TValue>(IEnumerable<KeyValuePair<TKey, TValue>> kvps)
         {

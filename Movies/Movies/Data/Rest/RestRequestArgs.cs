@@ -7,8 +7,6 @@ namespace Movies
 {
     public class RestRequestArgs : AsyncChainEventArgs
     {
-        public RestRequest Request { get; }
-        public RestResponse RestResponse { get; private set; }
         public Uri Uri { get; }
         public State Body { get; }
         public Task<State> ResponseAsync { get; private set; }

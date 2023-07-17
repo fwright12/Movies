@@ -33,7 +33,7 @@ namespace Movies
             await cache.DB.AddColumns(cache.Table, ID, TYPE);
 
 #if DEBUG
-            await cache.Clear();
+            //await cache.Clear();
 
             var rows = await cache.DB.QueryAsync<(string, byte[], string, string, string)>($"select * from {cache.Table} limit 10");
             Print.Log((await cache.DB.QueryScalarsAsync<int>($"select count(*) from {cache.Table}")).FirstOrDefault() + " items in cache");
@@ -137,7 +137,14 @@ namespace Movies
 
 #if DEBUG
             watch.Stop();
-            Print.Log($"flushed {batched.Count} items in {watch.Elapsed}");
+            if (Xamarin.Forms.Device.RuntimePlatform == Xamarin.Forms.Device.iOS && watch.ElapsedMilliseconds > 1000 && batched.Count > 0)
+            {
+                App.Message($"flushed {batched.Count} items in {watch.Elapsed}");
+            }
+            else
+            {
+                Print.Log($"flushed {batched.Count} items in {watch.Elapsed}");
+            }
 #endif
         }
 
@@ -243,21 +250,22 @@ namespace Movies
             //var itr = ids.OfType<object>().GetEnumerator();
             //var args = Take(itr, MAX_SQL_VARIABLES - 1).Prepend((int)type).ToArray();
             //var values = string.Join(",", Enumerable.Repeat("?", args.Length - 1));
-            string typeStr;
 
-            if (type == ItemType.Movie) typeStr = "movie";
-            else if (type == ItemType.TVShow) typeStr = "tv";
-            else if (type == ItemType.Person) typeStr = "person";
-            else return 0;
+            if (App.TryGetTypeString(type, out var typeStr))
+            {
+                var counts = await Task.WhenAll(ids.Select(id => cache.DB.ExecuteAsync($"delete from {cache.Table} where {SQLJsonCache.URL} like '3/{typeStr}/{id}%'")));
 
-            var counts = await Task.WhenAll(ids.Select(id => cache.DB.ExecuteAsync($"delete from {cache.Table} where {SQLJsonCache.URL} like '3/{typeStr}/{id}%'")));
+                //var query = $"delete from {cache.Table} where {TYPE} = ? and {ID} in ({values})";
 
-            //var query = $"delete from {cache.Table} where {TYPE} = ? and {ID} in ({values})";
-
-            //var counts = await Task.WhenAll(
-            //    cache.DB.ExecuteAsync(query, args),
-            //    Expire(type, ToEnumerable(itr).OfType<int>()));
-            return counts.Sum();
+                //var counts = await Task.WhenAll(
+                //    cache.DB.ExecuteAsync(query, args),
+                //    Expire(type, ToEnumerable(itr).OfType<int>()));
+                return counts.Sum();
+            }
+            else
+            {
+                return 0;
+            }
         }
 
         public async Task<bool> IsCached(string url) => await (await Cache).IsCached(url);

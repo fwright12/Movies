@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -6,22 +7,23 @@ using System.Threading.Tasks;
 
 namespace Movies
 {
-    public class MultiRestEventArgs : AsyncChainEventArgs // where T : RestEventArgs
+    public class MultiRestEventArgs : AsyncChainEventArgs, IEnumerable<RestRequestArgs>
     {
-        public IEnumerable<RestRequestArgs> Unhandled => GetUnhandled();
+        public IEnumerable<RestRequestArgs> Unhandled => Requests.Where(request => !request.Handled);// GetUnhandled();
 
         //public IEnumerable<RestRequestArgs> Args { get; }
-        private IEnumerable<KeyValuePair<Uri, Task<State>>> AdditionalState;// { get; private set; }
+        //private IEnumerable<KeyValuePair<Uri, Task<State>>> AdditionalState;// { get; private set; }
+        private List<RestRequestArgs> Requests;
         //public IEnumerable<RestRequestArgs> Unhandled { get; }
 
         private readonly LinkedList<RestRequestArgs> _Unhandled;
-        public readonly RestRequestArgs[] AllArgs;
+        //public readonly RestRequestArgs[] Requests;
 
         public MultiRestEventArgs(params RestRequestArgs[] args) : this((IEnumerable<RestRequestArgs>)args) { }
         public MultiRestEventArgs(IEnumerable<RestRequestArgs> args)
         {
-            AllArgs = args as RestRequestArgs[] ?? args.ToArray();
-            _Unhandled = args as LinkedList<RestRequestArgs> ?? new LinkedList<RestRequestArgs>(args);
+            Requests = new List<RestRequestArgs>(args);
+            //_Unhandled = args as LinkedList<RestRequestArgs> ?? new LinkedList<RestRequestArgs>(args);
         }
 
         private IEnumerable<RestRequestArgs> GetUnhandled()
@@ -46,62 +48,73 @@ namespace Movies
             }
         }
 
-        public IEnumerable<KeyValuePair<Uri, Task<State>>> GetAdditionalState()
+        private IEnumerable<RestRequestArgs> GetAdditionalState()
         {
-            var set = AllArgs.Select(arg => arg.Uri).ToHashSet();
-            return AdditionalState?.Where(kvp => !set.Contains(kvp.Key)) ?? Enumerable.Empty<KeyValuePair<Uri, Task<State>>>();
+            return Requests ?? Enumerable.Empty<RestRequestArgs>();
+            
+            //var set = AllArgs.Select(arg => arg.Uri).ToHashSet();
+            //return AdditionalState?.Where(kvp => !set.Contains(kvp.Key)) ?? Enumerable.Empty<KeyValuePair<Uri, Task<State>>>();
+        }
+
+        public void AddRequests(IEnumerable<RestRequestArgs> requests) => Requests.AddRange(requests);
+
+        public void AddRequest(RestRequestArgs request)
+        {
+            Requests.Add(request);
         }
 
         public async Task<bool> HandleMany<T>(IReadOnlyDictionary<Uri, Task<T>> data)
         {
-            var result = await Task.WhenAll(Unhandled.Select(arg => TryGetValue(data, arg.Uri, out var value) ? arg.Handle(value) : Task.FromResult(false)));
+            //AdditionalState = data as IEnumerable<KeyValuePair<Uri, Task<State>>> ?? data.Select(kvp => new KeyValuePair<Uri, Task<State>>(kvp.Key, Task.FromResult(State.Create(kvp.Value))));
 
-            AdditionalState = data as IEnumerable<KeyValuePair<Uri, Task<State>>> ?? data.Select(kvp => new KeyValuePair<Uri, Task<State>>(kvp.Key, Task.FromResult(State.Create(kvp.Value))));
+            var tasks = new List<Task<bool>>();
+
+            foreach (var request in Requests)
+            {
+                if (data.TryGetValue(request.Uri, out var value))
+                {
+
+                }
+            }
+
+            //return (await Task.WhenAll(tasks)).All(value => value);
+
+            var set = Requests.Select(request => request.Uri).ToHashSet();
+            Requests.AddRange(data.Where(kvp => !set.Contains(kvp.Key)).Select(kvp =>
+            {
+                var request = new RestRequestArgs(kvp.Key);
+                _ = request.Handle(kvp.Value);
+                return request;
+            }));
+
+            var result = await Task.WhenAll(Unhandled.Select(arg => data.TryGetValue(arg.Uri, out var value) ? arg.Handle(value) : Task.FromResult(false)));
 
             return result.All(value => value);
         }
 
-        public bool HandleMany<T>(IReadOnlyDictionary<Uri, T> data)
+        private bool HandleMany<T>(IReadOnlyDictionary<Uri, T> data)
         {
             var success = true;
 
-            if (AllArgs.Length > 1 && data is IDictionary<Uri, T> == false && data is IReadOnlyDictionary<Uri, T> == false)
+            if (Requests.Count > 1 && data is IDictionary<Uri, T> == false && data is IReadOnlyDictionary<Uri, T> == false)
             {
                 data = new Dictionary<Uri, T>(data);
             }
-
-            foreach (var arg in AllArgs)
+            
+            foreach (var arg in Requests)
             {
-                success &= TryGetValue(data, arg.Uri, out var value) && arg.Handle(value);
+                //success &= TryGetValue(data, arg.Uri, out var value) && arg.Handle(value);
             }
 
-            AdditionalState = data as IEnumerable<KeyValuePair<Uri, Task<State>>> ?? data.Select(kvp => new KeyValuePair<Uri, Task<State>>(kvp.Key, Task.FromResult(State.Create(kvp.Value))));
+            Requests = data.Select(kvp => new RestRequestArgs(kvp.Key, State.Create(kvp.Value))).ToList();
+
+            //AdditionalState = data as IEnumerable<KeyValuePair<Uri, Task<State>>> ?? data.Select(kvp => new KeyValuePair<Uri, Task<State>>(kvp.Key, Task.FromResult(State.Create(kvp.Value))));
 
             return success;
         }
 
-        public static bool TryGetValue<T>(IEnumerable<KeyValuePair<Uri, T>> data, Uri uri, out T value)
-        {
-            if (data is IDictionary<Uri, T> dict)
-            {
-                return dict.TryGetValue(uri, out value);
-            }
-            else if (data is IReadOnlyDictionary<Uri, T> ROdict)
-            {
-                return ROdict.TryGetValue(uri, out value);
-            }
+        public IEnumerator<RestRequestArgs> GetEnumerator() => Requests.GetEnumerator();
 
-            foreach (var kvp in data)
-            {
-                if (Equals(uri, kvp.Key))
-                {
-                    value = kvp.Value;
-                    return true;
-                }
-            }
-
-            value = default;
-            return false;
-        }
+        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
     }
 }

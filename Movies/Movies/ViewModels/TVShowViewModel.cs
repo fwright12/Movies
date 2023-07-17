@@ -63,11 +63,29 @@ namespace Movies.ViewModels
 
         public override string PrimaryImagePath => (Item as Collection)?.PosterPath ?? base.PrimaryImagePath;
 
-        public TVSeasonViewModel(TVSeason season) : base(season)
+        //public TVSeasonViewModel(TVSeason season) : base(season)
+        public TVSeasonViewModel(TVSeason season) : base(season.Name, GetEpisodes(season), null, season)
         {
             Number = season.SeasonNumber;
             DescriptionLabel = "Summary";
             ListLabel = "Episodes";
+        }
+
+        public static async IAsyncEnumerable<Item> GetEpisodes(TVSeason season)
+        {
+            await DataService.Instance.Batch;
+            var request = new RestRequestArgs(new UniformItemIdentifier(season, TVSeason.EPISODES), TVSeason.EPISODES.FullType);
+            await DataService.Instance.Controller.Get(request);
+            
+            if (!request.Handled || request.Response.TryGetRepresentation<IEnumerable<Item>>(out var episodes) == false)
+            {
+                yield break;
+            }
+
+            foreach (var episode in episodes)
+            {
+                yield return episode;
+            }
         }
     }
 

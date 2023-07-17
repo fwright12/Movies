@@ -309,23 +309,6 @@ namespace Movies
             }
         }
 
-        private static DataService Data;
-
-        public void HandleDataRequests(DataService manager)
-        {
-            Data = manager;
-
-            manager.GetItemDetails += (sender, e) =>
-            {
-                var item = (Item)sender;
-
-                if (ITEM_PROPERTIES.TryGetValue(item.ItemType, out var properties))
-                {
-                    properties.HandleRequests(item, e.Properties, this);
-                }
-            };
-        }
-
         bool IAssignID<int>.TryGetID(Models.Item item, out int id) => TryGetID(item, out id);
 
         public static bool TryGetID(Models.Item item, out int id)
