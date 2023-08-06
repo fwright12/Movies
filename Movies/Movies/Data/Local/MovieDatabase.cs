@@ -1,13 +1,10 @@
 ﻿using Movies.Models;
 using SQLite;
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
-using static Movies.API;
 using Test = Movies;
 
 namespace Movies.Views
@@ -274,42 +271,29 @@ namespace Movies.Views
             //await SQL.ExecuteAsync("drop table if exists Collections");
 
             await Task.WhenAll(ItemTables.Values.Select(table => itemInfo.CreateTable(table)));
-            
+
             if (clean)
             {
-                var tempTable = "stillValidCachedJson";
                 var userInfo = await userInfoConn;
-
                 await itemInfo.ExecuteAsync($"attach database '{GetFilePath(UserInfoDBFilename)}' as items");
-                await itemInfo.ExecuteAsync($"drop table if exists {tempTable}");
-                await itemInfo.ExecuteAsync($"create table {tempTable} as select * from {SQLJsonCache.TABLE_NAME} where false");
+
+                var cleaning = new List<Task<int>>();
 
                 foreach (var kvp in ItemTables)
                 {
                     //Print.Log(string.Join(',', await ItemInfo.QueryAsync<ValueTuple<string>>($"select {LocalList.ItemsCols.ITEM_ID} from items.{LocalList.ItemsTable} where {LocalList.ItemsCols.ITEM_TYPE} = ?", kvp.Key)));
                     //Print.Log($"delete from {kvp.Value} where {kvp.Value.Columns[0]} not in (select {LocalList.ItemsCols.ITEM_ID} from items.{LocalList.ItemsTable} where {LocalList.ItemsCols.ITEM_TYPE} = ?)");
                     var id = kvp.Value.Columns[0];
-                    var userLists = $"select {LocalList.ItemsCols.ITEM_ID} from items.{LocalList.ItemsTable} where {LocalList.ItemsCols.ITEM_TYPE} = ?";
-                    await itemInfo.ExecuteAsync($"delete from {kvp.Value} where {id} not in ({userLists})", kvp.Key);
-
-                    var items = await itemInfo.QueryScalarsAsync<int>(userLists, kvp.Key);
-                    foreach (var itemID in items)
-                    {
-                        if (App.TryGetTypeString(LocalList.DatabaseItemTypeToAppItemType(kvp.Key), out var type))
-                        {
-                            await itemInfo.ExecuteAsync($"insert into {tempTable} select * from {SQLJsonCache.TABLE_NAME} where {SQLJsonCache.URL} like '_/{type}/{itemID}%'");
-                        }
-                    }
+                    var userLists = $"(select {LocalList.ItemsCols.ITEM_ID} from items.{LocalList.ItemsTable} where {LocalList.ItemsCols.ITEM_TYPE} = ?)";
+                    cleaning.Add(itemInfo.ExecuteAsync($"delete from {kvp.Value} where {id} not in {userLists}", kvp.Key));
+                    cleaning.Add(itemInfo.ExecuteAsync($"delete from {SQLJsonCache.TABLE_NAME} where {ItemInfoCache.TYPE} = ? and {ItemInfoCache.ID} not in {userLists}", kvp.Key, kvp.Key));
                 }
 
+                var rows = await Task.WhenAll(cleaning);
 #if DEBUG
-                var oldCount = await itemInfo.QueryScalarsAsync<int>($"select count(*) from {SQLJsonCache.TABLE_NAME}");
-                var newCount = await itemInfo.QueryScalarsAsync<int>($"select count(*) from {tempTable}");
-                Print.Log($"cleaned {oldCount[0] - newCount[0]} rows from json cache");
+                Print.Log($"cleaned {rows.Sum()} rows from item info");
 #endif
 
-                await itemInfo.ExecuteAsync($"drop table {SQLJsonCache.TABLE_NAME}");
-                await itemInfo.ExecuteAsync($"alter table {tempTable} rename to {SQLJsonCache.TABLE_NAME}");
                 await itemInfo.ExecuteAsync("vacuum");
             }
 

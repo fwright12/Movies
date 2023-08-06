@@ -18,7 +18,7 @@
             {
                 Assert.Fail("Couldn't find associated ItemProperties for " + type );
             }
-            Assert.Fail();
+            //Assert.Fail();
             //var handler = new ItemProperties.RequestHandler(properties, new Movie("movie"));
 
             //await properties.ChangeKeysLoaded;

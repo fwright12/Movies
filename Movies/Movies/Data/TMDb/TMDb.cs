@@ -1,4 +1,5 @@
-﻿using Movies.Models;
+﻿using Movies.Data.HttpHandlers;
+using Movies.Models;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -58,8 +59,12 @@ namespace Movies
             WebClient = new HttpClient(new BufferedHandler(new TMDbBufferedHandler(new MockHandler())))
             {
                 BaseAddress = new Uri("https://mock.themoviedb/"),
+#elif DEBUG
+            WebClient = new HttpClient(new BufferedHandler(new TMDbBufferedHandler(new LoggingHandler(new HttpClientHandler()))))
+            {
+                BaseAddress = new Uri("https://api.themoviedb.org/"),
 #else
-            WebClient = new HttpClient(new BufferedHandler(new TMDbBufferedHandler()))
+            WebClient = new HttpClient(new BufferedHandler(new TMDbBufferedHandler(new HttpClientHandler())))
             {
                 BaseAddress = new Uri(BASE_ADDRESS),
 #endif

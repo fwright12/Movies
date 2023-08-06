@@ -6,15 +6,16 @@ namespace MoviesTests.Data.TMDb
     [TestClass]
     public class TMDbClientTests : Resources
     {
-        private ChainLink<MultiRestEventArgs> Chain { get; }
+        private readonly TMDbReadHandler TMDbReadHandler;
+        private ChainLinkAsync<MultiRestEventArgs> Chain => new ChainLinkAsync<MultiRestEventArgs>(TMDbReadHandler.HandleGet);
+        
 
         public TMDbClientTests()
         {
             var resolver = new TMDbResolver(TMDB.ITEM_PROPERTIES);
             var invoker = new HttpMessageInvoker(new BufferedHandler(new TMDbBufferedHandler(new MockHandler())));
 
-            var tmdb = new TMDbReadHandler(invoker, resolver);
-            Chain = new ChainLinkAsync<MultiRestEventArgs>(tmdb.HandleGet);
+            TMDbReadHandler = new TMDbReadHandler(invoker, resolver);
         }
 
         [TestInitialize]

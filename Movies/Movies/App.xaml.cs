@@ -43,15 +43,6 @@ namespace Movies
 
     /* Changelog:
      * 
-     * TMDbResolver.HttpConverter from dictionary to enumerable
-     * Batch timeout in DataService
-     * Clean database cache from movies not in lists
-     * Remove all reference to PropertyDictionary
-     *      GetItem in TMDb (when cached on disk)
-     *      Merge in TDMbDB
-     * Search issue
-     * MultiRestEventArgs additional state to list of requests
-     * 
      */
 
     public partial class App : Application
@@ -76,20 +67,6 @@ namespace Movies
             [ItemType.Network] = typeof(Company),
             [ItemType.WatchProvider] = typeof(WatchProvider),
         };
-
-        public static bool TryGetTypeString(ItemType type, out string typeStr)
-        {
-            if (type == ItemType.Movie) typeStr = "movie";
-            else if (type == ItemType.TVShow) typeStr = "tv";
-            else if (type == ItemType.Person) typeStr = "person";
-            else
-            {
-                typeStr = default;
-                return false;
-            }
-
-            return true;
-        }
 
         public UserPrefs Prefs { get; }
 
@@ -144,11 +121,44 @@ namespace Movies
 
 #if DEBUG
         public static Task Message(string message) => Xamarin.Forms.Application.Current.MainPage.DisplayAlert("Console", message, "OK");
+
+        private static System.IO.StringWriter iOSConsole;
+
+        private void App_PageAppearing(object sender, Page e)
+        {
+            PageAppearing -= App_PageAppearing;
+
+            e.ToolbarItems.Add(new ToolbarItem
+            {
+                Text = "Console",
+                Command = new Command(async () =>
+                {
+                    await MainPage.Navigation.PushAsync(new ContentPage
+                    {
+                        Content = new ScrollView
+                        {
+                            HorizontalScrollBarVisibility = ScrollBarVisibility.Always,
+                            Content = new Label
+                            {
+                                Text = iOSConsole.ToString()
+                            }
+                        }
+                    });
+                })
+            });
+        }
 #endif
 
         public App()
         {
 #if DEBUG
+            if (Device.RuntimePlatform == Device.iOS)
+            {
+                iOSConsole = new System.IO.StringWriter();
+                System.Diagnostics.Trace.Listeners.Add(new System.Diagnostics.TextWriterTraceListener(iOSConsole));
+                PageAppearing += App_PageAppearing;
+            }
+
             foreach (var kvp in new Dictionary<string, string>()
             {
                 [GetLoginCredentialsKey(ServiceName.TMDb)] = TMDB_LOGIN_INFO,
@@ -167,7 +177,11 @@ namespace Movies
 
             _ = SavePropertiesAsync();
 
+            DebugConfig.SimulatedDelay = 1000;
+            DebugConfig.LOG_WEB_REQUESTS = true;
+
             //UserAppTheme = OSAppTheme.Dark;
+
 #endif
 
             Prefs = new UserPrefs(Properties);

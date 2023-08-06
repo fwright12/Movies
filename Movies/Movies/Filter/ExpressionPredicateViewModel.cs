@@ -160,7 +160,9 @@ namespace Movies.ViewModels
 
             if (builder.Predicate == null || builder.Predicate == FilterPredicate.TAUTOLOGY)
             {
+                Root.SubtreeChanged -= UpdatePredicate;
                 Root.Remove(builder);
+                Root.SubtreeChanged += UpdatePredicate;
             }
 
             OnPredicateChanged();

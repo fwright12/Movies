@@ -30,8 +30,7 @@ namespace Movies
     public class CacheAsideLink : ChainLinkAsync<MultiRestEventArgs>
     {
         public CacheAsideLink(IDataStore<Uri, State> datastore, ChainLink<MultiRestEventArgs> next = null) : this(new RestCache(datastore), next) { }
-        //public CacheAsideLink(IDataStore<Uri, State> datastore, AsyncChainLinkEventHandler<MultiRestEventArgs> get = null, AsyncChainLinkEventHandler<MultiRestEventArgs> set = null, ChainLink<MultiRestEventArgs> next = null) : this(get ?? new DatastoreReadHandler(datastore).HandleAsync, set ?? new DatastoreCreateHandler(datastore).HandleAsync, next) { }
-        //public CacheAsideLink(AsyncChainLinkEventHandler<MultiRestEventArgs> get, AsyncChainLinkEventHandler<MultiRestEventArgs> set, ChainLink<MultiRestEventArgs> next = null) : base(new CacheAside(new CacheAsideFunc<MultiRestEventArgs>(get, set)).GetAsync, next) { }
+
         public CacheAsideLink(DatastoreCache<Uri, State, MultiRestEventArgs> handlers, ChainLink<MultiRestEventArgs> next = null) : base(new CacheAside(handlers).GetAsync, next) { }
 
         private class CacheAside
@@ -52,116 +51,80 @@ namespace Movies
                 {
                     await Handlers.HandleGet(e);
                 }
-                catch
-                {
-                    //return;
-                }
+                catch { }
 
-                if (next == null)
+                if (next == null || !e.Unhandled.Any())
                 {
                     return;
                 }
 
-                var unhandled = e.Unhandled.ToList();
-
-                if (unhandled.Count == 0)
-                {
-                    return;
-                }
-
-                Task handling;
+                var unhandled = new HashSet<RestRequestArgs>();
                 List<Task> cached = new List<Task>();
+                Task handling;
+                MultiRestEventArgs eNext;
 
                 lock (CacheLock)
                 {
-                    for (int i = 0; i < unhandled.Count; i++)
+                    foreach (var request in e)
                     {
-                        var arg = unhandled[i];
-
-                        if (Cache.TryGetValue(arg.Uri, out var task))
+                        // We've already issued a request for this resource and are waiting for a response,
+                        // let's not make another request
+                        if (Cache.TryGetValue(request.Uri, out var response))
                         {
-                            cached.Add(arg.Handle(task));
-                            unhandled.RemoveAt(i--);
+                            cached.Add(request.Handle(response));
+                        }
+                        else
+                        {
+                            unhandled.Add(request);
                         }
                     }
 
-                    var eNext = new MultiRestEventArgs(unhandled);
+                    eNext = new MultiRestEventArgs(unhandled);
                     handling = next.InvokeAsync(eNext);
+                    // Pass anything extra that got added back up
                     e.AddRequests(eNext.Where(request => !unhandled.Contains(request)));
-                    //_ = e.HandleMany(new Dictionary<Uri, Task<State>>(eNext.GetAdditionalState()));
 
-                    foreach (var arg in unhandled)
-                    {
-                        Cache.Add(arg.Uri, GetResponseAsync(handling, arg));
-                    }
+                    // All unhandled plus whatever else came back from next
                     foreach (var request in eNext)
                     {
-                        Cache.TryAdd(request.Uri, GetResponseAsync(request));
+                        Cache[request.Uri] = GetResponseAsync(handling, request);
                     }
                 }
-
-                await Task.WhenAll(cached.Prepend(handling).Select(Safe));
-                //e.HandleMany(eNext.GetAdditionalState());
-
-                var handledByNext = unhandled.Where(arg => arg.Handled).ToArray();
-                var put = handledByNext
-                    .ToDictionary(arg => arg.Uri, arg => Task.FromResult(arg.Response));
-
-                //var extra = new Dictionary<Uri, State>(handledByNext
-                //    .Select(arg => arg.Response.TryGetRepresentation<IDictionary<Uri, State>>(out var extra) ? extra : null)
-                //    .Where(values => values != null)
-                //    .SelectMany());
-
-                foreach (var request in e)//.Where(kvp => kvp.Key is UniformItemIdentifier == false))
-                {
-                    //kvp.Value.Add(arg.Expected, this);
-                    put.TryAdd(request.Uri, GetResponseAsync(request));
-
-                    lock (CacheLock)
-                    {
-                        //Cache.Add(kvp.Key, Task.FromResult(kvp.Value));
-                        Cache.TryAdd(request.Uri, GetResponseAsync(request));
-                    }
-                }
-
-                //var set = Handlers.HandleSet(new MultiRestEventArgs(put));
-                foreach (var kvp in put)
-                {
-                    UpdateCacheOnWriteComplete(kvp.Key, kvp.Value);
-                }
-            }
-
-            private async void UpdateCacheOnWriteComplete(Uri uri, Task<State> state)
-            {
-                State body;
 
                 try
                 {
-                    body = await state;
+                    await handling;
                 }
-                catch
+                catch { }
+
+                foreach (var request in eNext)
                 {
-                    return;
+                    // Cache any new resources that we weren't aware of before
+                    // If we were aware of it, update in case value has changed? (unlikely)
+                    lock (CacheLock)
+                    {
+                        Cache[request.Uri] = Task.FromResult(request.Response);
+                    }
+
+                    UpdateCacheOnWriteComplete(request.Uri, request.Response);
                 }
 
-                if (body == null)
-                {
-                    return;
-                }
+                await Task.WhenAll(cached.Select(Safe));
+            }
 
-                var request = new RestRequestArgs(uri, body);
-                await Handlers.HandleSet(new MultiRestEventArgs(request));
+            // Wait until the value has been written, then remove from the cache
+            private async void UpdateCacheOnWriteComplete(Uri uri, State state)
+            {
+                if (state != null)
+                {
+                    var request = new RestRequestArgs(uri, state);
+                    await Handlers.HandleSet(new MultiRestEventArgs(request));
+                }
 
                 lock (CacheLock)
                 {
                     Cache.Remove(uri);
                 }
-            }
-
-            private static async Task<State> GetResponseAsync(RestRequestArgs e)
-            {
-                await e.RequestedSuspension;
-                return e.Response;
             }
 
             private static async Task<State> GetResponseAsync(Task task, RestRequestArgs e)

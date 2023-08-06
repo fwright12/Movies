@@ -168,6 +168,7 @@ namespace Movies.ViewModels
 
         private IAsyncEnumerable<T> Source;
         private IAsyncEnumerator<T> Itr;
+        private int LoadCount;
         private bool _IsRefreshRequired;
         private bool _Loading;
 
@@ -196,6 +197,8 @@ namespace Movies.ViewModels
 
         public async Task LoadMore(int count = 1)
         {
+            LoadCount = Math.Max(LoadCount, count);
+
             if (Loading)
             {
                 return;
@@ -205,9 +208,12 @@ namespace Movies.ViewModels
 
             try
             {
-                for (int i = 0; i < count && await Itr.MoveNextAsync(); i++)
+                for (int i = 0; i < LoadCount && await Itr.MoveNextAsync(); i++)
                 {
-                    Items.Add(Itr.Current);
+                    if (Itr.Current != null)
+                    {
+                        Items.Add(Itr.Current);
+                    }
                 }
             }
             catch (Exception e)
@@ -218,6 +224,7 @@ namespace Movies.ViewModels
 #endif
             }
 
+            LoadCount = 0;
             Loading = false;
             IsRefreshRequired = false;
         }

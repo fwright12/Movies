@@ -131,7 +131,7 @@ namespace MoviesTests.Data.TMDb
 
             var uri = new Uri("3/movie/0?language=en-US", UriKind.Relative);
             var json = DUMMY_TMDB_DATA.HARRY_POTTER_AND_THE_DEATHLY_HALLOWS_PART_2_PARTIAL_RESPONSE;// "{ \"runtime\": 130 }";
-            await handlers.DiskCache.CreateAsync(uri, State.Create<ArraySegment<byte>>(Encoding.UTF8.GetBytes(json)));
+            Assert.IsTrue(await handlers.DiskCache.CreateAsync(uri, State.Create<ArraySegment<byte>>(Encoding.UTF8.GetBytes(json))));
 
             var request = new RestRequestArgs(new UniformItemIdentifier(Constants.Movie, Media.RUNTIME), typeof(TimeSpan?));
             await chain.Get(request);
@@ -187,6 +187,11 @@ namespace MoviesTests.Data.TMDb
             Assert.AreEqual(0, handlers.InMemoryCache.Count);
 
             handlers.MockHttpHandler.Reconnect();
+
+            response = await chain.TryGet<TimeSpan>(uii);
+
+            Assert.IsTrue(response.Success);
+            Assert.AreEqual(response.Resource, new TimeSpan(2, 10, 0));
         }
 
         [TestMethod]
@@ -205,6 +210,61 @@ namespace MoviesTests.Data.TMDb
             Assert.AreEqual($"3/movie/0?language=en-US&{Constants.APPEND_TO_RESPONSE}=credits,keywords,recommendations,release_dates,videos,watch/providers", handlers.WebHistory[0]);
             Assert.AreEqual("3/collection/1241?language=en-US", WebHistory[1]);
         }
+
+        [TestMethod]
+        public async Task GetCredits()
+        {
+            var handlers = new HandlerChain();
+            var chain = handlers.Chain;
+
+            var r1 = new RestRequestArgs(new UniformItemIdentifier(Constants.Person, Person.BIRTHDAY), Person.BIRTHDAY.FullType);
+            var r2 = new RestRequestArgs(new UniformItemIdentifier(Constants.Person, Person.CREDITS), Person.CREDITS.FullType);
+            var temp = chain.Get(r1, r2);
+
+            await Task.Delay(10);
+
+            var request1 = new RestRequestArgs(new UniformItemIdentifier(Constants.Person, Person.CREDITS), Person.CREDITS.FullType);
+
+            await Task.WhenAll(chain.Get(request1), temp);
+
+            Assert.IsTrue(r1.Handled);
+            Assert.IsTrue(r2.Handled);
+            Assert.IsTrue(request1.Handled);
+        }
+
+        private static readonly TimeSpan INTERSTELLAR_RUNTIME = new TimeSpan(2, 49, 0);
+        private static readonly TimeSpan HARRY_POTTER_RUNTIME = new TimeSpan(2, 10, 0);
+
+        [TestMethod]
+        public async Task OverwriteOldData()
+        {
+            var handlers = new HandlerChain();
+            var chain = handlers.Chain;
+
+            var uri = new Uri("3/movie/0?language=en-US", UriKind.Relative);
+            var json = DUMMY_TMDB_DATA.INTERSTELLAR_RESPONSE;
+            Assert.IsTrue(await handlers.DiskCache.CreateAsync(uri, State.Create<ArraySegment<byte>>(Encoding.UTF8.GetBytes(json))));
+
+            uri = new UniformItemIdentifier(Constants.Movie, Media.RUNTIME);
+            RestRequestArgs request = await chain.Get<TimeSpan>(uri);
+
+            Assert.IsTrue(request.Handled);
+            Assert.IsTrue(request.Response.TryGetRepresentation<TimeSpan>(out var value));
+            Assert.AreEqual(INTERSTELLAR_RUNTIME, value);
+
+            // This will force an api call (since recommendations don't cache)
+            var requests = await chain.Get(GetUiis(Media.RUNTIME, Media.RECOMMENDED));
+            request = requests[0];
+
+            Assert.IsTrue(requests.All(request => request.Handled));
+            Assert.IsTrue(request.Response.TryGetRepresentation(out value));
+            // We want this to have changed, since it should have been overwritten
+            // with the newer data that was just fetched
+            Assert.AreEqual(HARRY_POTTER_RUNTIME, value);
+            Assert.AreEqual(handlers.WebHistory.Count, 1);
+        }
+
+        private static IEnumerable<UniformItemIdentifier> GetUiis(params Property[] properties) => properties.Select(property => new UniformItemIdentifier(Constants.Movie, property));
 
         [TestMethod]
         public async Task RetrieveRecommendedMovies()
@@ -265,7 +325,32 @@ namespace MoviesTests.Data.TMDb
             // The request for arg1 and arg2 gets delayed reading from the disk cache, while arg3 goes through
             // immediately because the disk cache knows that property is not cacheable. However, we already know
             // we want recommended movies, so the web request should only be made once
-            await Task.WhenAll(chain.Get(arg1, arg2), chain.Get(arg3));
+            Task t1 = chain.Get(arg1, arg2);
+            Task t2 = chain.Get(arg3);
+            await Task.WhenAll(t1, t2);
+
+            Assert.AreEqual(1, handlers.WebHistory.Count);
+        }
+
+        [TestMethod]
+        public async Task ExtraRequestsAreCached()
+        {
+            var handlers = new HandlerChain();
+            var chain = handlers.Chain;
+
+            DebugConfig.SimulatedDelay = 0;
+            handlers.DiskCache.SimulatedDelay = 100;
+
+            var arg1 = new RestRequestArgs(new UniformItemIdentifier(Constants.Movie, Media.TITLE));
+            var arg2 = new RestRequestArgs(new UniformItemIdentifier(Constants.Movie, Movie.WATCH_PROVIDERS));
+            var arg3 = new RestRequestArgs(new UniformItemIdentifier(Constants.Movie, Media.RECOMMENDED));
+
+            // The request for arg1 and arg2 gets delayed reading from the disk cache, while arg3 goes through
+            // immediately because the disk cache knows that property is not cacheable. However, we already know
+            // we want recommended movies, so the web request should only be made once
+            Task t1 = chain.Get(arg1, arg2);
+            Task t2 = chain.Get(arg3);
+            await Task.WhenAll(t1, t2);
 
             Assert.AreEqual(1, handlers.WebHistory.Count);
         }

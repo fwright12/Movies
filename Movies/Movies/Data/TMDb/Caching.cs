@@ -147,8 +147,8 @@ namespace Movies
         }
 
         public static readonly TimeSpan CHANGES_DURATION = new TimeSpan(14, 0, 0, 0);
-        public static readonly TimeSpan MAX_TIME_AWAY = new TimeSpan(180, 0, 0, 0);
-        public static readonly TimeSpan MIN_TIME_AWAY = new TimeSpan(1, 0, 0);
+        public static readonly TimeSpan MAX_TIME_AWAY = new TimeSpan(7, 0, 0, 0);
+        public static readonly TimeSpan MIN_TIME_AWAY = new TimeSpan(0, 8, 0, 0);
 
         public static readonly IReadOnlyDictionary<ItemType, PagedTMDbRequest> CHANGES_ENDPOINTS = new Dictionary<ItemType, PagedTMDbRequest>
         {

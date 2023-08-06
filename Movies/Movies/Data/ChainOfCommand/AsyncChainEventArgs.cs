@@ -18,16 +18,6 @@ namespace Movies
             _RequestedSuspension = suspension;
         }
 
-        protected async Task HandleAsync(Func<Task> f)
-        {
-            await RequestedSuspension;
-
-            if (!Handled)
-            {
-                await f();
-            }
-        }
-
         private void AddWork(Task work)
         {
             if (Handled)

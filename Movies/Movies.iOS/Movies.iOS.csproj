@@ -71,11 +71,10 @@
     <WarningLevel>4</WarningLevel>
     <MtouchArch>ARM64</MtouchArch>
     <ConsolePause>false</ConsolePause>
-    <CodesignKey>iPhone Developer</CodesignKey>
+    <CodesignKey>Apple Development: Created via API (UJYAVK5R6G)</CodesignKey>
     <CodesignEntitlements>Entitlements.plist</CodesignEntitlements>
     <OptimizePNGs>true</OptimizePNGs>
-    <CodesignProvision>
-    </CodesignProvision>
+    <CodesignProvision>VS: com.gml.MoviesDebug Development</CodesignProvision>
     <MtouchLink>SdkOnly</MtouchLink>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(RunConfiguration)' == 'Default' ">
@@ -213,7 +212,7 @@
   </ItemGroup>
   <ProjectExtensions>
     <VisualStudio>
-      <UserProperties XamarinHotReloadWrongLinkerErrorInfoBarMoviesiOSHideInfoBar="True" XamarinHotReloadMonoInterpreterErrorInfoBarMoviesiOSHideInfoBar="True" />
+      <UserProperties XamarinHotReloadMonoInterpreterErrorInfoBarMoviesiOSHideInfoBar="True" XamarinHotReloadWrongLinkerErrorInfoBarMoviesiOSHideInfoBar="True" />
     </VisualStudio>
   </ProjectExtensions>
 </Project>

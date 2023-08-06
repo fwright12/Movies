@@ -1,4 +1,6 @@
 ﻿#if DEBUG
+using Xamarin.Forms;
+
 namespace Movies
 {
     public class DebugConfig
@@ -15,12 +17,22 @@ namespace Movies
         {
             if (BreakOnRequest)
                 ;
+            return;
+            if (Device.RuntimePlatform == Device.iOS)
+            {
+                App.Message(arg1.ToString());
+            }
         }
 
         public static void Breakpoint(params object[] args)
         {
             if (BreakOnRequest)
                 ;
+            return;
+            if (Device.RuntimePlatform == Device.iOS)
+            {
+                App.Message(string.Join(", ", args));
+            }
         }
     }
 }

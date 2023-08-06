@@ -79,6 +79,8 @@ namespace Movies
             [API.WATCH_PROVIDERS.GET_TV_PROVIDERS] = DUMMY_TMDB_CONFIG.TV_WATCH_PROVIDER_VALUES,
             [API.CONFIGURATION.GET_COUNTRIES] = DUMMY_TMDB_CONFIG.COUNTRIES_VALUES,
             [API.CONFIGURATION.GET_API_CONFIGURATION] = DUMMY_TMDB_CONFIG.CONFIGURATION,
+
+            [API.SEARCH.MULTI_SEARCH] = DUMMY_TMDB_DATA.TRENDING_MOVIES_RESPONSE
         }.ToDictionary(kvp => (object)kvp.Key, kvp => kvp.Value);
 
         private static Dictionary<object, string> TraktRoutes = new Dictionary<object, string>

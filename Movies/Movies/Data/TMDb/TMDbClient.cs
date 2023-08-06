@@ -19,7 +19,7 @@ namespace Movies
         }
 
         //protected override bool TryGetConverter(Uri uri, out IHttpConverter<object> resource) => Resolver.TryGetConverter(uri, out resource);
-        protected override bool TryGetConverter(Uri uri, out IHttpConverter<object> resource)
+        public override bool TryGetConverter(Uri uri, out IHttpConverter<object> resource)
         {
             if (uri is TMDbResolver.TrojanTMDbUri trojan)
             {
@@ -31,6 +31,56 @@ namespace Movies
         }
     }
 
+    public abstract class HttpRestCache : RestCache
+    {
+        new public HttpDatastore Datastore { get; }
+
+        protected HttpRestCache(HttpDatastore datastore) : base(datastore)
+        {
+            Datastore = datastore;
+        }
+
+        public override Task HandleGet(MultiRestEventArgs e)
+        {
+            var responses = new List<Task>();
+
+            foreach (var kvp in GroupRequests(e.Unhandled))
+            {
+                var uri = new Uri(kvp.Key, UriKind.RelativeOrAbsolute);
+                var requests = kvp.Value.ToArray();
+                var response = Datastore.ReadAsync(uri);
+
+                if (Datastore.TryGetConverter(uri, out var converter) && converter is HttpResourceCollectionConverter resources)
+                {
+                    var index = requests.ToDictionary(req => req.Uri, req => req);
+                    var collection = response.TransformAsync(Convert).TransformAsync(DictionaryHelpers.ToReadOnlyDictionary);
+                    //var values = resources.Resources.ToDictionary(uri => uri, uri => index.GetAsync(uri).TransformAsync(obj => State.Create(obj)));
+
+                    foreach (var resource in resources.Resources)
+                    {
+                        ICollection<Task> handling = responses;
+
+                        if (!index.TryGetValue(resource, out var request))
+                        {
+                            e.AddRequest(request = new RestRequestArgs(resource));
+                            handling = null;
+                        }
+
+                        var value = collection.GetAsync(resource).TransformAsync(obj => State.Create(obj));
+                        var task = request.Handle(value);
+                        handling?.Add(task);
+                    }
+                }
+            }
+
+            return Task.WhenAll(responses);
+        }
+
+        protected virtual IEnumerable<KeyValuePair<string, IEnumerable<RestRequestArgs>>> GroupRequests(IEnumerable<RestRequestArgs> args) => args.Select(arg => new KeyValuePair<string, IEnumerable<RestRequestArgs>>(arg.Uri.ToString(), arg.AsEnumerable()));
+
+        private static IEnumerable<KeyValuePair<Uri, object>> Convert(State response) => response.TryGetRepresentation<IEnumerable<KeyValuePair<Uri, object>>>(out var collection) == true ? collection : Enumerable.Empty<KeyValuePair<Uri, object>>();
+    }
+
     public abstract class TMDbRestCache : RestCache
     {
         public TMDbResolver Resolver { get; }
@@ -40,62 +90,73 @@ namespace Movies
             Resolver = resolver;
         }
 
-        public override async Task HandleGet(MultiRestEventArgs e)
+        public override Task HandleGet(MultiRestEventArgs e)
         {
-            var item = e.Select(arg => arg.Uri).OfType<UniformItemIdentifier>().FirstOrDefault()?.Item as Item;
+            var item = e.Select(arg => arg.Uri).OfType<UniformItemIdentifier>().Select(uii => uii.Item).FirstOrDefault(item => item != null);
             var responses = new List<Task>();
 
             foreach (var kvp in GroupRequests(e.Unhandled))
             {
                 var url = kvp.Key;
-                var group = kvp.Value.ToArray();
-
-                var properties = group
-                    .Select(arg => arg.Uri)
-                    .OfType<UniformItemIdentifier>()
-                    .Select(uii => uii.Property)
-                    .ToHashSet();
-                bool parentCollectionWasRequested = properties.Contains(Movie.PARENT_COLLECTION);
-                var uri = new TMDbResolver.TrojanTMDbUri(url, item, parentCollectionWasRequested)
-                {
-                    RequestedProperties = properties
-                };
-
-                if (Resolver.TryGetConverter(uri, out var converter))
-                {
-                    uri.Converter = converter;
-                }
-
+                var requests = kvp.Value.ToArray();
+                var uri = GetUri(item, url, requests);
                 var response = Datastore.ReadAsync(uri);
 
                 if (uri.Converter is HttpResourceCollectionConverter resources)
                 {
-                    var index = response.TransformAsync(Convert).TransformAsync(kvps => new Dictionary<Uri, object>(kvps));
-                    var values = resources.Resources.ToDictionary(uri => uri, uri => index.GetAsync(uri).TransformAsync(obj => State.Create(obj)));
+                    var index = requests.ToDictionary(req => req.Uri, req => req);
+                    var collection = response.TransformAsync(Convert).TransformAsync(DictionaryHelpers.ToReadOnlyDictionary);
+                    //var values = resources.Resources.ToDictionary(uri => uri, uri => index.GetAsync(uri).TransformAsync(obj => State.Create(obj)));
 
-                    foreach (var request in kvp.Value)
+                    foreach (var resource in resources.Resources)
                     {
-                        if (values.Remove(request.Uri, out var value))
+                        ICollection<Task> handling = responses;
+
+                        if (!index.Remove(resource, out var request))
                         {
-                            responses.Add(request.Handle(value));
+                            e.AddRequest(request = new RestRequestArgs(resource));
+                            handling = null;
                         }
+
+                        var value = collection.GetAsync(resource).TransformAsync(obj => State.Create(obj));
+                        var task = request.Handle(value);
+                        handling?.Add(task);
                     }
 
-                    e.AddRequests(values.Select(kvp =>
+                    foreach (var request in index.Values)
                     {
-                        var request = new RestRequestArgs(kvp.Key);
-                        _ = request.Handle(kvp.Value);
-                        return request;
-                    }));
+                        responses.Add(request.Handle(response));
+                    }
                 }
             }
 
-            await Task.WhenAll(responses);
+            return Task.WhenAll(responses);
         }
 
-        private static IEnumerable<KeyValuePair<Uri, object>> Convert(State response) => response.TryGetRepresentation<IEnumerable<KeyValuePair<Uri, object>>>(out var collection) == true ? collection : Enumerable.Empty<KeyValuePair<Uri, object>>();
+        private TMDbResolver.TrojanTMDbUri GetUri(Item item, string url, RestRequestArgs[] requests)
+        {
+            var properties = requests
+                    .Select(arg => arg.Uri)
+                    .OfType<UniformItemIdentifier>()
+                    .Select(uii => uii.Property)
+                    .ToHashSet();
+            bool parentCollectionWasRequested = properties.Contains(Movie.PARENT_COLLECTION);
+            var uri = new TMDbResolver.TrojanTMDbUri(url, item, parentCollectionWasRequested)
+            {
+                RequestedProperties = properties
+            };
+
+            if (Resolver.TryGetConverter(uri, out var converter))
+            {
+                uri.Converter = converter;
+            }
+
+            return uri;
+        }
 
         protected virtual IEnumerable<KeyValuePair<string, IEnumerable<RestRequestArgs>>> GroupRequests(IEnumerable<RestRequestArgs> args) => args.Select(arg => new KeyValuePair<string, IEnumerable<RestRequestArgs>>(Resolver.ResolveUrl(arg.Uri), arg.AsEnumerable()));
+
+        private static IEnumerable<KeyValuePair<Uri, object>> Convert(State response) => response.TryGetRepresentation<IEnumerable<KeyValuePair<Uri, object>>>(out var collection) == true ? collection : Enumerable.Empty<KeyValuePair<Uri, object>>();
     }
 
     public class TMDbReadHandler : TMDbRestCache
@@ -122,21 +183,19 @@ namespace Movies
 
         protected override IEnumerable<KeyValuePair<string, IEnumerable<RestRequestArgs>>> GroupRequests(IEnumerable<RestRequestArgs> args)
         {
-            //var parentCollectionWasRequested = new Lazy<bool>(() => e.Args.OfType<UniformItemIdentifier>().Any(uii => uii.Property == Movie.PARENT_COLLECTION));
-            var greedyUrls = args.SelectMany(arg => GetUrlsGreedy(arg.Uri)).Distinct().ToArray();
-            var greedy = greedyUrls.Select(url => new RestRequestArgs(new Uri(url, UriKind.Relative)));
-            var urls = args.Select(arg => (Resolver.ResolveUrl(arg.Uri), arg));
-            urls = urls.Concat(greedyUrls.Select(url => (url, (RestRequestArgs)null)));
-            //args = args.Concat(greedy);
-
             var trie = new Dictionary<string, List<(string Url, string Path, string Query, RestRequestArgs Arg)>>();
-            //var trie1 = new Trie<string, (string Url, string Path, string Query, RestRequestArgs Arg)>();
 
-            foreach (var url in urls)
+            foreach (var request in args)
             {
-                //var url = Resolver.ResolveUrl(arg.Uri);
-                var parts = url.Item1.Split('?');
-                AddToTrie(trie, parts[0], (url.Item1, parts[0], parts.Length > 1 ? parts[1] : string.Empty, url.arg));
+                var values = GetUrlsGreedy(request.Uri).OfType<object>().Prepend(request);
+
+                foreach (var value in values)
+                {
+                    var arg = value as RestRequestArgs;
+                    var url = value as string ?? Resolver.ResolveUrl(arg.Uri);
+                    var parts = url.Split('?');
+                    AddToTrie(trie, parts[0], (url, parts[0], parts.Length > 1 ? parts[1] : string.Empty, arg));
+                }
             }
 
             foreach (var kvp in trie)

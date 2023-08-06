@@ -375,7 +375,7 @@ namespace Movies
             {
                 int priority(JsonNode json) => json["display_priority"]?.TryGetValue<int>() ?? int.MaxValue;
 
-                var primary = array.Where(json => json.TryGetValue("provider_id", out int id) && (id < 50 || id == 384 || id == 390 || id == 350 || id == 386 || id == 387 || id == 191 || id == 531));
+                var primary = array.Where(json => json.TryGetValue("provider_id", out int id) && (id < 50 || id == 384 || id == 390 || id == 350 || id == 386 || id == 387 || id == 191 || id == 531 || id == 1899));
                 var ordered = primary.OrderBy(priority).Concat(array.Except(primary).OrderBy(priority));
                 array = new JsonArray(ordered.Select(json => JsonNode.Parse(json.ToJsonString())).ToArray());
 

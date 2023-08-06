@@ -117,14 +117,7 @@ namespace Movies.Models
 
 #if DEBUG
             watch.Stop();
-            if (Xamarin.Forms.Device.RuntimePlatform == Xamarin.Forms.Device.iOS && watch.ElapsedMilliseconds > 1000 && count > 0)
-            {
-                App.Message($"flushed {count} items in {watch.Elapsed}");
-            }
-            else
-            {
-                Print.Log($"flushed {count} items in {watch.Elapsed}");
-            }
+            Print.Log($"loaded {count} items in {watch.Elapsed}");
 #endif
         }
 

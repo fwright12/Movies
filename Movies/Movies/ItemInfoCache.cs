@@ -1,4 +1,5 @@
-﻿using SQLite;
+﻿using Movies.Views;
+using SQLite;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -35,8 +36,8 @@ namespace Movies
 #if DEBUG
             //await cache.Clear();
 
-            var rows = await cache.DB.QueryAsync<(string, byte[], string, string, string)>($"select * from {cache.Table} limit 10");
             Print.Log((await cache.DB.QueryScalarsAsync<int>($"select count(*) from {cache.Table}")).FirstOrDefault() + " items in cache");
+            var rows = await cache.DB.QueryAsync<(string, byte[], string, string, string)>($"select * from {cache.Table} limit 10");
             foreach (var row in rows)
             {
                 Print.Log(row.Item1, row.Item2.Length, row.Item3, row.Item4, row.Item5);//, row.Item2);
@@ -110,8 +111,8 @@ namespace Movies
             BatchQuery = null;
 
             var cache = await Cache;
-            var cols = string.Join(", ", SQLJsonCache.URL, SQLJsonCache.RESPONSE, SQLJsonCache.TIMESTAMP);
-            var valueRow = "(?,?,?)";
+            var cols = string.Join(", ", SQLJsonCache.URL, SQLJsonCache.RESPONSE, SQLJsonCache.TIMESTAMP, TYPE, ID);
+            var valueRow = "(?,?,?,?,?)";
             using var itr = Segment(batched.GetEnumerator());
 
 #if DEBUG
@@ -137,14 +138,7 @@ namespace Movies
 
 #if DEBUG
             watch.Stop();
-            if (Xamarin.Forms.Device.RuntimePlatform == Xamarin.Forms.Device.iOS && watch.ElapsedMilliseconds > 1000 && batched.Count > 0)
-            {
-                App.Message($"flushed {batched.Count} items in {watch.Elapsed}");
-            }
-            else
-            {
-                Print.Log($"flushed {batched.Count} items in {watch.Elapsed}");
-            }
+            Print.Log($"flushed {batched.Count} items in {watch.Elapsed}");
 #endif
         }
 
@@ -200,7 +194,7 @@ namespace Movies
         private static async Task<IEnumerable<object>> Unwrap((ItemType type, int id, string url, Task<JsonResponse> response) item)
         {
             var json = await item.response;
-            return new object[] { item.url, await json.Content.ReadAsByteArrayAsync(), json.Timestamp, (int)item.type, item.id };
+            return new object[] { item.url, await json.Content.ReadAsByteArrayAsync(), json.Timestamp, (int)Database.LocalList.AppItemTypeToDatabaseItemType(item.type), item.id };
         }
 
         public async Task Clear() => await (await Cache).Clear();
@@ -247,25 +241,30 @@ namespace Movies
             }
 
             var cache = await Cache;
-            //var itr = ids.OfType<object>().GetEnumerator();
-            //var args = Take(itr, MAX_SQL_VARIABLES - 1).Prepend((int)type).ToArray();
-            //var values = string.Join(",", Enumerable.Repeat("?", args.Length - 1));
+            var itr = ids.OfType<object>().GetEnumerator();
+            var args = Take(itr, MAX_SQL_VARIABLES - 1).Prepend((int)type).ToArray();
+            var values = string.Join(",", Enumerable.Repeat("?", args.Length - 1));
+            var query = $"delete from {cache.Table} where {TYPE} = ? and {ID} in ({values})";
 
-            if (App.TryGetTypeString(type, out var typeStr))
-            {
-                var counts = await Task.WhenAll(ids.Select(id => cache.DB.ExecuteAsync($"delete from {cache.Table} where {SQLJsonCache.URL} like '3/{typeStr}/{id}%'")));
+            var counts = await Task.WhenAll(
+                cache.DB.ExecuteAsync(query, args),
+                Expire(type, ToEnumerable(itr).OfType<int>()));
+            return counts.Sum();
+        }
 
-                //var query = $"delete from {cache.Table} where {TYPE} = ? and {ID} in ({values})";
-
-                //var counts = await Task.WhenAll(
-                //    cache.DB.ExecuteAsync(query, args),
-                //    Expire(type, ToEnumerable(itr).OfType<int>()));
-                return counts.Sum();
-            }
-            else
+        public async Task<int> Expire1(ItemType type, IEnumerable<int> ids)
+        {
+            if (!ids.Any())
             {
                 return 0;
             }
+
+            var cache = await Cache;
+            //var itr = ids.OfType<object>().GetEnumerator();
+            //var args = Take(itr, MAX_SQL_VARIABLES - 1).Prepend((int)type).ToArray();
+            //var values = string.Join(",", Enumerable.Repeat("?", args.Length - 1));
+            var counts = await Task.WhenAll(ids.Select(id => cache.DB.ExecuteAsync($"delete from {cache.Table} where {TYPE} = ? and {ID} = ?", id)));
+            return counts.Sum();
         }
 
         public async Task<bool> IsCached(string url) => await (await Cache).IsCached(url);
@@ -303,7 +302,22 @@ namespace Movies
                 return false;
             }
 
-            await AddAsync(ItemType.Movie, 0, key.ToString(), new JsonResponse(new LazyContent(bytes)));
+            var url = key.ToString();
+            var path = url.Split('?').FirstOrDefault();
+            var parts = path.Split('/');
+
+            ItemType type;
+            if (parts[1] == "movie") type = ItemType.Movie;
+            else if (parts[1] == "tv") type = ItemType.TVShow;
+            else if (parts[1] == "person") type = ItemType.Person;
+            else return false;
+
+            if (!int.TryParse(parts[2], out var id))
+            {
+                return false;
+            }
+
+            await AddAsync(type, id, url, new JsonResponse(new LazyContent(bytes)));
             return true;
         }
 

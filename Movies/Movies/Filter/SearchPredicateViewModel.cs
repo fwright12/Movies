@@ -44,13 +44,16 @@ namespace Movies.ViewModels
 
         private string LastQuery;
 
+        private static string CoerceQuery(string query) => string.IsNullOrEmpty(query) ? string.Empty : query;
+
         public void BuildPredicate()
         {
-            if (LastQuery == Query)
+            if (CoerceQuery(LastQuery) == CoerceQuery(Query))
             {
                 return;
             }
 
+            LastQuery = Query;
             Cancel?.Cancel();
 
             if (string.IsNullOrEmpty(Query))
@@ -61,7 +64,7 @@ namespace Movies.ViewModels
             {
                 Predicate = new SearchPredicate
                 {
-                    Query = LastQuery = Query
+                    Query = Query
                 };
             }
 
@@ -70,10 +73,7 @@ namespace Movies.ViewModels
 
         private async Task SearchOnTextChanged(CancellationToken cancellationToken)
         {
-            if (!string.IsNullOrEmpty(Query))
-            {
-                await Task.Delay(SearchDelay, cancellationToken);
-            }
+            await Task.Delay(SearchDelay, cancellationToken);
 
             if (!cancellationToken.IsCancellationRequested)
             {

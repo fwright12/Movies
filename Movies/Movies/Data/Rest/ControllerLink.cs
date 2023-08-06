@@ -149,7 +149,7 @@ namespace Movies
 
         public async Task<bool> UpdateAsync(Uri key, State updatedValue) => await SendAsync(HttpMethod.Put, key, updatedValue) != null;
 
-        protected virtual bool TryGetConverter(Uri uri, out IHttpConverter<object> resource)
+        public virtual bool TryGetConverter(Uri uri, out IHttpConverter<object> resource)
         {
             resource = default;
             return false;
