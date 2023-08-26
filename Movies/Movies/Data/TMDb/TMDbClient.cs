@@ -90,12 +90,14 @@ namespace Movies
             Resolver = resolver;
         }
 
+        protected virtual IEnumerable<RestRequestArgs> GetRequests(MultiRestEventArgs e) => e.Unhandled;
+
         public override Task HandleGet(MultiRestEventArgs e)
         {
             var item = e.Select(arg => arg.Uri).OfType<UniformItemIdentifier>().Select(uii => uii.Item).FirstOrDefault(item => item != null);
             var responses = new List<Task>();
 
-            foreach (var kvp in GroupRequests(e.Unhandled))
+            foreach (var kvp in GroupRequests(GetRequests(e)))
             {
                 var url = kvp.Key;
                 var requests = kvp.Value.ToArray();
@@ -115,7 +117,7 @@ namespace Movies
                         if (!index.Remove(resource, out var request))
                         {
                             e.AddRequest(request = new RestRequestArgs(resource));
-                            handling = null;
+                            //handling = null;
                         }
 
                         var value = collection.GetAsync(resource).TransformAsync(obj => State.Create(obj));
@@ -180,6 +182,8 @@ namespace Movies
                 }
             }
         }
+
+        protected override IEnumerable<RestRequestArgs> GetRequests(MultiRestEventArgs e) => e;
 
         protected override IEnumerable<KeyValuePair<string, IEnumerable<RestRequestArgs>>> GroupRequests(IEnumerable<RestRequestArgs> args)
         {

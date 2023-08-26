@@ -34,7 +34,7 @@ namespace Movies
             await cache.DB.AddColumns(cache.Table, ID, TYPE);
 
 #if DEBUG
-            //await cache.Clear();
+            await cache.Clear();
 
             Print.Log((await cache.DB.QueryScalarsAsync<int>($"select count(*) from {cache.Table}")).FirstOrDefault() + " items in cache");
             var rows = await cache.DB.QueryAsync<(string, byte[], string, string, string)>($"select * from {cache.Table} limit 10");

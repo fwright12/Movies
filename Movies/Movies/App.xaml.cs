@@ -177,11 +177,10 @@ namespace Movies
 
             _ = SavePropertiesAsync();
 
-            DebugConfig.SimulatedDelay = 1000;
-            DebugConfig.LOG_WEB_REQUESTS = true;
+            //DebugConfig.SimulatedDelay = 1000;
+            //DebugConfig.LOG_WEB_REQUESTS = true;
 
             //UserAppTheme = OSAppTheme.Dark;
-
 #endif
 
             Prefs = new UserPrefs(Properties);

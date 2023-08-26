@@ -9,11 +9,13 @@ namespace Movies
 {
     public class MultiRestEventArgs : AsyncChainEventArgs, IEnumerable<RestRequestArgs>
     {
+        public int Count => Requests.Count;
+
         public IEnumerable<RestRequestArgs> Unhandled => Requests.Where(request => !request.Handled);// GetUnhandled();
 
         //public IEnumerable<RestRequestArgs> Args { get; }
         //private IEnumerable<KeyValuePair<Uri, Task<State>>> AdditionalState;// { get; private set; }
-        private List<RestRequestArgs> Requests;
+        private HashSet<RestRequestArgs> Requests;
         //public IEnumerable<RestRequestArgs> Unhandled { get; }
 
         private readonly LinkedList<RestRequestArgs> _Unhandled;
@@ -22,7 +24,7 @@ namespace Movies
         public MultiRestEventArgs(params RestRequestArgs[] args) : this((IEnumerable<RestRequestArgs>)args) { }
         public MultiRestEventArgs(IEnumerable<RestRequestArgs> args)
         {
-            Requests = new List<RestRequestArgs>(args);
+            Requests = new HashSet<RestRequestArgs>(args);
             //_Unhandled = args as LinkedList<RestRequestArgs> ?? new LinkedList<RestRequestArgs>(args);
         }
 
@@ -56,7 +58,7 @@ namespace Movies
             //return AdditionalState?.Where(kvp => !set.Contains(kvp.Key)) ?? Enumerable.Empty<KeyValuePair<Uri, Task<State>>>();
         }
 
-        public void AddRequests(IEnumerable<RestRequestArgs> requests) => Requests.AddRange(requests);
+        public void AddRequests(IEnumerable<RestRequestArgs> requests) => Requests.UnionWith(requests);
 
         public void AddRequest(RestRequestArgs request)
         {
@@ -106,7 +108,7 @@ namespace Movies
                 //success &= TryGetValue(data, arg.Uri, out var value) && arg.Handle(value);
             }
 
-            Requests = data.Select(kvp => new RestRequestArgs(kvp.Key, State.Create(kvp.Value))).ToList();
+            //Requests = data.Select(kvp => new RestRequestArgs(kvp.Key, State.Create(kvp.Value))).ToList();
 
             //AdditionalState = data as IEnumerable<KeyValuePair<Uri, Task<State>>> ?? data.Select(kvp => new KeyValuePair<Uri, Task<State>>(kvp.Key, Task.FromResult(State.Create(kvp.Value))));
 

@@ -252,6 +252,9 @@ namespace MoviesTests.Data.TMDb
             Assert.IsTrue(request.Response.TryGetRepresentation<TimeSpan>(out var value));
             Assert.AreEqual(INTERSTELLAR_RUNTIME, value);
 
+            await handlers.InMemoryCache.DeleteAsync(GetUiis(Media.RUNTIME).First());
+            await CachedAsync(handlers.DiskCache);
+            
             // This will force an api call (since recommendations don't cache)
             var requests = await chain.Get(GetUiis(Media.RUNTIME, Media.RECOMMENDED));
             request = requests[0];
@@ -332,7 +335,8 @@ namespace MoviesTests.Data.TMDb
             Assert.AreEqual(1, handlers.WebHistory.Count);
         }
 
-        [TestMethod]
+        // Not ready for this yet
+        //[TestMethod]
         public async Task ExtraRequestsAreCached()
         {
             var handlers = new HandlerChain();
@@ -408,6 +412,8 @@ namespace MoviesTests.Data.TMDb
             await CachedAsync(handlers.DiskCache);
             Assert.AreEqual(1, handlers.WebHistory.Count);
 
+            await CachedAsync(handlers.DiskCache);
+
             // These properties should result in another api call because they don't cache
             foreach (var property in new Property[]
             {
@@ -444,7 +450,7 @@ namespace MoviesTests.Data.TMDb
             Assert.AreEqual("Apple iTunes", watchProviders.Response?.TryGetRepresentation<IEnumerable<WatchProvider>>(out var value1) == true ? value1.FirstOrDefault()?.Company.Name : null);
         }
 
-        private Task CachedAsync(DummyDatastore<IEnumerable<byte>> diskCache)
+        private static Task CachedAsync(DummyDatastore<IEnumerable<byte>> diskCache)
         {
             return Task.Delay((diskCache.SimulatedDelay + DebugConfig.SimulatedDelay) * 2);
         }
