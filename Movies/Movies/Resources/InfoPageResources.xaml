@@ -398,7 +398,8 @@
             <DataTemplate>
                 <WebView Source="{Binding Converter={StaticResource EmbedVideo}}"
                          WidthRequest="177.778"
-                         HeightRequest="100" />
+                         HeightRequest="100"
+                         IsFocused="{Binding IsVideoPlaying, Mode=OneWayToSource, Source={RelativeSource AncestorType={x:Type viewmodels:MediaViewModel}}}"/>
             </DataTemplate>
         </forms:MediaTemplateSelector.VideoTemplate>
     </forms:MediaTemplateSelector>

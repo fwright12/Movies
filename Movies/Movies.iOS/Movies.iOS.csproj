@@ -41,9 +41,8 @@
     <MtouchLink>None</MtouchLink>
     <MtouchArch>x86_64</MtouchArch>
     <ConsolePause>false</ConsolePause>
-    <CodesignKey>iPhone Developer</CodesignKey>
-    <CodesignProvision>
-    </CodesignProvision>
+    <CodesignKey>Apple Development: Created via API (UJYAVK5R6G)</CodesignKey>
+    <CodesignProvision>VS: com.gml.Movies Development</CodesignProvision>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|iPhone' ">
     <DebugSymbols>true</DebugSymbols>
@@ -61,7 +60,7 @@
     <MtouchLink>SdkOnly</MtouchLink>
     <MtouchInterpreter>-all</MtouchInterpreter>
     <OptimizePNGs>true</OptimizePNGs>
-    <CodesignProvision>VS: com.gml.MoviesDebug Development</CodesignProvision>
+    <CodesignProvision>VS: com.gml.Movies Development</CodesignProvision>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|iPhone' ">
     <DebugType>none</DebugType>
@@ -74,7 +73,7 @@
     <CodesignKey>Apple Development: Created via API (UJYAVK5R6G)</CodesignKey>
     <CodesignEntitlements>Entitlements.plist</CodesignEntitlements>
     <OptimizePNGs>true</OptimizePNGs>
-    <CodesignProvision>VS: com.gml.MoviesDebug Development</CodesignProvision>
+    <CodesignProvision>VS: com.gml.Movies Development</CodesignProvision>
     <MtouchLink>SdkOnly</MtouchLink>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(RunConfiguration)' == 'Default' ">

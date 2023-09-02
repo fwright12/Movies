@@ -35,6 +35,11 @@
                             <ResourceDictionary.MergedDictionaries>
                                 <views:InfoPageResources />
                             </ResourceDictionary.MergedDictionaries>
+
+                            <Style TargetType="forms:AdView">
+                                <Setter Property="IsVisible"
+                                        Value="{Binding IsVideoPlaying, Source={RelativeSource AncestorType={x:Type viewmodels:MediaViewModel}}, Converter={Static forms:NegateBoolConverter.Instance}}" />
+                            </Style>
                         </ResourceDictionary>
                     </VisualElement.Resources>
 

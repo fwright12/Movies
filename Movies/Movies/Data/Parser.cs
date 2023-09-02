@@ -52,7 +52,7 @@ namespace Movies
         public static bool PeelProperty(string propertyName, ArraySegment<byte> bytes, out ArraySegment<byte> value)
         {
             var reader = new Utf8JsonReader(bytes);
-            
+
             while (reader.Read())
             {
                 if (reader.TokenType == JsonTokenType.PropertyName)
@@ -241,7 +241,23 @@ namespace Movies
         protected abstract PropertyValuePair GetPairInternal(Task<T> value);
 
         protected async Task<T> Unwrap(Task<JsonNode> json) => JsonParser.TryGetValue(await json, out var value) ? value : throw new FormatException();
-        protected async Task<T> Unwrap(Task<ArraySegment<byte>> bytes) => JsonParser.TryGetValue(await bytes, out var value) ? value : throw new FormatException();
+        protected async Task<T> Unwrap(Task<ArraySegment<byte>> response)
+        {
+            var bytes = await response;
+
+            if (JsonParser.TryGetValue(bytes, out var value))
+            {
+                return value;
+            }
+            else
+            {
+#if DEBUG
+                throw new FormatException($"Could not parse to type {typeof(T)}: \"{System.Text.Encoding.UTF8.GetString(bytes)}\"");
+#else
+                throw new FormatException($"Could not parse to type {typeof(T)}");
+#endif
+            }
+        }
     }
 
     public class ParserWrapper : IParser<ArraySegment<byte>>

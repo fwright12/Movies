@@ -38,7 +38,8 @@
 
             <Style x:Key="InlineBannerAdStyle"
                    TargetType="forms:AdView"
-                   BasedOn="{StaticResource AdStyle}">
+                   BasedOn="{StaticResource AdStyle}"
+                   CanCascade="True">
                 <Setter Property="WidthRequest"
                         Value="300" />
                 <Setter Property="HeightRequest"

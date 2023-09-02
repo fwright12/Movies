@@ -353,41 +353,48 @@ namespace Movies
                         bool success;
                         object converted;
 
-                        if (parser.Property == TVShow.SEASONS)
+                        try
                         {
-                            success = true;
-                            converted = await GetTVItems(bytes, "seasons", (JsonNode json, out TVSeason season) => TMDB.TryParseTVSeason(json, (TVShow)Item, out season));
-                        }
-                        else if (parser.Property == TVSeason.EPISODES)
-                        {
-                            if (Item is TVSeason season)
+                            if (parser.Property == TVShow.SEASONS)
                             {
                                 success = true;
-                                converted = await GetTVItems(bytes, "episodes", (JsonNode json, out TVEpisode episode) => TMDB.TryParseTVEpisode(json, season, out episode));
+                                converted = await GetTVItems(bytes, "seasons", (JsonNode json, out TVSeason season) => TMDB.TryParseTVSeason(json, (TVShow)Item, out season));
+                            }
+                            else if (parser.Property == TVSeason.EPISODES)
+                            {
+                                if (Item is TVSeason season)
+                                {
+                                    success = true;
+                                    converted = await GetTVItems(bytes, "episodes", (JsonNode json, out TVEpisode episode) => TMDB.TryParseTVEpisode(json, season, out episode));
+                                }
+                                else
+                                {
+                                    success = false;
+                                    converted = default;
+                                }
                             }
                             else
                             {
-                                success = false;
-                                converted = default;
+                                var value = await parser.TryGetValue(parser.GetPair(Task.FromResult(lazyJson.Bytes)));
+                                success = value.Success;
+                                converted = value.Result;
                             }
+
+                            var uii = new UniformItemIdentifier(Item, parser.Property);
+                            var state = State.Create(lazyJson.Bytes);
+
+                            if (success)
+                            {
+                                //var state = converted == null ? State.Null(parser.Property.FullType) : new State(converted);
+                                state.Add(parser.Property.FullType, converted);
+                            }
+
+                            inner.Add(uii, state);
                         }
-                        else
+                        catch (Exception e)
                         {
-                            var value = await parser.TryGetValue(parser.GetPair(Task.FromResult(lazyJson.Bytes)));
-                            success = value.Success;
-                            converted = value.Result;
+                            System.Diagnostics.Debug.WriteLine(e);
                         }
-
-                        var uii = new UniformItemIdentifier(Item, parser.Property);
-                        var state = State.Create(lazyJson.Bytes);
-
-                        if (success)
-                        {
-                            //var state = converted == null ? State.Null(parser.Property.FullType) : new State(converted);
-                            state.Add(parser.Property.FullType, converted);
-                        }
-
-                        inner.Add(uii, state);
                     }
 
                     foreach (var kvp in inner)

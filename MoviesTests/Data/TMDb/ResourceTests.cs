@@ -405,6 +405,7 @@ namespace MoviesTests.Data.TMDb
             var requests = getAllRequests();
             await Task.WhenAll(chain.Get(requests));
             await CachedAsync(handlers.DiskCache);
+            Assert.IsTrue(requests.All(request => request.Handled), "The following requests were not handled:\n\t" + string.Join("\n\t", requests.Where(request => !request.Handled).Select(request => request.Uri)));
             Assert.AreEqual(1, handlers.WebHistory.Count);
 
             // No additional api calls should be made, everything should be cached in memory

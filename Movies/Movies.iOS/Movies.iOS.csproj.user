@@ -14,14 +14,14 @@
 		&lt;key&gt;model&lt;/key&gt;
 		&lt;string&gt;iPhone11,8&lt;/string&gt;
 		&lt;key&gt;os-version&lt;/key&gt;
-		&lt;string&gt;16.5.1&lt;/string&gt;
+		&lt;string&gt;16.6&lt;/string&gt;
 		&lt;key&gt;os&lt;/key&gt;
 		&lt;string&gt;iOS&lt;/string&gt;
 	&lt;/dict&gt;
 &lt;/dict&gt;
 &lt;/plist&gt;
 </TargetiOSDevice>
-    <DefaultDevice>iPhone 14 iOS 16.0</DefaultDevice>
+    <DefaultDevice>iPhone 14 iOS 16.2</DefaultDevice>
     <SelectedPlatformGroup>RemoteDevice</SelectedPlatformGroup>
     <DeveloperId>UJYAVK5R6G</DeveloperId>
     <DevelopmentTeamId>UJYAVK5R6G</DevelopmentTeamId>

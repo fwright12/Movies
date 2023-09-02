@@ -54,11 +54,18 @@ namespace Movies.ViewModels
         public IEnumerable<string> Keywords => RequestValue(Movie.KEYWORDS) is IEnumerable<Keyword> keywords ? keywords.Select(keyword => keyword.Name) : null;
         public CollectionViewModel Recommended => _Recommended ??= (RequestValue(Media.RECOMMENDED) is IAsyncEnumerable<Item> items ? new CollectionViewModel("Recommended", items) : null);
 
+        public bool IsVideoPlaying
+        {
+            get => _IsVideoPlaying;
+            set => UpdateValue(ref _IsVideoPlaying, value);
+        }
+
         protected abstract Property<string> ContentRatingProperty { get; }
         protected abstract MultiProperty<Genre> GenresProperty { get; }
         protected abstract MultiProperty<WatchProvider> WatchProvidersProperty { get; }
 
         private CollectionViewModel _Recommended;
+        private bool _IsVideoPlaying = false;
 
         protected static CollectionViewModel ForceLoad(CollectionViewModel cvm)
         {

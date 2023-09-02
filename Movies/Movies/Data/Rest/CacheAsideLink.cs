@@ -57,7 +57,7 @@ namespace Movies
                 }
                 finally
                 {
-                    // Make sure all TaskCompletionSource's in cache have been transitioned
+                    // Make sure all TaskCompletionSource's in buffer have been transitioned
                     foreach (var source in buffer.Values)
                     {
                         source.TrySetResult(Task.FromResult<State>(null));
@@ -71,6 +71,7 @@ namespace Movies
             {
                 var eCache = new MultiRestEventArgs();
                 var ready = new TaskCompletionSource<bool>();
+                // Delay the request to the cache until we are ready for it to go through
                 var cacheResponse = WrapRequest(ready.Task, Handlers.HandleGet, e, eCache);
 
                 // Handle from the cache
@@ -84,6 +85,10 @@ namespace Movies
                         }
                         else
                         {
+                            // We will maintain a local version of the buffer in case items are removed from
+                            // the global Buffer (because they finished writing) while we are reading from the cache.
+                            // This avoids a scenario where we have a cache miss, but while waiting for that response
+                            // to return from the cache it is updated with the value we requested.
                             eCache.AddRequest(request);
                             source = new TaskCompletionSource<Task<State>>();
                             Buffer.Add(request.Uri, source);
@@ -92,7 +97,8 @@ namespace Movies
                     }
                 }
 
-                // Could lock here, but not that worried about the same resource being requested multiple times from the cache
+                // Could lock here, but not that worried about the same resource being requested
+                // multiple times from the cache. It's up to the cache implementation to handle that.
                 ready.SetResult(true);
                 await cacheResponse;
 
@@ -103,11 +109,16 @@ namespace Movies
                 {
                     foreach (var request in eCache)
                     {
+                        // The resource was already in the cache, so no need to write anything
                         if (request.Handled)
                         {
                             Buffer.Remove(request.Uri);
                         }
 
+                        // Check if the request has been fulfilled in the time it took to check the cache. If the task
+                        // is not complete, the underlying source has not been transitioned, meaning it's the same
+                        // source we added before checking the cache. We can't await that task because it won't
+                        // complete (we are expected to complete it with the response from next)
                         if (buffer.TryGetValue(request.Uri, out var source) && source.Task.IsCompleted)
                         {
                             buffer.Remove(request.Uri);
@@ -131,99 +142,23 @@ namespace Movies
                     if (Buffer.TryGetValue(request.Uri, out var response))
                     {
                         response.TrySetResult(Task.FromResult<State>(null));
-                        buffered.Add(Rehandle(request, Unwrap(response.Task)));
+
+                        try
+                        {
+                            buffered.Add(Rehandle(request, Unwrap(response.Task)));
+                        }
+                        catch { }
                     }
                 }
 
+                // Remove items from the buffer once writing to the cache has completed
                 foreach (var request in eNext)
                 {
                     UpdateBufferOnWriteComplete(request.Uri, request.Response);
                 }
             }
 
-            private async Task<MultiRestEventArgs> self(MultiRestEventArgs e, AsyncChainLinkEventHandler<MultiRestEventArgs> handler, IDictionary<Uri, TaskCompletionSource<Task<State>>> cache, List<Task> cached)
-            {
-                MultiRestEventArgs eSelf;
-                Task self = Task.CompletedTask;
-
-                lock (BufferLock)
-                {
-                    eSelf = HandleFromCache(e, Buffer, cached);
-
-                    try
-                    {
-                        self = Handlers.HandleGet(eSelf);
-                    }
-                    catch { }
-
-                    e.AddRequests(eSelf);
-                    RefreshBuffer(Buffer, eSelf);
-
-                    foreach (var request in eSelf)
-                    {
-                        //var source = new TaskCompletionSource<Task<State>>();
-
-                        cache.Add(request.Uri, Buffer[request.Uri]);
-                        //Cache.Add(request.Uri, source);
-                    }
-                }
-
-                try
-                {
-                    await self;
-                }
-                catch { }
-
-                e.AddRequests(eSelf);
-                return eSelf;
-            }
-
-            private async Task<MultiRestEventArgs> next(MultiRestEventArgs e, MultiRestEventArgs eSelf, MultiRestEventArgs eNext, ChainLinkEventHandler<MultiRestEventArgs> handler, IDictionary<Uri, TaskCompletionSource<Task<State>>> cache, List<Task> cached)
-            {
-                Task handling = Task.CompletedTask;
-
-                lock (BufferLock)
-                {
-                    foreach (var request in eSelf)
-                    {
-                        if (cache.TryGetValue(request.Uri, out var source) && !source.Task.IsCompleted)
-                        {
-                            cache.Remove(request.Uri);
-                        }
-                    }
-
-                    eNext.AddRequests(HandleFromCache(eSelf, cache, cached));
-
-                    if (eNext.Count > 0)
-                    {
-                        // Little bit of a hack - if we're going to request new data might as well update everything
-                        if (eNext.Count > 0 && Handlers is TMDbLocalHandlers)
-                        {
-                            eNext.AddRequests(e);
-                        }
-
-                        try
-                        {
-                            handling = handler.InvokeAsync(eNext);
-                        }
-                        catch { }
-                        // Pass anything extra that got added back up
-                        e.AddRequests(eNext);
-
-                        RefreshBuffer(Buffer, eNext, handling);
-                    }
-                }
-
-                try
-                {
-                    await handling;
-                }
-                catch { }
-
-                e.AddRequests(eNext);
-                return eNext;
-            }
-
+            // Make a request with a subset of the requests from primary
             private async Task SendAsync(AsyncChainLinkEventHandler<MultiRestEventArgs> handler, MultiRestEventArgs primary, MultiRestEventArgs subset, bool refreshPreemptively)
             {
                 if (subset.Count == 0)
@@ -231,20 +166,34 @@ namespace Movies
                     return;
                 }
 
-                // Little bit of a hack - if we're going to request new data might as well update everything
+                // Little bit of a hack, assuming TMDbClient will be next - if we're going to request new data,
+                // might as well update everything
                 if (handler != Handlers.HandleGet && Handlers is TMDbLocalHandlers)
                 {
                     subset.AddRequests(primary);
                 }
 
-                var response = Task.CompletedTask;
-                try { response = handler(subset); } catch { }
+                Task response;
+                try
+                {
+                    response = handler(subset);
+                }
+                catch
+                {
+                    response = Task.CompletedTask;
+                }
 
+                // The handler is allowed to add extra requests (representing additional resources that
+                // were retured as a side effect). Make the primary batch request aware of these
                 primary.AddRequests(subset);
+                // Make sure any extra requests are in the buffer, and alert existing requests that we
+                // are expecting a response. We can choose to update items before we actually get the
+                // response (preemptively) or wait until we have it.
                 RefreshBuffer(Buffer, subset, refreshPreemptively ? response : null);
 
                 await Safely(response);
 
+                // Repeat steps from before with any extra requests that were added asynchronously
                 primary.AddRequests(subset);
                 RefreshBuffer(Buffer, subset);
             }
@@ -260,6 +209,7 @@ namespace Movies
 
                     if (handling != null)
                     {
+                        // We are expecting a response but don't have it yet
                         source.TrySetResult(GetResponseAsync(handling, request));
                     }
                     else if (request.Handled)
@@ -267,41 +217,6 @@ namespace Movies
                         source.TrySetResult(Task.FromResult(request.Response));
                     }
                 }
-            }
-
-            private MultiRestEventArgs HandleFromCache(IEnumerable<RestRequestArgs> args, IDictionary<Uri, TaskCompletionSource<Task<State>>> cache, List<Task> cached)
-            {
-                var unhandled = new MultiRestEventArgs();
-
-                foreach (var request in args)
-                {
-                    if (request.Handled)
-                    {
-                        if (cache.Remove(request.Uri, out var response))
-                        {
-                            response.SetResult(Task.FromResult(request.Response));
-                        }
-
-                        lock (BufferLock)
-                        {
-                            Buffer.Remove(request.Uri);
-                        }
-                    }
-                    else
-                    {
-                        if (cache.TryGetValue(request.Uri, out var response))
-                        {
-                            request.Handle(Unwrap(response.Task));
-                        }
-                        else
-                        {
-                            cache.Add(request.Uri, new TaskCompletionSource<Task<State>>());
-                            unhandled.AddRequest(request);
-                        }
-                    }
-                }
-
-                return unhandled;
             }
 
             private static async Task Rehandle(RestRequestArgs request, Task<State> response)
@@ -320,7 +235,7 @@ namespace Movies
                 if (state != null)
                 {
                     var request = new RestRequestArgs(uri, state);
-                    await Handlers.HandleSet(new MultiRestEventArgs(request));
+                    await Safely(Handlers.HandleSet(new MultiRestEventArgs(request)));
                 }
 
                 lock (BufferLock)
@@ -351,151 +266,6 @@ namespace Movies
                 }
                 catch { }
             }
-
-#if false
-            public async Task GetAsync(MultiRestEventArgs e, ChainLinkEventHandler<MultiRestEventArgs> next)
-            {
-                var cached = new List<Task>();
-                var eSelf = new MultiRestEventArgs();
-                var cache = new Dictionary<Uri, TaskCompletionSource<State>>();
-
-                lock (CacheLock)
-                {
-                    foreach (var request in e.Unhandled)
-                    {
-                        // We've already issued a request for this resource and are waiting for a response,
-                        // let's not make another request
-                        if (Cache.TryGetValue(request.Uri, out var response))
-                        {
-                            cached.Add(request.Handle(response.Task));
-                        }
-                        else
-                        {
-                            eSelf.AddRequest(request);
-                        }
-                    }
-
-                    foreach (var request in eSelf)
-                    {
-                        var source = new TaskCompletionSource<State>();
-
-                        cache.Add(request.Uri, source);
-                        Cache.Add(request.Uri, source);
-                    }
-                }
-
-                try
-                {
-                    var self = Handlers.HandleGet(eSelf);
-                    e.AddRequests(eSelf);
-
-                    await self;
-                }
-                catch { }
-
-                e.AddRequests(eSelf);
-                var eNext = new MultiRestEventArgs();
-
-                foreach (var request in eSelf.Unhandled)
-                {
-                    if (cache.TryGetValue(request.Uri, out var response) && !response.Task.IsCompleted)
-                    {
-                        cache.Remove(request.Uri);
-                    }
-                }
-
-                foreach (var request in eSelf)
-                {
-                    if (request.Handled)
-                    {
-                        if (cache.Remove(request.Uri, out var response))
-                        {
-                            response.SetResult(request.Response);
-                        }
-
-                        lock (CacheLock)
-                        {
-                            Cache.Remove(request.Uri);
-                        }
-                    }
-                    else
-                    {
-                        if (cache.TryGetValue(request.Uri, out var response))// && response.Task.IsCompleted)
-                        {
-                            cached.Add(request.Handle(response.Task));
-                        }
-                        else
-                        {
-                            eNext.AddRequest(request);
-                        }
-                    }
-                }
-
-                if (next != null && eNext.Count > 0)
-                {
-                    // Little bit of a hack - if we're going to request new data might as well update everything
-                    if (eNext.Count > 0 && Handlers is TMDbLocalHandlers)
-                    {
-                        eNext = new MultiRestEventArgs(e);
-                    }
-
-                    Task handling = Task.CompletedTask;
-                    try
-                    {
-                        handling = next.InvokeAsync(eNext);
-                    }
-                    catch { }
-                    // Pass anything extra that got added back up
-                    e.AddRequests(eNext);
-
-                    lock (CacheLock)
-                    {
-                        // Everything that we get back from next, whether we requested it or not
-                        foreach (var request in eNext)
-                        {
-                            Cache.TryAdd(request.Uri, new TaskCompletionSource<State>());
-                        }
-                    }
-
-                    try
-                    {
-                        await handling;
-                    }
-                    catch { }
-
-                    lock (CacheLock)
-                    {
-                        foreach (var request in eNext)
-                        {
-                            // Cache any new resources that we weren't aware of before
-                            // If we were aware of it, update in case value has changed? (unlikely)
-                            if (!Cache.TryGetValue(request.Uri, out var source))
-                            {
-                                Cache[request.Uri] = source = new TaskCompletionSource<State>();
-                            }
-
-                            source.SetResult(request.Response);
-                        }
-
-                        // Rehandle requests with newer data
-                        foreach (var request in e)
-                        {
-                            if (Cache.TryGetValue(request.Uri, out var response))
-                            {
-                                cached.Add(Rehandle(request, response.Task));
-                            }
-                        }
-                    }
-
-                    foreach (var request in eNext)
-                    {
-                        UpdateCacheOnWriteComplete(request.Uri, request.Response);
-                    }
-                }
-
-                await Task.WhenAll(cached.Select(Safe));
-            }
-#endif
         }
     }
 }
