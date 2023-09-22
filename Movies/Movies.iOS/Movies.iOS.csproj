@@ -15,7 +15,7 @@
     <MtouchHttpClientHandler>NSUrlSessionHandler</MtouchHttpClientHandler>
     <NuGetPackageImportStamp>
     </NuGetPackageImportStamp>
-    <ProvisioningType>automatic</ProvisioningType>
+    <ProvisioningType>manual</ProvisioningType>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|iPhoneSimulator' ">
     <DebugSymbols>true</DebugSymbols>
@@ -41,7 +41,7 @@
     <MtouchLink>None</MtouchLink>
     <MtouchArch>x86_64</MtouchArch>
     <ConsolePause>false</ConsolePause>
-    <CodesignKey>Apple Development: Created via API (UJYAVK5R6G)</CodesignKey>
+    <CodesignKey>iPhone Distribution</CodesignKey>
     <CodesignProvision>VS: com.gml.Movies Development</CodesignProvision>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|iPhone' ">
@@ -102,6 +102,24 @@
     <MtouchArch>ARM64</MtouchArch>
     <MtouchInterpreter>-all</MtouchInterpreter>
     <MtouchDebug>true</MtouchDebug>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release Ad Hoc|iPhoneSimulator'">
+    <OutputPath>bin\iPhoneSimulator\Release Ad Hoc\</OutputPath>
+    <DefineConstants>__IOS__;__MOBILE__;__UNIFIED__;</DefineConstants>
+    <Optimize>true</Optimize>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <UseVSHostingProcess>false</UseVSHostingProcess>
+    <LangVersion>7.3</LangVersion>
+    <ErrorReport>prompt</ErrorReport>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release Ad Hoc|iPhone'">
+    <OutputPath>bin\iPhone\Release Ad Hoc\</OutputPath>
+    <DefineConstants>__IOS__;__MOBILE__;__UNIFIED__;</DefineConstants>
+    <Optimize>true</Optimize>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <UseVSHostingProcess>false</UseVSHostingProcess>
+    <LangVersion>7.3</LangVersion>
+    <ErrorReport>prompt</ErrorReport>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="AdRenderer.cs" />
@@ -187,14 +205,14 @@
       <Version>2.4.11.982</Version>
     </PackageReference>
     <PackageReference Include="Xamarin.Forms">
-      <Version>5.0.0.2545</Version>
+      <Version>5.0.0.2612</Version>
     </PackageReference>
     <PackageReference Include="Xamarin.Google.iOS.MobileAds">
       <Version>8.13.0.3</Version>
     </PackageReference>
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="System.Memory" Version="4.5.4">
+    <PackageReference Include="System.Memory" Version="4.5.5">
       <IncludeAssets>none</IncludeAssets>
     </PackageReference>
   </ItemGroup>

@@ -271,7 +271,7 @@ namespace Movies
 
             DataService.Instance.Controller
                 .SetNext(new CacheAsideLink(new TMDbLocalHandlers(localTMDbDatastore, resolver)))
-                .SetNext(new ChainLinkAsync<MultiRestEventArgs>(tmdbHandlers.HandleGet));
+                .SetNext(tmdbHandlers.HandleGet);
             //.AddLast(new TMDbLocalResources(LocalDatabase.ItemCache, resolver)
             //{
             //    ChangeKeys = new ListAsyncWrapper<string>(GetChangeKeys())

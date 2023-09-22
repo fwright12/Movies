@@ -1,4 +1,5 @@
-﻿using System;
+﻿using REpresentationalStateTransfer;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,7 +11,7 @@ namespace Movies
         bool TryConvert(T original, Type targetType, out object converted);
     }
 
-    public class State : IEnumerable
+    public class State : IEnumerable, IEnumerable<Representation<object>>
     {
         private Dictionary<Type, object> Representations { get; }
 
@@ -48,6 +49,10 @@ namespace Movies
         }
 
         public void Add<T>(T value) => Add(typeof(T), value);
+
+        public Resource AsResource() => GetResource;
+
+        private ISet<Entity> GetResource() => Representations.Values.Select(representation => new Entity(new ObjectRepresentation<object>(representation))).ToHashSet();
 
         public bool HasRepresentation<T>() => HasRepresentation(typeof(T));
         public bool HasRepresentation(Type type) => TryGetRepresentation(type, out _);
@@ -87,5 +92,21 @@ namespace Movies
         }
 
         public IEnumerator GetEnumerator() => Representations.Values.GetEnumerator();
+
+        IEnumerator<Representation<object>> IEnumerable<Representation<object>>.GetEnumerator() => Representations.Values.Select(value => new ObjectRepresentation<object>(value)).GetEnumerator();
+    }
+
+    public class ObjectRepresentation<T> : Representation<T>
+    {
+        public T Value { get; }
+        public IEnumerable<KeyValuePair<string, string>> Metadata { get; }
+
+        public ObjectRepresentation(T value)
+        {
+            Value = value;
+            Metadata = new Dictionary<string, string>();
+        }
+
+        public static implicit operator ObjectRepresentation<T>(T value) => new ObjectRepresentation<T>(value);
     }
 }

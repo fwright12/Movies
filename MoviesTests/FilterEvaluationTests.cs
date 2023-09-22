@@ -34,7 +34,7 @@
             var invoker = new HttpMessageInvoker(new BufferedHandler(new TMDbBufferedHandler(new MockHandler())));
             var RemoteTMDbHandlers = new TMDbReadHandler(invoker, resolver, TMDbApi.AutoAppend);
 
-            Chain = new ChainLinkAsync<MultiRestEventArgs>(RemoteTMDbHandlers.HandleGet);
+            Chain = ChainExtensions.Create<MultiRestEventArgs>(RemoteTMDbHandlers.HandleGet);
             DebugConfig.SimulatedDelay = 0;
 
             InMemoryCache = new UiiDictionaryDatastore();

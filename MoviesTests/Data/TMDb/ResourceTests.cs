@@ -42,7 +42,7 @@ namespace MoviesTests.Data.TMDb
 
                 Chain = new CacheAsideLink(InMemoryCache);
                 Chain.SetNext(new CacheAsideLink(LocalTMDbHandlers))
-                    .SetNext(new ChainLinkAsync<MultiRestEventArgs>(RemoteTMDbHandlers.HandleGet));
+                    .SetNext(RemoteTMDbHandlers.HandleGet);
             }
         }
 
@@ -534,7 +534,7 @@ namespace MoviesTests.Data.TMDb
             {
                 (handlers.Chain, properties),
                 //new Controller().AddLast(ResourceCache),
-                (new ChainLinkAsync<MultiRestEventArgs>(handlers.LocalTMDbHandlers.HandleGet), type == typeof(TVSeason) || type == typeof(TVEpisode) ? Enumerable.Empty<Property>() : properties.Except(NO_CHANGE_KEY))
+                (ChainExtensions.Create<MultiRestEventArgs>(handlers.LocalTMDbHandlers.HandleGet), type == typeof(TVSeason) || type == typeof(TVEpisode) ? Enumerable.Empty<Property>() : properties.Except(NO_CHANGE_KEY))
             })
             {
                 foreach (var property in test.Properties)

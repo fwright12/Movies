@@ -7,7 +7,7 @@ namespace MoviesTests.Data.TMDb
     public class TMDbClientTests : Resources
     {
         private readonly TMDbReadHandler TMDbReadHandler;
-        private ChainLinkAsync<MultiRestEventArgs> Chain => new ChainLinkAsync<MultiRestEventArgs>(TMDbReadHandler.HandleGet);
+        private ChainLink<MultiRestEventArgs> Chain => ChainExtensions.Create<MultiRestEventArgs>(TMDbReadHandler.HandleGet);
         
 
         public TMDbClientTests()

@@ -4,6 +4,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Threading.Tasks;
 using System.Web;
 
@@ -74,6 +75,39 @@ namespace Movies
             }
 
             return Task.WhenAll(responses);
+        }
+
+        private static Task<State> Convert(HttpContent content) => null;
+
+        public static Task Handle(RestRequestArgs e, HttpResponseMessage response)
+        {
+            return null;// e.Handle(Convert(response.Content), new HttpHeadersWrapper(response.Headers));
+        }
+
+        public class HttpHeadersWrapper : IReadOnlyDictionary<string, IEnumerable<string>>
+        {
+            public HttpHeaders Headers { get; }
+
+            public IEnumerable<string> Keys => Headers.Select(header => header.Key);
+
+            public IEnumerable<IEnumerable<string>> Values => Headers.Select(header => header.Value);
+
+            public int Count => Headers.Count();
+
+            public IEnumerable<string> this[string key] => Headers.GetValues(key);
+
+            public HttpHeadersWrapper(HttpHeaders headers)
+            {
+                Headers = headers;
+            }
+
+            public bool ContainsKey(string key) => Headers.TryGetValues(key, out _);
+
+            public bool TryGetValue(string key, out IEnumerable<string> value) => Headers.TryGetValues(key, out value);
+
+            public IEnumerator<KeyValuePair<string, IEnumerable<string>>> GetEnumerator() => Headers.GetEnumerator();
+
+            IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
         }
 
         protected virtual IEnumerable<KeyValuePair<string, IEnumerable<RestRequestArgs>>> GroupRequests(IEnumerable<RestRequestArgs> args) => args.Select(arg => new KeyValuePair<string, IEnumerable<RestRequestArgs>>(arg.Uri.ToString(), arg.AsEnumerable()));

@@ -23,7 +23,9 @@
 </TargetiOSDevice>
     <DefaultDevice>iPhone 14 iOS 16.2</DefaultDevice>
     <SelectedPlatformGroup>RemoteDevice</SelectedPlatformGroup>
-    <DeveloperId>UJYAVK5R6G</DeveloperId>
-    <DevelopmentTeamId>UJYAVK5R6G</DevelopmentTeamId>
+    <DeveloperId>
+    </DeveloperId>
+    <DevelopmentTeamId>
+    </DevelopmentTeamId>
   </PropertyGroup>
 </Project>

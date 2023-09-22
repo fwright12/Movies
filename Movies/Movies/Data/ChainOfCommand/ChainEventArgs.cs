@@ -1,6 +1,8 @@
-﻿namespace Movies
+﻿using System;
+
+namespace Movies
 {
-    public class ChainEventArgs
+    public class ChainEventArgs : EventArgs
     {
         public bool Handled { get; private set; }
 

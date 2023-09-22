@@ -132,6 +132,11 @@ namespace Movies
         public Task<bool> UpdateAsync(TKey key, State updatedValue) => Converter.TryConvert(updatedValue, out var converted) ? Datastore.UpdateAsync(key, converted) : Task.FromResult(false);
     }
 
+    public class HttpConnector
+    {
+
+    }
+
     public class HttpDatastore : IDataStore<Uri, State>
     {
         public HttpMessageInvoker Invoker { get; }
