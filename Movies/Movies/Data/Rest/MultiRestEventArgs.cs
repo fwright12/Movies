@@ -7,11 +7,11 @@ using System.Threading.Tasks;
 
 namespace Movies
 {
-    public class MultiRestEventArgs : AsyncChainEventArgs, IEnumerable<RestRequestArgs>
+    public class MultiRestEventArgs : EventArgsRequest, IEnumerable<RestRequestArgs>
     {
         public int Count => Requests.Count;
 
-        public IEnumerable<RestRequestArgs> Unhandled => Requests.Where(request => !request.Handled);// GetUnhandled();
+        public IEnumerable<RestRequestArgs> Unhandled => Requests.Where(request => !request.IsHandled);// GetUnhandled();
 
         //public IEnumerable<RestRequestArgs> Args { get; }
         //private IEnumerable<KeyValuePair<Uri, Task<State>>> AdditionalState;// { get; private set; }
@@ -37,7 +37,7 @@ namespace Movies
                 var next = node.Next;
                 var args = node.Value;
 
-                if (args.Handled)
+                if (args.IsHandled)
                 {
                     node.List.Remove(node);
                 }

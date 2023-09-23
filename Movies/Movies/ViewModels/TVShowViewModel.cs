@@ -77,7 +77,7 @@ namespace Movies.ViewModels
             var request = new RestRequestArgs(new UniformItemIdentifier(season, TVSeason.EPISODES), TVSeason.EPISODES.FullType);
             await DataService.Instance.Controller.Get(request);
             
-            if (!request.Handled || request.Response.TryGetRepresentation<IEnumerable<Item>>(out var episodes) == false)
+            if (!request.IsHandled || request.Response.TryGetRepresentation<IEnumerable<Item>>(out var episodes) == false)
             {
                 yield break;
             }

@@ -125,26 +125,6 @@ namespace Movies
         }
     }
 
-    public class EventArgsRequest : EventArgs
-    {
-        public bool IsHandled { get; private set; }
-
-        protected void Handle()
-        {
-            IsHandled = true;
-        }
-    }
-
-    public interface IAsyncEventArgsRequest
-    {
-        public Task<bool> IsHandledAsync { get; }
-    }
-
-    public interface IAsyncResponse
-    {
-        Task Response { get; }
-    }
-
     public sealed class EventArgsAsyncWrapper<T> : EventArgs where T : EventArgs
     {
         public T Args { get; }
@@ -159,27 +139,10 @@ namespace Movies
         {
             Task = handler.Invoke(sender, this);
         }
-
-        //public bool Manage(Task task)
-        //{
-        //    Unwrap(task);
-        //    return false;
-        //}
-
-        //public Task<bool> ManageAsync(Task task) => Task = UnwrapAsync(task);
-
-        //private async void Unwrap(Task task) => await ManageAsync(task);
-        private async Task<bool> UnwrapAsync(Task task)
-        {
-            await task;
-            return Args is EventArgsRequest request && request.IsHandled;
-        }
     }
 
-    public class ResourceArgs : KeyValueDatastoreArgs<Uri, Resource>, IAsyncResponse
+    public class ResourceArgs : KeyValueDatastoreArgs<Uri, Resource>
     {
-        Task IAsyncResponse.Response => LateBindingDelay;
-
         public object Expected { get; }
         public Metadata Metadata { get; private set; }
 
@@ -258,7 +221,7 @@ namespace Movies
         }
     }
 
-    public class RestRequestArgs : AsyncChainEventArgs
+    public class RestRequestArgs : EventArgsRequest
     {
         public Uri Uri { get; }
         public State Body { get; }
@@ -315,7 +278,7 @@ namespace Movies
         public Task Handle(Task<State> response)
         {
             var result = HandleAsync(response);
-            RequestSuspension(response);
+            //RequestSuspension(response);
             return response;
         }
 

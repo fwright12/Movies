@@ -243,7 +243,7 @@ namespace Movies
             await Data.Controller.Get(request);
 
             //if (Data.GetDetails(tv).TryGetValues(property, out var items))
-            if (request.Handled && request.Response.TryGetRepresentation<IEnumerable<T>>(out var items))
+            if (request.IsHandled && request.Response.TryGetRepresentation<IEnumerable<T>>(out var items))
             {
                 foreach (var item in items)
                 {

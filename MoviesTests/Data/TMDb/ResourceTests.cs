@@ -11,7 +11,8 @@ namespace MoviesTests.Data.TMDb
     {
         private class HandlerChain
         {
-            public readonly ChainLink<MultiRestEventArgs> Chain;
+            //public readonly ChainLink<MultiRestEventArgs> Chain;
+            public readonly ChainLink<EventArgsAsyncWrapper<MultiRestEventArgs>> Chain;
             public readonly TMDbResolver Resolver;
 
             public List<string> WebHistory => MockHttpHandler.LocalCallHistory;
@@ -40,9 +41,16 @@ namespace MoviesTests.Data.TMDb
                 var invoker = new HttpMessageInvoker(new BufferedHandler(new TMDbBufferedHandler(MockHttpHandler = new MockHandler())));
                 RemoteTMDbHandlers = new TMDbReadHandler(invoker, Resolver, TMDbApi.AutoAppend);
 
-                Chain = new CacheAsideLink(InMemoryCache);
-                Chain.SetNext(new CacheAsideLink(LocalTMDbHandlers))
-                    .SetNext(RemoteTMDbHandlers.HandleGet);
+                //var a = new ChainLink<MultiRestEventArgs>(new CacheAsideLink(InMemoryCache).Handler);
+                //var b = new ChainLink<MultiRestEventArgs>(new CacheAsideLink(LocalTMDbHandlers).Handler);
+                //var c = ChainExtensions.Create<MultiRestEventArgs>(RemoteTMDbHandlers.HandleGet);
+                //b.SetNext(c);
+
+                var x = ChainExtensions.Create(new CacheAsideProcessor(InMemoryCache));
+                x.SetNext(new CacheAsideProcessor(LocalTMDbHandlers))
+                    .SetNext(ChainExtensions.Create(RemoteTMDbHandlers));
+
+                Chain = x;
             }
         }
 
@@ -136,7 +144,7 @@ namespace MoviesTests.Data.TMDb
             var request = new RestRequestArgs(new UniformItemIdentifier(Constants.Movie, Media.RUNTIME), typeof(TimeSpan?));
             await chain.Get(request);
 
-            Assert.IsTrue(request.Handled);
+            Assert.IsTrue(request.IsHandled);
             Assert.AreEqual(new TimeSpan(2, 10, 0), request.Response?.TryGetRepresentation<TimeSpan?>(out var value) == true ? value : null);
 
             Assert.AreEqual(0, handlers.WebHistory.Count);
@@ -203,7 +211,7 @@ namespace MoviesTests.Data.TMDb
             var request = new RestRequestArgs(new UniformItemIdentifier(Constants.Movie, Movie.PARENT_COLLECTION), Movie.PARENT_COLLECTION.FullType);
             await chain.Get(request);
 
-            Assert.IsTrue(request.Handled);
+            Assert.IsTrue(request.IsHandled);
             Assert.AreEqual(new Collection().WithID(TMDB.IDKey, 1241), request.Response.TryGetRepresentation<Collection>(out var value) ? value : null);
 
             Assert.AreEqual(2, WebHistory.Count);
@@ -227,9 +235,9 @@ namespace MoviesTests.Data.TMDb
 
             await Task.WhenAll(chain.Get(request1), temp);
 
-            Assert.IsTrue(r1.Handled);
-            Assert.IsTrue(r2.Handled);
-            Assert.IsTrue(request1.Handled);
+            Assert.IsTrue(r1.IsHandled);
+            Assert.IsTrue(r2.IsHandled);
+            Assert.IsTrue(request1.IsHandled);
         }
 
         private static readonly TimeSpan INTERSTELLAR_RUNTIME = new TimeSpan(2, 49, 0);
@@ -248,18 +256,18 @@ namespace MoviesTests.Data.TMDb
             uri = new UniformItemIdentifier(Constants.Movie, Media.RUNTIME);
             RestRequestArgs request = await chain.Get<TimeSpan>(uri);
 
-            Assert.IsTrue(request.Handled);
+            Assert.IsTrue(request.IsHandled);
             Assert.IsTrue(request.Response.TryGetRepresentation<TimeSpan>(out var value));
             Assert.AreEqual(INTERSTELLAR_RUNTIME, value);
 
             await handlers.InMemoryCache.DeleteAsync(GetUiis(Media.RUNTIME).First());
             await CachedAsync(handlers.DiskCache);
-            
+
             // This will force an api call (since recommendations don't cache)
             var requests = await chain.Get(GetUiis(Media.RUNTIME, Media.RECOMMENDED));
             request = requests[0];
 
-            Assert.IsTrue(requests.All(request => request.Handled));
+            Assert.IsTrue(requests.All(request => request.IsHandled));
             Assert.IsTrue(request.Response.TryGetRepresentation(out value));
             // We want this to have changed, since it should have been overwritten
             // with the newer data that was just fetched
@@ -278,7 +286,7 @@ namespace MoviesTests.Data.TMDb
             var uri = new UniformItemIdentifier(Constants.Movie, Media.RECOMMENDED);
             var e = await chain.Get<IAsyncEnumerable<Item>>(uri);
 
-            Assert.IsTrue(e.Handled);
+            Assert.IsTrue(e.IsHandled);
             Assert.IsTrue(e.Response.TryGetRepresentation<IAsyncEnumerable<Item>>(out var value));
 
             int count = 0;
@@ -371,7 +379,7 @@ namespace MoviesTests.Data.TMDb
             var arg1 = new RestRequestArgs(new UniformItemIdentifier(Constants.Movie, Media.TITLE));
             var arg2 = new RestRequestArgs(new UniformItemIdentifier(Constants.Movie, Media.TITLE));
             await Task.WhenAll(chain.Get(arg1), chain.Get(arg2));
-            
+
             Assert.AreEqual(1, handlers.WebHistory.Count);
         }
 
@@ -405,7 +413,7 @@ namespace MoviesTests.Data.TMDb
             var requests = getAllRequests();
             await Task.WhenAll(chain.Get(requests));
             await CachedAsync(handlers.DiskCache);
-            Assert.IsTrue(requests.All(request => request.Handled), "The following requests were not handled:\n\t" + string.Join("\n\t", requests.Where(request => !request.Handled).Select(request => request.Uri)));
+            Assert.IsTrue(requests.All(request => request.IsHandled), "The following requests were not handled:\n\t" + string.Join("\n\t", requests.Where(request => !request.IsHandled).Select(request => request.Uri)));
             Assert.AreEqual(1, handlers.WebHistory.Count);
 
             // No additional api calls should be made, everything should be cached in memory
@@ -530,11 +538,10 @@ namespace MoviesTests.Data.TMDb
         {
             var properties = GetProperties(type);
 
-            foreach (var test in new (ChainLink<MultiRestEventArgs> Controller, IEnumerable<Property?> Properties)[]
+            foreach (var test in new (ChainLink<EventArgsAsyncWrapper<MultiRestEventArgs>> Controller, IEnumerable<Property?> Properties)[]
             {
                 (handlers.Chain, properties),
-                //new Controller().AddLast(ResourceCache),
-                (ChainExtensions.Create<MultiRestEventArgs>(handlers.LocalTMDbHandlers.HandleGet), type == typeof(TVSeason) || type == typeof(TVEpisode) ? Enumerable.Empty<Property>() : properties.Except(NO_CHANGE_KEY))
+                (ChainExtensions.Create(handlers.LocalTMDbHandlers), type == typeof(TVSeason) || type == typeof(TVEpisode) ? Enumerable.Empty<Property>() : properties.Except(NO_CHANGE_KEY))
             })
             {
                 foreach (var property in test.Properties)
@@ -544,7 +551,7 @@ namespace MoviesTests.Data.TMDb
 
                     await test.Controller.Get(arg);
 
-                    Assert.IsTrue(arg.Handled, $"Could not get value for property {property} of type {type}");
+                    Assert.IsTrue(arg.IsHandled, $"Could not get value for property {property} of type {type}");
                     Assert.IsTrue(arg.Response.TryGetRepresentation(property.FullType, out var value), $"Property {property}. Expected type: {property.FullType}. Available types: {string.Join(", ", arg.Response.OfType<object>().Select(rep => rep.GetType()))}");
 
                     if (expectedValues?.TryGetValue(property, out var expected) == true)

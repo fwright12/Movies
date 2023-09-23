@@ -27,7 +27,7 @@ namespace Movies.ViewModels
         public virtual string PrimaryImagePath => null;
         public ICommand AddToListCommand { get; }
 
-        private ChainLink<MultiRestEventArgs> Controller => DataService.Instance.Controller;
+        private ChainLink<EventArgsAsyncWrapper<MultiRestEventArgs>> Controller => DataService.Instance.Controller;
 
         protected delegate bool TryGet<T>(out T value);
 
@@ -55,7 +55,7 @@ namespace Movies.ViewModels
 
             foreach (var kvp in batch)
             {
-                if (kvp.Value.Handled)
+                if (kvp.Value.IsHandled)
                 {
                     OnPropertyChanged(kvp.Key);
                 }
@@ -104,7 +104,7 @@ namespace Movies.ViewModels
             var request = new RestRequestArgs(new UniformItemIdentifier(Item, property), typeof(T));
             await Controller.Get(request);
 
-            return request.Handled && request.Response.TryGetRepresentation<T>(out T value) ? value : default;
+            return request.IsHandled && request.Response.TryGetRepresentation<T>(out T value) ? value : default;
         }
 
         protected bool TryRequestValue<T>(Property<T> property, out T value, [CallerMemberName] string propertyName = null) => TryGetValue(property, out value, propertyName);

@@ -126,7 +126,7 @@ namespace Movies.Models
         public static Task<bool> Evaluate(Item item, FilterPredicate filter) => Evaluate(DataService.Instance.Controller, item, filter);
 
 #if true
-        public static async Task<bool> Evaluate(ChainLink<MultiRestEventArgs> controller, Item item, FilterPredicate filter)
+        public static async Task<bool> Evaluate(ChainLink<EventArgsAsyncWrapper<MultiRestEventArgs>> controller, Item item, FilterPredicate filter)
         {
             var predicates = DefferedPredicates(item, filter, DataService.Instance.ResourceCache, PersistentCache).GetAsyncEnumerator();
 
@@ -162,7 +162,7 @@ namespace Movies.Models
                         var request = new RestRequestArgs(new UniformItemIdentifier(item, property), property.FullType);
                         await controller.Get(request);
 
-                        if (!request.Handled || !request.Response.TryGetRepresentation(property.FullType, out value))
+                        if (!request.IsHandled || !request.Response.TryGetRepresentation(property.FullType, out value))
                         {
                             return false;
                         }

@@ -115,7 +115,7 @@ namespace Movies
         private static IEnumerable<KeyValuePair<Uri, object>> Convert(State response) => response.TryGetRepresentation<IEnumerable<KeyValuePair<Uri, object>>>(out var collection) == true ? collection : Enumerable.Empty<KeyValuePair<Uri, object>>();
     }
 
-    public abstract class TMDbRestCache : RestCache
+    public abstract class TMDbRestCache : RestCache, IRestEventProcessor
     {
         public TMDbResolver Resolver { get; }
 
@@ -126,7 +126,9 @@ namespace Movies
 
         protected virtual IEnumerable<RestRequestArgs> GetRequests(MultiRestEventArgs e) => e.Unhandled;
 
-        public override Task HandleGet(MultiRestEventArgs e)
+        public override Task HandleGet(MultiRestEventArgs e) => ProcessAsync(e);
+
+        public Task ProcessAsync(MultiRestEventArgs e)
         {
             var item = e.Select(arg => arg.Uri).OfType<UniformItemIdentifier>().Select(uii => uii.Item).FirstOrDefault(item => item != null);
             var responses = new List<Task>();

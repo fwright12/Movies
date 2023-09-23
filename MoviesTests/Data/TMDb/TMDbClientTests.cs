@@ -1,13 +1,10 @@
-﻿using FFImageLoading.Cache;
-using Movies;
-
-namespace MoviesTests.Data.TMDb
+﻿namespace MoviesTests.Data.TMDb
 {
     [TestClass]
     public class TMDbClientTests : Resources
     {
         private readonly TMDbReadHandler TMDbReadHandler;
-        private ChainLink<MultiRestEventArgs> Chain => ChainExtensions.Create<MultiRestEventArgs>(TMDbReadHandler.HandleGet);
+        private ChainLink<EventArgsAsyncWrapper<MultiRestEventArgs>> Chain => ChainExtensions.Create(TMDbReadHandler);
         
 
         public TMDbClientTests()
@@ -31,7 +28,7 @@ namespace MoviesTests.Data.TMDb
             var url = "3/movie/0?language=en-US";
             var resource = await Chain.Get(url);
 
-            Assert.IsTrue(resource.Handled);
+            Assert.IsTrue(resource.IsHandled);
             Assert.AreEqual(1, WebHistory.Count);
             Assert.AreEqual("3/movie/0?language=en-US", WebHistory.Last());
         }
@@ -128,6 +125,6 @@ namespace MoviesTests.Data.TMDb
             Assert.AreEqual(1, WebHistory.Count);
         }
 
-        private void AssertHandled(params RestRequestArgs[] e) => Assert.IsTrue(e.All(arg => arg.Handled), "The following uris where not handled:\n" + string.Join('\n', e.Where(arg => !arg.Handled).Select(arg => arg.Uri.ToString())));
+        private void AssertHandled(params RestRequestArgs[] e) => Assert.IsTrue(e.All(arg => arg.IsHandled), "The following uris where not handled:\n" + string.Join('\n', e.Where(arg => !arg.IsHandled).Select(arg => arg.Uri.ToString())));
     }
 }

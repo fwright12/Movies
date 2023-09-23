@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Movies;
+using System;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -20,17 +21,24 @@ namespace Movies
         void Process(T e, IEventProcessor<T> next);
     }
 
+    public interface IAsyncEventProcessor<in T> where T : EventArgs
+    {
+        Task ProcessAsync(T e);
+    }
+
+    public interface IAsyncCoRProcessor<T> where T : EventArgs
+    {
+        Task ProcessAsync(T e, IAsyncEventProcessor<T> next);
+    }
+
+    public interface IRestCoRProcessor : IAsyncCoRProcessor<MultiRestEventArgs> { }
+    public interface IRestEventProcessor : IAsyncEventProcessor<MultiRestEventArgs> { }
+
     public static class ChainExtensions
     {
         public static void Invoke<T>(this EventHandler<EventArgsAsyncWrapper<T>> handler, object sender, T e) where T : EventArgs => handler.Invoke(sender, new EventArgsAsyncWrapper<T>(e));
 
         public static Task InvokeAsync<T>(this AsyncEventHandler<T> handler, object sender, T e) where T : EventArgs => handler.Invoke(sender, new EventArgsAsyncWrapper<T>(e));
-
-        public static Task InvokeAsync<T>(this ChainLinkEventHandler<T> handler, T e) where T : AsyncChainEventArgs
-        {
-            handler(e);
-            return e.RequestedSuspension;
-        }
 
         public static Task InvokeAsync<T>(this ChainLinkEventHandler<EventArgsAsyncWrapper<T>> handler, T e) where T : EventArgs
         {
@@ -39,44 +47,95 @@ namespace Movies
             return wrapper.Task;
         }
 
+        public static Task ProcessAsync<T>(this ICoRProcessor<EventArgsAsyncWrapper<T>> handler, T e, IEventProcessor<EventArgsAsyncWrapper<T>> next) where T : EventArgs
+        {
+            var wrapper = new EventArgsAsyncWrapper<T>(e);
+            handler.Process(wrapper, next);
+            return wrapper.Task;
+        }
+
+        public static Task ProcessAsync<T>(this IEventProcessor<EventArgsAsyncWrapper<T>> handler, T e) where T : EventArgs
+        {
+            var wrapper = new EventArgsAsyncWrapper<T>(e);
+            handler.Process(wrapper);
+            return wrapper.Task;
+        }
+
         //public static ChainLink<T> SetNext<T>(this ChainLink<T> link, AsyncChainEventHandler<T> handler) where T : AsyncChainEventArgs, IAsyncEventArgsRequest => link.SetNext((e, next) => e.RequestSuspension(handler.Invoke(e, next)));
 
-        public static ChainLink<T> SetNext<T>(this ChainLink<T> link, ChainLinkEventHandler<T> handler) where T : ChainEventArgs => link.SetNext(Create(handler));
-        public static ChainLink<T> Create<T>(ChainLinkEventHandler<T> handler) where T : ChainEventArgs => new ChainLink<T>((e, next) =>
+        //public static ChainLink<T> SetNext<T>(this ChainLink<T> link, ChainLinkEventHandler<T> handler) where T : ChainEventArgs => link.SetNext(Create(handler));
+        //public static ChainLink<T> Create<T>(ChainLinkEventHandler<T> handler) where T : ChainEventArgs => new ChainLink<T>((e, next) =>
+        //{
+        //    handler(e);
+
+        //    if (!e.Handled && next != null)
+        //    {
+        //        next(e);
+        //    }
+        //});
+
+        public static ChainLink<EventArgsAsyncWrapper<T>> Create<T>(IAsyncEventProcessor<T> processor) where T : EventArgsRequest => Create<T>((IAsyncCoRProcessor<T>)new AsyncNextProcessor<T>(processor));
+
+        private class AsyncNextProcessor<T> : IAsyncCoRProcessor<T> where T : EventArgsRequest
         {
-            handler(e);
+            public IAsyncEventProcessor<T> Processor { get; }
 
-            if (!e.Handled && next != null)
+            public AsyncNextProcessor(IAsyncEventProcessor<T> processor)
             {
-                next(e);
+                Processor = processor;
             }
-        });
 
-        public static ChainLink<T> SetNext<T>(this ChainLink<T> link, AsyncChainLinkEventHandler<T> handler) where T : AsyncChainEventArgs => link.SetNext(Create(handler));
-        public static ChainLink<T> Create<T>(AsyncChainLinkEventHandler<T> handler) where T : AsyncChainEventArgs => new ChainLinkAsync<T>(async (e, next) =>
-        {
-            await handler(e);
-
-            if (!e.Handled && next != null)
+            public async Task ProcessAsync(T e, IAsyncEventProcessor<T> next)
             {
-                await next.InvokeAsync(e);
+                await Processor.ProcessAsync(e);
+
+                if (!e.IsHandled && next != null)
+                {
+                    await next.ProcessAsync(e);
+                }
             }
-        });
+        }
 
         public static EventHandler<EventArgsAsyncWrapper<T>> Create<T>(AsyncEventHandler<T> handler) where T : EventArgs => (sender, e) => e.ExecuteInvoke(sender, handler);
 
-        public static ChainLink<EventArgsAsyncWrapper<T>> Create<T>(AsyncChainEventHandler<T> handler) where T : ChainEventArgs => new ChainLink<EventArgsAsyncWrapper<T>>((e, next) => e.ExecuteInvoke(null, (sender, e) => handler(e.Args, e => next?.InvokeAsync(e))));
+        //public static ChainLink<EventArgsAsyncWrapper<T>> Create<T>(AsyncChainEventHandler<T> handler) where T : ChainEventArgs => new ChainLink<EventArgsAsyncWrapper<T>>(new ProcessorFunc<EventArgsAsyncWrapper<T>>((e, next) => e.ExecuteInvoke(null, (sender, e) => handler(e.Args, e => next?.InvokeAsync(e)))));
+        public static ChainLink<EventArgsAsyncWrapper<T>> SetNext<T>(this ChainLink<EventArgsAsyncWrapper<T>> link, IAsyncCoRProcessor<T> handler) where T : EventArgs => link.SetNext(Create(handler));
+        public static ChainLink<EventArgsAsyncWrapper<T>> Create<T>(IAsyncCoRProcessor<T> handler) where T : EventArgs => new ChainLink<EventArgsAsyncWrapper<T>>(new AsyncCoRProcessor<T>(handler));
+
+        private class AsyncCoRProcessor<T> : ICoRProcessor<EventArgsAsyncWrapper<T>> where T : EventArgs
+        {
+            public IAsyncCoRProcessor<T> Processor { get; }
+
+            public AsyncCoRProcessor(IAsyncCoRProcessor<T> processor)
+            {
+                Processor = processor;
+            }
+
+            public void Process(EventArgsAsyncWrapper<T> e, IEventProcessor<EventArgsAsyncWrapper<T>> next) => e.ExecuteInvoke(null, (sender, e) => Processor.ProcessAsync(e.Args, next == null ? null : new Wrapper(next)));
+
+            private class Wrapper : IAsyncEventProcessor<T>
+            {
+                public IEventProcessor<EventArgsAsyncWrapper<T>> Processor { get; }
+
+                public Wrapper(IEventProcessor<EventArgsAsyncWrapper<T>> processor)
+                {
+                    Processor = processor;
+                }
+
+                public Task ProcessAsync(T e) => Processor.ProcessAsync(e);
+            }
+        }
     }
 
-    public class ChainLink<T>
+    public sealed class ChainLink<T> : IEventProcessor<T> where T : EventArgs
     {
         public ChainLink<T> Next { get; set; }
-        public ChainEventHandler<T> Handler { get; }
+        public ICoRProcessor<T> Processor { get; }
 
-        public ChainLink(ChainEventHandler<T> handler, ChainLink<T> next = null)
+        public ChainLink(ICoRProcessor<T> processor, ChainLink<T> next = null)
         {
             Next = next;
-            Handler = handler;
+            Processor = processor;
         }
 
         //public static implicit operator ChainLink<T>(ILinkHandler<T> handler) => new ChainLink<T>(handler);
@@ -92,21 +151,16 @@ namespace Movies
         }
 
         public ChainLink<T> SetNext(ChainLink<T> link) => Next = link;
-        public ChainLink<T> SetNext(ChainEventHandler<T> handler) => SetNext(new ChainLink<T>(handler));
+        public ChainLink<T> SetNext(ICoRProcessor<T> handler) => SetNext(new ChainLink<T>(handler));
 
-        public void Handle(T e)
+        public void Process(T e)
         {
-            if (Handler == null)
+            if (Processor == null)
             {
                 return;
             }
 
-            Handler.Invoke(e, Next == null ? (ChainLinkEventHandler<T>)null : Next.Handle);
+            Processor.Process(e, Next);
         }
-    }
-
-    public class ChainLinkAsync<T> : ChainLink<T> where T : AsyncChainEventArgs
-    {
-        public ChainLinkAsync(AsyncChainEventHandler<T> handler, ChainLink<T> next = null) : base((e, next) => e.RequestSuspension(handler.Invoke(e, next)), next) { }
     }
 }

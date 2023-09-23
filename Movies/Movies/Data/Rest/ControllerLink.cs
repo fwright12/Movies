@@ -6,47 +6,40 @@ using System.Threading.Tasks;
 
 namespace Movies
 {
-    public class RestChainLink : ChainLink<MultiRestEventArgs>
-    {
-        public RestChainLink(ChainEventHandler<MultiRestEventArgs> handler, ChainLink<MultiRestEventArgs> next = null) : base(handler, next) { }
-    }
-
     public static class RestChainExtensions
     {
-        public static async Task<RestRequestArgs> Get(this ChainLink<MultiRestEventArgs> chain, string url) => (await Get(chain, new string[] { url }))[0];
-        public static Task<RestRequestArgs[]> Get(this ChainLink<MultiRestEventArgs> chain, params string[] urls) => Get(chain, urls.Select(url => new Uri(url, UriKind.Relative)));
-        public static Task<RestRequestArgs[]> Get(this ChainLink<MultiRestEventArgs> chain, params Uri[] uris) => Get(chain, (IEnumerable<Uri>)uris);
-        public static async Task<RestRequestArgs[]> Get(this ChainLink<MultiRestEventArgs> chain, IEnumerable<Uri> uris)
+        public static async Task<RestRequestArgs> Get(this IEventProcessor<EventArgsAsyncWrapper<MultiRestEventArgs>> chain, string url) => (await Get(chain, new string[] { url }))[0];
+        public static Task<RestRequestArgs[]> Get(this IEventProcessor<EventArgsAsyncWrapper<MultiRestEventArgs>> chain, params string[] urls) => Get(chain, urls.Select(url => new Uri(url, UriKind.Relative)));
+        public static Task<RestRequestArgs[]> Get(this IEventProcessor<EventArgsAsyncWrapper<MultiRestEventArgs>> chain, params Uri[] uris) => Get(chain, (IEnumerable<Uri>)uris);
+        public static async Task<RestRequestArgs[]> Get(this IEventProcessor<EventArgsAsyncWrapper<MultiRestEventArgs>> chain, IEnumerable<Uri> uris)
         {
             var args = uris.Select(uri => new RestRequestArgs(uri)).ToArray();
             await Get(chain, args);
             return args;
         }
 
-        public static async Task<RestRequestArgs<T>> Get<T>(this ChainLink<MultiRestEventArgs> chain, Uri uri)
+        public static async Task<RestRequestArgs<T>> Get<T>(this IEventProcessor<EventArgsAsyncWrapper<MultiRestEventArgs>> chain, Uri uri)
         {
             var args = new RestRequestArgs<T>(uri);
             await Get(chain, args);
             return args;
         }
 
-        public static async Task<(bool Success, T Resource)> TryGet<T>(this ChainLink<MultiRestEventArgs> chain, Uri uri)
+        public static async Task<(bool Success, T Resource)> TryGet<T>(this IEventProcessor<EventArgsAsyncWrapper<MultiRestEventArgs>> chain, Uri uri)
         {
             var args = await Get<T>(chain, uri);
-            return args.Handled && args.Response.TryGetRepresentation<T>(out var value) ? (true, value) : (false, default);
+            return args.IsHandled && args.Response.TryGetRepresentation<T>(out var value) ? (true, value) : (false, default);
         }
 
-        public static Task Get(this ChainLink<MultiRestEventArgs> chain, params RestRequestArgs[] args) => Get(chain, (IEnumerable<RestRequestArgs>)args);
-        public static Task Get(this ChainLink<MultiRestEventArgs> chain, IEnumerable<RestRequestArgs> args)
+        public static Task Get(this IEventProcessor<EventArgsAsyncWrapper<MultiRestEventArgs>> chain, params RestRequestArgs[] args) => Get(chain, (IEnumerable<RestRequestArgs>)args);
+        public static Task Get(this IEventProcessor<EventArgsAsyncWrapper<MultiRestEventArgs>> chain, IEnumerable<RestRequestArgs> args)
         {
             var e = new MultiRestEventArgs(args);
-            chain.Handle(e);
-            return e.RequestedSuspension;
-            //return Task.WhenAll(e.Args.Select(arg => arg.RequestedSuspension).Prepend(e.RequestedSuspension));
+            return chain.ProcessAsync(e);
         }
     }
 
-    public class DataArgs<TKey, TValue> : AsyncChainEventArgs
+    public class DataArgs<TKey, TValue> : EventArgsRequest
     {
         public TKey Key { get; set; }
         public AsyncData<TValue> Data { get; set; }

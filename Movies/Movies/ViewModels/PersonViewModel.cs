@@ -67,7 +67,7 @@ namespace Movies.ViewModels
             var request = new RestRequestArgs(new UniformItemIdentifier(person, Person.CREDITS), Person.CREDITS.FullType);
             await DataService.Instance.Controller.Get(request);
             //if (!DataService.Instance.GetDetails(person).TryGetValues(Person.CREDITS, out var task) || !(await task is IEnumerable<Item> credits))
-            if (!request.Handled || request.Response.TryGetRepresentation<IEnumerable<Item>>(out var credits) == false)
+            if (!request.IsHandled || request.Response.TryGetRepresentation<IEnumerable<Item>>(out var credits) == false)
             {
                 yield break;
             }

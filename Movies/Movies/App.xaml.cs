@@ -270,8 +270,11 @@ namespace Movies
             };
 
             DataService.Instance.Controller
-                .SetNext(new CacheAsideLink(new TMDbLocalHandlers(localTMDbDatastore, resolver)))
-                .SetNext(tmdbHandlers.HandleGet);
+                .SetNext(new CacheAsideProcessor(new TMDbLocalHandlers(localTMDbDatastore, resolver)))
+                .SetNext(ChainExtensions.Create(tmdbHandlers));
+            //DataService.Instance.Controller
+            //    .SetNext(new CacheAsideLink(new TMDbLocalHandlers(localTMDbDatastore, resolver)))
+            //    .SetNext(tmdbHandlers.HandleGet);
             //.AddLast(new TMDbLocalResources(LocalDatabase.ItemCache, resolver)
             //{
             //    ChangeKeys = new ListAsyncWrapper<string>(GetChangeKeys())

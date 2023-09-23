@@ -25,7 +25,7 @@
             { API.MOVIES.GET_KEYWORDS.GetURL(), EmptyJSON }
         };
 
-        private ChainLink<MultiRestEventArgs> Chain;
+        private ChainLink<EventArgsAsyncWrapper<MultiRestEventArgs>> Chain;
 
         public FilterEvaluationTests()
         {
@@ -34,7 +34,7 @@
             var invoker = new HttpMessageInvoker(new BufferedHandler(new TMDbBufferedHandler(new MockHandler())));
             var RemoteTMDbHandlers = new TMDbReadHandler(invoker, resolver, TMDbApi.AutoAppend);
 
-            Chain = ChainExtensions.Create<MultiRestEventArgs>(RemoteTMDbHandlers.HandleGet);
+            Chain = ChainExtensions.Create(RemoteTMDbHandlers);
             DebugConfig.SimulatedDelay = 0;
 
             InMemoryCache = new UiiDictionaryDatastore();
