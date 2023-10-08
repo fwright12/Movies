@@ -17,20 +17,4 @@ namespace Movies
             Datastore = datastore;
         }
     }
-
-    public class CacheAsideFunc<TArgs> : CacheAside<TArgs>
-    {
-        public AsyncChainLinkEventHandler<TArgs> Get { get; }
-        public AsyncChainLinkEventHandler<TArgs> Set { get; }
-
-        public CacheAsideFunc(AsyncChainLinkEventHandler<TArgs> get, AsyncChainLinkEventHandler<TArgs> set)
-        {
-            Get = get;
-            Set = set;
-        }
-
-        public override Task HandleGet(TArgs e) => Get(e);
-
-        public override Task HandleSet(TArgs e) => Set(e);
-    }
 }

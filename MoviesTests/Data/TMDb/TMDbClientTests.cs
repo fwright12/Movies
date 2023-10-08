@@ -4,7 +4,7 @@
     public class TMDbClientTests : Resources
     {
         private readonly TMDbReadHandler TMDbReadHandler;
-        private ChainLink<EventArgsAsyncWrapper<MultiRestEventArgs>> Chain => ChainExtensions.Create(TMDbReadHandler);
+        private ChainLink<EventArgsAsyncWrapper<IEnumerable<DatastoreKeyArgs<Uri>>>> Chain => AsyncCoRExtensions.Create(TMDbReadHandler);
         
 
         public TMDbClientTests()

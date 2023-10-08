@@ -12,7 +12,7 @@ namespace REpresentationalStateTransfer
 {
     public interface Connector
     {
-        RestResponse Send(Uri identifer, ControlData controlData, Task<Representation<object>> representation = null);
+        RestResponse Send(Uri identifer, Task<ControlData> controlData, Task<Representation<object>> representation = null);
     }
 
     public interface Representation<out T>
@@ -47,9 +47,9 @@ namespace REpresentationalStateTransfer
     {
         public Uri Uri { get; set; }
         public Task<Representation<object>> Representation { get; set; }
-        public ControlData ControlData { get; }
+        public Task<ControlData> ControlData { get; }
 
-        public RestRequest(Uri uri, ControlData controlData, Task<Representation<object>> representation = null)
+        public RestRequest(Uri uri, Task<ControlData> controlData, Task<Representation<object>> representation = null)
         {
             Uri = uri;
             Representation = representation;
@@ -102,33 +102,82 @@ namespace REpresentationalStateTransfer
 
 namespace Movies
 {
-    public class DatastoreArgs : EventArgsRequest
+    public abstract class DatastoreRequest
     {
-        public object Operation { get; set; }
+
     }
 
-    public class KeyValueDatastoreArgs<TKey, TValue> : DatastoreArgs
+    public abstract class DatastoreResponse
+    {
+        public abstract object Response { get; }
+    }
+
+    public class DatastoreKeyRequest<T> : DatastoreRequest
+    {
+        public T Key { get; }
+
+        public DatastoreKeyRequest(T key)
+        {
+            Key = key;
+        }
+    }
+
+    public class DatastoreResponse<T> : DatastoreResponse
+    {
+        public T Value { get; }
+        public override object Response => Value;
+
+        public DatastoreResponse(T value)
+        {
+            Value = value;
+        }
+    }
+
+    public abstract class DatastoreArgs : EventArgsRequest
+    {
+        public DatastoreRequest Request { get; }
+        public DatastoreResponse Response { get; private set; }
+
+        public bool Handle(DatastoreResponse response)
+        {
+            if (Accept(response))
+            {
+                Response = response;
+                Handle();
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        protected virtual bool Accept(DatastoreResponse response) => true;
+    }
+
+    public class DatastoreKeyArgs<TKey> : DatastoreArgs
     {
         public TKey Key { get; }
-        public TValue Value { get; private set; }
 
-        public KeyValueDatastoreArgs(TKey key)
+        public DatastoreKeyArgs(TKey key)
         {
             Key = key;
         }
 
-        public virtual bool Handle(TValue value)
-        {
-            Value = value;
-            Handle();
-            return true;
-        }
+        //public bool Handle<TValue>(TValue value) => Handle(new DatastoreResponse<TValue>(value));
     }
 
-    public sealed class EventArgsAsyncWrapper<T> : EventArgs where T : EventArgs
+    public interface IAsyncResponse
+    {
+        Task Response { get; }
+    }
+
+    public sealed class EventArgsAsyncWrapper<T> : EventArgs, IAsyncResponse
     {
         public T Args { get; }
         public Task Task { get; private set; }
+
+        public Task Response => Task;
 
         public EventArgsAsyncWrapper(T args)
         {
@@ -141,9 +190,9 @@ namespace Movies
         }
     }
 
-    public class ResourceArgs : KeyValueDatastoreArgs<Uri, Resource>
+    public class ResourceArgs : DatastoreKeyArgs<Uri>
     {
-        public object Expected { get; }
+        public object Expected { get; protected set; }
         public Metadata Metadata { get; private set; }
 
         private Task LateBindingDelay;
@@ -154,11 +203,13 @@ namespace Movies
             Metadata = new Dictionary<string, string>();
         }
 
-        public override bool Handle(Resource value)
+        public bool Handle(Resource resource) => Handle(new DatastoreResponse<Resource>(resource));
+
+        protected override bool Accept(DatastoreResponse response)
         {
-            if (value().HasRepresentation(Expected))
+            if (Expected == null || (response is DatastoreResponse<Resource> resource && resource.Value().HasRepresentation(Expected)))
             {
-                return base.Handle(value);
+                return base.Accept(response);
             }
             else
             {
@@ -187,12 +238,13 @@ namespace Movies
             Entities = Enumerable.Empty<Entity>();
         }
 
-        public async Task UpdateAsync()
+        public async Task<RestResponse> UpdateAsync()
         {
             var response = Connector.Send(Request);
             var representation = await response.Representation;
 
             Entities = new Entity[] { new Entity(representation) };
+            return response;
         }
 
         public IEnumerable<Entity> Resource()
@@ -204,89 +256,92 @@ namespace Movies
         }
     }
 
-    public class RestArgs : ResourceArgs
+    public class RestRequestArgs : ResourceArgs
     {
-        public RestRequest Request { get; }
-        public RestResponse Response { get; private set; }
-
-        public RestArgs(RestRequest request) : base(request.Uri, request.ControlData.TryGetValue(REpresentationalStateTransfer.Rest.CONTENT_TYPE, out var type) ? type : null)
-        {
-            Request = request;
-        }
-
-        public Task<bool> Handle(Connector connector)
-        {
-            ResourceNamingAuthority authority = new ResourceNamingAuthority(connector, Request);
-            return HandleLateBound(authority.Resource, authority.UpdateAsync());
-        }
-    }
-
-    public class RestRequestArgs : EventArgsRequest
-    {
-        public Uri Uri { get; }
+        public Uri Uri => Key;
         public State Body { get; }
-        public Task<State> ResponseAsync { get; private set; }
-        public State Response { get; private set; }
-        public Type Expected { get; }
+        new public State Response => (base.Response as DatastoreResponse<Resource>)?.Value() as State ?? null;
 
-        public RestRequestArgs(Uri uri, Type expected = null)
-        {
-            Uri = uri;
-            Expected = expected;
-        }
+        public Task<Representation<object>> RequestRepresentation { get; set; }
+        public Task<ControlData> RequestControlData { get; }
 
-        public RestRequestArgs(Uri uri, State body)
+        public RestRequestArgs(Uri uri, Type expected = null) : base(uri, expected) { }
+
+        public RestRequestArgs(Uri uri, State body) : base(uri, null)
         {
-            Uri = uri;
             Body = body;
         }
 
-        private static async Task<State> Convert<T>(Task<T> value) => State.Create(await value);
+        public RestRequestArgs(RestRequest request) : this(request.Uri, request.Representation, request.ControlData) { }
 
-        public async Task<bool> Handle<T>(Task<T> response)
+        public RestRequestArgs(Uri uri, Task<Representation<object>> representation, Task<ControlData> controlData) : base(uri, null)
         {
-            await Handle(Convert(response));
-            return true;
+            RequestRepresentation = representation;
+            UpdateExpectedAsync(RequestControlData = controlData);
         }
 
-        public bool Handle<T>(T response) => Handle(response as State ?? State.Create<T>(response));
-
-        public bool Handle<T>(IConverter<T> converter)
+        private async void UpdateExpectedAsync(Task<ControlData> task)
         {
-            if (Expected != null && Expected != typeof(T) && Response?.Add(Expected, converter) == true)
-            {
-                Handle();
-                return true;
-            }
-
-            return false;
+            var controlData = await task;
+            Expected = controlData.TryGetValue(REpresentationalStateTransfer.Rest.CONTENT_TYPE, out var type) ? type : null;
         }
 
-        public bool Handle(State response)
+        public Task<bool> Handle(Connector connector, params Func<Representation<object>, Representation<object>>[] converters)
         {
-            Response = response;
-
-            if (Expected == null || response.HasRepresentation(Expected))
-            {
-                Handle();
-                return true;
-            }
-
-            return false;
+            ResourceNamingAuthority authority = new ResourceNamingAuthority(connector, new RestRequest(Key, RequestControlData, RequestRepresentation));
+            return HandleLateBound(authority.Resource, authority.UpdateAsync());
         }
 
-        public Task Handle(Task<State> response)
+        public Task<bool> Handle(DatastoreRestResponse<Resource> response)
         {
-            var result = HandleAsync(response);
-            //RequestSuspension(response);
-            return response;
+            base.Handle(response);
+            return HandleLateBound(() => new Entity[] { new Entity(response.Representation.Result) }, Task.WhenAll(response.Representation, response.ControlData, response.Metadata));
         }
 
-        private async Task<bool> HandleAsync(Task<State> response) => Handle(await response);
+        //public Task<bool> Handle(Task<State> response) => HandleLateBound(() => response.Result, response);
+
+        public override int GetHashCode() => Key.GetHashCode();
+        public override bool Equals(object obj) => obj is RestRequestArgs args && Equals(Key, args.Key) && Equals(Response, args.Response);
+    }
+
+    public class DatastoreRestResponse<T> : DatastoreResponse<Resource>
+    {
+        public Task<Representation<object>> Representation { get; private set; }
+        public Task<ControlData> ControlData { get; private set; }
+        public Task<Metadata> Metadata { get; private set; }
+
+        public DatastoreRestResponse(Task<Representation<object>> responseRepresentation, Task<ControlData> responseControlData, Task<Metadata> responseMetadata) : base(() => new Entity[] { })
+        {
+            Representation = responseRepresentation;
+            ControlData = responseControlData;
+            Metadata = responseMetadata;
+        }
     }
 
     public class RestRequestArgs<T> : RestRequestArgs
     {
         public RestRequestArgs(Uri uri) : base(uri, typeof(T)) { }
+    }
+
+    public static class RestRequestArgsExtensions
+    {
+        private static Task<bool> Handle(this RestRequestArgs args, Connector connector)
+        {
+            ResourceNamingAuthority authority = new ResourceNamingAuthority(connector, new RestRequest(args.Key, args.RequestControlData, args.RequestRepresentation));
+            return args.HandleLateBound(authority.Resource, authority.UpdateAsync());
+        }
+
+        public static Task<bool> Handle(this DatastoreKeyArgs<Uri> args, Connector connector)
+        {
+            ResourceNamingAuthority authority = new ResourceNamingAuthority(connector, new RestRequest(args.Key, null, null));
+            args.Handle(new DatastoreResponse<Resource>(authority.Resource));
+            return Task.FromResult(true);
+        }
+
+        public static async Task<bool> Handle(this DatastoreArgs args, Task<State> response)
+        {
+            var value = await response;
+            return args.Handle(new DatastoreResponse<Resource>(() => value));
+        }
     }
 }

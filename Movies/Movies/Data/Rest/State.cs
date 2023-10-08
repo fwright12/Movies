@@ -11,7 +11,7 @@ namespace Movies
         bool TryConvert(T original, Type targetType, out object converted);
     }
 
-    public class State : IEnumerable, IEnumerable<Representation<object>>
+    public class State : IEnumerable, IEnumerable<Representation<object>>, IEnumerable<Entity>
     {
         private Dictionary<Type, object> Representations { get; }
 
@@ -94,6 +94,8 @@ namespace Movies
         public IEnumerator GetEnumerator() => Representations.Values.GetEnumerator();
 
         IEnumerator<Representation<object>> IEnumerable<Representation<object>>.GetEnumerator() => Representations.Values.Select(value => new ObjectRepresentation<object>(value)).GetEnumerator();
+
+        IEnumerator<Entity> IEnumerable<Entity>.GetEnumerator() => ((IEnumerable<Representation<object>>)this).Select(representation => new Entity(representation)).GetEnumerator();
     }
 
     public class ObjectRepresentation<T> : Representation<T>

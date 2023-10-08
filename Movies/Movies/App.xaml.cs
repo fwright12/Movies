@@ -270,8 +270,8 @@ namespace Movies
             };
 
             DataService.Instance.Controller
-                .SetNext(new CacheAsideProcessor(new TMDbLocalHandlers(localTMDbDatastore, resolver)))
-                .SetNext(ChainExtensions.Create(tmdbHandlers));
+                .SetNext(new CacheAsideProcessor<DatastoreKeyArgs<Uri>>(new TMDbLocalHandlers(localTMDbDatastore, resolver)))
+                .SetNext(tmdbHandlers);
             //DataService.Instance.Controller
             //    .SetNext(new CacheAsideLink(new TMDbLocalHandlers(localTMDbDatastore, resolver)))
             //    .SetNext(tmdbHandlers.HandleGet);

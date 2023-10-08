@@ -12,7 +12,7 @@ namespace MoviesTests.Data.TMDb
         private class HandlerChain
         {
             //public readonly ChainLink<MultiRestEventArgs> Chain;
-            public readonly ChainLink<EventArgsAsyncWrapper<MultiRestEventArgs>> Chain;
+            public readonly ChainLink<EventArgsAsyncWrapper<IEnumerable<DatastoreKeyArgs<Uri>>>> Chain;
             public readonly TMDbResolver Resolver;
 
             public List<string> WebHistory => MockHttpHandler.LocalCallHistory;
@@ -41,14 +41,10 @@ namespace MoviesTests.Data.TMDb
                 var invoker = new HttpMessageInvoker(new BufferedHandler(new TMDbBufferedHandler(MockHttpHandler = new MockHandler())));
                 RemoteTMDbHandlers = new TMDbReadHandler(invoker, Resolver, TMDbApi.AutoAppend);
 
-                //var a = new ChainLink<MultiRestEventArgs>(new CacheAsideLink(InMemoryCache).Handler);
-                //var b = new ChainLink<MultiRestEventArgs>(new CacheAsideLink(LocalTMDbHandlers).Handler);
-                //var c = ChainExtensions.Create<MultiRestEventArgs>(RemoteTMDbHandlers.HandleGet);
-                //b.SetNext(c);
-
-                var x = ChainExtensions.Create(new CacheAsideProcessor(InMemoryCache));
-                x.SetNext(new CacheAsideProcessor(LocalTMDbHandlers))
-                    .SetNext(ChainExtensions.Create(RemoteTMDbHandlers));
+                //var x = AsyncCoRExtensions.Create<IEnumerable<DatastoreArgs>, IEnumerable<DatastoreKeyArgs<Uri>>>(new CacheAsideProcessor(InMemoryCache));
+                var x = AsyncCoRExtensions.Create(new CacheAsideProcessor<DatastoreKeyArgs<Uri>>(InMemoryCache));
+                x.SetNext(new CacheAsideProcessor<DatastoreKeyArgs<Uri>>(LocalTMDbHandlers))
+                    .SetNext(RemoteTMDbHandlers);
 
                 Chain = x;
             }
@@ -538,10 +534,10 @@ namespace MoviesTests.Data.TMDb
         {
             var properties = GetProperties(type);
 
-            foreach (var test in new (ChainLink<EventArgsAsyncWrapper<MultiRestEventArgs>> Controller, IEnumerable<Property?> Properties)[]
+            foreach (var test in new (ChainLink<EventArgsAsyncWrapper<IEnumerable<DatastoreKeyArgs<Uri>>>> Controller, IEnumerable<Property?> Properties)[]
             {
                 (handlers.Chain, properties),
-                (ChainExtensions.Create(handlers.LocalTMDbHandlers), type == typeof(TVSeason) || type == typeof(TVEpisode) ? Enumerable.Empty<Property>() : properties.Except(NO_CHANGE_KEY))
+                (AsyncCoRExtensions.Create(handlers.LocalTMDbHandlers), type == typeof(TVSeason) || type == typeof(TVEpisode) ? Enumerable.Empty<Property>() : properties.Except(NO_CHANGE_KEY))
             })
             {
                 foreach (var property in test.Properties)

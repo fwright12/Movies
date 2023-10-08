@@ -41,7 +41,7 @@ namespace Movies
             Datastore = datastore;
         }
 
-        public override Task HandleGet(MultiRestEventArgs e)
+        public override Task HandleGet(BatchDatastoreArgs<RestRequestArgs> e)
         {
             var responses = new List<Task>();
 
@@ -115,7 +115,7 @@ namespace Movies
         private static IEnumerable<KeyValuePair<Uri, object>> Convert(State response) => response.TryGetRepresentation<IEnumerable<KeyValuePair<Uri, object>>>(out var collection) == true ? collection : Enumerable.Empty<KeyValuePair<Uri, object>>();
     }
 
-    public abstract class TMDbRestCache : RestCache, IRestEventProcessor
+    public abstract class TMDbRestCache : RestCache
     {
         public TMDbResolver Resolver { get; }
 
@@ -124,14 +124,17 @@ namespace Movies
             Resolver = resolver;
         }
 
-        protected virtual IEnumerable<RestRequestArgs> GetRequests(MultiRestEventArgs e) => e.Unhandled;
+        protected virtual IEnumerable<DatastoreKeyArgs<Uri>> GetRequests(IEnumerable<DatastoreKeyArgs<Uri>> e) => e.Where(arg => !arg.IsHandled);
 
-        public override Task HandleGet(MultiRestEventArgs e) => ProcessAsync(e);
+        public override Task HandleGet(BatchDatastoreArgs<RestRequestArgs> e) => ProcessAsync(e);
 
-        public Task ProcessAsync(MultiRestEventArgs e)
+        public Task<bool> ProcessAsync(MultiRestEventArgs e) => ProcessAsync((IEnumerable<RestRequestArgs>)e);
+
+        public override async Task<bool> ProcessAsync(IEnumerable<DatastoreKeyArgs<Uri>> e)
         {
-            var item = e.Select(arg => arg.Uri).OfType<UniformItemIdentifier>().Select(uii => uii.Item).FirstOrDefault(item => item != null);
+            var item = e.Select(arg => arg.Key).OfType<UniformItemIdentifier>().Select(uii => uii.Item).FirstOrDefault(item => item != null);
             var responses = new List<Task>();
+            var batch = e as BatchDatastoreArgs<DatastoreKeyArgs<Uri>>;
 
             foreach (var kvp in GroupRequests(GetRequests(e)))
             {
@@ -142,7 +145,7 @@ namespace Movies
 
                 if (uri.Converter is HttpResourceCollectionConverter resources)
                 {
-                    var index = requests.ToDictionary(req => req.Uri, req => req);
+                    var index = requests.ToDictionary(req => req.Key, req => req);
                     var collection = response.TransformAsync(Convert).TransformAsync(DictionaryHelpers.ToReadOnlyDictionary);
                     //var values = resources.Resources.ToDictionary(uri => uri, uri => index.GetAsync(uri).TransformAsync(obj => State.Create(obj)));
 
@@ -152,7 +155,9 @@ namespace Movies
 
                         if (!index.Remove(resource, out var request))
                         {
-                            e.AddRequest(request = new RestRequestArgs(resource));
+                            var restRequest = new RestRequestArgs(resource);
+                            batch?.AddRequest(restRequest);
+                            request = restRequest;
                             //handling = null;
                         }
 
@@ -168,13 +173,14 @@ namespace Movies
                 }
             }
 
-            return Task.WhenAll(responses);
+            await Task.WhenAll(responses);//.ContinueWith(_ => e.All(request => request.IsHandled));
+            return e.All(request => request.IsHandled);
         }
 
-        private TMDbResolver.TrojanTMDbUri GetUri(Item item, string url, RestRequestArgs[] requests)
+        private TMDbResolver.TrojanTMDbUri GetUri(Item item, string url, DatastoreKeyArgs<Uri>[] requests)
         {
             var properties = requests
-                    .Select(arg => arg.Uri)
+                    .Select(arg => arg.Key)
                     .OfType<UniformItemIdentifier>()
                     .Select(uii => uii.Property)
                     .ToHashSet();
@@ -192,7 +198,7 @@ namespace Movies
             return uri;
         }
 
-        protected virtual IEnumerable<KeyValuePair<string, IEnumerable<RestRequestArgs>>> GroupRequests(IEnumerable<RestRequestArgs> args) => args.Select(arg => new KeyValuePair<string, IEnumerable<RestRequestArgs>>(Resolver.ResolveUrl(arg.Uri), arg.AsEnumerable()));
+        protected virtual IEnumerable<KeyValuePair<string, IEnumerable<DatastoreKeyArgs<Uri>>>> GroupRequests(IEnumerable<DatastoreKeyArgs<Uri>> args) => args.Select(arg => new KeyValuePair<string, IEnumerable<DatastoreKeyArgs<Uri>>>(Resolver.ResolveUrl(arg.Key), arg.AsEnumerable()));
 
         private static IEnumerable<KeyValuePair<Uri, object>> Convert(State response) => response.TryGetRepresentation<IEnumerable<KeyValuePair<Uri, object>>>(out var collection) == true ? collection : Enumerable.Empty<KeyValuePair<Uri, object>>();
     }
@@ -219,15 +225,15 @@ namespace Movies
             }
         }
 
-        protected override IEnumerable<RestRequestArgs> GetRequests(MultiRestEventArgs e) => e;
+        protected override IEnumerable<DatastoreKeyArgs<Uri>> GetRequests(IEnumerable<DatastoreKeyArgs<Uri>> e) => e;
 
-        protected override IEnumerable<KeyValuePair<string, IEnumerable<RestRequestArgs>>> GroupRequests(IEnumerable<RestRequestArgs> args)
+        protected override IEnumerable<KeyValuePair<string, IEnumerable<DatastoreKeyArgs<Uri>>>> GroupRequests(IEnumerable<DatastoreKeyArgs<Uri>> args)
         {
             var trie = new Dictionary<string, List<(string Url, string Path, string Query, RestRequestArgs Arg)>>();
 
             foreach (var request in args)
             {
-                var values = GetUrlsGreedy(request.Uri).OfType<object>().Prepend(request);
+                var values = GetUrlsGreedy(request.Key).OfType<object>().Prepend(request);
 
                 foreach (var value in values)
                 {
@@ -261,7 +267,7 @@ namespace Movies
                     url += "?" + query;
                 }
 
-                yield return new KeyValuePair<string, IEnumerable<RestRequestArgs>>(url, kvp.Value.Select(value => value.Arg).Where(arg => arg != null));
+                yield return new KeyValuePair<string, IEnumerable<DatastoreKeyArgs<Uri>>>(url, kvp.Value.Select(value => value.Arg).Where(arg => arg != null));
             }
         }
 

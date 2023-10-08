@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Movies
 {
-    public static class RestChainExtensions
+    public static class RestChainExtensionsOld
     {
         public static async Task<RestRequestArgs> Get(this IEventProcessor<EventArgsAsyncWrapper<MultiRestEventArgs>> chain, string url) => (await Get(chain, new string[] { url }))[0];
         public static Task<RestRequestArgs[]> Get(this IEventProcessor<EventArgsAsyncWrapper<MultiRestEventArgs>> chain, params string[] urls) => Get(chain, urls.Select(url => new Uri(url, UriKind.Relative)));
@@ -35,7 +35,40 @@ namespace Movies
         public static Task Get(this IEventProcessor<EventArgsAsyncWrapper<MultiRestEventArgs>> chain, IEnumerable<RestRequestArgs> args)
         {
             var e = new MultiRestEventArgs(args);
-            return chain.ProcessAsync(e);
+            return chain.ProcessAsync(new EventArgsAsyncWrapper<MultiRestEventArgs>(e));
+        }
+    }
+
+    public static class RestChainExtensions
+    {
+        public static async Task<RestRequestArgs> Get(this IEventProcessor<EventArgsAsyncWrapper<IEnumerable<DatastoreKeyArgs<Uri>>>> chain, string url) => (await Get(chain, new string[] { url }))[0];
+        public static Task<RestRequestArgs[]> Get(this IEventProcessor<EventArgsAsyncWrapper<IEnumerable<DatastoreKeyArgs<Uri>>>> chain, params string[] urls) => Get(chain, urls.Select(url => new Uri(url, UriKind.Relative)));
+        public static Task<RestRequestArgs[]> Get(this IEventProcessor<EventArgsAsyncWrapper<IEnumerable<DatastoreKeyArgs<Uri>>>> chain, params Uri[] uris) => Get(chain, (IEnumerable<Uri>)uris);
+        public static async Task<RestRequestArgs[]> Get(this IEventProcessor<EventArgsAsyncWrapper<IEnumerable<DatastoreKeyArgs<Uri>>>> chain, IEnumerable<Uri> uris)
+        {
+            var args = uris.Select(uri => new RestRequestArgs(uri)).ToArray();
+            await Get(chain, args);
+            return args;
+        }
+
+        public static async Task<RestRequestArgs<T>> Get<T>(this IEventProcessor<EventArgsAsyncWrapper<IEnumerable<DatastoreKeyArgs<Uri>>>> chain, Uri uri)
+        {
+            var args = new RestRequestArgs<T>(uri);
+            await Get(chain, args);
+            return args;
+        }
+
+        public static async Task<(bool Success, T Resource)> TryGet<T>(this IEventProcessor<EventArgsAsyncWrapper<IEnumerable<DatastoreKeyArgs<Uri>>>> chain, Uri uri)
+        {
+            var args = await Get<T>(chain, uri);
+            return args.IsHandled && args.Response.TryGetRepresentation<T>(out var value) ? (true, value) : (false, default);
+        }
+
+        public static Task Get(this IEventProcessor<EventArgsAsyncWrapper<IEnumerable<DatastoreKeyArgs<Uri>>>> chain, params RestRequestArgs[] args) => Get(chain, (IEnumerable<RestRequestArgs>)args);
+        public static Task Get(this IEventProcessor<EventArgsAsyncWrapper<IEnumerable<DatastoreKeyArgs<Uri>>>> chain, IEnumerable<RestRequestArgs> args)
+        {
+            var e = new BatchDatastoreArgs<DatastoreKeyArgs<Uri>>(args);
+            return chain.ProcessAsync(new EventArgsAsyncWrapper<IEnumerable<DatastoreKeyArgs<Uri>>>(e));
         }
     }
 
@@ -200,11 +233,11 @@ namespace Movies
         }
     }
 
-    public class RestCache : DatastoreCache<Uri, State, MultiRestEventArgs>
+    public class RestCache : DatastoreCache<Uri, State, BatchDatastoreArgs<RestRequestArgs>>, IAsyncEventProcessor<IEnumerable<DatastoreKeyArgs<Uri>>>
     {
         public RestCache(IDataStore<Uri, State> datastore) : base(datastore) { }
 
-        public override Task HandleGet(MultiRestEventArgs e) => Task.WhenAll(e.Unhandled.Select(HandleGet));
+        public override Task HandleGet(BatchDatastoreArgs<RestRequestArgs> e) => Task.WhenAll(e.Unhandled.Select(HandleGet));
 
         public virtual async Task HandleGet(RestRequestArgs e)
         {
@@ -212,13 +245,20 @@ namespace Movies
 
             if (state != null)
             {
-                e.Handle(await state);
+                var value = await state;
+                e.Handle(() => value);
             }
         }
 
-        public override Task HandleSet(MultiRestEventArgs e) => Task.WhenAll(e.Unhandled.Select(HandleSet));
+        public override Task HandleSet(BatchDatastoreArgs<RestRequestArgs> e) => Task.WhenAll(e.Unhandled.Select(HandleSet));
 
         public virtual Task HandleSet(RestRequestArgs e) => Datastore.CreateAsync(e.Uri, e.Body);
+
+        public virtual async Task<bool> ProcessAsync(IEnumerable<DatastoreKeyArgs<Uri>> e)
+        {
+            await Task.WhenAll(e.Where(request => !request.IsHandled).OfType<RestRequestArgs>().Select(HandleGet));
+            return e.All(request => request.IsHandled);
+        }
     }
 
     public abstract class MultiRestHandler
@@ -277,7 +317,7 @@ namespace Movies
 
             if (state != null)
             {
-                e.Handle(state);
+                e.Handle(() => state);
             }
         }
     }
@@ -288,6 +328,4 @@ namespace Movies
 
         public override Task HandleAsync(RestRequestArgs e) => Datastore.CreateAsync(e.Uri, e.Body);
     }
-
-    public delegate Task AsyncChainLinkEventHandler<TArgs>(TArgs args);
 }

@@ -126,7 +126,7 @@ namespace Movies.Models
         public static Task<bool> Evaluate(Item item, FilterPredicate filter) => Evaluate(DataService.Instance.Controller, item, filter);
 
 #if true
-        public static async Task<bool> Evaluate(ChainLink<EventArgsAsyncWrapper<MultiRestEventArgs>> controller, Item item, FilterPredicate filter)
+        public static async Task<bool> Evaluate(ChainLink<EventArgsAsyncWrapper<IEnumerable<DatastoreKeyArgs<Uri>>>> controller, Item item, FilterPredicate filter)
         {
             var predicates = DefferedPredicates(item, filter, DataService.Instance.ResourceCache, PersistentCache).GetAsyncEnumerator();
 

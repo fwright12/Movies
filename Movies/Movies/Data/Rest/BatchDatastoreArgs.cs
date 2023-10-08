@@ -7,64 +7,77 @@ using System.Threading.Tasks;
 
 namespace Movies
 {
-    public class MultiRestEventArgs : EventArgsRequest, IEnumerable<RestRequestArgs>
+    public class MultiRestEventArgs : BatchDatastoreArgs<RestRequestArgs>
+    {
+        public MultiRestEventArgs(params RestRequestArgs[] args) : base(args) { }
+        public MultiRestEventArgs(IEnumerable<RestRequestArgs> args) : base(args) { }
+    }
+
+    public class BatchDatastoreArgs : BatchDatastoreArgs<DatastoreArgs>
+    {
+        public BatchDatastoreArgs(params DatastoreArgs[] args) : base(args) { }
+        public BatchDatastoreArgs(IEnumerable<DatastoreArgs> args) : base(args) { }
+    }
+
+    public class BatchDatastoreArgs<TArgs> : EventArgsRequest, IEnumerable<TArgs> //where TArgs : DatastoreArgs
     {
         public int Count => Requests.Count;
 
-        public IEnumerable<RestRequestArgs> Unhandled => Requests.Where(request => !request.IsHandled);// GetUnhandled();
+        public IEnumerable<TArgs> Unhandled => Requests.Where(request => (request as DatastoreArgs)?.IsHandled == false);// GetUnhandled();
 
-        //public IEnumerable<RestRequestArgs> Args { get; }
+        //public IEnumerable<TArgs> Args { get; }
         //private IEnumerable<KeyValuePair<Uri, Task<State>>> AdditionalState;// { get; private set; }
-        private HashSet<RestRequestArgs> Requests;
-        //public IEnumerable<RestRequestArgs> Unhandled { get; }
+        private HashSet<TArgs> Requests;
+        //public IEnumerable<TArgs> Unhandled { get; }
 
-        private readonly LinkedList<RestRequestArgs> _Unhandled;
-        //public readonly RestRequestArgs[] Requests;
+        private readonly LinkedList<TArgs> _Unhandled;
+        //public readonly TArgs[] Requests;
 
-        public MultiRestEventArgs(params RestRequestArgs[] args) : this((IEnumerable<RestRequestArgs>)args) { }
-        public MultiRestEventArgs(IEnumerable<RestRequestArgs> args)
+        public BatchDatastoreArgs(params TArgs[] args) : this((IEnumerable<TArgs>)args) { }
+        public BatchDatastoreArgs(IEnumerable<TArgs> args)
         {
-            Requests = new HashSet<RestRequestArgs>(args);
-            //_Unhandled = args as LinkedList<RestRequestArgs> ?? new LinkedList<RestRequestArgs>(args);
+            Requests = new HashSet<TArgs>(args);
+            //_Unhandled = args as LinkedList<TArgs> ?? new LinkedList<TArgs>(args);
         }
 
-        private IEnumerable<RestRequestArgs> GetUnhandled()
+        //private IEnumerable<TArgs> GetUnhandled()
+        //{
+        //    var node = _Unhandled.First;
+
+        //    while (node != null)
+        //    {
+        //        var next = node.Next;
+        //        var args = node.Value;
+
+        //        if (args.IsHandled)
+        //        {
+        //            node.List.Remove(node);
+        //        }
+        //        else
+        //        {
+        //            yield return args;
+        //        }
+
+        //        node = next;
+        //    }
+        //}
+
+        private IEnumerable<TArgs> GetAdditionalState()
         {
-            var node = _Unhandled.First;
-
-            while (node != null)
-            {
-                var next = node.Next;
-                var args = node.Value;
-
-                if (args.IsHandled)
-                {
-                    node.List.Remove(node);
-                }
-                else
-                {
-                    yield return args;
-                }
-
-                node = next;
-            }
-        }
-
-        private IEnumerable<RestRequestArgs> GetAdditionalState()
-        {
-            return Requests ?? Enumerable.Empty<RestRequestArgs>();
+            return Requests ?? Enumerable.Empty<TArgs>();
             
             //var set = AllArgs.Select(arg => arg.Uri).ToHashSet();
             //return AdditionalState?.Where(kvp => !set.Contains(kvp.Key)) ?? Enumerable.Empty<KeyValuePair<Uri, Task<State>>>();
         }
 
-        public void AddRequests(IEnumerable<RestRequestArgs> requests) => Requests.UnionWith(requests);
+        public void AddRequests(IEnumerable<TArgs> requests) => Requests.UnionWith(requests);
 
-        public void AddRequest(RestRequestArgs request)
+        public void AddRequest(TArgs request)
         {
             Requests.Add(request);
         }
 
+#if false
         public async Task<bool> HandleMany<T>(IReadOnlyDictionary<Uri, Task<T>> data)
         {
             //AdditionalState = data as IEnumerable<KeyValuePair<Uri, Task<State>>> ?? data.Select(kvp => new KeyValuePair<Uri, Task<State>>(kvp.Key, Task.FromResult(State.Create(kvp.Value))));
@@ -84,7 +97,7 @@ namespace Movies
             var set = Requests.Select(request => request.Uri).ToHashSet();
             Requests.AddRange(data.Where(kvp => !set.Contains(kvp.Key)).Select(kvp =>
             {
-                var request = new RestRequestArgs(kvp.Key);
+                var request = new TArgs(kvp.Key);
                 _ = request.Handle(kvp.Value);
                 return request;
             }));
@@ -108,14 +121,15 @@ namespace Movies
                 //success &= TryGetValue(data, arg.Uri, out var value) && arg.Handle(value);
             }
 
-            //Requests = data.Select(kvp => new RestRequestArgs(kvp.Key, State.Create(kvp.Value))).ToList();
+            //Requests = data.Select(kvp => new TArgs(kvp.Key, State.Create(kvp.Value))).ToList();
 
             //AdditionalState = data as IEnumerable<KeyValuePair<Uri, Task<State>>> ?? data.Select(kvp => new KeyValuePair<Uri, Task<State>>(kvp.Key, Task.FromResult(State.Create(kvp.Value))));
 
             return success;
         }
+#endif
 
-        public IEnumerator<RestRequestArgs> GetEnumerator() => Requests.GetEnumerator();
+        public IEnumerator<TArgs> GetEnumerator() => Requests.GetEnumerator();
 
         IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
     }
