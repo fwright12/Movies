@@ -39,6 +39,8 @@ namespace Movies
         //Task<bool> IAsyncEventProcessor<T>.ProcessAsync(T e) => ProcessAsync(e, null);
     }
 
+    //public interface IRestEventProcessor : IEventProcessor<EventArgsAsyncWrapper<IEnumerable<DatastoreKeyArgs<Uri>>>> { }
+
     public static class AsyncEventHandlerExtensions
     {
         public static void Invoke<T>(this EventHandler<EventArgsAsyncWrapper<T>> handler, object sender, T e) where T : EventArgs => handler.Invoke(sender, new EventArgsAsyncWrapper<T>(e));
@@ -65,13 +67,13 @@ namespace Movies
             return result;
         }
 
-        public static ChainLink<EventArgsAsyncWrapper<TDerived>> Create<TBase, TDerived>(IAsyncEventProcessor<TBase> processor) where TDerived : TBase => Create(new AsyncCoRProcessor<TBase, TDerived>(processor));
+        public static ChainLink<EventArgsAsyncWrapper<TDerived>> Create<TBase, TDerived>(this IAsyncEventProcessor<TBase> processor) where TDerived : TBase => ToChainLink(new AsyncCoRProcessor<TBase, TDerived>(processor));
         public static ChainLink<EventArgsAsyncWrapper<TDerived>> SetNext<TBase, TDerived>(this ChainLink<EventArgsAsyncWrapper<TDerived>> link, IAsyncEventProcessor<TBase> processor) where TDerived : TBase => link.SetNext(Create<TBase, TDerived>(processor));
 
-        public static ChainLink<EventArgsAsyncWrapper<T>> Create<T>(this IAsyncEventProcessor<T> processor) => Create<T>(new AsyncCoREventProcessor<T>(processor));
-        public static ChainLink<EventArgsAsyncWrapper<T>> SetNext<T>(this ChainLink<EventArgsAsyncWrapper<T>> link, IAsyncCoRProcessor<T> handler) => link.SetNext(Create(handler));
+        public static ChainLink<EventArgsAsyncWrapper<T>> Create<T>(this IAsyncEventProcessor<T> processor) => ToChainLink<T>(new AsyncCoREventProcessor<T>(processor));
+        public static ChainLink<EventArgsAsyncWrapper<T>> SetNext<T>(this ChainLink<EventArgsAsyncWrapper<T>> link, IAsyncCoRProcessor<T> handler) => link.SetNext(ToChainLink(handler));
 
-        public static ChainLink<EventArgsAsyncWrapper<T>> Create<T>(IAsyncCoRProcessor<T> handler) => new ChainLink<EventArgsAsyncWrapper<T>>(new AsyncCoRProcessor<T>(handler));
+        public static ChainLink<EventArgsAsyncWrapper<T>> ToChainLink<T>(this IAsyncCoRProcessor<T> handler) => new ChainLink<EventArgsAsyncWrapper<T>>(new AsyncCoRProcessor<T>(handler));
 
         public class AsyncCoREventProcessor<T> : AsyncCoRProcessor<T, T> { public AsyncCoREventProcessor(IAsyncEventProcessor<T> processor) : base(processor) { } }
 

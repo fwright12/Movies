@@ -1,6 +1,4 @@
-﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
-using Movies;
-using System.Collections;
+﻿using System.Collections;
 using System.Diagnostics;
 using System.Text;
 
@@ -12,7 +10,7 @@ namespace MoviesTests.Data.TMDb
         private class HandlerChain
         {
             //public readonly ChainLink<MultiRestEventArgs> Chain;
-            public readonly ChainLink<EventArgsAsyncWrapper<IEnumerable<DatastoreKeyArgs<Uri>>>> Chain;
+            public readonly ChainLink<EventArgsAsyncWrapper<IEnumerable<DatastoreKeyReadArgs<Uri>>>> Chain;
             public readonly TMDbResolver Resolver;
 
             public List<string> WebHistory => MockHttpHandler.LocalCallHistory;
@@ -21,7 +19,7 @@ namespace MoviesTests.Data.TMDb
             public DummyDatastore<IEnumerable<byte>> DiskCache { get; }
 
             public TMDbLocalHandlers LocalTMDbHandlers { get; }
-            public TMDbReadHandler RemoteTMDbHandlers { get; }
+            public IAsyncEventProcessor<IEnumerable<DatastoreKeyReadArgs<Uri>>> RemoteTMDbHandlers { get; }
             public MockHandler MockHttpHandler { get; }
 
             public HandlerChain()
@@ -41,12 +39,9 @@ namespace MoviesTests.Data.TMDb
                 var invoker = new HttpMessageInvoker(new BufferedHandler(new TMDbBufferedHandler(MockHttpHandler = new MockHandler())));
                 RemoteTMDbHandlers = new TMDbReadHandler(invoker, Resolver, TMDbApi.AutoAppend);
 
-                //var x = AsyncCoRExtensions.Create<IEnumerable<DatastoreArgs>, IEnumerable<DatastoreKeyArgs<Uri>>>(new CacheAsideProcessor(InMemoryCache));
-                var x = AsyncCoRExtensions.Create(new CacheAsideProcessor<DatastoreKeyArgs<Uri>>(InMemoryCache));
-                x.SetNext(new CacheAsideProcessor<DatastoreKeyArgs<Uri>>(LocalTMDbHandlers))
+                Chain = CacheAsideProcessor<DatastoreKeyReadArgs<Uri>>.Create(new RestCache(InMemoryCache)).ToChainLink();
+                Chain.SetNext(CacheAsideProcessor<DatastoreKeyReadArgs<Uri>>.Create(LocalTMDbHandlers))
                     .SetNext(RemoteTMDbHandlers);
-
-                Chain = x;
             }
         }
 
@@ -534,10 +529,10 @@ namespace MoviesTests.Data.TMDb
         {
             var properties = GetProperties(type);
 
-            foreach (var test in new (ChainLink<EventArgsAsyncWrapper<IEnumerable<DatastoreKeyArgs<Uri>>>> Controller, IEnumerable<Property?> Properties)[]
+            foreach (var test in new (ChainLink<EventArgsAsyncWrapper<IEnumerable<DatastoreKeyReadArgs<Uri>>>> Controller, IEnumerable<Property?> Properties)[]
             {
                 (handlers.Chain, properties),
-                (AsyncCoRExtensions.Create(handlers.LocalTMDbHandlers), type == typeof(TVSeason) || type == typeof(TVEpisode) ? Enumerable.Empty<Property>() : properties.Except(NO_CHANGE_KEY))
+                (AsyncCoRExtensions.Create<IEnumerable<DatastoreKeyReadArgs<Uri>>>(handlers.LocalTMDbHandlers), type == typeof(TVSeason) || type == typeof(TVEpisode) ? Enumerable.Empty<Property>() : properties.Except(NO_CHANGE_KEY))
             })
             {
                 foreach (var property in test.Properties)

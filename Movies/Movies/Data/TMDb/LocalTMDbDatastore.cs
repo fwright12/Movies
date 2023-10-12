@@ -16,10 +16,10 @@ namespace Movies
             Datastore = datastore;
         }
 
-        protected override IEnumerable<KeyValuePair<string, IEnumerable<DatastoreKeyArgs<Uri>>>> GroupRequests(IEnumerable<DatastoreKeyArgs<Uri>> args) => args
+        protected override IEnumerable<KeyValuePair<string, IEnumerable<DatastoreKeyReadArgs<Uri>>>> GroupRequests(IEnumerable<DatastoreKeyReadArgs<Uri>> args) => args
             .Where(arg => Datastore.IsCacheable(arg.Key))
-            .Select(arg => new KeyValuePair<string, IEnumerable<DatastoreKeyArgs<Uri>>>(Resolver.ResolveUrl(arg.Key), arg.AsEnumerable()))
-            .GroupBy(kvp => kvp.Key, (key, group) => new KeyValuePair<string, IEnumerable<DatastoreKeyArgs<Uri>>>(key, group.SelectMany(pair => pair.Value)));
+            .Select(arg => new KeyValuePair<string, IEnumerable<DatastoreKeyReadArgs<Uri>>>(Resolver.ResolveUrl(arg.Key), arg.AsEnumerable()))
+            .GroupBy(kvp => kvp.Key, (key, group) => new KeyValuePair<string, IEnumerable<DatastoreKeyReadArgs<Uri>>>(key, group.SelectMany(pair => pair.Value)));
     }
 
     public class LocalTMDbDatastore : IDataStore<Uri, State>

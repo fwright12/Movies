@@ -2,47 +2,28 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Key = System.EventArgs;
-using Value = Movies.DatastoreResponse;
 
 namespace Movies
 {
-    public class CacheAsideProcessor<T> : IAsyncCoRProcessor<IEnumerable<T>> where T : DatastoreArgs
+    public class CacheAsideProcessor<T> : IAsyncCoRProcessor<IEnumerable<T>> where T : DatastoreReadArgs
     {
-        public CacheAside<BatchDatastoreArgs<RestRequestArgs>> Handlers { get; }
-        //public IAsyncEventProcessor<MultiRestEventArgs> Processor { get; }
+        public IAsyncEventProcessor<IEnumerable<T>> ReadProcessor { get; }
+        public IAsyncEventProcessor<IEnumerable<DatastoreWriteArgs>> WriteProcessor { get; }
 
         private readonly object BufferLock = new object();
-        private Dictionary<Key, TaskCompletionSource<Task<Value>>> Buffer = new Dictionary<Key, TaskCompletionSource<Task<Value>>>();
+        private Dictionary<T, TaskCompletionSource<Task<DatastoreResponse>>> Buffer = new Dictionary<T, TaskCompletionSource<Task<DatastoreResponse>>>();
 
-        public CacheAsideProcessor(IDataStore<Uri, State> datastore) : this(new RestCache(datastore)) { }
-
-        public CacheAsideProcessor(DatastoreCache<Uri, State, BatchDatastoreArgs<RestRequestArgs>> cache)
+        public CacheAsideProcessor(IAsyncEventProcessor<IEnumerable<T>> readProcessor, IAsyncEventProcessor<IEnumerable<DatastoreWriteArgs>> writeProcessor)
         {
-            Handlers = cache;
+            ReadProcessor = readProcessor;
+            WriteProcessor = writeProcessor;
         }
 
-        private class Wrapper : IAsyncEventProcessor<IEnumerable<DatastoreArgs>>
-        {
-            public CacheAside<BatchDatastoreArgs<RestRequestArgs>> Handlers { get; }
-
-            public Wrapper(CacheAside<BatchDatastoreArgs<RestRequestArgs>> handlers)
-            {
-                Handlers = handlers;
-            }
-
-            public async Task<bool> ProcessAsync(IEnumerable<DatastoreArgs> e)
-            {
-                await (Handlers as IAsyncEventProcessor<IEnumerable<T>>)?.ProcessAsync((IEnumerable<T>)e);
-                return e.All(request => request.IsHandled);
-            }
-        }
-
-        public Task<bool> ProcessAsync(MultiRestEventArgs e, IAsyncEventProcessor<MultiRestEventArgs> next) => ProcessAsync((IEnumerable<T>)e, null);
+        public static CacheAsideProcessor<T> Create<TProcessor>(TProcessor processor) where TProcessor : IAsyncEventProcessor<IEnumerable<T>>, IAsyncEventProcessor<IEnumerable<DatastoreWriteArgs>> => new CacheAsideProcessor<T>(processor, processor);
 
         public async Task<bool> ProcessAsync(IEnumerable<T> e, IAsyncEventProcessor<IEnumerable<T>> next)
         {
-            var buffer = new Dictionary<Key, TaskCompletionSource<Task<Value>>>();
+            var buffer = new Dictionary<T, TaskCompletionSource<Task<DatastoreResponse>>>();
             var buffered = new List<Task>();
 
             try
@@ -54,7 +35,7 @@ namespace Movies
                 // Make sure all TaskCompletionSource's in buffer have been transitioned
                 foreach (var source in buffer.Values)
                 {
-                    source.TrySetResult(Task.FromResult<Value>(null));
+                    source.TrySetResult(Task.FromResult<DatastoreResponse>(null));
                 }
 
                 await Task.WhenAll(buffered.Select(Safely));
@@ -63,13 +44,13 @@ namespace Movies
             return e.All(request => request.IsHandled);
         }
 
-        private async Task GetAsync(IEnumerable<T> e, IAsyncEventProcessor<IEnumerable<T>> next, Dictionary<Key, TaskCompletionSource<Task<Value>>> buffer, List<Task> buffered)
+        private async Task GetAsync(IEnumerable<T> e, IAsyncEventProcessor<IEnumerable<T>> next, Dictionary<T, TaskCompletionSource<Task<DatastoreResponse>>> buffer, List<Task> buffered)
         {
             //var e = (BatchDatastoreArgs<RestRequestArgs>)e1;
             var eCache = new BatchDatastoreArgs<T>();
             var ready = new TaskCompletionSource<bool>();
             // Delay the request to the cache until we are ready for it to go through
-            var cacheResponse = WrapRequest(ready.Task, new Wrapper(Handlers), e, eCache);
+            var cacheResponse = WrapRequest(ready.Task, ReadProcessor, e, eCache);
 
             // Handle from the cache
             lock (BufferLock)
@@ -87,8 +68,8 @@ namespace Movies
                         // the global Buffer (because they finished writing) while we are reading from the cache.
                         // This avoids a scenario where we have a cache miss, but while waiting for that response
                         // to return from the cache it is updated with the value we requested.
-                        eCache.AddRequest((T) request);
-                        source = new TaskCompletionSource<Task<Value>>();
+                        eCache.AddRequest(request);
+                        source = new TaskCompletionSource<Task<DatastoreResponse>>();
                         Buffer.Add(request, source);
                         buffer.Add(request, source);
                     }
@@ -125,7 +106,7 @@ namespace Movies
                     }
                     else if (!request.IsHandled)
                     {
-                        eNext.AddRequest((T)request);
+                        eNext.AddRequest(request);
                     }
                 }
 
@@ -140,7 +121,7 @@ namespace Movies
             {
                 if (Buffer.TryGetValue(request, out var response))
                 {
-                    response.TrySetResult(Task.FromResult<Value>(null));
+                    response.TrySetResult(Task.FromResult<DatastoreResponse>(null));
 
                     try
                     {
@@ -158,7 +139,7 @@ namespace Movies
         }
 
         // Make a request with a subset of the requests from primary
-        private async Task SendAsync(IAsyncEventProcessor<IEnumerable<T>> handler, IEnumerable<DatastoreArgs> primary, IEnumerable<T> subset, bool refreshPreemptively)
+        private async Task SendAsync(IAsyncEventProcessor<IEnumerable<T>> handler, IEnumerable<T> primary, IEnumerable<T> subset, bool refreshPreemptively)
         {
             if (!subset.Any())
             {
@@ -167,9 +148,9 @@ namespace Movies
 
             // Little bit of a hack, assuming TMDbClient will be next - if we're going to request new data,
             // might as well update everything
-            if (handler is Wrapper == false && Handlers is TMDbLocalHandlers)
+            if (handler != ReadProcessor && ReadProcessor is TMDbLocalHandlers)
             {
-                (subset as BatchDatastoreArgs<T>)?.AddRequests(primary.OfType<T>());
+                (subset as BatchDatastoreArgs<T>)?.AddRequests(primary);
             }
 
             Task response;
@@ -184,7 +165,7 @@ namespace Movies
 
             // The handler is allowed to add extra requests (representing additional resources that
             // were retured as a side effect). Make the primary batch request aware of these
-            (primary as BatchDatastoreArgs<T>)?.AddRequests(subset.OfType<T>());
+            (primary as BatchDatastoreArgs<T>)?.AddRequests(subset);
             // Make sure any extra requests are in the buffer, and alert existing requests that we
             // are expecting a response. We can choose to update items before we actually get the
             // response (preemptively) or wait until we have it.
@@ -193,17 +174,17 @@ namespace Movies
             await Safely(response);
 
             // Repeat steps from before with any extra requests that were added asynchronously
-            (primary as BatchDatastoreArgs<T>)?.AddRequests(subset.OfType<T>());
+            (primary as BatchDatastoreArgs<T>)?.AddRequests(subset);
             RefreshBuffer(Buffer, subset);
         }
 
-        private static void RefreshBuffer(IDictionary<Key, TaskCompletionSource<Task<Value>>> buffer, IEnumerable<DatastoreArgs> args, Task handling = null)
+        private static void RefreshBuffer(IDictionary<T, TaskCompletionSource<Task<DatastoreResponse>>> buffer, IEnumerable<T> args, Task handling = null)
         {
             foreach (var request in args)
             {
                 if (!buffer.TryGetValue(request, out var source))
                 {
-                    buffer[request] = source = new TaskCompletionSource<Task<Value>>();
+                    buffer[request] = source = new TaskCompletionSource<Task<DatastoreResponse>>();
                 }
 
                 if (handling != null)
@@ -218,44 +199,45 @@ namespace Movies
             }
         }
 
-        private static async Task Rehandle(DatastoreArgs request, Task<Task<Value>> response)
+        private static async Task Rehandle(DatastoreReadArgs request, Task<Task<DatastoreResponse>> response)
         {
             var value = await (await response);
 
-            if (request.Response != value.Response)
+            if (request.Response != value)
             {
-                (request as RestRequestArgs)?.Handle(() => value.Response as State);
+                request.Handle(value);
             }
         }
 
         // Wait until the value has been written, then remove from the cache
-        private async void UpdateBufferOnWriteComplete(DatastoreArgs args1)
+        private async void UpdateBufferOnWriteComplete(DatastoreReadArgs args1)
         {
             var args = (RestRequestArgs)args1;
             if (args.Response != null)
             {
                 var request = new RestRequestArgs(args.Key, args.Response);
-                await Safely(Handlers.HandleSet(new MultiRestEventArgs(request)));
+                //await Safely(Handlers.HandleSet(new BatchDatastoreArgs<RestRequestArgs>(request)));
+                await Safely(WriteProcessor.ProcessAsync(new BatchDatastoreArgs<DatastoreKeyValueWriteArgs<Uri, REpresentationalStateTransfer.Resource>>(new DatastoreKeyValueWriteArgs<Uri, REpresentationalStateTransfer.Resource>(args.Key, () => args.Response))));
             }
 
             lock (BufferLock)
             {
-                Buffer.Remove(args);
+                Buffer.Remove((T)(dynamic)args);
             }
         }
 
-        private static async Task HandleAsync(DatastoreArgs request, Task<Task<Value>> response) => request.Handle(await (await response));
+        private static async Task HandleAsync(DatastoreReadArgs request, Task<Task<DatastoreResponse>> response) => request.Handle(await (await response));
 
-        private async Task WrapRequest(Task ready, IAsyncEventProcessor<IEnumerable<DatastoreArgs>> handler, IEnumerable<DatastoreArgs> primary, IEnumerable<T> subset)
+        private async Task WrapRequest(Task ready, IAsyncEventProcessor<IEnumerable<T>> handler, IEnumerable<T> primary, IEnumerable<T> subset)
         {
             await ready;
             await SendAsync(handler, primary, subset, false);
         }
 
-        private static async Task<Value> GetResponseAsync(Task task, DatastoreArgs e)
+        private static async Task<DatastoreResponse> GetResponseAsync(Task task, DatastoreReadArgs e)
         {
             await task;
-            return new DatastoreResponse<State>(((RestRequestArgs)e).Response);
+            return e.Response;
         }
 
         private static async Task Safely(Task task)

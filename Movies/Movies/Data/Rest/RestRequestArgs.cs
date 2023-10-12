@@ -102,30 +102,37 @@ namespace REpresentationalStateTransfer
 
 namespace Movies
 {
-    public abstract class DatastoreRequest
+    public abstract class DatastoreWriteArgs
     {
+        public object RawValue { get; }
 
+        protected DatastoreWriteArgs(object value)
+        {
+            RawValue = value;
+        }
+    }
+
+    public class DatastoreKeyValueWriteArgs<TKey, TValue> : DatastoreWriteArgs
+    {
+        public TKey Key { get; }
+        public TValue Value { get; }
+
+        public DatastoreKeyValueWriteArgs(TKey key, TValue value) : base(value)
+        {
+            Key = key;
+            Value = value;
+        }
     }
 
     public abstract class DatastoreResponse
     {
-        public abstract object Response { get; }
-    }
-
-    public class DatastoreKeyRequest<T> : DatastoreRequest
-    {
-        public T Key { get; }
-
-        public DatastoreKeyRequest(T key)
-        {
-            Key = key;
-        }
+        public abstract object RawValue { get; }
     }
 
     public class DatastoreResponse<T> : DatastoreResponse
     {
         public T Value { get; }
-        public override object Response => Value;
+        public override object RawValue => Value;
 
         public DatastoreResponse(T value)
         {
@@ -133,9 +140,8 @@ namespace Movies
         }
     }
 
-    public abstract class DatastoreArgs : EventArgsRequest
+    public abstract class DatastoreReadArgs : EventArgsRequest
     {
-        public DatastoreRequest Request { get; }
         public DatastoreResponse Response { get; private set; }
 
         public bool Handle(DatastoreResponse response)
@@ -155,16 +161,14 @@ namespace Movies
         protected virtual bool Accept(DatastoreResponse response) => true;
     }
 
-    public class DatastoreKeyArgs<TKey> : DatastoreArgs
+    public class DatastoreKeyReadArgs<TKey> : DatastoreReadArgs
     {
         public TKey Key { get; }
 
-        public DatastoreKeyArgs(TKey key)
+        public DatastoreKeyReadArgs(TKey key)
         {
             Key = key;
         }
-
-        //public bool Handle<TValue>(TValue value) => Handle(new DatastoreResponse<TValue>(value));
     }
 
     public interface IAsyncResponse
@@ -190,7 +194,7 @@ namespace Movies
         }
     }
 
-    public class ResourceArgs : DatastoreKeyArgs<Uri>
+    public class ResourceArgs : DatastoreKeyReadArgs<Uri>
     {
         public object Expected { get; protected set; }
         public Metadata Metadata { get; private set; }
@@ -331,14 +335,14 @@ namespace Movies
             return args.HandleLateBound(authority.Resource, authority.UpdateAsync());
         }
 
-        public static Task<bool> Handle(this DatastoreKeyArgs<Uri> args, Connector connector)
+        public static Task<bool> Handle(this DatastoreKeyReadArgs<Uri> args, Connector connector)
         {
             ResourceNamingAuthority authority = new ResourceNamingAuthority(connector, new RestRequest(args.Key, null, null));
             args.Handle(new DatastoreResponse<Resource>(authority.Resource));
             return Task.FromResult(true);
         }
 
-        public static async Task<bool> Handle(this DatastoreArgs args, Task<State> response)
+        public static async Task<bool> Handle(this DatastoreReadArgs args, Task<State> response)
         {
             var value = await response;
             return args.Handle(new DatastoreResponse<Resource>(() => value));

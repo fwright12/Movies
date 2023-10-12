@@ -67,7 +67,7 @@ namespace Movies
     {
         public static readonly DataService Instance = new DataService();
 
-        public ChainLink<EventArgsAsyncWrapper<IEnumerable<DatastoreKeyArgs<Uri>>>> Controller { get; }
+        public ChainLink<EventArgsAsyncWrapper<IEnumerable<DatastoreKeyReadArgs<Uri>>>> Controller { get; }
         public UiiDictionaryDatastore ResourceCache { get; }
         public const int BATCH_TIMEOUT = 5000;
 
@@ -83,7 +83,7 @@ namespace Movies
         {
             ResourceCache = new UiiDictionaryDatastore();
             //Controller = new Controller().AddLast(ResourceCache);
-            Controller = AsyncCoRExtensions.Create(new CacheAsideProcessor<DatastoreKeyArgs<Uri>>(ResourceCache));
+            Controller = CacheAsideProcessor<DatastoreKeyReadArgs<Uri>>.Create(new RestCache(ResourceCache)).ToChainLink();
         }
 
         public void BatchBegin()

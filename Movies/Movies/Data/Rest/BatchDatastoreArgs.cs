@@ -7,23 +7,11 @@ using System.Threading.Tasks;
 
 namespace Movies
 {
-    public class MultiRestEventArgs : BatchDatastoreArgs<RestRequestArgs>
-    {
-        public MultiRestEventArgs(params RestRequestArgs[] args) : base(args) { }
-        public MultiRestEventArgs(IEnumerable<RestRequestArgs> args) : base(args) { }
-    }
-
-    public class BatchDatastoreArgs : BatchDatastoreArgs<DatastoreArgs>
-    {
-        public BatchDatastoreArgs(params DatastoreArgs[] args) : base(args) { }
-        public BatchDatastoreArgs(IEnumerable<DatastoreArgs> args) : base(args) { }
-    }
-
     public class BatchDatastoreArgs<TArgs> : EventArgsRequest, IEnumerable<TArgs> //where TArgs : DatastoreArgs
     {
         public int Count => Requests.Count;
 
-        public IEnumerable<TArgs> Unhandled => Requests.Where(request => (request as DatastoreArgs)?.IsHandled == false);// GetUnhandled();
+        public IEnumerable<TArgs> Unhandled => Requests.Where(request => (request as DatastoreReadArgs)?.IsHandled == false);// GetUnhandled();
 
         //public IEnumerable<TArgs> Args { get; }
         //private IEnumerable<KeyValuePair<Uri, Task<State>>> AdditionalState;// { get; private set; }

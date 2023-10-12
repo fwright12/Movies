@@ -32,89 +32,6 @@ namespace Movies
         }
     }
 
-    public abstract class HttpRestCache : RestCache
-    {
-        new public HttpDatastore Datastore { get; }
-
-        protected HttpRestCache(HttpDatastore datastore) : base(datastore)
-        {
-            Datastore = datastore;
-        }
-
-        public override Task HandleGet(BatchDatastoreArgs<RestRequestArgs> e)
-        {
-            var responses = new List<Task>();
-
-            foreach (var kvp in GroupRequests(e.Unhandled))
-            {
-                var uri = new Uri(kvp.Key, UriKind.RelativeOrAbsolute);
-                var requests = kvp.Value.ToArray();
-                var response = Datastore.ReadAsync(uri);
-
-                if (Datastore.TryGetConverter(uri, out var converter) && converter is HttpResourceCollectionConverter resources)
-                {
-                    var index = requests.ToDictionary(req => req.Uri, req => req);
-                    var collection = response.TransformAsync(Convert).TransformAsync(DictionaryHelpers.ToReadOnlyDictionary);
-                    //var values = resources.Resources.ToDictionary(uri => uri, uri => index.GetAsync(uri).TransformAsync(obj => State.Create(obj)));
-
-                    foreach (var resource in resources.Resources)
-                    {
-                        ICollection<Task> handling = responses;
-
-                        if (!index.TryGetValue(resource, out var request))
-                        {
-                            e.AddRequest(request = new RestRequestArgs(resource));
-                            handling = null;
-                        }
-
-                        var value = collection.GetAsync(resource).TransformAsync(obj => State.Create(obj));
-                        var task = request.Handle(value);
-                        handling?.Add(task);
-                    }
-                }
-            }
-
-            return Task.WhenAll(responses);
-        }
-
-        private static Task<State> Convert(HttpContent content) => null;
-
-        public static Task Handle(RestRequestArgs e, HttpResponseMessage response)
-        {
-            return null;// e.Handle(Convert(response.Content), new HttpHeadersWrapper(response.Headers));
-        }
-
-        public class HttpHeadersWrapper : IReadOnlyDictionary<string, IEnumerable<string>>
-        {
-            public HttpHeaders Headers { get; }
-
-            public IEnumerable<string> Keys => Headers.Select(header => header.Key);
-
-            public IEnumerable<IEnumerable<string>> Values => Headers.Select(header => header.Value);
-
-            public int Count => Headers.Count();
-
-            public IEnumerable<string> this[string key] => Headers.GetValues(key);
-
-            public HttpHeadersWrapper(HttpHeaders headers)
-            {
-                Headers = headers;
-            }
-
-            public bool ContainsKey(string key) => Headers.TryGetValues(key, out _);
-
-            public bool TryGetValue(string key, out IEnumerable<string> value) => Headers.TryGetValues(key, out value);
-
-            public IEnumerator<KeyValuePair<string, IEnumerable<string>>> GetEnumerator() => Headers.GetEnumerator();
-
-            IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
-        }
-
-        protected virtual IEnumerable<KeyValuePair<string, IEnumerable<RestRequestArgs>>> GroupRequests(IEnumerable<RestRequestArgs> args) => args.Select(arg => new KeyValuePair<string, IEnumerable<RestRequestArgs>>(arg.Uri.ToString(), arg.AsEnumerable()));
-
-        private static IEnumerable<KeyValuePair<Uri, object>> Convert(State response) => response.TryGetRepresentation<IEnumerable<KeyValuePair<Uri, object>>>(out var collection) == true ? collection : Enumerable.Empty<KeyValuePair<Uri, object>>();
-    }
-
     public abstract class TMDbRestCache : RestCache
     {
         public TMDbResolver Resolver { get; }
@@ -124,17 +41,13 @@ namespace Movies
             Resolver = resolver;
         }
 
-        protected virtual IEnumerable<DatastoreKeyArgs<Uri>> GetRequests(IEnumerable<DatastoreKeyArgs<Uri>> e) => e.Where(arg => !arg.IsHandled);
+        protected virtual IEnumerable<DatastoreKeyReadArgs<Uri>> GetRequests(IEnumerable<DatastoreKeyReadArgs<Uri>> e) => e.Where(arg => !arg.IsHandled);
 
-        public override Task HandleGet(BatchDatastoreArgs<RestRequestArgs> e) => ProcessAsync(e);
-
-        public Task<bool> ProcessAsync(MultiRestEventArgs e) => ProcessAsync((IEnumerable<RestRequestArgs>)e);
-
-        public override async Task<bool> ProcessAsync(IEnumerable<DatastoreKeyArgs<Uri>> e)
+        public override async Task<bool> ProcessAsync(IEnumerable<DatastoreKeyReadArgs<Uri>> e)
         {
             var item = e.Select(arg => arg.Key).OfType<UniformItemIdentifier>().Select(uii => uii.Item).FirstOrDefault(item => item != null);
             var responses = new List<Task>();
-            var batch = e as BatchDatastoreArgs<DatastoreKeyArgs<Uri>>;
+            var batch = e as BatchDatastoreArgs<DatastoreKeyReadArgs<Uri>>;
 
             foreach (var kvp in GroupRequests(GetRequests(e)))
             {
@@ -177,7 +90,7 @@ namespace Movies
             return e.All(request => request.IsHandled);
         }
 
-        private TMDbResolver.TrojanTMDbUri GetUri(Item item, string url, DatastoreKeyArgs<Uri>[] requests)
+        private TMDbResolver.TrojanTMDbUri GetUri(Item item, string url, DatastoreKeyReadArgs<Uri>[] requests)
         {
             var properties = requests
                     .Select(arg => arg.Key)
@@ -198,7 +111,7 @@ namespace Movies
             return uri;
         }
 
-        protected virtual IEnumerable<KeyValuePair<string, IEnumerable<DatastoreKeyArgs<Uri>>>> GroupRequests(IEnumerable<DatastoreKeyArgs<Uri>> args) => args.Select(arg => new KeyValuePair<string, IEnumerable<DatastoreKeyArgs<Uri>>>(Resolver.ResolveUrl(arg.Key), arg.AsEnumerable()));
+        protected virtual IEnumerable<KeyValuePair<string, IEnumerable<DatastoreKeyReadArgs<Uri>>>> GroupRequests(IEnumerable<DatastoreKeyReadArgs<Uri>> args) => args.Select(arg => new KeyValuePair<string, IEnumerable<DatastoreKeyReadArgs<Uri>>>(Resolver.ResolveUrl(arg.Key), arg.AsEnumerable()));
 
         private static IEnumerable<KeyValuePair<Uri, object>> Convert(State response) => response.TryGetRepresentation<IEnumerable<KeyValuePair<Uri, object>>>(out var collection) == true ? collection : Enumerable.Empty<KeyValuePair<Uri, object>>();
     }
@@ -225,9 +138,9 @@ namespace Movies
             }
         }
 
-        protected override IEnumerable<DatastoreKeyArgs<Uri>> GetRequests(IEnumerable<DatastoreKeyArgs<Uri>> e) => e;
+        protected override IEnumerable<DatastoreKeyReadArgs<Uri>> GetRequests(IEnumerable<DatastoreKeyReadArgs<Uri>> e) => e;
 
-        protected override IEnumerable<KeyValuePair<string, IEnumerable<DatastoreKeyArgs<Uri>>>> GroupRequests(IEnumerable<DatastoreKeyArgs<Uri>> args)
+        protected override IEnumerable<KeyValuePair<string, IEnumerable<DatastoreKeyReadArgs<Uri>>>> GroupRequests(IEnumerable<DatastoreKeyReadArgs<Uri>> args)
         {
             var trie = new Dictionary<string, List<(string Url, string Path, string Query, RestRequestArgs Arg)>>();
 
@@ -267,7 +180,7 @@ namespace Movies
                     url += "?" + query;
                 }
 
-                yield return new KeyValuePair<string, IEnumerable<DatastoreKeyArgs<Uri>>>(url, kvp.Value.Select(value => value.Arg).Where(arg => arg != null));
+                yield return new KeyValuePair<string, IEnumerable<DatastoreKeyReadArgs<Uri>>>(url, kvp.Value.Select(value => value.Arg).Where(arg => arg != null));
             }
         }
 
