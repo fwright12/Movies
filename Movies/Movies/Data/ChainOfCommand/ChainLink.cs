@@ -233,6 +233,63 @@ namespace Movies
         }*/
     }
 
+    public class AsyncEventBulkProcessor<T> : AsyncEventBulkProcessor<T, T> { public AsyncEventBulkProcessor(IAsyncEventProcessor<T> processor) : base(processor) { } }
+
+    public class AsyncEventBulkProcessor<TBase, TDerived> : IAsyncEventProcessor<IEnumerable<TBase>>
+    {
+        public IAsyncEventProcessor<TDerived> Processor { get; }
+
+        public AsyncEventBulkProcessor(IAsyncEventProcessor<TDerived> processor)
+        {
+            Processor = processor;
+        }
+
+        public async Task<bool> ProcessAsync(IEnumerable<TBase> e)
+        {
+            var tasks = new List<Task<bool>>();
+
+            foreach (var request in e.Where(request => request is EventArgsRequest ear == false || !ear.IsHandled).OfType<TDerived>())
+            {
+                tasks.Add(Processor.ProcessAsync(request));
+            }
+
+            return (await Task.WhenAll(tasks)).All(value => value);
+        }
+    }
+
+    public abstract class AsyncEventGroupProcessor<TSingle, TGrouped> : IAsyncEventProcessor<IEnumerable<TSingle>>
+    {
+        public IAsyncEventProcessor<TGrouped> Processor { get; }
+
+        protected AsyncEventGroupProcessor(IAsyncEventProcessor<TGrouped> processor)
+        {
+            Processor = processor;
+        }
+
+        public virtual async Task<bool> ProcessAsync(IEnumerable<TSingle> e)
+        {
+            var results = new List<Task<bool>>();
+
+            foreach (var kvp in GroupRequests(e))
+            {
+                results.Add(ProcessAsync(kvp));
+                (e as BatchDatastoreArgs<TSingle>)?.AddRequests(kvp.Value);
+            }
+
+            return (await Task.WhenAll(results)).All(value => value);
+        }
+
+        private async Task<bool> ProcessAsync(KeyValuePair<TGrouped, IEnumerable<TSingle>> kvp)
+        {
+            await Processor.ProcessAsync(kvp.Key);
+            return Handle(kvp.Key, kvp.Value);
+        }
+
+        protected abstract IEnumerable<KeyValuePair<TGrouped, IEnumerable<TSingle>>> GroupRequests(IEnumerable<TSingle> args);
+
+        protected abstract bool Handle(TGrouped grouped, IEnumerable<TSingle> singles);
+    }
+
     public sealed class ChainLink<T> : IEventProcessor<T>
     {
         public ChainLink<T> Next { get; set; }

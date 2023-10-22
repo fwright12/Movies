@@ -1,4 +1,5 @@
 ﻿using Movies.Models;
+using REpresentationalStateTransfer;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -7,22 +8,27 @@ using System.Threading.Tasks;
 
 namespace Movies
 {
-    public class TMDbLocalHandlers : TMDbRestCache
+    public class TMDbLocalProcessor : TMDbProcessor, IAsyncEventProcessor<IEnumerable<DatastoreWriteArgs>>
     {
-        new public LocalTMDbDatastore Datastore { get; }
+        public LocalTMDbDatastore Datastore { get; }
 
-        public TMDbLocalHandlers(LocalTMDbDatastore datastore, TMDbResolver resolver) : base(datastore, resolver)
+        private IAsyncEventProcessor<IEnumerable<DatastoreWriteArgs>> BulkProcessor { get; }
+
+        public TMDbLocalProcessor(LocalTMDbDatastore datastore, TMDbResolver resolver) : base(datastore, resolver)
         {
             Datastore = datastore;
+            BulkProcessor = new AsyncEventBulkProcessor<DatastoreWriteArgs, DatastoreKeyValueWriteArgs<Uri, Resource>>(Datastore);
         }
 
-        protected override IEnumerable<KeyValuePair<string, IEnumerable<DatastoreKeyReadArgs<Uri>>>> GroupRequests(IEnumerable<DatastoreKeyReadArgs<Uri>> args) => args
+        public Task<bool> ProcessAsync(IEnumerable<DatastoreWriteArgs> e) => BulkProcessor.ProcessAsync(e);
+
+        protected override IEnumerable<KeyValuePair<string, IEnumerable<DatastoreKeyValueReadArgs<Uri>>>> GroupUrls(IEnumerable<DatastoreKeyValueReadArgs<Uri>> args) => args
             .Where(arg => Datastore.IsCacheable(arg.Key))
-            .Select(arg => new KeyValuePair<string, IEnumerable<DatastoreKeyReadArgs<Uri>>>(Resolver.ResolveUrl(arg.Key), arg.AsEnumerable()))
-            .GroupBy(kvp => kvp.Key, (key, group) => new KeyValuePair<string, IEnumerable<DatastoreKeyReadArgs<Uri>>>(key, group.SelectMany(pair => pair.Value)));
+            .Select(arg => new KeyValuePair<string, IEnumerable<DatastoreKeyValueReadArgs<Uri>>>(Resolver.ResolveUrl(arg.Key), arg.AsEnumerable()))
+            .GroupBy(kvp => kvp.Key, (key, group) => new KeyValuePair<string, IEnumerable<DatastoreKeyValueReadArgs<Uri>>>(key, group.SelectMany(pair => pair.Value)));
     }
 
-    public class LocalTMDbDatastore : IDataStore<Uri, State>
+    public class LocalTMDbDatastore : IAsyncEventProcessor<DatastoreKeyValueReadArgs<Uri>>, IAsyncEventProcessor<DatastoreKeyValueWriteArgs<Uri, Resource>>
     {
         public TMDbResolver Resolver { get; }
         public IDataStore<Uri, State> Datastore { get; }
@@ -44,44 +50,43 @@ namespace Movies
             Resolver = resolver;
         }
 
-        public Task<bool> CreateAsync(Uri key, State value) => UpdateAsync(key, value);
-
-        public async Task<State> ReadAsync(Uri key)
+        public async Task<bool> ProcessAsync(DatastoreKeyValueReadArgs<Uri> e)
         {
-            if (!IsCacheable(key))
+            if (!IsCacheable(e.Key))
             {
-                return await Task.FromResult<State>(null);
+                return false;
             }
 
-            var url = Resolver.ResolveUrl(key);
+            var url = Resolver.ResolveUrl(e.Key);
             var uri = new Uri(url, UriKind.RelativeOrAbsolute);
             var state = await Datastore.ReadAsync(uri);
 
-            if (state?.TryGetRepresentation<IEnumerable<byte>>(out var bytes) == true && Resolver.TryGetConverter(key, out var converter))
+            if (state?.TryGetRepresentation<IEnumerable<byte>>(out var bytes) == true && Resolver.TryGetConverter(e.Key, out var converter))
             {
                 var converted = await converter.Convert(new ByteArrayContent(bytes as byte[] ?? bytes.ToArray()));
                 //var type = converter is HttpResourceCollectionConverter ? typeof(IEnumerable<KeyValuePair<Uri, object>>) : converted.GetType();
                 state.Add(converted.GetType(), converted);
             }
 
-            return state;
+            return e.Handle(new RestResponse(state)
+            {
+                Expected = e.Expected
+            });
         }
 
-        public Task<bool> UpdateAsync(Uri key, State updatedValue)
+        public Task<bool> ProcessAsync(DatastoreKeyValueWriteArgs<Uri, Resource> e)
         {
-            if (key is UniformItemIdentifier || !IsCacheable(key))
+            if (e.Key is UniformItemIdentifier || !IsCacheable(e.Key))
             {
                 return Task.FromResult(false);
             }
             else
             {
-                var url = Resolver.ResolveUrl(key);
-                key = new Uri(url, UriKind.RelativeOrAbsolute);
-                return Datastore.UpdateAsync(key, updatedValue);
+                var url = Resolver.ResolveUrl(e.Key);
+                var key = new Uri(url, UriKind.RelativeOrAbsolute);
+                return Datastore.UpdateAsync(key, e.Value() as State);
             }
         }
-
-        public Task<State> DeleteAsync(Uri key) => Datastore.DeleteAsync(key);
 
         public bool IsCacheable(Uri uri)
         {

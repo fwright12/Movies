@@ -25,16 +25,16 @@
             { API.MOVIES.GET_KEYWORDS.GetURL(), EmptyJSON }
         };
 
-        private ChainLink<EventArgsAsyncWrapper<IEnumerable<DatastoreKeyReadArgs<Uri>>>> Chain;
+        private ChainLink<EventArgsAsyncWrapper<IEnumerable<DatastoreKeyValueReadArgs<Uri>>>> Chain;
 
         public FilterEvaluationTests()
         {
             //new TMDB(string.Empty, string.Empty, new DummyCache());
             var resolver = new TMDbResolver(TMDB.ITEM_PROPERTIES);
             var invoker = new HttpMessageInvoker(new BufferedHandler(new TMDbBufferedHandler(new MockHandler())));
-            var RemoteTMDbHandlers = new TMDbReadHandler(invoker, resolver, TMDbApi.AutoAppend);
+            var RemoteTMDbHandlers = new TMDbHttpProcessor(invoker, resolver, TMDbApi.AutoAppend);
 
-            Chain = AsyncCoRExtensions.Create<IEnumerable<DatastoreKeyReadArgs<Uri>>>(RemoteTMDbHandlers);
+            Chain = AsyncCoRExtensions.Create<IEnumerable<DatastoreKeyValueReadArgs<Uri>>>(RemoteTMDbHandlers);
             DebugConfig.SimulatedDelay = 0;
 
             InMemoryCache = new UiiDictionaryDatastore();

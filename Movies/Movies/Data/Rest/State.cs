@@ -13,8 +13,14 @@ namespace Movies
 
     public class State : IEnumerable, IEnumerable<Representation<object>>, IEnumerable<Entity>
     {
+        public int Count => Representations.Count;
+
         private Dictionary<Type, object> Representations { get; }
 
+        public State()
+        {
+            Representations = new Dictionary<Type, object>();
+        }
         public State(object initial) : this(initial.GetType(), initial) { }
         private State(Type type, object initial)
         {
@@ -49,6 +55,18 @@ namespace Movies
         }
 
         public void Add<T>(T value) => Add(typeof(T), value);
+
+        public void Add(Entity entity)
+        {
+            if (entity.Value is Representation<object> representation)
+            {
+                Add(representation.Value.GetType(), representation.Value);
+            }
+            else
+            {
+                Add(entity.Value.GetType(), entity.Value);
+            }
+        }
 
         public Resource AsResource() => GetResource;
 

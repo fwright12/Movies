@@ -148,7 +148,7 @@ namespace Movies
 
             // Little bit of a hack, assuming TMDbClient will be next - if we're going to request new data,
             // might as well update everything
-            if (handler != ReadProcessor && ReadProcessor is TMDbLocalHandlers)
+            if (handler != ReadProcessor && ReadProcessor is TMDbLocalProcessor)
             {
                 (subset as BatchDatastoreArgs<T>)?.AddRequests(primary);
             }
@@ -210,19 +210,20 @@ namespace Movies
         }
 
         // Wait until the value has been written, then remove from the cache
-        private async void UpdateBufferOnWriteComplete(DatastoreReadArgs args1)
+        private async void UpdateBufferOnWriteComplete(T args)
         {
-            var args = (RestRequestArgs)args1;
             if (args.Response != null)
             {
-                var request = new RestRequestArgs(args.Key, args.Response);
+                var key = (args as DatastoreKeyValueReadArgs<Uri>).Key;
+                var value = (args.Response as RestResponse)?.Entities as State;
+
                 //await Safely(Handlers.HandleSet(new BatchDatastoreArgs<RestRequestArgs>(request)));
-                await Safely(WriteProcessor.ProcessAsync(new BatchDatastoreArgs<DatastoreKeyValueWriteArgs<Uri, REpresentationalStateTransfer.Resource>>(new DatastoreKeyValueWriteArgs<Uri, REpresentationalStateTransfer.Resource>(args.Key, () => args.Response))));
+                await Safely(WriteProcessor.ProcessAsync(new BatchDatastoreArgs<DatastoreKeyValueWriteArgs<Uri, REpresentationalStateTransfer.Resource>>(new DatastoreKeyValueWriteArgs<Uri, REpresentationalStateTransfer.Resource>(key, () => value))));
             }
 
             lock (BufferLock)
             {
-                Buffer.Remove((T)(dynamic)args);
+                Buffer.Remove(args);
             }
         }
 

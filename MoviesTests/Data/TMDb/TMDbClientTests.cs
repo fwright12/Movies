@@ -3,8 +3,8 @@
     [TestClass]
     public class TMDbClientTests : Resources
     {
-        private readonly TMDbReadHandler TMDbReadHandler;
-        private ChainLink<EventArgsAsyncWrapper<IEnumerable<DatastoreKeyReadArgs<Uri>>>> Chain => AsyncCoRExtensions.Create<IEnumerable<DatastoreKeyReadArgs<Uri>>>(TMDbReadHandler);
+        private readonly TMDbHttpProcessor TMDbReadHandler;
+        private ChainLink<EventArgsAsyncWrapper<IEnumerable<DatastoreKeyValueReadArgs<Uri>>>> Chain => AsyncCoRExtensions.Create<IEnumerable<DatastoreKeyValueReadArgs<Uri>>>(TMDbReadHandler);
         
 
         public TMDbClientTests()
@@ -12,7 +12,7 @@
             var resolver = new TMDbResolver(TMDB.ITEM_PROPERTIES);
             var invoker = new HttpMessageInvoker(new BufferedHandler(new TMDbBufferedHandler(new MockHandler())));
 
-            TMDbReadHandler = new TMDbReadHandler(invoker, resolver);
+            TMDbReadHandler = new TMDbHttpProcessor(invoker, resolver);
         }
 
         [TestInitialize]
@@ -125,6 +125,6 @@
             Assert.AreEqual(1, WebHistory.Count);
         }
 
-        private void AssertHandled(params RestRequestArgs[] e) => Assert.IsTrue(e.All(arg => arg.IsHandled), "The following uris where not handled:\n" + string.Join('\n', e.Where(arg => !arg.IsHandled).Select(arg => arg.Uri.ToString())));
+        private void AssertHandled(params DatastoreKeyValueReadArgs<Uri>[] e) => Assert.IsTrue(e.All(arg => arg.IsHandled), "The following uris where not handled:\n" + string.Join('\n', e.Where(arg => !arg.IsHandled).Select(arg => arg.Key.ToString())));
     }
 }

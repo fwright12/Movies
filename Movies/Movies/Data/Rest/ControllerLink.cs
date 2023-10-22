@@ -9,35 +9,30 @@ namespace Movies
 {
     public static class RestChainExtensions
     {
-        public static async Task<RestRequestArgs> Get(this IEventProcessor<EventArgsAsyncWrapper<IEnumerable<DatastoreKeyReadArgs<Uri>>>> chain, string url) => (await Get(chain, new string[] { url }))[0];
-        public static Task<RestRequestArgs[]> Get(this IEventProcessor<EventArgsAsyncWrapper<IEnumerable<DatastoreKeyReadArgs<Uri>>>> chain, params string[] urls) => Get(chain, urls.Select(url => new Uri(url, UriKind.Relative)));
-        public static Task<RestRequestArgs[]> Get(this IEventProcessor<EventArgsAsyncWrapper<IEnumerable<DatastoreKeyReadArgs<Uri>>>> chain, params Uri[] uris) => Get(chain, (IEnumerable<Uri>)uris);
-        public static async Task<RestRequestArgs[]> Get(this IEventProcessor<EventArgsAsyncWrapper<IEnumerable<DatastoreKeyReadArgs<Uri>>>> chain, IEnumerable<Uri> uris)
+        public static async Task<RestRequestArgs> Get(this IEventProcessor<EventArgsAsyncWrapper<IEnumerable<DatastoreKeyValueReadArgs<Uri>>>> chain, string url) => (await Get(chain, new string[] { url }))[0];
+        public static Task<RestRequestArgs[]> Get(this IEventProcessor<EventArgsAsyncWrapper<IEnumerable<DatastoreKeyValueReadArgs<Uri>>>> chain, params string[] urls) => Get(chain, urls.Select(url => new Uri(url, UriKind.Relative)));
+        public static async Task<RestRequestArgs[]> Get(this IEventProcessor<EventArgsAsyncWrapper<IEnumerable<DatastoreKeyValueReadArgs<Uri>>>> chain, IEnumerable<Uri> uris)
         {
             var args = uris.Select(uri => new RestRequestArgs(uri)).ToArray();
             await Get(chain, args);
             return args;
         }
 
-        public static async Task<RestRequestArgs<T>> Get<T>(this IEventProcessor<EventArgsAsyncWrapper<IEnumerable<DatastoreKeyReadArgs<Uri>>>> chain, Uri uri)
+        public static Task Get(this IEventProcessor<EventArgsAsyncWrapper<IEnumerable<DatastoreKeyValueReadArgs<Uri>>>> chain, params DatastoreKeyValueReadArgs<Uri>[] args) => Get(chain, (IEnumerable<DatastoreKeyValueReadArgs<Uri>>)args);
+        public static Task Get(this IEventProcessor<EventArgsAsyncWrapper<IEnumerable<DatastoreKeyValueReadArgs<Uri>>>> chain, IEnumerable<DatastoreKeyValueReadArgs<Uri>> args)
         {
-            var args = new RestRequestArgs<T>(uri);
-            await Get(chain, args);
-            return args;
+            var e = new BatchDatastoreArgs<DatastoreKeyValueReadArgs<Uri>>(args);
+            return chain.ProcessAsync(new EventArgsAsyncWrapper<IEnumerable<DatastoreKeyValueReadArgs<Uri>>>(e));
         }
 
-        public static async Task<(bool Success, T Resource)> TryGet<T>(this IEventProcessor<EventArgsAsyncWrapper<IEnumerable<DatastoreKeyReadArgs<Uri>>>> chain, Uri uri)
+        public static async Task<DatastoreKeyValueReadArgs<Uri, T>> TryGet<T>(this IEventProcessor<EventArgsAsyncWrapper<IEnumerable<DatastoreKeyValueReadArgs<Uri>>>> processor, Uri uri)
         {
-            var args = await Get<T>(chain, uri);
-            return args.IsHandled && args.Response.TryGetRepresentation<T>(out var value) ? (true, value) : (false, default);
+            var e = new DatastoreKeyValueReadArgs<Uri, T>(uri);
+            await processor.ProcessAsync(new EventArgsAsyncWrapper<IEnumerable<DatastoreKeyValueReadArgs<Uri>>>(new BatchDatastoreArgs<DatastoreKeyValueReadArgs<Uri>>(e)));
+            return e;
         }
 
-        public static Task Get(this IEventProcessor<EventArgsAsyncWrapper<IEnumerable<DatastoreKeyReadArgs<Uri>>>> chain, params RestRequestArgs[] args) => Get(chain, (IEnumerable<RestRequestArgs>)args);
-        public static Task Get(this IEventProcessor<EventArgsAsyncWrapper<IEnumerable<DatastoreKeyReadArgs<Uri>>>> chain, IEnumerable<RestRequestArgs> args)
-        {
-            var e = new BatchDatastoreArgs<DatastoreKeyReadArgs<Uri>>(args);
-            return chain.ProcessAsync(new EventArgsAsyncWrapper<IEnumerable<DatastoreKeyReadArgs<Uri>>>(e));
-        }
+        public static DatastoreKeyValueReadArgs<Uri, T> Create<T>(this Property<T> property, Movies.Models.Item item) => new DatastoreKeyValueReadArgs<Uri, T>(new UniformItemIdentifier(item, property));
     }
 
     public interface IDataStore<TKey, TValue>
@@ -118,34 +113,25 @@ namespace Movies
         }
     }
 
-    public class RestCache : IAsyncEventProcessor<IEnumerable<DatastoreKeyReadArgs<Uri>>>, IAsyncEventProcessor<IEnumerable<DatastoreWriteArgs>>
+    public class DatastoreProcessor : IAsyncEventProcessor<DatastoreKeyValueReadArgs<Uri>>, IAsyncEventProcessor<DatastoreWriteArgs>
     {
         public IDataStore<Uri, State> Datastore { get; }
 
-        public RestCache(IDataStore<Uri, State> datastore)
+        public DatastoreProcessor(IDataStore<Uri, State> datastore)
         {
             Datastore = datastore;
         }
 
-        public virtual async Task<bool> ProcessAsync(IEnumerable<DatastoreKeyReadArgs<Uri>> e)
+        public virtual async Task<bool> ProcessAsync(DatastoreKeyValueReadArgs<Uri> e)
         {
-            var tasks = new List<Task>();
+            var state = Datastore.ReadAsync(e.Key);
 
-            foreach (var request in e.Where(request => !request.IsHandled).OfType<RestRequestArgs>())
+            if (state != null)
             {
-                tasks.Add(HandleGet(request));
-            }
-
-            await Task.WhenAll(tasks);
-            return e.All(request => request.IsHandled);
-        }
-
-        public async Task<bool> ProcessAsync(IEnumerable<DatastoreWriteArgs> e)
-        {
-            if (e is IEnumerable<DatastoreKeyValueWriteArgs<Uri, Resource>> keyValueArgs)
-            {
-                var result = await Task.WhenAll(keyValueArgs.Select(request => Datastore.CreateAsync(request.Key, request.Value() as State)));
-                return result.All(value => value);
+                return e.Handle(new RestResponse(await state)
+                {
+                    Expected = e.Expected
+                });
             }
             else
             {
@@ -153,14 +139,15 @@ namespace Movies
             }
         }
 
-        private async Task HandleGet(RestRequestArgs e)
+        public virtual Task<bool> ProcessAsync(DatastoreWriteArgs e)
         {
-            var state = Datastore.ReadAsync(e.Uri);
-
-            if (state != null)
+            if (e is DatastoreKeyValueWriteArgs<Uri, Resource> keyValueArgs)
             {
-                var value = await state;
-                e.Handle(() => value);
+                return Datastore.CreateAsync(keyValueArgs.Key, keyValueArgs.Value() as State);
+            }
+            else
+            {
+                return Task.FromResult(false);
             }
         }
     }

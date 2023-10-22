@@ -42,7 +42,7 @@ namespace Movies
             return false;
         }
 
-        public static IReadOnlyDictionary<TKey, TValue> ToReadOnlyDictionary<TKey, TValue>(IEnumerable<KeyValuePair<TKey, TValue>> kvps)
+        public static IReadOnlyDictionary<TKey, TValue> ToReadOnlyDictionary<TKey, TValue>(this IEnumerable<KeyValuePair<TKey, TValue>> kvps)
         {
             if (kvps is IReadOnlyDictionary<TKey, TValue> roDict)
             {
