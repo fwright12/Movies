@@ -84,10 +84,10 @@ namespace Movies
             ResourceCache = new UiiDictionaryDatastore();
             //Controller = new Controller().AddLast(ResourceCache);
 
-            var processor = new DatastoreProcessor(ResourceCache);
+            var processor = new DatastoreProcessor<Uri, State>(ResourceCache);
             Controller = new CacheAsideProcessor<DatastoreKeyValueReadArgs<Uri>>(
-                new AsyncEventBulkProcessor<DatastoreKeyValueReadArgs<Uri>>(processor), 
-                new AsyncEventBulkProcessor<DatastoreWriteArgs>(processor)).ToChainLink();
+                new AsyncBulkEventProcessor<DatastoreKeyValueReadArgs<Uri>>(processor), 
+                new AsyncBulkEventProcessor<DatastoreWriteArgs>(processor)).ToChainLink();
         }
 
         public void BatchBegin()

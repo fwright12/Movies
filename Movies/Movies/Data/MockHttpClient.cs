@@ -37,9 +37,11 @@ namespace Movies
 
     public partial class MockHandler : HttpClientHandler
     {
+        public static readonly string DEFAULT_ETAG = "\"" + new Guid() + "\"";
+
         public static List<string> CallHistory = new List<string>();
         public List<string> LocalCallHistory = new List<string>();
-        public bool Connected { get; private set;  } = true;
+        public bool Connected { get; private set; } = true;
 
         public bool Reconnect() => Connected = true;
         public bool Disconnect() => Connected = false;
@@ -118,171 +120,79 @@ namespace Movies
 
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
-            var endpoint = request.RequestUri.ToString();
-            string content;
+            HttpResponseMessage response = null;
 
-            if (endpoint.Contains("changes"))
+            if (request.Headers.TryGetValues(REpresentationalStateTransfer.Rest.IF_NONE_MATCH, out var etags) && !etags.Skip(1).Any() && etags.First() == DEFAULT_ETAG)
             {
-                content = "{}";
+                Print.Log("304");
+                response = new HttpResponseMessage(HttpStatusCode.NotModified);
             }
             else
             {
-                content = Router.Route(endpoint);
-            }
+                var endpoint = request.RequestUri.ToString();
+                string content;
 
-            if (DetailsRoutes.Values.Contains(content))
-            {
-                DebugConfig.Breakpoint(endpoint);
-            }
-
-            //throw new HttpRequestException();
-
-            /*if (endpoint.StartsWith("3/movie") && !endpoint.Contains("account_states") && !endpoint.Contains("changes"))
-            {
-                //await Task.Delay(5000);
-                //throw new System.Net.Http.HttpRequestException();
-
-                Breakpoint();
-                //content = HARRY_POTTER_AND_THE_DEATHLY_HALLOWS_PART_2_PARTIAL_RESPONSE;
-                content = HARRY_POTTER_AND_THE_DEATHLY_HALLOWS_PART_2_RESPONSE;
-                //content = null;
-                //content = endpoint.Contains("reviews") ? null : content;
-            }
-            else if (endpoint.StartsWith("3/tv") && !endpoint.Contains("account_states") && !endpoint.Contains("changes"))
-            {
-                if (endpoint.Contains("episode"))
+                if (endpoint.Contains("changes"))
                 {
-                    Breakpoint();
-                    content = THE_OFFICE_SEASON_3_EPISODE_20_RESPONSE;
-                }
-                else if (endpoint.Contains("season"))
-                {
-                    Breakpoint();
-                    content = THE_OFFICE_SEASON_3_RESPONSE;
+                    content = "{}";
                 }
                 else
                 {
-                    Breakpoint();
-                    content = THE_OFFICE_RESPONSE;
+                    content = Router.Route(endpoint);
                 }
-                //content = null;
-            }
-            else if (endpoint.StartsWith("3/person") && !endpoint.Contains("changes"))
-            {
-                Breakpoint();
-                content = JESSICA_CHASTAIN_RESPONSE;
-                //content = STEPHEN_WOOLFENDEN_RESPONSE;
-                //await Task.Delay(2000);
-                //content = null;
-            }
-            else if (endpoint.StartsWith("3/collection"))
-            {
-                Breakpoint();
-                content = HARRY_POTTER_COLLECTION_RESPONSE;
-                //content = null;
-            }
-            else if (endpoint.Contains("changes"))
-            {
-                content = "{}";
-            }
-            else if (BaseAddress.ToString().Contains("themoviedb"))
-            {
-                if (endpoint.Contains("account"))
+
+                if (DetailsRoutes.Values.Contains(content))
                 {
-                    if (endpoint.Contains("movie"))
-                    {
-                        content = TMDB_ACCOUNT_FAVORITE_MOVIES_RESPONSE;
-                    }
-                    else if (endpoint.Contains("tv"))
-                    {
-                        content = TMDB_ACCOUNT_FAVORITE_TV_RESPONSE;
-                    }
-                    else
-                    {
-                        content = TMDB_ACCOUNT_LISTS_RESPONSE;
-                    }
+                    DebugConfig.Breakpoint(endpoint);
                 }
-                else if (endpoint.StartsWith("4/list"))
+
+                if (!DebugConfig.AllowLiveRequests)
                 {
-                    content = TMDB_WATCHED_LIST_RESPONSE;
+                    content ??= "{}";
                 }
 
-                //content = null;
-            }
-            else if (BaseAddress.ToString().Contains("trakt"))
-            {
-                if (BaseAddress.ToString().Contains("sync"))
+                if (!Connected)
                 {
-                    if (endpoint.StartsWith("watchlist"))
-                    {
-                        content = TRAKT_ACCOUNT_FAVORITES_RESPONSE;
-                    }
+                    throw new Exception("Mock HTTP handler is not connected");
                 }
-                else
+
+                if (content != null)
                 {
-                    if (endpoint.Contains("sync/last_activities"))
+                    response = new HttpResponseMessage
                     {
-                        content = "{}";
-                    }
-                    else if (endpoint.StartsWith("users/me/lists"))
-                    {
-                        if (endpoint.Contains("favorites"))
-                        {
-                            content = TRAKT_ACCOUNT_FAVORITES_RESPONSE;
-                        }
-                        else
-                        {
-                            content = TRAKT_ACCOUNT_LISTS_RESPONSE;
-                        }
-                    }
+                        Content = new StringContent(content),
+                        RequestMessage = request,
+                    };
+
+                    response.Headers.Add("ETag", DEFAULT_ETAG);
                 }
-
-                //content = null;
-            }*/
-
-            if (!DebugConfig.AllowLiveRequests)
-            {
-                content ??= "{}";
-            }
-            if (DebugConfig.LOG_WEB_REQUESTS)
-            {
-                Print.Log($"web request{(content != null ? " (mock)" : string.Empty)}: " + endpoint);
-            }
-
-            if (DebugConfig.SimulatedDelay > 0)
-            {
-                await Task.Delay(DebugConfig.SimulatedDelay);
-            }
-
-            if (!Connected)
-            {
-                throw new Exception("Mock HTTP handler is not connected");
             }
 
             string url = request.RequestUri.IsAbsoluteUri ? request.RequestUri.PathAndQuery.TrimStart('/') : request.RequestUri.ToString();
             CallHistory.Add(url);
             LocalCallHistory.Add(url);
 
-            if (content != null)
+            if (DebugConfig.LOG_WEB_REQUESTS)
             {
-                return new HttpResponseMessage
-                {
-                    Content = new StringContent(content),
-                    RequestMessage = request
-                };
+                Print.Log($"web request{(response != null ? " (mock)" : string.Empty)}: {request.RequestUri}");
             }
-            else
+
+            if (response == null)
             {
-                var response = await base.SendAsync(request, cancellationToken);
+                response = await base.SendAsync(request, cancellationToken);
 
                 if (response.IsSuccessStatusCode)
                 {
                     var json = await response.Content.ReadAsStringAsync();
                     Print.Log(json);
                 }
-
-                return response;
             }
+            else if (DebugConfig.SimulatedDelay > 0)
+            {
+                await Task.Delay(DebugConfig.SimulatedDelay);
+            }
+
+            return response;
         }
     }
 }

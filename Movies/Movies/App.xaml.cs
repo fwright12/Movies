@@ -264,13 +264,14 @@ namespace Movies
 
             var resolver = new TMDbResolver(TMDB.ITEM_PROPERTIES);
             IAsyncEventProcessor<IEnumerable<DatastoreKeyValueReadArgs<Uri>>> tmdbHandlers = new TMDbHttpProcessor(TMDB.WebClient, resolver, TMDbApi.AutoAppend);
-            var localTMDbDatastore = new LocalTMDbDatastore(LocalDatabase.ItemCache, resolver)
+            //var localTMDbDatastore = new LocalTMDbDatastore(LocalDatabase.ItemCache, resolver);
+            var tmdbLocalProcessor = new TMDbLocalProcessor(LocalDatabase.ItemCache, resolver)
             {
                 ChangeKeys = new ListAsyncWrapper<string>(GetChangeKeys())
             };
 
             DataService.Instance.Controller
-                .SetNext(CacheAsideProcessor<DatastoreKeyValueReadArgs<Uri>>.Create(new TMDbLocalProcessor(localTMDbDatastore, resolver)))
+                .SetNext(CacheAsideProcessor<DatastoreKeyValueReadArgs<Uri>>.Create(tmdbLocalProcessor))
                 .SetNext(tmdbHandlers);
             //DataService.Instance.Controller
             //    .SetNext(new CacheAsideLink(new TMDbLocalHandlers(localTMDbDatastore, resolver)))

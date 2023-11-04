@@ -1,38 +1,54 @@
-﻿using System.Collections.Concurrent;
+﻿using Movies;
+using System.Collections.Concurrent;
 
 namespace MoviesTests
 {
-    public class DummyDatastore<T> : ConcurrentDictionary<Uri, T>, IDataStore<Uri, State>
+    public class DummyDatastore<TKey> : ConcurrentDictionary<TKey, DatastoreResponse>, IDataStore<TKey, State>, IAsyncEventProcessor<DatastoreKeyValueReadArgs<TKey>>, IAsyncEventProcessor<DatastoreKeyValueWriteArgs<TKey, State>>
     {
         public int SimulatedDelay { get; set; }
 
-        public Task<bool> CreateAsync(Uri key, State value) => UpdateAsync(key, value);
-
-        public async Task<State> DeleteAsync(Uri key)
+        public async Task<bool> ProcessAsync(DatastoreKeyValueReadArgs<TKey> e)
         {
             await Delay();
-            return TryRemove(key, out var value) ? State.Create(value) : null;
-        }
-
-        public async Task<State> ReadAsync(Uri key)
-        {
-            await Delay();
-            return TryGetValue(key, out var value) ? State.Create(value) : null;
-        }
-
-        public async Task<bool> UpdateAsync(Uri key, State updatedValue)
-        {
-            await Delay();
-
-            if (updatedValue.TryGetRepresentation<T>(out var value))
+            if (TryGetValue(e.Key, out var response))
             {
-                this[key] = value;
-                return true;
+                return e.Handle(response as RestResponse ?? new RestResponse(State.Create(response.RawValue))
+                {
+                    Expected = e.Expected
+                });
             }
             else
             {
                 return false;
             }
+        }
+
+        public async Task<bool> ProcessAsync(DatastoreKeyValueWriteArgs<TKey, State> e)
+        {
+            await Delay();
+            TryAdd(e.Key, new DatastoreResponse<object>(new RestResponse(e.Value) { Expected = typeof(object) }.RawValue));
+            return true;
+        }
+
+        public Task<bool> CreateAsync(TKey key, State value) => UpdateAsync(key, value);
+
+        public async Task<State> DeleteAsync(TKey key)
+        {
+            await Delay();
+            return TryRemove(key, out var value) ? State.Create(value) : null;
+        }
+
+        public async Task<State> ReadAsync(TKey key)
+        {
+            await Delay();
+            return TryGetValue(key, out var value) ? State.Create(value.RawValue) : null;
+        }
+
+        public async Task<bool> UpdateAsync(TKey key, State updatedValue)
+        {
+            await Delay();
+            TryAdd(key, new DatastoreResponse<object>(new RestResponse(updatedValue) { Expected = typeof(object) }.RawValue));
+            return true;
         }
 
         private Task Delay() => Task.Delay(SimulatedDelay);

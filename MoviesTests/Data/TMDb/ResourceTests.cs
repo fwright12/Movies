@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
+using System.Collections;
 using System.Diagnostics;
 using System.Text;
 
@@ -51,9 +52,11 @@ namespace MoviesTests.Data.TMDb
             var uri = new Uri("3/movie/0?language=en-US", UriKind.Relative);
             var json = DUMMY_TMDB_DATA.HARRY_POTTER_AND_THE_DEATHLY_HALLOWS_PART_2_PARTIAL_RESPONSE;// "{ \"runtime\": 130 }";
             Assert.IsTrue(await handlers.DiskCache.CreateAsync(uri, State.Create<ArraySegment<byte>>(Encoding.UTF8.GetBytes(json))));
+            Assert.AreEqual(1, handlers.DiskCache.Count);
 
             var request = new DatastoreKeyValueReadArgs<Uri, TimeSpan?>(new UniformItemIdentifier(Constants.Movie, Media.RUNTIME));
             await chain.Get(request);
+            await CachedAsync(handlers.DiskCache);
 
             Assert.IsTrue(request.IsHandled);
             Assert.AreEqual(new TimeSpan(2, 10, 0), request.Value);
@@ -71,18 +74,44 @@ namespace MoviesTests.Data.TMDb
 
             var args = new DatastoreKeyValueReadArgs<Uri, TimeSpan>(new UniformItemIdentifier(Constants.Movie, Media.RUNTIME));
             await chain.Get(args);
+            await CachedAsync(handlers.DiskCache);
 
             Assert.IsTrue(args.IsHandled);
             Assert.AreEqual(new TimeSpan(2, 10, 0), args.Value);
             Assert.AreEqual($"3/movie/0?language=en-US&{Constants.APPEND_TO_RESPONSE}=credits,keywords,recommendations,release_dates,videos,watch/providers", handlers.WebHistory.Last());
-
-            await CachedAsync(handlers.DiskCache);
 
             Assert.AreEqual(1, handlers.WebHistory.Count);
             Assert.AreEqual(6, handlers.DiskCache.Count, string.Join(", ", handlers.DiskCache.Keys));
             //Assert.AreEqual(ItemProperties[ItemType.Movie].Count + 7, ResourceCache.Count);
             // There are a total of 25 properties, but a movie's parent collection will not be parsed
             // (because it requires another API call) and therefore will not cached
+            Assert.AreEqual(1, handlers.InMemoryCache.Count);
+        }
+
+        [TestMethod]
+        public async Task ResourcesWithEtagDontHandleImmediately()
+        {
+            var handlers = new HandlerChain();
+            var chain = handlers.Chain;
+
+            var uri = new Uri("3/movie/0?language=en-US", UriKind.Relative);
+            var json = DUMMY_TMDB_DATA.HARRY_POTTER_AND_THE_DEATHLY_HALLOWS_PART_2_PARTIAL_RESPONSE;// "{ \"runtime\": 130 }";
+            handlers.DiskCache.TryAdd(uri, new RestResponse(State.Create<ArraySegment<byte>>(Encoding.UTF8.GetBytes(json)), new Dictionary<string, IEnumerable<string>>
+            {
+                [REpresentationalStateTransfer.Rest.ETAG] = new List<string> { "\"non matching etag\"" }
+            }, new Dictionary<string, string>()));
+            Assert.AreEqual(1, handlers.DiskCache.Count);
+
+            var request = new DatastoreKeyValueReadArgs<Uri, TimeSpan?>(new UniformItemIdentifier(Constants.Movie, Media.RUNTIME));
+            await chain.Get(request);
+            await CachedAsync(handlers.DiskCache);
+
+            Assert.IsTrue(request.IsHandled);
+            Assert.AreEqual(new TimeSpan(2, 10, 0), request.Value);
+
+            // Normally this would just handle from the cache, but since it has an etag we need to make the api call
+            Assert.AreEqual(1, handlers.WebHistory.Count);
+            Assert.AreEqual(6, handlers.DiskCache.Count);
             Assert.AreEqual(1, handlers.InMemoryCache.Count);
         }
 
@@ -183,7 +212,40 @@ namespace MoviesTests.Data.TMDb
             // We want this to have changed, since it should have been overwritten
             // with the newer data that was just fetched
             Assert.AreEqual(HARRY_POTTER_RUNTIME, request.Value);
-            Assert.AreEqual(handlers.WebHistory.Count, 1);
+            Assert.AreEqual(1, handlers.WebHistory.Count);
+        }
+
+        [TestMethod]
+        public async Task DontUpdateResourcesOnEtagMatch()
+        {
+            var handlers = new HandlerChain();
+            var chain = handlers.Chain;
+
+            var uri = new Uri("3/movie/0?language=en-US", UriKind.Relative);
+            var json = DUMMY_TMDB_DATA.INTERSTELLAR_RESPONSE;
+            handlers.DiskCache.TryAdd(uri, new RestResponse(State.Create<ArraySegment<byte>>(Encoding.UTF8.GetBytes(json)), new Dictionary<string, IEnumerable<string>>
+            {
+                [REpresentationalStateTransfer.Rest.ETAG] = new List<string> { MockHandler.DEFAULT_ETAG }
+            }, new Dictionary<string, string> { }));
+
+            Assert.AreEqual(1, handlers.DiskCache.Count);
+
+            uri = new UniformItemIdentifier(Constants.Movie, Media.RUNTIME);
+            var request = new DatastoreKeyValueReadArgs<Uri, TimeSpan>(uri);
+            await handlers.LocalTMDbHandlers.ProcessAsync(request.AsEnumerable());
+
+            Assert.IsTrue(request.IsHandled);
+            Assert.AreEqual(INTERSTELLAR_RUNTIME, request.Value);
+            
+            request = new DatastoreKeyValueReadArgs<Uri, TimeSpan>(uri);
+            await chain.Get(request);
+            await CachedAsync(handlers.DiskCache);
+
+            // By default data for Harry Potter 7 is returned. But the etags should match, so data will not be updated and will still be Interstellar data we put in
+            Assert.IsTrue(request.IsHandled);
+            Assert.AreEqual(INTERSTELLAR_RUNTIME, request.Value);
+            Assert.AreEqual(1, handlers.DiskCache.Count);
+            Assert.AreEqual(1, handlers.WebHistory.Count);
         }
 
         private static IEnumerable<UniformItemIdentifier> GetUiis(params Property[] properties) => properties.Select(property => new UniformItemIdentifier(Constants.Movie, property));
@@ -322,9 +384,8 @@ namespace MoviesTests.Data.TMDb
         {
             var handlers = new HandlerChain();
             var chain = handlers.Chain;
-            
-            RestRequestArgs[] getAllRequests() => GetAllRestRequests(AllMovieProperties().Except(new Property[] { Movie.PARENT_COLLECTION }));
-            //DatastoreKeyValueReadArgs<Uri>[] getAllRequests() => GetAllRequests(AllMovieProperties().Except(new Property[] { Movie.PARENT_COLLECTION }));
+
+            DatastoreKeyValueReadArgs<Uri>[] getAllRequests() => GetAllRequests(AllMovieProperties().Except(new Property[] { Movie.PARENT_COLLECTION }));
 
             var requests = getAllRequests();
             await Task.WhenAll(chain.Get(requests));
@@ -375,7 +436,7 @@ namespace MoviesTests.Data.TMDb
             Assert.AreEqual("Apple iTunes", watchProviders.Value.FirstOrDefault()?.Company.Name);
         }
 
-        private static Task CachedAsync(DummyDatastore<IEnumerable<byte>> diskCache)
+        private static Task CachedAsync(DummyDatastore<Uri> diskCache)
         {
             return Task.Delay((diskCache.SimulatedDelay + DebugConfig.SimulatedDelay) * 2);
         }
@@ -387,9 +448,6 @@ namespace MoviesTests.Data.TMDb
             .Select(property => CreateRequest(Constants.Movie, property))
             .ToArray();
         private static DatastoreKeyValueReadArgs<Uri> CreateRequest(Item item, Property property) => (DatastoreKeyValueReadArgs<Uri>)Activator.CreateInstance(typeof(DatastoreKeyValueReadArgs<,>).MakeGenericType(typeof(Uri), property.FullType), new UniformItemIdentifier(item, property));
-        private RestRequestArgs[] GetAllRestRequests(IEnumerable<Property> properties) => properties
-                        .Select(property => new RestRequestArgs(new UniformItemIdentifier(Constants.Movie, property), property.FullType))
-                        .ToArray();
 
         private static readonly IReadOnlySet<Property> NO_CHANGE_KEY = new HashSet<Property>
         {
@@ -469,7 +527,7 @@ namespace MoviesTests.Data.TMDb
                     var request = CreateRequest(item, property);
                     await test.Controller.Get(request);
                     var value = request.Response?.RawValue;
-                    
+
                     Assert.IsTrue(request.IsHandled, $"Could not get value for property {property} of type {type}");
                     //Assert.IsTrue(arg.Response.TryGetRepresentation(property.FullType, out var value), $"Property {property}. Expected type: {property.FullType}. Available types: {string.Join(", ", arg.Response.OfType<object>().Select(rep => rep.GetType()))}");
 
@@ -534,6 +592,7 @@ namespace MoviesTests.Data.TMDb
 
             await source.Task;
         }
+
         private class HandlerChain
         {
             //public readonly ChainLink<MultiRestEventArgs> Chain;
@@ -543,7 +602,7 @@ namespace MoviesTests.Data.TMDb
             public List<string> WebHistory => MockHttpHandler.LocalCallHistory;
 
             public UiiDictionaryDatastore InMemoryCache { get; }
-            public DummyDatastore<IEnumerable<byte>> DiskCache { get; }
+            public DummyDatastore<Uri> DiskCache { get; }
 
             public TMDbLocalProcessor LocalTMDbHandlers { get; }
             public IAsyncEventProcessor<IEnumerable<DatastoreKeyValueReadArgs<Uri>>> RemoteTMDbHandlers { get; }
@@ -553,24 +612,24 @@ namespace MoviesTests.Data.TMDb
             {
                 Resolver = new TMDbResolver(TMDB.ITEM_PROPERTIES);
 
-                DiskCache = new DummyDatastore<IEnumerable<byte>>
+                DiskCache = new DummyDatastore<Uri>
                 {
                     SimulatedDelay = 50
                 };
                 InMemoryCache = new UiiDictionaryDatastore();
 
-                LocalTMDbHandlers = new TMDbLocalProcessor(new LocalTMDbDatastore(DiskCache, Resolver)
+                LocalTMDbHandlers = new TMDbLocalProcessor(DiskCache, DiskCache, Resolver)
                 {
                     ChangeKeys = TestsConfig.ChangeKeys
-                }, Resolver);
+                };
                 var invoker = new HttpMessageInvoker(new BufferedHandler(new TMDbBufferedHandler(MockHttpHandler = new MockHandler())));
                 RemoteTMDbHandlers = new TMDbHttpProcessor(invoker, Resolver, TMDbApi.AutoAppend);
 
-                var inMemoryProcessor = new DatastoreProcessor(InMemoryCache);
+                var inMemoryProcessor = new DatastoreProcessor<Uri, State>(InMemoryCache);
 
                 Chain = new CacheAsideProcessor<DatastoreKeyValueReadArgs<Uri>>(
-                    new AsyncEventBulkProcessor<DatastoreKeyValueReadArgs<Uri>>(inMemoryProcessor),
-                    new AsyncEventBulkProcessor<DatastoreWriteArgs>(inMemoryProcessor)).ToChainLink();
+                    new AsyncBulkEventProcessor<DatastoreKeyValueReadArgs<Uri>>(inMemoryProcessor),
+                    new AsyncBulkEventProcessor<DatastoreWriteArgs>(inMemoryProcessor)).ToChainLink();
                 Chain.SetNext(CacheAsideProcessor<DatastoreKeyValueReadArgs<Uri>>.Create(LocalTMDbHandlers))
                     .SetNext(RemoteTMDbHandlers);
             }
