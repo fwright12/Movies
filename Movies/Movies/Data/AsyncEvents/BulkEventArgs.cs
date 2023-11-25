@@ -8,7 +8,7 @@ namespace Movies
     {
         public int Count => Requests.Count;
 
-        public IEnumerable<TArgs> Unhandled => Requests.Where(request => (request as DatastoreReadArgs)?.IsHandled == false);// GetUnhandled();
+        public IEnumerable<TArgs> Unhandled => Requests.Where(request => (request as EventArgsRequest)?.IsHandled == false);// GetUnhandled();
 
         //public IEnumerable<TArgs> Args { get; }
         //private IEnumerable<KeyValuePair<Uri, Task<State>>> AdditionalState;// { get; private set; }

@@ -1,9 +1,7 @@
-﻿using System;
+﻿using Movies.Models;
+using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Runtime.CompilerServices;
-using Movies.Models;
-using static Movies.API;
 
 namespace Movies.ViewModels
 {
@@ -74,15 +72,14 @@ namespace Movies.ViewModels
         public static async IAsyncEnumerable<Item> GetEpisodes(TVSeason season)
         {
             await DataService.Instance.Batch;
-            var request = new RestRequestArgs(new UniformItemIdentifier(season, TVSeason.EPISODES), TVSeason.EPISODES.FullType);
-            await DataService.Instance.Controller.Get(request);
+            var request = await DataService.Instance.Controller.TryGet<IEnumerable<Item>>(new UniformItemIdentifier(season, TVSeason.EPISODES));
             
-            if (!request.IsHandled || request.Response.TryGetRepresentation<IEnumerable<Item>>(out var episodes) == false)
+            if (!request.IsHandled)
             {
                 yield break;
             }
 
-            foreach (var episode in episodes)
+            foreach (var episode in request.Value)
             {
                 yield return episode;
             }

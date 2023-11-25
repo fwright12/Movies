@@ -27,7 +27,7 @@ namespace Movies.ViewModels
         public virtual string PrimaryImagePath => null;
         public ICommand AddToListCommand { get; }
 
-        private ChainLink<EventArgsAsyncWrapper<IEnumerable<DatastoreKeyValueReadArgs<Uri>>>> Controller => DataService.Instance.Controller;
+        private ChainLink<EventArgsAsyncWrapper<IEnumerable<ResourceReadArgs<Uri>>>> Controller => DataService.Instance.Controller;
 
         protected delegate bool TryGet<T>(out T value);
 
@@ -101,10 +101,9 @@ namespace Movies.ViewModels
         private async Task<T> GetValue<T>(Property property)
         {
             //return DataService.Instance.ResourceCache.ReadAsync(new UniformItemIdentifier(Item, property)).Result.TryGetRepresentation<T>(out var temp) ? temp : default;
-            var request = new RestRequestArgs(new UniformItemIdentifier(Item, property), typeof(T));
-            await Controller.Get(request);
-
-            return request.IsHandled && request.Response.TryGetRepresentation<T>(out T value) ? value : default;
+            //var request = new RestRequestArgs<T>();
+            var request = await Controller.TryGet<T>(new UniformItemIdentifier(Item, property));
+            return request.IsHandled ? request.Value : default;
         }
 
         protected bool TryRequestValue<T>(Property<T> property, out T value, [CallerMemberName] string propertyName = null) => TryGetValue(property, out value, propertyName);

@@ -3,13 +3,28 @@ using REpresentationalStateTransfer;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net.Http;
 using System.Threading.Tasks;
 
 namespace Movies
 {
-    public class TMDbLocalProcessor : TMDbProcessor, IAsyncEventProcessor<IEnumerable<DatastoreWriteArgs>>
+    public class TMDbSQLProcessor : IAsyncEventProcessor<ResourceReadArgs<Uri>>
     {
+        public IEventAsyncCache<ResourceReadArgs<Uri>> DAO { get; }
+
+        public TMDbSQLProcessor(IEventAsyncCache<ResourceReadArgs<Uri>> dao)
+        {
+            DAO = dao;
+        }
+
+        public Task<bool> ProcessAsync(ResourceReadArgs<Uri> e) => DAO.Read(e.AsEnumerable());
+    }
+
+    public class TMDbLocalCache : IEventAsyncCache<ResourceReadArgs<Uri>>
+    {
+        public IEventAsyncCache<ResourceReadArgs<Uri>> DAO { get; }
+        public IAsyncEventProcessor<IEnumerable<ResourceReadArgs<Uri>>> Processor { get; }
+        public TMDbResolver Resolver { get; }
+
         public IAsyncCollection<string> ChangeKeys { get; set; }
 
         // There are no change keys for these properties but we're going to ignore that and cache them anyway
@@ -22,28 +37,37 @@ namespace Movies
 
         private const ItemType CACHEABLE_TYPES = ItemType.Movie | ItemType.TVShow | ItemType.Person;
 
-        private IAsyncEventProcessor<IEnumerable<DatastoreWriteArgs>> BulkProcessor { get; }
-
-        public TMDbLocalProcessor(IAsyncEventProcessor<DatastoreKeyValueReadArgs<Uri>> readProcessor, IAsyncEventProcessor<DatastoreKeyValueWriteArgs<Uri, State>> writeProcessor, TMDbResolver resolver) : base(readProcessor, resolver)
+        public TMDbLocalCache(IEventAsyncCache<ResourceReadArgs<Uri>> dao, TMDbResolver resolver)
         {
-            BulkProcessor = new AsyncBulkEventProcessor<DatastoreWriteArgs, DatastoreKeyValueWriteArgs<Uri, State>>(writeProcessor);
+            DAO = dao;
+            Processor = new TMDbLocalProcessor(new TMDbSQLProcessor(dao), resolver);
+            Resolver = resolver;
         }
 
-        public TMDbLocalProcessor(IDataStore<Uri, State> datastore, TMDbResolver resolver) : this(new DatastoreProcessor<Uri, State>(datastore), resolver) { }
-        private TMDbLocalProcessor(DatastoreProcessor<Uri, State> processor, TMDbResolver resolver) : this(processor, processor, resolver) { }
+        public async Task<bool> Read(IEnumerable<ResourceReadArgs<Uri>> args)
+        {
+            bool isAllApplicable = true;
+            var applicable = new BulkEventArgs<ResourceReadArgs<Uri>>();
 
-        public override async Task<bool> ProcessAsync(IEnumerable<DatastoreKeyValueReadArgs<Uri>> e) => await base.ProcessAsync(e) && e.All(IsApplicable);
+            foreach (var arg in args)
+            {
+                if (!arg.IsHandled && IsCacheable(arg.Key))
+                {
+                    applicable.Add(arg);
+                }
+                else
+                {
+                    isAllApplicable = false;
+                }
+            }
 
-        public Task<bool> ProcessAsync(IEnumerable<DatastoreWriteArgs> e) => BulkProcessor.ProcessAsync(e.Where(arg => arg is DatastoreKeyValueWriteArgs<Uri, State> args && IsCacheable(args.Key) && false == args.Key is UniformItemIdentifier));
+            var result = await Processor.ProcessAsync(applicable);
+            (args as BulkEventArgs<ResourceReadArgs<Uri>>)?.Add(applicable);
 
-        protected override bool Handle(DatastoreKeyValueReadArgs<Uri> grouped, IEnumerable<DatastoreKeyValueReadArgs<Uri>> singles) => base.Handle(grouped, singles) && (grouped.Response as RestResponse)?.ControlData.TryGetValue(Rest.ETAG, out _) != true;
+            return result && isAllApplicable;
+        }
 
-        protected override IEnumerable<KeyValuePair<string, IEnumerable<DatastoreKeyValueReadArgs<Uri>>>> GroupUrls(IEnumerable<DatastoreKeyValueReadArgs<Uri>> args) => args
-            .Where(IsApplicable)
-            .Select(arg => new KeyValuePair<string, IEnumerable<DatastoreKeyValueReadArgs<Uri>>>(Resolver.ResolveUrl(arg.Key), arg.AsEnumerable()))
-            .GroupBy(kvp => kvp.Key, (key, group) => new KeyValuePair<string, IEnumerable<DatastoreKeyValueReadArgs<Uri>>>(key, group.SelectMany(pair => pair.Value)));
-
-        private bool IsApplicable(DatastoreKeyValueReadArgs<Uri> e) => !e.IsHandled && IsCacheable(e.Key);
+        public Task<bool> Write(IEnumerable<ResourceReadArgs<Uri>> args) => DAO.Write(args.Where(arg => IsCacheable(arg.Key) && false == arg.Key is UniformItemIdentifier));
 
         public bool IsCacheable(Uri uri)
         {
@@ -73,7 +97,14 @@ namespace Movies
         private bool ContainsChangeKey(Property property) => Resolver.TryGetChangeKey(property, out string changeKey) && ChangeKeys.Contains(changeKey);
     }
 
-    public class LocalTMDbDatastore1 : IAsyncEventProcessor<DatastoreKeyValueReadArgs<Uri>>, IAsyncEventProcessor<DatastoreKeyValueWriteArgs<Uri, State>>
+    public class TMDbLocalProcessor : TMDbProcessor
+    {
+        public TMDbLocalProcessor(IAsyncEventProcessor<ResourceReadArgs<Uri>> processor, TMDbResolver resolver) : base(processor, resolver) { }
+
+        protected override bool Handle(ResourceReadArgs<Uri> grouped, IEnumerable<ResourceReadArgs<Uri>> singles) => base.Handle(grouped, singles) && (grouped.Response as RestResponse)?.ControlData.TryGetValue(Rest.ETAG, out _) != true;
+    }
+
+    public class LocalTMDbDatastore1 : IAsyncEventProcessor<ResourceReadArgs<Uri>>, IAsyncEventProcessor<DatastoreKeyValueWriteArgs<Uri, State>>
     {
         public TMDbResolver Resolver { get; }
         public IDataStore<Uri, State> Datastore { get; }
@@ -84,7 +115,7 @@ namespace Movies
             Resolver = resolver;
         }
 
-        public async Task<bool> ProcessAsync(DatastoreKeyValueReadArgs<Uri> e)
+        public async Task<bool> ProcessAsync(ResourceReadArgs<Uri> e)
         {
             var url = Resolver.ResolveUrl(e.Key);
             var uri = new Uri(url, UriKind.RelativeOrAbsolute);

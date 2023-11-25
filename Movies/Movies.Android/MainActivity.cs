@@ -30,7 +30,7 @@ namespace Movies.Droid
             FFImageLoading.Forms.Platform.CachedImageRenderer.Init(true);
             FFImageLoading.Forms.Platform.CachedImageRenderer.InitImageViewHandler();
 
-            FirebaseApp.InitializeApp(this);
+            //Firebase.InitializeApp(this);
             AndroidAppLinks.Init(this);
             
             LoadApplication(app as App ?? new App());

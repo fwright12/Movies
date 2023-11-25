@@ -8,9 +8,8 @@ using Metadata = System.Collections.Generic.IEnumerable<System.Collections.Gener
 
 namespace Movies
 {
-    public class RestRequestArgs : DatastoreKeyValueReadArgs<Uri>
+    public class RestRequestArgs : ResourceReadArgs<Uri>
     {
-        new public State Response => throw new NotImplementedException();// (base.Response as DatastoreResponse<Resource>)?.Value() as State ?? null;
         public string MimeType { get; }
 
         public Representation<string> Representation { get; set; }
@@ -39,14 +38,14 @@ namespace Movies
 
     public class RestRequestArgs<T> : RestRequestArgs
     {
-        //public virtual T Value => Response?.RawValue is T value ? value : default;
+        public virtual T Value => base.Response?.RawValue is T value ? value : default;
 
         public RestRequestArgs(Uri uri) : base(uri, typeof(T)) { }
     }
 
-    public class RestResponse : DatastoreResponse
+    public class RestResponse : ResourceResponse
     {
-        public override object RawValue => Expected != null && TryGetRepresentation(Entities, Expected, out var value) ? value : Entities.OfType<Representation<object>>().FirstOrDefault()?.Value;
+        public override object RawValue => Expected != null && TryGetRepresentation(Entities, Expected, out var value) ? value : Entities.Select(entity => entity.Value).OfType<Representation<object>>().FirstOrDefault()?.Value;
         public IEnumerable<Entity> Entities { get; }
         public object Expected { get; set; }
 

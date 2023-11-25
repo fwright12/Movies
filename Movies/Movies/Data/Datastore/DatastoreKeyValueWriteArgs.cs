@@ -11,4 +11,16 @@
             Value = value;
         }
     }
+
+    public class ResourceWriteArgs<TKey> : DatastoreKeyValueWriteArgs<TKey, object>
+    {
+        public ResourceResponse Response { get; }
+
+        public ResourceWriteArgs(TKey key, object value) : this(key, new ResourceResponse<object>(value)) { }
+
+        public ResourceWriteArgs(TKey key, ResourceResponse response) : base(key, response.RawValue)
+        {
+            Response = response;
+        }
+    }
 }

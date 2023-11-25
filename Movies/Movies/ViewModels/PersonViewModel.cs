@@ -64,15 +64,14 @@ namespace Movies.ViewModels
 
             //if (!DataService.Instance.GetDetails(person).TryGetValues(Person.CREDITS, out var task) || !(await task is IEnumerable<Item> credits))
             await DataService.Instance.Batch;
-            var request = new RestRequestArgs(new UniformItemIdentifier(person, Person.CREDITS), Person.CREDITS.FullType);
-            await DataService.Instance.Controller.Get(request);
+            var request = await DataService.Instance.Controller.TryGet<IEnumerable<Item>>(new UniformItemIdentifier(person, Person.CREDITS));
             //if (!DataService.Instance.GetDetails(person).TryGetValues(Person.CREDITS, out var task) || !(await task is IEnumerable<Item> credits))
-            if (!request.IsHandled || request.Response.TryGetRepresentation<IEnumerable<Item>>(out var credits) == false)
+            if (!request.IsHandled)
             {
                 yield break;
             }
 
-            foreach (var media in credits)
+            foreach (var media in request.Value)
             {
                 yield return media;
             }

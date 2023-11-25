@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 
 namespace Movies
 {
-    public class HttpProcessor : IAsyncEventProcessor<DatastoreKeyValueReadArgs<Uri>>
+    public class HttpProcessor : IAsyncEventProcessor<ResourceReadArgs<Uri>>
     {
         public HttpMessageInvoker Invoker { get; }
 
@@ -13,7 +13,7 @@ namespace Movies
             Invoker = invoker;
         }
 
-        public async Task<bool> ProcessAsync(DatastoreKeyValueReadArgs<Uri> e)
+        public async Task<bool> ProcessAsync(ResourceReadArgs<Uri> e)
         {
             var response = await Invoker.SendAsync(ToMessage(e), default);
 
@@ -28,7 +28,7 @@ namespace Movies
             }
         }
 
-        public static HttpRequestMessage ToMessage(DatastoreKeyValueReadArgs<Uri> args)
+        public static HttpRequestMessage ToMessage(ResourceReadArgs<Uri> args)
         {
             var message = new HttpRequestMessage(HttpMethod.Get, args.Key);
 

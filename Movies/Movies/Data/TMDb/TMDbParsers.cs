@@ -239,16 +239,15 @@ namespace Movies
 
         private static async IAsyncEnumerable<T> GetTVItems<T>(Item tv, MultiProperty<T> property)
         {
-            var request = new RestRequestArgs(new UniformItemIdentifier(tv, property), property.FullType);
-            await Data.Controller.Get(request);
-
-            //if (Data.GetDetails(tv).TryGetValues(property, out var items))
-            if (request.IsHandled && request.Response.TryGetRepresentation<IEnumerable<T>>(out var items))
+            var request = await Data.Controller.TryGet<IEnumerable<T>>(new UniformItemIdentifier(tv, property));
+            if (!request.IsHandled)
             {
-                foreach (var item in items)
-                {
-                    yield return item;
-                }
+                yield break;
+            }
+
+            foreach (var item in request.Value)
+            {
+                yield return item;
             }
         }
 

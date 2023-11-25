@@ -8,16 +8,16 @@ using System.Threading.Tasks;
 
 namespace Movies
 {
-    public abstract class TMDbProcessor : AsyncGroupEventProcessor<DatastoreKeyValueReadArgs<Uri>, DatastoreKeyValueReadArgs<Uri>>
+    public abstract class TMDbProcessor : AsyncGroupEventProcessor<ResourceReadArgs<Uri>, ResourceReadArgs<Uri>>
     {
         public TMDbResolver Resolver { get; }
 
-        public TMDbProcessor(IAsyncEventProcessor<DatastoreKeyValueReadArgs<Uri>> processor, TMDbResolver resolver) : base(new TrojanProcessor(processor, resolver))
+        public TMDbProcessor(IAsyncEventProcessor<ResourceReadArgs<Uri>> processor, TMDbResolver resolver) : base(new TrojanProcessor(processor, resolver))
         {
             Resolver = resolver;
         }
 
-        protected override bool Handle(DatastoreKeyValueReadArgs<Uri> grouped, IEnumerable<DatastoreKeyValueReadArgs<Uri>> singles)
+        protected override bool Handle(ResourceReadArgs<Uri> grouped, IEnumerable<ResourceReadArgs<Uri>> singles)
         {
             if (false == (grouped.Key as TMDbResolver.TrojanTMDbUri)?.Converter is HttpResourceCollectionConverter resources)
             {
@@ -61,7 +61,7 @@ namespace Movies
                     }
                     else
                     {
-                        response = new DatastoreResponse<object>(value);
+                        response = new ResourceResponse<object>(value);
                     }
                 }
 
@@ -71,7 +71,7 @@ namespace Movies
             return result;
         }
 
-        protected override IEnumerable<KeyValuePair<DatastoreKeyValueReadArgs<Uri>, IEnumerable<DatastoreKeyValueReadArgs<Uri>>>> GroupRequests(IEnumerable<DatastoreKeyValueReadArgs<Uri>> args)
+        protected override IEnumerable<KeyValuePair<ResourceReadArgs<Uri>, IEnumerable<ResourceReadArgs<Uri>>>> GroupRequests(IEnumerable<ResourceReadArgs<Uri>> args)
         {
             var item = args.Select(arg => arg.Key).OfType<UniformItemIdentifier>().Select(uii => uii.Item).FirstOrDefault(item => item != null);
 
@@ -80,9 +80,9 @@ namespace Movies
                 var url = kvp.Key;
                 var requests = kvp.Value.ToArray();
                 var uri = GetUri(item, url, requests);
-                IEnumerable<DatastoreKeyValueReadArgs<Uri>> grouped = requests;
+                IEnumerable<ResourceReadArgs<Uri>> grouped = requests;
 
-                if (uri.Converter is HttpResourceCollectionConverter converter && args is BulkEventArgs<DatastoreKeyValueReadArgs<Uri>> batch)
+                if (uri.Converter is HttpResourceCollectionConverter converter && args is BulkEventArgs<ResourceReadArgs<Uri>> batch)
                 {
                     var index = requests.ToDictionary(req => req.Key, req => req);
 
@@ -90,7 +90,7 @@ namespace Movies
                     {
                         if (!index.ContainsKey(resource))
                         {
-                            var request = new DatastoreKeyValueReadArgs<Uri>(resource);
+                            var request = new ResourceReadArgs<Uri>(resource);
 
                             index.Add(resource, request);
                             batch.Add(request);
@@ -106,11 +106,11 @@ namespace Movies
                     groupRequest.ControlData[REpresentationalStateTransfer.Rest.IF_NONE_MATCH] = new List<string> { etag };
                 }
 
-                yield return new KeyValuePair<DatastoreKeyValueReadArgs<Uri>, IEnumerable<DatastoreKeyValueReadArgs<Uri>>>(groupRequest, grouped);
+                yield return new KeyValuePair<ResourceReadArgs<Uri>, IEnumerable<ResourceReadArgs<Uri>>>(groupRequest, grouped);
             }
         }
 
-        private static bool AllSameEtag(IEnumerable<DatastoreKeyValueReadArgs<Uri>> requests, out string etag)
+        private static bool AllSameEtag(IEnumerable<ResourceReadArgs<Uri>> requests, out string etag)
         {
             etag = null;
 
@@ -137,9 +137,11 @@ namespace Movies
             return true;
         }
 
-        protected virtual IEnumerable<KeyValuePair<string, IEnumerable<DatastoreKeyValueReadArgs<Uri>>>> GroupUrls(IEnumerable<DatastoreKeyValueReadArgs<Uri>> args) => args.Select(arg => new KeyValuePair<string, IEnumerable<DatastoreKeyValueReadArgs<Uri>>>(Resolver.ResolveUrl(arg.Key), arg.AsEnumerable()));
+        protected virtual IEnumerable<KeyValuePair<string, IEnumerable<ResourceReadArgs<Uri>>>> GroupUrls(IEnumerable<ResourceReadArgs<Uri>> args) => args
+            .Select(arg => new KeyValuePair<string, IEnumerable<ResourceReadArgs<Uri>>>(Resolver.ResolveUrl(arg.Key), arg.AsEnumerable()))
+            .GroupBy(kvp => kvp.Key, (key, group) => new KeyValuePair<string, IEnumerable<ResourceReadArgs<Uri>>>(key, group.SelectMany(pair => pair.Value)));
 
-        private TMDbResolver.TrojanTMDbUri GetUri(Item item, string url, DatastoreKeyValueReadArgs<Uri>[] requests)
+        private TMDbResolver.TrojanTMDbUri GetUri(Item item, string url, ResourceReadArgs<Uri>[] requests)
         {
             var properties = requests
                     .Select(arg => arg.Key)
@@ -160,18 +162,18 @@ namespace Movies
             return uri;
         }
 
-        private class TrojanProcessor : IAsyncEventProcessor<DatastoreKeyValueReadArgs<Uri>>
+        private class TrojanProcessor : IAsyncEventProcessor<ResourceReadArgs<Uri>>
         {
-            public IAsyncEventProcessor<DatastoreKeyValueReadArgs<Uri>> Processor { get; }
+            public IAsyncEventProcessor<ResourceReadArgs<Uri>> Processor { get; }
             public TMDbResolver Resolver { get; }
 
-            public TrojanProcessor(IAsyncEventProcessor<DatastoreKeyValueReadArgs<Uri>> processor, TMDbResolver resolver)
+            public TrojanProcessor(IAsyncEventProcessor<ResourceReadArgs<Uri>> processor, TMDbResolver resolver)
             {
                 Processor = processor;
                 Resolver = resolver;
             }
 
-            public async Task<bool> ProcessAsync(DatastoreKeyValueReadArgs<Uri> e)
+            public async Task<bool> ProcessAsync(ResourceReadArgs<Uri> e)
             {
                 var response = await Processor.ProcessAsync(e);
 

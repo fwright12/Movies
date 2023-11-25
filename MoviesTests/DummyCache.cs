@@ -3,11 +3,20 @@ using System.Collections.Concurrent;
 
 namespace MoviesTests
 {
-    public class DummyDatastore<TKey> : ConcurrentDictionary<TKey, DatastoreResponse>, IDataStore<TKey, State>, IAsyncEventProcessor<DatastoreKeyValueReadArgs<TKey>>, IAsyncEventProcessor<DatastoreKeyValueWriteArgs<TKey, State>>
+    public class DummyDatastore<TKey> : ConcurrentDictionary<TKey, ResourceResponse>, IAsyncEventProcessor<ResourceReadArgs<TKey>>, IEventAsyncCache<ResourceReadArgs<TKey>>
     {
         public int SimulatedDelay { get; set; }
 
-        public async Task<bool> ProcessAsync(DatastoreKeyValueReadArgs<TKey> e)
+        public async Task<bool> Read(IEnumerable<ResourceReadArgs<TKey>> args) => (await Task.WhenAll(args.Select(ProcessAsync))).All(result => result);
+
+        public async Task<bool> Write(IEnumerable<ResourceReadArgs<TKey>> args) => (await Task.WhenAll(args.Select(Write))).All(result => result);
+        public async Task<bool> Write(ResourceReadArgs<TKey> args)
+        {
+            await Delay();
+            return TryAdd(args.Key, new ResourceResponse<object>(args.Response.RawValue));
+        }
+
+        public async Task<bool> ProcessAsync(ResourceReadArgs<TKey> e)
         {
             await Delay();
             if (TryGetValue(e.Key, out var response))
@@ -21,13 +30,6 @@ namespace MoviesTests
             {
                 return false;
             }
-        }
-
-        public async Task<bool> ProcessAsync(DatastoreKeyValueWriteArgs<TKey, State> e)
-        {
-            await Delay();
-            TryAdd(e.Key, new DatastoreResponse<object>(new RestResponse(e.Value) { Expected = typeof(object) }.RawValue));
-            return true;
         }
 
         public Task<bool> CreateAsync(TKey key, State value) => UpdateAsync(key, value);
@@ -47,7 +49,7 @@ namespace MoviesTests
         public async Task<bool> UpdateAsync(TKey key, State updatedValue)
         {
             await Delay();
-            TryAdd(key, new DatastoreResponse<object>(new RestResponse(updatedValue) { Expected = typeof(object) }.RawValue));
+            TryAdd(key, new ResourceResponse<object>(new RestResponse(updatedValue) { Expected = typeof(object) }.RawValue));
             return true;
         }
 

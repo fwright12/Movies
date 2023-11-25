@@ -6,6 +6,7 @@ using System.Net.Http;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using FFImageLoading.Cache;
 using Movies.Models;
 
 namespace Movies
@@ -67,7 +68,7 @@ namespace Movies
     {
         public static readonly DataService Instance = new DataService();
 
-        public ChainLink<EventArgsAsyncWrapper<IEnumerable<DatastoreKeyValueReadArgs<Uri>>>> Controller { get; }
+        public ChainLink<EventArgsAsyncWrapper<IEnumerable<ResourceReadArgs<Uri>>>> Controller { get; }
         public UiiDictionaryDatastore ResourceCache { get; }
         public const int BATCH_TIMEOUT = 5000;
 
@@ -82,12 +83,7 @@ namespace Movies
         private DataService()
         {
             ResourceCache = new UiiDictionaryDatastore();
-            //Controller = new Controller().AddLast(ResourceCache);
-
-            var processor = new DatastoreProcessor<Uri, State>(ResourceCache);
-            Controller = new CacheAsideProcessor<DatastoreKeyValueReadArgs<Uri>>(
-                new AsyncBulkEventProcessor<DatastoreKeyValueReadArgs<Uri>>(processor), 
-                new AsyncBulkEventProcessor<DatastoreWriteArgs>(processor)).ToChainLink();
+            Controller = new AsyncCacheAsideProcessor<ResourceReadArgs<Uri>>(new ResourceBufferedCache<Uri>(ResourceCache)).ToChainLink();
         }
 
         public void BatchBegin()

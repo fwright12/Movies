@@ -124,7 +124,6 @@ namespace Movies
 
             if (request.Headers.TryGetValues(REpresentationalStateTransfer.Rest.IF_NONE_MATCH, out var etags) && !etags.Skip(1).Any() && etags.First() == DEFAULT_ETAG)
             {
-                Print.Log("304");
                 response = new HttpResponseMessage(HttpStatusCode.NotModified);
             }
             else

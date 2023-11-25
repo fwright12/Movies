@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 
 namespace Movies
 {
-    public class DatastoreProcessor<TKey, TValue> : IAsyncEventProcessor<DatastoreKeyValueReadArgs<TKey>>, IAsyncEventProcessor<DatastoreWriteArgs>
+    public class DatastoreProcessor<TKey, TValue> : IAsyncEventProcessor<ResourceReadArgs<TKey>>, IAsyncEventProcessor<DatastoreWriteArgs>, IAsyncEventProcessor<DatastoreKeyValueWriteArgs<TKey, State>>
     {
         public IDataStore<TKey, State> Datastore { get; }
 
@@ -13,7 +13,7 @@ namespace Movies
             Datastore = datastore;
         }
 
-        public virtual async Task<bool> ProcessAsync(DatastoreKeyValueReadArgs<TKey> e)
+        public virtual async Task<bool> ProcessAsync(ResourceReadArgs<TKey> e)
         {
             var state = Datastore.ReadAsync(e.Key);
 
@@ -34,12 +34,14 @@ namespace Movies
         {
             if (e is DatastoreKeyValueWriteArgs<TKey, State> keyValueArgs)
             {
-                return Datastore.CreateAsync(keyValueArgs.Key, keyValueArgs.Value);
+                return ProcessAsync(keyValueArgs);
             }
             else
             {
                 return Task.FromResult(false);
             }
         }
+
+        public Task<bool> ProcessAsync(DatastoreKeyValueWriteArgs<TKey, State> e) => Datastore.CreateAsync(e.Key, e.Value);
     }
 }

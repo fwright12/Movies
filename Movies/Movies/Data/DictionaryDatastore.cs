@@ -1,16 +1,21 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace Movies
 {
-    public class UiiDictionaryDatastore : IDataStore<Uri, State>
+    public class UiiDictionaryDatastore : IEventAsyncCache<ResourceReadArgs<Uri>>, IDataStore<Uri, State>
     {
         public int Count => Datastore.Count;
 
         public DictionaryDatastore Datastore { get; } = new DictionaryDatastore();
+
+        public Task<bool> Read(IEnumerable<ResourceReadArgs<Uri>> args) => Datastore.Read(args);
+
+        public Task<bool> Write(IEnumerable<ResourceReadArgs<Uri>> args) => Datastore.Write(args.Where(arg => arg.Key is UniformItemIdentifier));
 
         public Task<bool> CreateAsync(Uri key, State value) => UpdateAsync(key, value);
         public async Task<bool> CreateAsync(Uri key, Task<State> value) => await UpdateAsync(key, await value);
@@ -27,11 +32,19 @@ namespace Movies
         }
     }
 
-    public class DictionaryDatastore : IDataStore<Uri, State>
+    public class DictionaryDatastore : IEventAsyncCache<ResourceReadArgs<Uri>>, IDataStore<Uri, State>
     {
         public int Count => Cache.Count;
 
         private Dictionary<Uri, Task<State>> Cache { get; } = new Dictionary<Uri, Task<State>>();
+
+        public async Task<bool> Read(IEnumerable<ResourceReadArgs<Uri>> args) => (await Task.WhenAll(args.Select(Read))).All(result => result);
+
+        public async Task<bool> Write(IEnumerable<ResourceReadArgs<Uri>> args) => (await Task.WhenAll(args.Where(arg => arg.IsHandled).Select(Write))).All(result => result);
+
+        public async Task<bool> Read(ResourceReadArgs<Uri> arg) => Cache.TryGetValue(arg.Key, out var value) ? arg.Handle(new RestResponse(await value) { Expected = arg.Expected }) : false;
+
+        public Task<bool> Write(ResourceReadArgs<Uri> arg) => UpdateAsync(arg.Key, (arg.Response as RestResponse)?.Entities as State ?? State.Create(arg.Response.RawValue));
 
         public Task<bool> CreateAsync(Uri key, State value) => UpdateAsync(key, value);
 

@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 
 namespace Movies
 {
-    public class ItemInfoCache : IJsonCache, IDataStore<Uri, State>, IAsyncEnumerable<KeyValuePair<string, JsonResponse>>
+    public class ItemInfoCache : IJsonCache, IEventAsyncCache<ResourceReadArgs<Uri>>, IDataStore<Uri, State>, IAsyncEnumerable<KeyValuePair<string, JsonResponse>>
     {
         public static readonly Table.Column ID = new Table.Column("id", "integer");
         public static readonly Table.Column TYPE = new Table.Column("type", "integer");
@@ -279,6 +279,16 @@ namespace Movies
             {
                 yield return value;
             }
+        }
+
+        public Task<bool> Read(IEnumerable<ResourceReadArgs<Uri>> args)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<bool> Write(IEnumerable<ResourceReadArgs<Uri>> args)
+        {
+            throw new NotImplementedException();
         }
 
         public Task<bool> CreateAsync(Uri key, State value) => UpdateAsync(key, value);
