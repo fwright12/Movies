@@ -58,7 +58,8 @@ namespace Movies
 #if DEBUG && true
             WebClient = new HttpClient(new BufferedHandler(new TMDbBufferedHandler(new MockHandler())))
             {
-                BaseAddress = new Uri("https://mock.themoviedb/"),
+                //BaseAddress = new Uri("https://mock.themoviedb/"),
+                BaseAddress = new Uri("https://api.themoviedb.org/"),
 #elif DEBUG
             WebClient = new HttpClient(new BufferedHandler(new TMDbBufferedHandler(new LoggingHandler(new HttpClientHandler()))))
             {
@@ -66,7 +67,7 @@ namespace Movies
 #else
             WebClient = new HttpClient(new BufferedHandler(new TMDbBufferedHandler(new HttpClientHandler())))
             {
-                BaseAddress = new Uri(BASE_ADDRESS),
+                BaseAddress = new Uri(BaseAddress),
 #endif
                 DefaultRequestHeaders =
                 {
@@ -78,16 +79,7 @@ namespace Movies
             GetPropertyValues = InitValues();
 
             LazyAllLists = new Lazy<Task<List<Models.List>>>(GetAllLists);
-            LoadChangeKeys = GetChangeKeys();
-
-            foreach (var properties in ITEM_PROPERTIES.Values)
-            {
-                properties.ChangeKeys = ChangeKeys;
-                properties.ChangeKeysLoaded = LoadChangeKeys;
-            }
         }
-
-        public Task LoadChangeKeys { get; }
 
         public IAsyncEnumerable<Item> GetTrendingAsync<T>(string mediaType, AsyncEnumerable.TryParseFunc<JsonNode, T> parse, string timeWindow = "week") where T : Item => FlattenPages(new ParameterizedPagedRequest(API.TRENDING.GET_TRENDING, mediaType, timeWindow), parse);
 

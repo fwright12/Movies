@@ -9,10 +9,10 @@ namespace Movies
 {
     public class SQLJsonCache : IJsonCache
     {
-        public const string TABLE_NAME = "WebResourceCache";
+        public const string TABLE_NAME = "WebResourceCache1";
 
         public SQLiteAsyncConnection DB { get; }
-        public Table Table { get; } = new Table(URL, RESPONSE, TIMESTAMP)
+        public Table Table { get; } = new Table(URL, RESPONSE, TIMESTAMP, ETAG)
         {
             Name = TABLE_NAME
         };
@@ -20,6 +20,7 @@ namespace Movies
         public static readonly Table.Column URL = new Table.Column("url", "text", "primary key not null unique");
         public static readonly Table.Column RESPONSE = new Table.Column("json", "blob");
         public static readonly Table.Column TIMESTAMP = new Table.Column("timestamp", "text");
+        public static readonly Table.Column ETAG = new Table.Column("etag", "text");
 
         public Task Setup { get; }
 
@@ -27,7 +28,13 @@ namespace Movies
         {
             DB = db;
 
-            Setup = DB.CreateTable(Table);
+            Setup = Init();
+        }
+
+        private async Task Init()
+        {
+            await DB.ExecuteAsync($"drop table if exists WebResourceCache");
+            await DB.CreateTable(Table);
         }
 
         public async Task AddAsync(string url, JsonResponse response) => await ExecuteAsync($"insert into {Table} ({URL}, {RESPONSE}, {TIMESTAMP}) values (?,?,?)", url, await response.Content.ReadAsByteArrayAsync(), response.Timestamp);
@@ -46,11 +53,11 @@ namespace Movies
         {
             await Setup;
 
-            var rows = await DB.QueryAsync<(byte[], DateTime)>($"select {RESPONSE}, {TIMESTAMP} from {Table} where {URL} = ?", url);
+            var rows = await DB.QueryAsync<(byte[], DateTime, string)>($"select {RESPONSE}, {TIMESTAMP}, {ETAG} from {Table} where {URL} = ?", url);
 
             if (rows.Count == 1)
             {
-                return new JsonResponse(rows[0].Item1, rows[0].Item2);
+                return new JsonResponse(rows[0].Item1, rows[0].Item2, rows[0].Item3);
             }
             else
             {

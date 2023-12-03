@@ -22,7 +22,7 @@ namespace Movies
                 _ID = id;
                 Client = new HttpClient
                 {
-                    BaseAddress = new Uri(BASE_ADDRESS),
+                    BaseAddress = new Uri(BaseAddress),
                     DefaultRequestHeaders =
                     {
                         Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", bearer)

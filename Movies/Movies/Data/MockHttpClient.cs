@@ -37,7 +37,7 @@ namespace Movies
 
     public partial class MockHandler : HttpClientHandler
     {
-        public static readonly string DEFAULT_ETAG = "\"" + new Guid() + "\"";
+        public static readonly string DEFAULT_ETAG = "\"lkjsdflkjasdflkjsdflkjsdaflkjsadf\"";
 
         public static List<string> CallHistory = new List<string>();
         public List<string> LocalCallHistory = new List<string>();
@@ -122,7 +122,7 @@ namespace Movies
         {
             HttpResponseMessage response = null;
 
-            if (request.Headers.TryGetValues(REpresentationalStateTransfer.Rest.IF_NONE_MATCH, out var etags) && !etags.Skip(1).Any() && etags.First() == DEFAULT_ETAG)
+            if (request.Headers.TryGetValues(REpresentationalStateTransfer.Rest.IF_NONE_MATCH, out var etags) && !etags.Skip(1).Any() && etags.FirstOrDefault() == DEFAULT_ETAG)
             {
                 response = new HttpResponseMessage(HttpStatusCode.NotModified);
             }
@@ -138,11 +138,6 @@ namespace Movies
                 else
                 {
                     content = Router.Route(endpoint);
-                }
-
-                if (DetailsRoutes.Values.Contains(content))
-                {
-                    DebugConfig.Breakpoint(endpoint);
                 }
 
                 if (!DebugConfig.AllowLiveRequests)
@@ -163,7 +158,7 @@ namespace Movies
                         RequestMessage = request,
                     };
 
-                    response.Headers.Add("ETag", DEFAULT_ETAG);
+                    response.Headers.Add(REpresentationalStateTransfer.Rest.ETAG, DEFAULT_ETAG);
                 }
             }
 
@@ -171,12 +166,13 @@ namespace Movies
             CallHistory.Add(url);
             LocalCallHistory.Add(url);
 
-            if (DebugConfig.LOG_WEB_REQUESTS)
+            if (DebugConfig.LogWebRequests)
             {
-                Print.Log($"web request{(response != null ? " (mock)" : string.Empty)}: {request.RequestUri}");
+                Print.Log($"web request{(response != null ? " (mock)" : string.Empty)} ({response.StatusCode}): {request.RequestUri}");
             }
+            DebugConfig.Breakpoint();
 
-            if (response == null)
+            if (DebugConfig.AllowLiveRequests && response == null)
             {
                 response = await base.SendAsync(request, cancellationToken);
 

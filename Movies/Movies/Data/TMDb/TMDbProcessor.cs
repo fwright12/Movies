@@ -101,7 +101,7 @@ namespace Movies
                 }
 
                 var groupRequest = new RestRequestArgs(uri);
-                if (AllSameEtag(requests, out var etag))
+                if (TryGetSingleETag(requests, out var etag))
                 {
                     groupRequest.ControlData[REpresentationalStateTransfer.Rest.IF_NONE_MATCH] = new List<string> { etag };
                 }
@@ -110,7 +110,7 @@ namespace Movies
             }
         }
 
-        private static bool AllSameEtag(IEnumerable<ResourceReadArgs<Uri>> requests, out string etag)
+        private static bool TryGetSingleETag(IEnumerable<ResourceReadArgs<Uri>> requests, out string etag)
         {
             etag = null;
 

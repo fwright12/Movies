@@ -10,20 +10,14 @@
         public static void ConfigureHttp(TestContext context)
         {
             TMDb = new TMDB(string.Empty, string.Empty, new DummyCache());
-            ChangeKeys = new HashSetAsyncWrapper<string>(GetChangeKeys());
+            ChangeKeys = new HashSetAsyncWrapper<string>(Task.FromResult(Enumerable.Empty<string>()));
 
 #if DEBUG
             DebugConfig.AllowLiveRequests = false;
             DebugConfig.BreakOnRequest = false;
             DebugConfig.SimulatedDelay = 1000;
-            DebugConfig.LOG_WEB_REQUESTS = true;
+            DebugConfig.LogWebRequests = true;
 #endif
-        }
-
-        private static async Task<IEnumerable<string>> GetChangeKeys()
-        {
-            await TMDb.LoadChangeKeys;
-            return TMDb.ChangeKeys;
         }
     }
 

@@ -220,8 +220,6 @@ namespace Movies
 
             _ = SetRegions();
 
-            //_ = TMDB.GetItem(ItemType.Movie, 453395);
-
 #if DEBUG && false
             LocalDatabase = new Database(MockData.Instance, MockData.IDKey);
 
@@ -245,56 +243,24 @@ namespace Movies
             Session.PropertyChanged += async (sender, e) => await SavePropertiesAsync();
 
             LocalDatabase = new Database(tmdb, TMDB.IDKey, Session.DBLastCleaned);
-
             if (LocalDatabase.NeedsCleaning)
             {
                 Session.DBLastCleaned = DateTime.Now;
             }
             //DataManager.AddDataSource(tmdb);
 
-            ItemHelpers.PersistentCache = LocalDatabase.ItemCache;
-            _ = tmdb.SetItemCache(LocalDatabase.ItemCache, Session.LastAccessed);
-            Session.LastAccessed = DateTime.Now;
 
-            async Task<IEnumerable<string>> GetChangeKeys()
-            {
-                await tmdb.LoadChangeKeys;
-                return tmdb.ChangeKeys;
-            }
+            ItemHelpers.PersistentCache = LocalDatabase.ItemCache;
+            //_ = tmdb.SetItemCache(LocalDatabase.ItemCache, Session.LastAccessed);
+            Session.LastAccessed = DateTime.Now;
 
             var resolver = new TMDbResolver(TMDB.ITEM_PROPERTIES);
             IAsyncEventProcessor<IEnumerable<ResourceReadArgs<Uri>>> tmdbHandlers = new TMDbHttpProcessor(TMDB.WebClient, resolver, TMDbApi.AutoAppend);
-            //var localTMDbDatastore = new LocalTMDbDatastore(LocalDatabase.ItemCache, resolver);
-            var tmdbLocalCache = new TMDbLocalCache(LocalDatabase.ItemCache, resolver)
-            {
-                ChangeKeys = new ListAsyncWrapper<string>(GetChangeKeys())
-            };
+            var tmdbLocalCache = new TMDbLocalCache(LocalDatabase.ItemCache, resolver);
 
             DataService.Instance.Controller
-                //.SetNext(KeyValueCacheAsideProcessor<Uri, State>.Create(tmdbLocalProcessor))
                 .SetNext(new AsyncCacheAsideProcessor<ResourceReadArgs<Uri>>(new ResourceBufferedCache<Uri>(tmdbLocalCache)))
                 .SetNext(tmdbHandlers);
-            //DataService.Instance.Controller
-            //    .SetNext(new CacheAsideLink(new TMDbLocalHandlers(localTMDbDatastore, resolver)))
-            //    .SetNext(tmdbHandlers.HandleGet);
-            //.AddLast(new TMDbLocalResources(LocalDatabase.ItemCache, resolver)
-            //{
-            //    ChangeKeys = new ListAsyncWrapper<string>(GetChangeKeys())
-            //});
-            //.AddLast(new TMDbClient(TMDB.WebClient, resolver, TMDbApi.AutoAppend));
-
-            //var client = new TMDbClient(TMDB.WebClient, resolver, TMDbApi.AutoAppend);
-            //var chain = new ChainLinkAsync<MultiRestEventArgs>(new ResourceCache().GetAsync);
-            //chain.SetNext(new CacheAsideLink(client.GetAsync, client.PutAsync));
-
-            //var inMemory = new ResourceCache();
-            //var local = new LocalResources(LocalDatabase.ItemCache);
-            //var tmdbResources = new TMDbResources();
-
-            //inMemory.SetNext(local, null);
-            //local.SetNext(tmdbResources);
-
-            //var resources = new PropertyDictionary(new LocalResources(LocalDatabase.ItemCache, new TMDbResources()));
 
 #if DEBUG
             MovieExplore = new List<object>

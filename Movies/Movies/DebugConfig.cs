@@ -5,34 +5,18 @@ namespace Movies
 {
     public class DebugConfig
     {
-        public const bool ALLOW_TMDB_REQUESTS = false;
-        public const bool ALLOW_TMDB_IMAGES = false;
-        public static bool LOG_WEB_REQUESTS = false;
+        public static bool AllowTMDbRequests = false;
+        public static bool AllowTMDbImages = false;
+        public static bool LogWebRequests = true;
 
         public static bool AllowLiveRequests = false;
         public static bool BreakOnRequest = true;
         public static int SimulatedDelay { get; set; } = 0;
 
-        public static void Breakpoint(object arg1)
+        public static void Breakpoint()
         {
             if (BreakOnRequest)
                 ;
-            return;
-            if (Device.RuntimePlatform == Device.iOS)
-            {
-                App.Message(arg1.ToString());
-            }
-        }
-
-        public static void Breakpoint(params object[] args)
-        {
-            if (BreakOnRequest)
-                ;
-            return;
-            if (Device.RuntimePlatform == Device.iOS)
-            {
-                App.Message(string.Join(", ", args));
-            }
         }
     }
 }

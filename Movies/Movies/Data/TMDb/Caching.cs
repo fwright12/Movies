@@ -69,13 +69,11 @@ namespace Movies
             }
         }
 
-        public readonly HashSet<string> ChangeKeys = new HashSet<string>();
-
-        private async Task GetChangeKeys()
+        private async Task<ISet<string>> GetChangeKeys()
         {
             if (ResponseCache == null)
             {
-                return;
+                return new HashSet<string>();
             }
 
             await CleanCacheTask;
@@ -106,13 +104,17 @@ namespace Movies
                 }
             }
 
+            var changeKeys = new HashSet<string>();
+
             if (json?.RootElement.TryGetProperty("change_keys", out var keysJson) == true && keysJson.ValueKind == JsonValueKind.Array)
             {
                 foreach (var key in keysJson.EnumerateArray().Select(element => element.GetString()))
                 {
-                    ChangeKeys.Add(key);
+                    changeKeys.Add(key);
                 }
             }
+
+            return changeKeys;
         }
 
         private async Task InitValues()

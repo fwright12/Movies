@@ -34,13 +34,13 @@ namespace Movies
             await cache.DB.AddColumns(cache.Table, ID, TYPE);
 
 #if DEBUG
-            await cache.Clear();
+            //await cache.Clear();
 
             Print.Log((await cache.DB.QueryScalarsAsync<int>($"select count(*) from {cache.Table}")).FirstOrDefault() + " items in cache");
-            var rows = await cache.DB.QueryAsync<(string, byte[], string, string, string)>($"select * from {cache.Table} limit 10");
+            var rows = await cache.DB.QueryAsync<(string, byte[], string, string, string, string)>($"select * from {cache.Table} limit 10");
             foreach (var row in rows)
             {
-                Print.Log(row.Item1, row.Item2.Length, row.Item3, row.Item4, row.Item5);//, row.Item2);
+                Print.Log(row.Item1, row.Item2.Length, row.Item3, row.Item4, row.Item5, row.Item6);//, row.Item2);
             }
 #endif
 
@@ -111,8 +111,8 @@ namespace Movies
             BatchQuery = null;
 
             var cache = await Cache;
-            var cols = string.Join(", ", SQLJsonCache.URL, SQLJsonCache.RESPONSE, SQLJsonCache.TIMESTAMP, TYPE, ID);
-            var valueRow = "(?,?,?,?,?)";
+            var cols = string.Join(", ", SQLJsonCache.URL, SQLJsonCache.RESPONSE, SQLJsonCache.TIMESTAMP, TYPE, ID, SQLJsonCache.ETAG);
+            var valueRow = "(?,?,?,?,?,?)";
             using var itr = Segment(batched.GetEnumerator());
 
 #if DEBUG
@@ -194,7 +194,7 @@ namespace Movies
         private static async Task<IEnumerable<object>> Unwrap((ItemType type, int id, string url, Task<JsonResponse> response) item)
         {
             var json = await item.response;
-            return new object[] { item.url, await json.Content.ReadAsByteArrayAsync(), json.Timestamp, (int)Database.LocalList.AppItemTypeToDatabaseItemType(item.type), item.id };
+            return new object[] { item.url, await json.Content.ReadAsByteArrayAsync(), json.Timestamp, (int)Database.LocalList.AppItemTypeToDatabaseItemType(item.type), item.id, json.ETag };
         }
 
         public async Task Clear() => await (await Cache).Clear();
@@ -281,14 +281,50 @@ namespace Movies
             }
         }
 
-        public Task<bool> Read(IEnumerable<ResourceReadArgs<Uri>> args)
+        public async Task<bool> Read(IEnumerable<ResourceReadArgs<Uri>> args) => (await Task.WhenAll(args.Select(Read))).All(result => result);
+
+        public async Task<bool> Write(IEnumerable<ResourceReadArgs<Uri>> args) => (await Task.WhenAll(args.Select(Write))).All(result => result);
+
+        private async Task<bool> Read(ResourceReadArgs<Uri> arg)
         {
-            throw new NotImplementedException();
+            var response = await TryGetValueAsync(arg.Key.ToString());
+
+            if (response == null)
+            {
+                return false;
+            }
+
+            var representation = new ObjectRepresentation<byte[]>(await response.Content.ReadAsByteArrayAsync());
+            var controlData = new Dictionary<string, IEnumerable<string>>();
+            if (response.ETag != null)
+            {
+                controlData[REpresentationalStateTransfer.Rest.ETAG] = response.ETag.AsEnumerable();
+            }
+
+            return arg.Handle(new RestResponse(representation, controlData, null));
         }
 
-        public Task<bool> Write(IEnumerable<ResourceReadArgs<Uri>> args)
+        private async Task<bool> Write(ResourceReadArgs<Uri> arg)
         {
-            throw new NotImplementedException();
+            if (arg.Response == null)
+            {
+                return false;
+            }
+
+            State state = null;
+            string etag = null;
+
+            if (arg.Response is RestResponse restResponse)
+            {
+                state = restResponse.Entities as State;
+
+                if (restResponse.ControlData.TryGetValue(REpresentationalStateTransfer.Rest.ETAG, out var values) && !values.Skip(1).Any())
+                {
+                    etag = values.FirstOrDefault();
+                }
+            }
+
+            return await UpdateAsync(arg.Key, state ?? State.Create(arg.Response.RawValue), etag);
         }
 
         public Task<bool> CreateAsync(Uri key, State value) => UpdateAsync(key, value);
@@ -305,7 +341,8 @@ namespace Movies
             return State.Create(await response.Content.ReadAsByteArrayAsync());
         }
 
-        public async Task<bool> UpdateAsync(Uri key, State updatedValue)
+        public Task<bool> UpdateAsync(Uri key, State updatedValue) => UpdateAsync(key, updatedValue, null);
+        private async Task<bool> UpdateAsync(Uri key, State updatedValue, string etag)
         {
             if (!updatedValue.TryGetRepresentation<IEnumerable<byte>>(out var bytes))
             {
@@ -327,7 +364,7 @@ namespace Movies
                 return false;
             }
 
-            await AddAsync(type, id, url, new JsonResponse(new LazyContent(bytes)));
+            await AddAsync(type, id, url, new JsonResponse(new LazyContent(bytes), etag));
             return true;
         }
 

@@ -13,19 +13,7 @@ namespace Movies
             Processor = processor;
         }
 
-        public virtual async Task<bool> ProcessAsync(IEnumerable<TSingle> e)
-        {
-            var batch = e as BulkEventArgs<TSingle>;
-            var results = new List<Task<bool>>();
-
-            foreach (var kvp in GroupRequests(e))
-            {
-                results.Add(ProcessAsync(kvp));
-                batch?.Add(kvp.Value);
-            }
-
-            return (await Task.WhenAll(results)).All(value => value);
-        }
+        public virtual async Task<bool> ProcessAsync(IEnumerable<TSingle> e) => (await Task.WhenAll(GroupRequests(e).Select(ProcessAsync))).All(value => value);
 
         private async Task<bool> ProcessAsync(KeyValuePair<TGrouped, IEnumerable<TSingle>> kvp) => await Processor.ProcessAsync(kvp.Key) && Handle(kvp.Key, kvp.Value);
 

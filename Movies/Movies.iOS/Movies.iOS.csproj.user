@@ -1,8 +1,8 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="Current" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
-    <SelectedDevice>Remote Device</SelectedDevice>
-    <ActiveDebugProfile>Remote Device</ActiveDebugProfile>
+    <SelectedDevice>Local Device</SelectedDevice>
+    <ActiveDebugProfile>Local Device</ActiveDebugProfile>
     <TargetiOSDevice>&lt;%3fxml version="1.0" encoding="UTF-8"%3f&gt;
 &lt;!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"&gt;
 &lt;plist version="1.0"&gt;
@@ -14,7 +14,7 @@
 		&lt;key&gt;model&lt;/key&gt;
 		&lt;string&gt;iPhone11,8&lt;/string&gt;
 		&lt;key&gt;os-version&lt;/key&gt;
-		&lt;string&gt;17.0.3&lt;/string&gt;
+		&lt;string&gt;17.1.1&lt;/string&gt;
 		&lt;key&gt;os&lt;/key&gt;
 		&lt;string&gt;iOS&lt;/string&gt;
 	&lt;/dict&gt;
@@ -22,8 +22,10 @@
 &lt;/plist&gt;
 </TargetiOSDevice>
     <DefaultDevice>iPhone 14 iOS 16.2</DefaultDevice>
-    <SelectedPlatformGroup>RemoteDevice</SelectedPlatformGroup>
-    <DeveloperId>UJYAVK5R6G</DeveloperId>
-    <DevelopmentTeamId>UJYAVK5R6G</DevelopmentTeamId>
+    <SelectedPlatformGroup>LocalDevice</SelectedPlatformGroup>
+    <DeveloperId>
+    </DeveloperId>
+    <DevelopmentTeamId>
+    </DevelopmentTeamId>
   </PropertyGroup>
 </Project>

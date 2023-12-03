@@ -48,8 +48,6 @@ namespace Movies
         public IReadOnlyDictionary<Property, TMDbRequest> PropertyLookup { get; }
 
         public ItemInfoCache Cache { get; set; }
-        public HashSet<string> ChangeKeys { get; set; }
-        public Task ChangeKeysLoaded { get; set; }
 
         private static Dictionary<Property, string> CHANGE_KEY_PROPERTY_MAP = new Dictionary<Property, string>
         {
