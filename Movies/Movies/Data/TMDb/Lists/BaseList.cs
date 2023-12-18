@@ -20,7 +20,11 @@ namespace Movies
             public BaseList(object id, TMDB idSystem, string bearer)
             {
                 _ID = id;
+#if DEBUG
+                Client = new HttpClient(new MockHandler())
+#else
                 Client = new HttpClient
+#endif
                 {
                     BaseAddress = new Uri(BaseAddress),
                     DefaultRequestHeaders =

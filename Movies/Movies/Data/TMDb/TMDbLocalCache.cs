@@ -24,12 +24,12 @@ namespace Movies
 
         private const ItemType CACHEABLE_TYPES = ItemType.Movie | ItemType.TVShow | ItemType.Person;
 
-        private IDictionary<Uri, ResourceResponse> ResponseCache { get; } = new Dictionary<Uri, ResourceResponse>();
+        private Dictionary<Uri, ResourceResponse> ResponseCache { get; } = new Dictionary<Uri, ResourceResponse>();
 
         public TMDbLocalCache(IEventAsyncCache<ResourceReadArgs<Uri>> dao, TMDbResolver resolver)
         {
             DAO = dao;
-            Processor = new TMDbLocalProcessor(new TMDbSQLProcessor(dao), resolver);
+            Processor = new TMDbProcessor(new TMDbSQLProcessor(dao), resolver);
             Resolver = resolver;
         }
 
@@ -39,23 +39,30 @@ namespace Movies
 
             foreach (var arg in args)
             {
-                if (arg.IsHandled && arg.Response is RestResponse restResponse && restResponse.ControlData.TryGetValue(REpresentationalStateTransfer.Rest.ETAG, out var values))
+                if (false == arg.Key is UniformItemIdentifier && arg.IsHandled && arg.Response is RestResponse restResponse && restResponse.ControlData.TryGetValue(REpresentationalStateTransfer.Rest.ETAG, out var values))
                 {
-                    var itr = values.GetEnumerator();
-
-                    if (itr.MoveNext())
+                    if (ResponseCache.ContainsKey(arg.Key))
                     {
-                        var value = itr.Current;
+                        (restResponse.ControlData as IDictionary<string, IEnumerable<string>>)?.Remove(REpresentationalStateTransfer.Rest.ETAG);
+                    }
+                    else
+                    {
+                        var itr = values.GetEnumerator();
 
-                        if (!itr.MoveNext())
+                        if (itr.MoveNext())
                         {
-                            ResponseCache[arg.Key] = arg.Response;
+                            var value = itr.Current;
+
+                            if (!itr.MoveNext())
+                            {
+                                ResponseCache[arg.Key] = arg.Response;
+                            }
                         }
                     }
                 }
             }
 
-            return result;
+            return result && args.All(arg => false == arg.Response is RestResponse restResponse || !restResponse.ControlData.TryGetValue(REpresentationalStateTransfer.Rest.ETAG, out _));
         }
 
         private async Task<bool> Read1(IEnumerable<ResourceReadArgs<Uri>> args)
@@ -99,7 +106,7 @@ namespace Movies
             return result && isAllApplicable;
         }
 
-        private Task<bool> Write1(IEnumerable<ResourceReadArgs<Uri>> args) => DAO.Write(args.Where(arg => (!ResponseCache.Remove(arg.Key, out var response) || response != arg.Response) && (false == arg.Key is UniformItemIdentifier)));
+        //private Task<bool> Write1(IEnumerable<ResourceReadArgs<Uri>> args) => DAO.Write(args.Where(arg => (!ResponseCache.Remove(arg.Key, out var response) || response != arg.Response) && (false == arg.Key is UniformItemIdentifier)));
 
         public Task<bool> Write(IEnumerable<ResourceReadArgs<Uri>> args) => DAO.Write(args.Where(ShouldWrite));
 
@@ -109,9 +116,10 @@ namespace Movies
             {
                 return false;
             }
-            if (!ResponseCache.Remove(arg.Key, out var response))
+            if (!ResponseCache.TryGetValue(arg.Key, out var response))
             {
-                return true;
+                ResponseCache[arg.Key] = arg.Response;
+                return false == arg.Response is HttpResponse httpResponse || httpResponse.StatusCode != System.Net.HttpStatusCode.NotModified;
             }
 
             return response != arg.Response;

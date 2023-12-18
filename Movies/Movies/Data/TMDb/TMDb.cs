@@ -156,19 +156,21 @@ namespace Movies
             await foreach (var json in pages)
             {
                 var items = ParseCollection(json, PageParser, parse);
-
-                if (!items.Any())
-                {
-                    break;
-                }
-                else if (reverse)
+                if (reverse)
                 {
                     items = items.Reverse();
                 }
 
+                bool empty = true;
                 foreach (var item in items)
                 {
+                    empty = false;
                     yield return item;
+                }
+
+                if (empty)
+                {
+                    break;
                 }
             }
         }
@@ -267,7 +269,6 @@ namespace Movies
                     //dict.Add(pair);
                     //dict.Add(parser.GetPair(Task.FromResult(property.Value)));
                     //break;
-
                     _ = Data.ResourceCache.CreateAsync(new UniformItemIdentifier(item, pair.Property), Convert(pair.Value));
                 }
             }

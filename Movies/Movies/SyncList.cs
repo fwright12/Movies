@@ -75,9 +75,14 @@ namespace Movies
         private static async Task<IEnumerable<Item>> GetAdditions(List master, List source, SemaphoreSlim semaphore)
         {
             await semaphore.WaitAsync();
-            var additions = await source.GetAdditionsAsync(master);
-            semaphore.Release();
-            return additions;
+            try
+            {
+                return await source.GetAdditionsAsync(master);
+            }
+            finally
+            {
+                semaphore.Release();
+            }
         }
 
         private async Task Sync()
@@ -290,7 +295,7 @@ namespace Movies
 
         public override IAsyncEnumerable<Item> TryFilter(FilterPredicate filter, out FilterPredicate partial, CancellationToken cancellationToken = default)
         {
-            partial = FilterPredicate.TAUTOLOGY;
+            partial = filter;// FilterPredicate.TAUTOLOGY;
             return GetItemsAsync(filter, cancellationToken);
         }
 
@@ -363,7 +368,7 @@ namespace Movies
                 else
                 {
                     Itrs = new IAsyncEnumerator<Item>[RemoteIndexMap.Count + 1];
-                    Itrs[0] = Origin.GetAsyncEnumerator(filter, cancellationToken);
+                    Itrs[0] = Origin.TryFilter(filter, out _, cancellationToken).GetAsyncEnumerator(cancellationToken);
 
                     var itr = remoteIndexMap.GetEnumerator();
                     for (int i = 1; itr.MoveNext(); i++)
@@ -590,10 +595,6 @@ namespace Movies
                 try
                 {
                     contains = ListItems[index][item] = await list.ContainsAsync(item);
-                }
-                catch
-                {
-                    throw;
                 }
                 finally
                 {

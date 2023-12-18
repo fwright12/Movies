@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -74,46 +75,27 @@ namespace Movies.Models
             return types;
         }
 
-        private static async Task<List<T>> Buffer<T>(IAsyncEnumerator<T> itr, int? count, CancellationToken cancellationToken = default)
-        {
-            var buffer = new List<T>();
-
-            for (int i = 0; !(i >= count) && !cancellationToken.IsCancellationRequested && await itr.MoveNextAsync(); i++)
-            {
-                buffer.Add(itr.Current);
-            }
-
-            return buffer;
-        }
-
-        public static async IAsyncEnumerable<Item> Filter(IAsyncEnumerable<Item> items, FilterPredicate filter, CancellationToken cancellationToken = default)
+        public static async IAsyncEnumerable<Item> Filter(IAsyncEnumerable<Item> items, FilterPredicate filter, [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
             var itr = items.GetAsyncEnumerator(cancellationToken);
-            List<Item> buffer;
-            var size = 10;
+
 #if DEBUG
             var watch = System.Diagnostics.Stopwatch.StartNew();
             int count = 0;
 #endif
 
-            do
+            while (!cancellationToken.IsCancellationRequested && await itr.MoveNextAsync())
             {
-                buffer = await Buffer(itr, size, cancellationToken);
 #if DEBUG
-                count += buffer.Count;
+                count++;
                 if (count % 100 == 0) Print.Log($"Loaded {count}");
 #endif
-                var evaluated = await Task.WhenAll(buffer.Select(item => ItemHelpers.Evaluate(item, filter)));
 
-                for (int i = 0; i < buffer.Count && !cancellationToken.IsCancellationRequested; i++)
+                if (await ItemHelpers.Evaluate(itr.Current, filter))
                 {
-                    if (evaluated[i])
-                    {
-                        yield return buffer[i];
-                    }
+                    yield return itr.Current;
                 }
             }
-            while (buffer.Count == size && !cancellationToken.IsCancellationRequested);
 
 #if DEBUG
             watch.Stop();
@@ -159,13 +141,49 @@ namespace Movies.Models
                     try
                     {
                         property = FixProperty(item, property);
-                        var request = new RestRequestArgs(new UniformItemIdentifier(item, property), property.FullType);
-                        await controller.Get(request);
-                        value = request.Response.RawValue;
 
-                        if (!request.IsHandled)// || !request.Response.TryGetRepresentation(property.FullType, out value))
+                        if (property == Movies.ViewModels.CollectionViewModel.People)
                         {
-                            return false;
+                            var requests = new List<RestRequestArgs<IEnumerable<Credit>>>{
+                                new RestRequestArgs<IEnumerable<Credit>>(new UniformItemIdentifier(item, Media.CAST)),
+                                new RestRequestArgs<IEnumerable<Credit>>(new UniformItemIdentifier(item, Media.CREW))
+                            };
+                            await controller.Get(requests);
+
+                            if (!requests.Any(request => request.IsHandled))
+                            {
+                                return false;
+                            }
+
+                            value = requests
+                                .Where(request => request.IsHandled)
+                                .Select(request => request.Value)
+                                .SelectMany(credits => credits)
+                                .Select(credit => credit.Person);
+                        }
+                        else if (property == TMDB.SCORE)
+                        {
+                            var request = new RestRequestArgs<Rating>(new UniformItemIdentifier(item, Media.RATING));
+                            await controller.Get(request);
+
+                            if (!request.IsHandled)
+                            {
+                                return false;
+                            }
+
+                            value = request.Value.Score;
+                        }
+                        else
+                        {
+                            var request = new RestRequestArgs(new UniformItemIdentifier(item, property), property.FullType);
+                            await controller.Get(request);
+
+                            if (!request.IsHandled)// || !request.Response.TryGetRepresentation(property.FullType, out value))
+                            {
+                                return false;
+                            }
+
+                            value = request.Response.RawValue;
                         }
                     }
                     catch

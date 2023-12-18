@@ -147,6 +147,10 @@ namespace Movies
                 })
             });
         }
+
+        private class FilterWriter : System.IO.StringWriter
+        {
+        }
 #endif
 
         public App()
@@ -161,7 +165,7 @@ namespace Movies
 
             foreach (var kvp in new Dictionary<string, string>()
             {
-                [GetLoginCredentialsKey(ServiceName.TMDb)] = TMDB_LOGIN_INFO,
+                [GetLoginCredentialsKey(ServiceName.TMDb)] = TMDB_DEV_LOGIN_INFO,
                 [GetLoginCredentialsKey(ServiceName.Trakt)] = TRAKT_LOGIN_INFO,
 
             })
@@ -248,7 +252,6 @@ namespace Movies
                 Session.DBLastCleaned = DateTime.Now;
             }
             //DataManager.AddDataSource(tmdb);
-
 
             ItemHelpers.PersistentCache = LocalDatabase.ItemCache;
             //_ = tmdb.SetItemCache(LocalDatabase.ItemCache, Session.LastAccessed);
@@ -348,11 +351,16 @@ namespace Movies
             LazyWatchlist = new Lazy<Task<ListViewModel>>(GetWatchlist);
             LazyFavorites = new Lazy<Task<ListViewModel>>(GetFavorites);
             LazyHistory = new Lazy<Task<ListViewModel>>(GetHistory);
-            var customLists = new ObservableCollection<ListViewModel>();
 
+            var customLists = new ObservableCollection<ListViewModel>();
             customLists.CollectionChanged += CustomListsChanged;
 
             CustomLists = customLists;
+
+            //CustomLists = new List<ListViewModel>();
+            //LazyWatchlist = new Lazy<Task<ListViewModel>>(() => Task.FromResult<ListViewModel>(null));
+            //LazyFavorites = new Lazy<Task<ListViewModel>>(() => Task.FromResult<ListViewModel>(null));
+            //LazyHistory = new Lazy<Task<ListViewModel>>(() => Task.FromResult<ListViewModel>(null));
 
             CreateListCommand = new Command<ElementTemplate>(template => _ = CreateList(template));
             AddSyncSourceCommand = new Command<ListViewModel>(model => _ = AddSyncSource(model), list => list != null && list.SyncWith.Count != LoggedInListProviders().Count());

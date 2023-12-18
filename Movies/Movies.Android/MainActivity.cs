@@ -27,10 +27,8 @@ namespace Movies.Droid
 
             global::Xamarin.Forms.Forms.Init(this, savedInstanceState);
 
-#if !DEBUG
             FFImageLoading.Forms.Platform.CachedImageRenderer.Init(true);
             FFImageLoading.Forms.Platform.CachedImageRenderer.InitImageViewHandler();
-#endif
 
             //Firebase.InitializeApp(this);
             AndroidAppLinks.Init(this);

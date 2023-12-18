@@ -14,7 +14,6 @@
 
 #if DEBUG
             DebugConfig.AllowLiveRequests = false;
-            DebugConfig.BreakOnRequest = false;
             DebugConfig.SimulatedDelay = 1000;
             DebugConfig.LogWebRequests = true;
 #endif

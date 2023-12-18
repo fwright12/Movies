@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace Movies
 {
-    public abstract class TMDbProcessor : AsyncGroupEventProcessor<ResourceReadArgs<Uri>, ResourceReadArgs<Uri>>
+    public class TMDbProcessor : AsyncGroupEventProcessor<ResourceReadArgs<Uri>, ResourceReadArgs<Uri>>
     {
         public TMDbResolver Resolver { get; }
 
@@ -36,7 +36,11 @@ namespace Movies
             {
                 var response = grouped.Response;
 
-                if (collection.TryGetValue(request.Key, out var value))
+                if (response is HttpResponse httpResponse && httpResponse.StatusCode == System.Net.HttpStatusCode.NotModified)
+                {
+                    response = request.Response ?? response;
+                }
+                else if (true == collection?.TryGetValue(request.Key, out var value))
                 {
                     if (value is IEnumerable<Entity> entities)
                     {
@@ -64,7 +68,7 @@ namespace Movies
                         response = new ResourceResponse<object>(value);
                     }
                 }
-
+                
                 result &= request.Handle(response);
             }
 
@@ -138,6 +142,7 @@ namespace Movies
         }
 
         protected virtual IEnumerable<KeyValuePair<string, IEnumerable<ResourceReadArgs<Uri>>>> GroupUrls(IEnumerable<ResourceReadArgs<Uri>> args) => args
+            .Where(arg => !arg.IsHandled)
             .Select(arg => new KeyValuePair<string, IEnumerable<ResourceReadArgs<Uri>>>(Resolver.ResolveUrl(arg.Key), arg.AsEnumerable()))
             .GroupBy(kvp => kvp.Key, (key, group) => new KeyValuePair<string, IEnumerable<ResourceReadArgs<Uri>>>(key, group.SelectMany(pair => pair.Value)));
 

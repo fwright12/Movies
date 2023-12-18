@@ -16,16 +16,7 @@ namespace Movies
         public async Task<bool> ProcessAsync(ResourceReadArgs<Uri> e)
         {
             var response = await Invoker.SendAsync(ToMessage(e), default);
-
-            if (response.IsSuccessStatusCode)
-            {
-                e.Handle(new HttpResponse(response));
-                return true;
-            }
-            else
-            {
-                return false;
-            }
+            return e.Handle(new HttpResponse(response));
         }
 
         public static HttpRequestMessage ToMessage(ResourceReadArgs<Uri> args)

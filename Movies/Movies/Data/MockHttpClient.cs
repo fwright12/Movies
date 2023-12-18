@@ -18,14 +18,15 @@ namespace Movies
 
         public Router(IEnumerable<(string, string)> routes)
         {
-            Routes = new List<(Regex route, string content)>(routes.Select(route => (new Regex(route.Item1), route.Item2)).OrderByDescending(route => route.Item1.ToString().Length));
+            Routes = new List<(Regex route, string content)>(routes.Select(route => (new Regex("^" + route.Item1 + "$"), route.Item2)).OrderByDescending(route => route.Item1.ToString().Length));
         }
 
-        public string Route(string url)
+        public string Route(Uri uri)
         {
+            string path = (uri.IsAbsoluteUri ? uri.AbsolutePath : uri.ToString().Split("?").FirstOrDefault().Split(".").LastOrDefault()).Trim('/');
             foreach (var route in Routes)
             {
-                if (route.Route.IsMatch(url))
+                if (route.Route.IsMatch(path))
                 {
                     return route.Item2;
                 }
@@ -60,14 +61,14 @@ namespace Movies
 
         private static Dictionary<object, string> TMDbRoutes = new Dictionary<TMDbRequest, string>
         {
-            [string.Format(API.TRENDING.GET_TRENDING.Endpoint, "movie", ".*")] = DUMMY_TMDB_DATA.TRENDING_MOVIES_RESPONSE,
+            [string.Format(API.TRENDING.GET_TRENDING.Endpoint, "movie", "[^/]*")] = DUMMY_TMDB_DATA.TRENDING_MOVIES_RESPONSE,
             [API.DISCOVER.MOVIE_DISCOVER] = DUMMY_TMDB_DATA.TRENDING_MOVIES_RESPONSE,
-            [string.Format(API.TRENDING.GET_TRENDING.Endpoint, "tv", ".*")] = DUMMY_TMDB_DATA.TRENDING_TV_RESPONSE,
+            [string.Format(API.TRENDING.GET_TRENDING.Endpoint, "tv", "[^/]*")] = DUMMY_TMDB_DATA.TRENDING_TV_RESPONSE,
             [API.DISCOVER.TV_DISCOVER] = DUMMY_TMDB_DATA.TRENDING_TV_RESPONSE,
-            [string.Format(API.TRENDING.GET_TRENDING.Endpoint, "person", ".*")] = DUMMY_TMDB_DATA.TRENDING_PEOPLE_RESPONSE,
+            [string.Format(API.TRENDING.GET_TRENDING.Endpoint, "person", "[^/]*")] = DUMMY_TMDB_DATA.TRENDING_PEOPLE_RESPONSE,
             [API.PEOPLE.GET_POPULAR] = DUMMY_TMDB_DATA.TRENDING_PEOPLE_RESPONSE,
 
-            [API.V4.ACCOUNT.GET_MOVIES] = DUMMY_TMDB_LISTS.TMDB_ACCOUNT_FAVORITE_MOVIES_RESPONSE,
+            [API.V4.ACCOUNT.GET_MOVIES] = DUMMY_TMDB_LISTS.TMDB_PERSONAL_WATCHLIST_MOVIES_RESPONSE,
             [API.V4.ACCOUNT.GET_TV_SHOWS] = DUMMY_TMDB_LISTS.TMDB_ACCOUNT_FAVORITE_TV_RESPONSE,
             [new TMDbRequest("account/{0}/lists") { Version = 4 }] = DUMMY_TMDB_LISTS.TMDB_ACCOUNT_LISTS_RESPONSE,
             [API.V3.ACCOUNT.ADD_TO_LIST] = DUMMY_TMDB_LISTS.TMDB_WATCHED_LIST_RESPONSE,
@@ -110,7 +111,7 @@ namespace Movies
                     url = kvp.Key?.ToString() ?? string.Empty;
                 }
 
-                return (new Regex("{\\d+}").Replace(url, ".*") + ".*", kvp.Value);
+                return (new Regex("{\\d+}").Replace(url, "[^/]*"), kvp.Value);
             }));
         }
 
@@ -137,7 +138,7 @@ namespace Movies
                 }
                 else
                 {
-                    content = Router.Route(endpoint);
+                    content = Router.Route(request.RequestUri);
                 }
 
                 if (!DebugConfig.AllowLiveRequests)
@@ -165,15 +166,11 @@ namespace Movies
             string url = request.RequestUri.IsAbsoluteUri ? request.RequestUri.PathAndQuery.TrimStart('/') : request.RequestUri.ToString();
             CallHistory.Add(url);
             LocalCallHistory.Add(url);
-
-            if (DebugConfig.LogWebRequests)
-            {
-                Print.Log($"web request{(response != null ? " (mock)" : string.Empty)} ({response.StatusCode}): {request.RequestUri}");
-            }
-            DebugConfig.Breakpoint();
+            bool isLive = false;
 
             if (DebugConfig.AllowLiveRequests && response == null)
             {
+                //throw new Exception();
                 response = await base.SendAsync(request, cancellationToken);
 
                 if (response.IsSuccessStatusCode)
@@ -181,11 +178,19 @@ namespace Movies
                     var json = await response.Content.ReadAsStringAsync();
                     Print.Log(json);
                 }
+
+                isLive = true;
             }
             else if (DebugConfig.SimulatedDelay > 0)
             {
                 await Task.Delay(DebugConfig.SimulatedDelay);
             }
+
+            if (DebugConfig.LogWebRequests)
+            {
+                Print.Log($"web request{(!isLive ? " (mock)" : string.Empty)} ({response?.StatusCode}): {request.RequestUri}");
+            }
+            DebugConfig.Breakpoint();
 
             return response;
         }

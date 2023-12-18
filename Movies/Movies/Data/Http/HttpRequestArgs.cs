@@ -3,6 +3,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Threading.Tasks;
@@ -19,13 +20,14 @@ namespace Movies
     public class HttpResponse : RestResponse
     {
         public Task BindingDelay { get; }
+        public HttpStatusCode StatusCode => Message.StatusCode;
 
         private HttpResponseMessage Message { get; }
 
         public HttpResponse(HttpResponseMessage message) : base(new State(), new HttpHeaderDictionary(message.Headers), null)
         {
             Message = message;
-            BindingDelay = BindLate(message.Content);
+            BindingDelay = message.Content == null ? Task.CompletedTask : BindLate(message.Content);
         }
 
         private async Task BindLate(HttpContent content)

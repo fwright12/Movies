@@ -159,6 +159,8 @@ namespace Movies.ViewModels
             set => UpdateValue(ref _IsRefreshRequired, value);
         }
 
+        public int InitialCount { get; set; } = 5;
+
         public bool CanRefresh => IsRefreshEnabled || IsRefreshRequired;
 
         public bool IsRefreshEnabled { get; set; }
@@ -232,7 +234,7 @@ namespace Movies.ViewModels
         public async Task Refresh()
         {
             IsRefreshRequired = false;
-            await LoadMore(10);
+            await LoadMore(InitialCount);
         }
 
         public void Reset()
