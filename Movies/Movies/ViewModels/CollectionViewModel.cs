@@ -114,7 +114,7 @@ namespace Movies.ViewModels
 
         public static readonly string ITEM_TYPE = nameof(object.GetType);
         public static readonly Property<MonetizationType?> MonetizationType = new Property<MonetizationType?>("Monetization Type", GetNames<MonetizationType>());
-        public static readonly Property<PersonViewModel> People = new Property<PersonViewModel>("People", new FilterListViewModel<PersonViewModel>(new App.PeopleSearch())
+        public static readonly Property<PersonViewModel> People = new MultiProperty<PersonViewModel>("People", new FilterListViewModel<PersonViewModel>(new App.PeopleSearch())
         {
             Predicate = new SearchPredicateBuilder()
         });

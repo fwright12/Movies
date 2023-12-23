@@ -5,16 +5,16 @@ namespace Movies
 {
     public class DebugConfig
     {
-        public static bool FilterPerformanceTest = false;
+        public static bool FilterPerformanceTest { get; set; } = false;
 
-        public static bool AllowTMDbRequests = false;
-        public static bool AllowTMDbImages = false;
-        public static bool LogWebRequests = !FilterPerformanceTest && true;
+        public static bool AllowLiveRequests { get; set; } = false;
+        public static bool LogWebRequests { get; set; } = !FilterPerformanceTest && true;
+        public static bool AllowTMDbRequests { get; set; } = false;
+        public static bool AllowTMDbImages { get; set; } = false;
 
-        public static bool AllowLiveRequests = false;
+        public static bool ClearLocalWebCache { get; set; } = FilterPerformanceTest || false;
+
         public static int SimulatedDelay { get; set; } = 0;
-
-        public static bool ClearLocalWebCache = FilterPerformanceTest || false;
 
         public static void Breakpoint()
         {

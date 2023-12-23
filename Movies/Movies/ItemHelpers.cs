@@ -449,7 +449,7 @@ namespace Movies.Models
                             {
                                 LHS = temp,
                                 Operator = op.Operator,
-                                RHS = op.RHS
+                                RHS = (op.RHS as Movies.ViewModels.PersonViewModel)?.Item ?? op.RHS
                             });
                         }
 

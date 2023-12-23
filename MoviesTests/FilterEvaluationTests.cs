@@ -73,6 +73,7 @@
         private static readonly Genre ADVENTURE_GENRE = new Genre { Id = 12, Name = "Adventure" };
         private static readonly Genre COMEDY_GENRE = new Genre { Id = 35, Name = "Comedy" };
         private static readonly Keyword WIZARD_KEYWORD = new Keyword { Id = 177912, Name = "wizard" };
+        private static readonly Person EVANNA_LYNCH = new Person("Evanna Lynch").WithID(TMDB.IDKey, 140367);
         private static readonly WatchProvider HBO = new WatchProvider { Id = 384 };
         private static readonly WatchProvider PEACOCK = new WatchProvider { Id = 386 };
         private static OperatorPredicate ADVENTURE_MOVIES => new OperatorPredicate
@@ -280,6 +281,21 @@
         public async Task MultiplePredicatesTests()
         {
 
+        }
+
+        [TestMethod]
+        public async Task FilterPeople()
+        {
+            OperatorPredicate predicate = new OperatorPredicate
+            {
+                LHS = CollectionViewModel.People,
+                Operator = Operators.Equal,
+                RHS = new Person("alsdjfsf")
+            };
+
+            Assert.IsFalse(await Evaluate(Movie, predicate));
+            predicate.RHS = EVANNA_LYNCH;
+            Assert.IsTrue(await Evaluate(Movie, predicate));
         }
 
         private Task<bool> Evaluate(Item item, FilterPredicate filter) => ItemHelpers.Evaluate(Chain, item, filter);

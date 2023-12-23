@@ -243,6 +243,7 @@ namespace Movies
                 //CustomLists.Add(new List { Name = collection.Name, Items = collection.Items });
             }
 #else
+
             Session = new Session(Properties);
             Session.PropertyChanged += async (sender, e) => await SavePropertiesAsync();
 
