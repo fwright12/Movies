@@ -46,6 +46,8 @@ namespace Movies
 
         public override int GetHashCode() => Key.GetHashCode();
         public override bool Equals(object obj) => obj is KeyValueReadArgs<TKey> other && Equals(Key, other.Key);
+
+        public override string ToString() => Key?.ToString();
     }
 
     public class KeyValueReadArgs<TKey, TValue> : KeyValueReadArgs<TKey>

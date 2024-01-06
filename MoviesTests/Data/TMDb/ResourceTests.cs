@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
+using System.Collections;
 using System.Diagnostics;
 using System.Text;
 
@@ -17,6 +18,17 @@ namespace MoviesTests.Data.TMDb
             //InMemoryCache.Clear();
             //DiskCache.Clear();
             TMDB.CollectionCache.Clear();
+        }
+
+        //[TestMethod]
+        public async Task RunInBulk()
+        {
+            int count = 100;
+
+            for (int i = 0; i < count; i++)
+            {
+                await GetCredits();
+            }
         }
 
         [TestMethod]
@@ -162,7 +174,7 @@ namespace MoviesTests.Data.TMDb
             var r2 = new ResourceReadArgs<Uri, IEnumerable<Item>>(new UniformItemIdentifier(Constants.Person, Person.CREDITS));
             var temp = chain.Get(r1, r2);
 
-            await Task.Delay(10);
+            await Task.Delay(20);
 
             var request1 = new ResourceReadArgs<Uri, IEnumerable<Item>>(new UniformItemIdentifier(Constants.Person, Person.CREDITS));
 
@@ -415,20 +427,25 @@ namespace MoviesTests.Data.TMDb
         [TestMethod]
         public async Task GetAllResources()
         {
-            var handlers = new HandlerChain();
-            var chain = handlers.Chain;
+            for (int i = 0; i < 1; i++)
+            {
+                var handlers = new HandlerChain();
+                var chain = handlers.Chain;
 
-            await handlers.InMemoryCache.CreateAsync(new UniformItemIdentifier(Constants.Movie, Media.RUNTIME), State.Create(new TimeSpan(2, 10, 0)));
+                await handlers.InMemoryCache.CreateAsync(new UniformItemIdentifier(Constants.Movie, Media.RUNTIME), State.Create(new TimeSpan(2, 10, 0)));
 
-            var requests = GetAllRequests();
-            await Task.WhenAll(chain.Get(requests));
+                var requests = GetAllRequests();
+                await Task.WhenAll(chain.Get(requests));
 
-            var runtime = (ResourceReadArgs<Uri, TimeSpan>)requests.Where(request => (request.Key as UniformItemIdentifier)?.Property == Media.RUNTIME).FirstOrDefault();
-            var watchProviders = (ResourceReadArgs<Uri, IEnumerable<WatchProvider>>)requests.Where(request => (request.Key as UniformItemIdentifier)?.Property == Movie.WATCH_PROVIDERS).FirstOrDefault();
+                var runtime = (ResourceReadArgs<Uri, TimeSpan>)requests.Where(request => (request.Key as UniformItemIdentifier)?.Property == Media.RUNTIME).FirstOrDefault();
+                var watchProviders = (ResourceReadArgs<Uri, IEnumerable<WatchProvider>>)requests.Where(request => (request.Key as UniformItemIdentifier)?.Property == Movie.WATCH_PROVIDERS).FirstOrDefault();
 
-            Assert.AreEqual(2, WebHistory.Count);
-            Assert.AreEqual(new TimeSpan(2, 10, 0), runtime.Value);
-            Assert.AreEqual("Apple iTunes", watchProviders.Value.FirstOrDefault()?.Company.Name);
+                Assert.AreEqual(2, WebHistory.Count);
+                Assert.AreEqual(new TimeSpan(2, 10, 0), runtime.Value);
+                Assert.AreEqual("Apple iTunes", watchProviders.Value.FirstOrDefault()?.Company.Name);
+
+                WebHistory.RemoveAt(1);
+            }
         }
 
         private static Task CachedAsync(DummyDatastore<Uri> diskCache)
@@ -620,8 +637,8 @@ namespace MoviesTests.Data.TMDb
                 var invoker = new HttpMessageInvoker(new BufferedHandler(new TMDbBufferedHandler(MockHttpHandler = new MockHandler())));
                 RemoteTMDbProcessor = new TMDbHttpProcessor(invoker, Resolver, TMDbApi.AutoAppend);
 
-                Chain = new AsyncCacheAsideProcessor<ResourceReadArgs<Uri>>(new ResourceBufferedCache<Uri>(InMemoryCache)).ToChainLink();
-                Chain.SetNext(new AsyncCacheAsideProcessor<ResourceReadArgs<Uri>>(new ResourceBufferedCache<Uri>(LocalTMDbCache)))
+                Chain = new AsyncCacheAsideProcessor<ResourceReadArgs<Uri>>(new UriBufferedCache(InMemoryCache)).ToChainLink();
+                Chain.SetNext(new AsyncCacheAsideProcessor<ResourceReadArgs<Uri>>(new UriBufferedCache(LocalTMDbCache)))
                     .SetNext(RemoteTMDbProcessor);
             }
         }

@@ -27,7 +27,7 @@ namespace Movies
         public HttpResponse(HttpResponseMessage message) : base(new State(), new HttpHeaderDictionary(message.Headers), null)
         {
             Message = message;
-            BindingDelay = message.Content == null ? Task.CompletedTask : BindLate(message.Content);
+            BindingDelay = message.IsSuccessStatusCode ? BindLate(message.Content) : Task.CompletedTask;
         }
 
         private async Task BindLate(HttpContent content)

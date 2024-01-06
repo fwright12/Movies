@@ -8,6 +8,6 @@ namespace Movies
 
         public override object GetKey(KeyValueReadArgs<TKey> e) => e.Key;
 
-        public override async Task Process(KeyValueReadArgs<TKey> e, Task<KeyValueReadArgs<TKey>> buffered) => e.Handle((await buffered).Value);
+        public override void Process(KeyValueReadArgs<TKey> e, KeyValueReadArgs<TKey> buffered) => e.Handle(buffered.Value);
     }
 }

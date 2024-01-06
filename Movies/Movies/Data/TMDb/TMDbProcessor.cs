@@ -36,11 +36,11 @@ namespace Movies
             {
                 var response = grouped.Response;
 
-                if (response is HttpResponse httpResponse && httpResponse.StatusCode == System.Net.HttpStatusCode.NotModified)
+                /*if (response is HttpResponse httpResponse && httpResponse.StatusCode == System.Net.HttpStatusCode.NotModified)
                 {
                     response = request.Response ?? response;
                 }
-                else if (true == collection?.TryGetValue(request.Key, out var value))
+                else*/ if (true == collection?.TryGetValue(request.Key, out var value))
                 {
                     if (value is IEnumerable<Entity> entities)
                     {
@@ -105,7 +105,7 @@ namespace Movies
                 }
 
                 var groupRequest = new RestRequestArgs(uri);
-                if (TryGetSingleETag(requests, out var etag))
+                if (TryGetSingleIfNoneMatch(requests, out var etag))
                 {
                     groupRequest.ControlData[REpresentationalStateTransfer.Rest.IF_NONE_MATCH] = new List<string> { etag };
                 }
@@ -114,13 +114,13 @@ namespace Movies
             }
         }
 
-        private static bool TryGetSingleETag(IEnumerable<ResourceReadArgs<Uri>> requests, out string etag)
+        private static bool TryGetSingleIfNoneMatch(IEnumerable<ResourceReadArgs<Uri>> requests, out string etag)
         {
             etag = null;
 
             foreach (var request in requests)
             {
-                if (request.Response is RestResponse restResponse && restResponse.ControlData.TryGetValue(REpresentationalStateTransfer.Rest.ETAG, out var etags))
+                if (request is RestRequestArgs restRequest && restRequest.ControlData.TryGetValue(REpresentationalStateTransfer.Rest.IF_NONE_MATCH, out var etags))
                 {
                     var itr = etags.GetEnumerator();
 
