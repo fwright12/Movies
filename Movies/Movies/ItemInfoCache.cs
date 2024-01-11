@@ -320,7 +320,7 @@ namespace Movies
 
             if (arg.Response is RestResponse restResponse)
             {
-                state = restResponse.Entities as State;
+                state = restResponse.Resource.Get() as State;
 
                 if (restResponse.ControlData.TryGetValue(REpresentationalStateTransfer.Rest.ETAG, out var values) && !values.Skip(1).Any())
                 {
@@ -328,7 +328,7 @@ namespace Movies
                 }
             }
 
-            return await UpdateAsync(arg.Key, state ?? State.Create(arg.Response.RawValue), etag);
+            return await UpdateAsync(arg.Key, state ?? State.Create(arg.Value), etag);
         }
 
         public Task<bool> CreateAsync(Uri key, State value) => UpdateAsync(key, value);
@@ -348,7 +348,7 @@ namespace Movies
         public Task<bool> UpdateAsync(Uri key, State updatedValue) => UpdateAsync(key, updatedValue, null);
         private async Task<bool> UpdateAsync(Uri key, State updatedValue, string etag)
         {
-            if (!updatedValue.TryGetRepresentation<IEnumerable<byte>>(out var bytes))
+            if (!updatedValue.TryGetValue<IEnumerable<byte>>(out var bytes))
             {
                 return false;
             }

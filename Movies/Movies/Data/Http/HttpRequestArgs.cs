@@ -10,6 +10,18 @@ using System.Threading.Tasks;
 
 namespace Movies
 {
+    public class LateBoundResource : IResource
+    {
+        private Task<IResource> BindingDelay { get; }
+
+        public LateBoundResource(Task<IResource> bindingDelay)
+        {
+            BindingDelay = bindingDelay;
+        }
+
+        public IEnumerable<Entity> Get(DateTime time) => (BindingDelay.IsCompleted ? BindingDelay.Result : Rest.EmptyResource).Get(time);
+    }
+
     public class HttpRequestArgs : RestRequestArgs
     {
         public HttpRequestArgs(Uri uri, Type expected = null) : base(uri, expected)
@@ -24,17 +36,19 @@ namespace Movies
 
         private HttpResponseMessage Message { get; }
 
-        public HttpResponse(HttpResponseMessage message) : base(new State(), new HttpHeaderDictionary(message.Headers), null)
+        public HttpResponse(HttpResponseMessage message) : this(message, message.IsSuccessStatusCode ? BindLate(message.Content) : Task.FromResult(Rest.EmptyResource)) { }
+        private HttpResponse(HttpResponseMessage message, Task<IResource> resource) : base(new LateBoundResource(resource), new HttpHeaderDictionary(message.Headers), null)
         {
             Message = message;
-            BindingDelay = message.IsSuccessStatusCode ? BindLate(message.Content) : Task.CompletedTask;
+            BindingDelay = resource;
         }
 
-        private async Task BindLate(HttpContent content)
+        private static async Task<IResource> BindLate(HttpContent content)
         {
             var bytes = await content.ReadAsByteArrayAsync();
 
-            Add(Entity.Create(bytes));
+            return State.Create(bytes);
+            //Add(Entity.Create(bytes));
             //Add(Entity.Create(Encoding.UTF8.GetString(bytes)));
         }
 

@@ -19,10 +19,7 @@ namespace Movies
 
             if (state != null)
             {
-                return e.Handle(new RestResponse(await state)
-                {
-                    Expected = e.Expected
-                });
+                return e.Handle(new RestResponse(await state));
             }
             else
             {

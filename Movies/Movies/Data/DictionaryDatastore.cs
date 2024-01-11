@@ -42,9 +42,9 @@ namespace Movies
 
         public async Task<bool> Write(IEnumerable<ResourceReadArgs<Uri>> args) => (await Task.WhenAll(args.Where(arg => arg.IsHandled).Select(Write))).All(result => result);
 
-        public async Task<bool> Read(ResourceReadArgs<Uri> arg) => Cache.TryGetValue(arg.Key, out var value) ? arg.Handle(new RestResponse(await value) { Expected = arg.Expected }) : false;
+        public async Task<bool> Read(ResourceReadArgs<Uri> arg) => Cache.TryGetValue(arg.Key, out var value) ? arg.Handle(new RestResponse(await value)) : false;
 
-        public Task<bool> Write(ResourceReadArgs<Uri> arg) => UpdateAsync(arg.Key, (arg.Response as RestResponse)?.Entities as State ?? State.Create(arg.Response.RawValue));
+        public Task<bool> Write(ResourceReadArgs<Uri> arg) => UpdateAsync(arg.Key, (arg.Response as RestResponse)?.Resource.Get() as State ?? State.Create(arg.Value));
 
         public Task<bool> CreateAsync(Uri key, State value) => UpdateAsync(key, value);
 

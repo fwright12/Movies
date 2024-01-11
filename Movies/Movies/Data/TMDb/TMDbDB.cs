@@ -30,7 +30,7 @@ namespace Movies
             {
                 var state = await stateTask;
 
-                if (state.TryGetRepresentation(property.FullType, out var value))
+                if (state.TryGetValue(property.FullType, out var value))
                 {
                     if (value is Rating rating)
                     {

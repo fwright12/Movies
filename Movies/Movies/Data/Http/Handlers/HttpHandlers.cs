@@ -35,13 +35,13 @@ namespace Movies
 
         private byte[] GetBytes()
         {
-            if (Value.TryGetRepresentation<byte[]>(out var bytes))
+            if (Value.TryGetValue<byte[]>(out var bytes))
             {
                 return bytes;
             }
             else
             {
-                if (!Value.TryGetRepresentation<string>(out var str))
+                if (!Value.TryGetValue<string>(out var str))
                 {
                     str = JsonSerializer.Serialize(Value.OfType<object>().First());
                 }

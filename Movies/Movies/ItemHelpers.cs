@@ -183,7 +183,10 @@ namespace Movies.Models
                                 return false;
                             }
 
-                            value = request.Response.RawValue;
+#if !DEBUG
+                            lajsdsalf
+#endif
+                            value = request.Value;
                         }
                     }
                     catch
@@ -249,7 +252,7 @@ namespace Movies.Models
             }
         }
 #else
-        public static async Task<bool> Evaluate(ChainLink<MultiRestEventArgs> controller, Item item, FilterPredicate filter)//, PropertyDictionary properties = null, ItemInfoCache cache = null)
+                            public static async Task<bool> Evaluate(ChainLink<MultiRestEventArgs> controller, Item item, FilterPredicate filter)//, PropertyDictionary properties = null, ItemInfoCache cache = null)
         {
             var details = new Lazy<PropertyDictionary>(() => DataService.Instance.GetDetails(item));
             var predicates = DefferedPredicates(filter, DataService.Instance.GetDetails(item), PersistentCache).GetAsyncEnumerator();

@@ -10,7 +10,7 @@ namespace Movies
 
         public bool Handle(ResourceResponse response)
         {
-            if (Accept(response) && base.Handle(response.RawValue))
+            if (Accept(response) && response.TryGetRepresentation(Expected, out var value) && base.Handle(value))
             {
                 Response = response;
                 return true;

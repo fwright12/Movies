@@ -56,11 +56,11 @@ namespace Movies
 
         public static bool TryGetHttpContent(State state, out HttpContent content)
         {
-            if (state.TryGetRepresentation<byte[]>(out var bytes))
+            if (state.TryGetValue<byte[]>(out var bytes))
             {
                 content = new ByteArrayContent(bytes);
             }
-            else if (state.TryGetRepresentation<string>(out var str))
+            else if (state.TryGetValue<string>(out var str))
             {
                 content = new StringContent(str);
             }

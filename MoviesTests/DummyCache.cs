@@ -13,7 +13,7 @@ namespace MoviesTests
         public async Task<bool> Write(ResourceReadArgs<TKey> args)
         {
             await Delay();
-            return TryAdd(args.Key, new ResourceResponse<object>(args.Response.RawValue));
+            return TryAdd(args.Key, new ResourceResponse<object>(args.Value));
         }
 
         public async Task<bool> ProcessAsync(ResourceReadArgs<TKey> e)
@@ -21,10 +21,7 @@ namespace MoviesTests
             await Delay();
             if (TryGetValue(e.Key, out var response))
             {
-                return e.Handle(response as RestResponse ?? new RestResponse(State.Create(response.RawValue))
-                {
-                    Expected = e.Expected
-                });
+                return e.Handle(response as RestResponse ?? new RestResponse(State.Create(response.TryGetRepresentation<object>(out var value) ? value : null)));
             }
             else
             {
@@ -40,16 +37,16 @@ namespace MoviesTests
             return TryRemove(key, out var value) ? State.Create(value) : null;
         }
 
-        public async Task<State> ReadAsync(TKey key)
-        {
-            await Delay();
-            return TryGetValue(key, out var value) ? State.Create(value.RawValue) : null;
-        }
+        //public async Task<State> ReadAsync(TKey key)
+        //{
+        //    await Delay();
+        //    return TryGetValue(key, out var value) ? value.Entities as State : null;
+        //}
 
         public async Task<bool> UpdateAsync(TKey key, State updatedValue)
         {
             await Delay();
-            TryAdd(key, new ResourceResponse<object>(new RestResponse(updatedValue) { Expected = typeof(object) }.RawValue));
+            TryAdd(key, new RestResponse(updatedValue));
             return true;
         }
 
@@ -112,7 +109,7 @@ namespace MoviesTests
 
         public async Task<bool> UpdateAsync(Uri key, State updatedValue)
         {
-            if (updatedValue.TryGetRepresentation<IEnumerable<byte>>(out var bytes))
+            if (updatedValue.TryGetValue<IEnumerable<byte>>(out var bytes))
             {
                 await AddAsync(key.ToString(), new JsonResponse(bytes.ToArray()));
                 return true;

@@ -538,7 +538,7 @@ namespace MoviesTests.Data.TMDb
                 {
                     var request = CreateRequest(item, property);
                     await test.Controller.Get(request);
-                    var value = request.Response?.RawValue;
+                    var value = request.Value;
 
                     Assert.IsTrue(request.IsHandled, $"Could not get value for property {property} of type {type}");
                     //Assert.IsTrue(arg.Response.TryGetRepresentation(property.FullType, out var value), $"Property {property}. Expected type: {property.FullType}. Available types: {string.Join(", ", arg.Response.OfType<object>().Select(rep => rep.GetType()))}");

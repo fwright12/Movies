@@ -38,60 +38,37 @@ namespace Movies
 
     public class RestRequestArgs<T> : RestRequestArgs
     {
-        public virtual T Value => base.Response?.RawValue is T value ? value : default;
+        public new virtual T Value => base.Response?.TryGetRepresentation<T>(out var value) == true ? value : default;
 
         public RestRequestArgs(Uri uri) : base(uri, typeof(T)) { }
     }
 
     public class RestResponse : ResourceResponse
     {
-        public override object RawValue => Expected != null && TryGetRepresentation(Entities, Expected, out var value) ? value : Entities.Select(entity => entity.Value).OfType<Representation<object>>().FirstOrDefault()?.Value;
-        public IEnumerable<Entity> Entities { get; }
-        public object Expected { get; set; }
-
-        public Representation<object> Representation { get; private set; }
+        //public override object RawValue => Expected != null && TryGetRepresentation(Entities, Expected, out var value) ? value : Entities.Select(entity => entity.Value).OfType<Representation<object>>().FirstOrDefault()?.Value;
+        public IEnumerable<Entity> Entities => Resource.Get();
+        public IResource Resource { get; }
         public ControlData ControlData { get; private set; }
         public Metadata Metadata { get; private set; }
 
         public RestResponse(params Entity[] entities) : this((IEnumerable<Entity>)entities) { }
         public RestResponse(IEnumerable<Entity> entities) : this(entities, null, null) { }
 
-        public RestResponse(Representation<object> representation, ControlData controlData, Metadata metadata) : this(new State(representation.Value), controlData, metadata) { }
-        public RestResponse(IEnumerable<Entity> representations, ControlData controlData, Metadata metadata)
+        public RestResponse(Representation<object> representation, ControlData controlData, Metadata metadata) : this((IResource)new State(representation.Value), controlData, metadata) { }
+        public RestResponse(State state, ControlData controlData, Metadata metadata) : this(new StaticResource(state), controlData, metadata) { }
+        public RestResponse(IEnumerable<Entity> representations, ControlData controlData, Metadata metadata) : this(new StaticResource(representations), controlData, metadata) { }
+        public RestResponse(IResource resource, ControlData controlData, Metadata metadata)
         {
-            Entities = representations;
+            Resource = resource;
             ControlData = controlData ?? Enumerable.Empty<KeyValuePair<string, IEnumerable<string>>>();
             Metadata = metadata ?? Enumerable.Empty<KeyValuePair<string, string>>();
         }
 
-        public bool Add<T>(Func<object, T> converter)
+        public override bool TryGetRepresentation(Type type, out object value)
         {
-            return false;
-        }
-
-        protected bool Add(params Entity[] entities)
-        {
-            if (Entities is State state)
+            if (Resource.Get() is State state && state.TryGetRepresentation(type, out var representation))
             {
-                foreach (var entity in entities)
-                {
-                    state.Add(entity);
-                }
-
-                return true;
-            }
-            else
-            {
-                return false;
-            }
-        }
-
-        public bool TryGetRepresentation(object expected, out object value) => TryGetRepresentation(Entities, expected, out value);
-        public bool TryGetRepresentation<T>(out T value)
-        {
-            if (TryGetRepresentation(Entities, typeof(T), out var valueObj) && valueObj is T t)
-            {
-                value = t;
+                value = representation.Value;
                 return true;
             }
             else
@@ -100,96 +77,89 @@ namespace Movies
                 return false;
             }
         }
-
-        private static bool TryGetRepresentation(IEnumerable<Entity> entities, object expected, out object value)
-        {
-            if (entities is State state && expected is Type type)
-            {
-                return state.TryGetRepresentation(type, out value);
-            }
-
-            foreach (var entity in entities.OfType<Representation<object>>())
-            {
-
-            }
-
-            throw new NotImplementedException();
-        }
     }
 
-    public interface IConverter<T>// : IConverter1
-    {
-        bool TryConvert(T original, Type targetType, out object converted);
-    }
-
-    public class State : IEnumerable, IEnumerable<Representation<object>>, IEnumerable<Entity>
+    public class State : StaticResource, IEnumerable, IEnumerable<Representation<object>>, IEnumerable<Entity>
     {
         public int Count => Representations.Count;
 
-        private Dictionary<Type, object> Representations { get; }
+        private Dictionary<Type, Representation<object>> Representations { get; }
 
-        public State()
-        {
-            Representations = new Dictionary<Type, object>();
-        }
         public State(object initial) : this(initial.GetType(), initial) { }
+        public State(params Representation<object>[] representations) : this((IEnumerable<Representation<object>>)representations) { }
+        public State(IEnumerable<Representation<object>> representations)
+        {
+            Representations = new Dictionary<Type, Representation<object>>();
+
+            foreach (var representation in representations)
+            {
+                Add(representation);
+            }
+
+            Set(this);
+        }
+
         private State(Type type, object initial)
         {
-            Representations = new Dictionary<Type, object>
+            Representations = new Dictionary<Type, Representation<object>>
             {
-                { type, initial }
+                { type, new ObjectRepresentation<object>(initial) }
             };
+            Set(this);
         }
 
         public static State Create<T>(T value) => value as State ?? new State(typeof(T), value);
         public static State Create(object value) => value as State ?? new State(value);
         public static State Null(Type type) => new State(type, null);
 
-        public bool Add<TExisting, TNew>(IConverter<TExisting> converter) => Add<TExisting>(typeof(TNew), converter);
-        public bool Add<T>(Type type, IConverter<T> converter)
+        public void Add<T>(T value) => Add(typeof(T), value);
+        public void Add(Type type, object value) => AddRepresentation(type, new ObjectRepresentation<object>(value));
+        public void AddRepresentation<T>(Representation<T> representation) where T : class => AddRepresentation(typeof(T), representation);
+        public void AddRepresentation(Type type, Representation<object> representation)
         {
-            foreach (var value in this.OfType<T>())
+            Representations.TryAdd(type, representation);
+        }
+
+        public bool HasRepresentation<T>() => HasRepresentation(typeof(T));
+        public bool HasRepresentation(Type type) => TryGetValue(type, out _);
+
+        public override bool TryGetRepresentation(object key, out Representation<object> representation)
+        {
+            if (false == key is Type type)
             {
-                if (converter.TryConvert(value, type, out var converted))
-                {
-                    Representations.Add(type, converted);
-                    return true;
-                }
+                return base.TryGetRepresentation(key, out representation);
             }
 
-            return false;
-        }
-
-        public void Add(Type type, object value)
-        {
-            Representations.TryAdd(type, value);
-        }
-
-        public void Add<T>(T value) => Add(typeof(T), value);
-
-        public void Add(Entity entity)
-        {
-            if (entity.Value is Representation<object> representation)
+            if (type != null)
             {
-                Add(representation.Value.GetType(), representation.Value);
+                if (TryGetValue(type, out var value))
+                {
+                    representation = new ObjectRepresentation<object>(value);
+                    return true;
+                }
+                else
+                {
+                    representation = default;
+                    return false;
+                }
+            }
+            else if (Representations.Count > 0)
+            {
+                representation = ((IEnumerable<Entity>)this).Select(entity => entity.Value).OfType<Representation<object>>().FirstOrDefault();
+                return true;
             }
             else
             {
-                Add(entity.Value.GetType(), entity.Value);
+                representation = default;
+                return false;
             }
         }
 
-        public Resource AsResource() => GetResource;
-
-        private ISet<Entity> GetResource() => Representations.Values.Select(representation => new Entity(new ObjectRepresentation<object>(representation))).ToHashSet();
-
-        public bool HasRepresentation<T>() => HasRepresentation(typeof(T));
-        public bool HasRepresentation(Type type) => TryGetRepresentation(type, out _);
-
-        public bool TryGetRepresentation(Type type, out object value)
+        public bool TryGetValue(Type type, out object value)
         {
-            if (Representations.TryGetValue(type, out value))
+            if (Representations.TryGetValue(type, out var representation))
             {
+                value = representation.Value;
                 return true;
             }
 
@@ -197,7 +167,7 @@ namespace Movies
             {
                 if (type.IsAssignableFrom(kvp.Key))
                 {
-                    value = kvp.Value;
+                    value = kvp.Value.Value;
                     return true;
                 }
             }
@@ -206,9 +176,9 @@ namespace Movies
             return false;
         }
 
-        public bool TryGetRepresentation<T>(out T value)
+        public bool TryGetValue<T>(out T value)
         {
-            if (TryGetRepresentation(typeof(T), out var raw) && raw is T t)
+            if (TryGetValue(typeof(T), out var raw) && raw is T t)
             {
                 value = t;
                 return true;
@@ -222,15 +192,22 @@ namespace Movies
 
         public IEnumerator GetEnumerator() => Representations.Values.GetEnumerator();
 
-        IEnumerator<Representation<object>> IEnumerable<Representation<object>>.GetEnumerator() => Representations.Values.Select(value => new ObjectRepresentation<object>(value)).GetEnumerator();
+        IEnumerator<Representation<object>> IEnumerable<Representation<object>>.GetEnumerator() => Representations.Values.GetEnumerator();
 
         IEnumerator<Entity> IEnumerable<Entity>.GetEnumerator() => ((IEnumerable<Representation<object>>)this).Select(representation => new Entity(representation)).GetEnumerator();
     }
 
-    public class ObjectRepresentation<T> : Representation<T>
+    public abstract class ObjectRepresentation
+    {
+        public abstract Type Type { get; }
+    }
+
+    public class ObjectRepresentation<T> : ObjectRepresentation, Representation<T>
     {
         public T Value { get; }
         public IEnumerable<KeyValuePair<string, string>> Metadata { get; }
+
+        public override Type Type => typeof(T);
 
         public ObjectRepresentation(T value)
         {
@@ -239,5 +216,31 @@ namespace Movies
         }
 
         public static implicit operator ObjectRepresentation<T>(T value) => new ObjectRepresentation<T>(value);
+    }
+
+    public abstract class LazilyConvertedRepresentation<T> : Representation<T>
+    {
+        public T Value => LazyValue.Value;
+        public IEnumerable<KeyValuePair<string, string>> Metadata { get; set; }
+
+        public Representation<object> SourceRepresentation { get; }
+        public Func<object, T> Converter { get; }
+
+        private Lazy<T> LazyValue;
+
+        protected LazilyConvertedRepresentation(Representation<object> sourceRepresentation, Func<object, T> converter)
+        {
+            SourceRepresentation = sourceRepresentation;
+            Converter = converter;
+
+            LazyValue = new Lazy<T>(() => Converter(SourceRepresentation.Value));
+        }
+    }
+
+    public class LazilyConvertedRepresentation<TSource, TTarget> : LazilyConvertedRepresentation<TTarget> where TSource : class
+    {
+        public LazilyConvertedRepresentation(Representation<TSource> sourceRepresentation, Func<TSource, TTarget> converter) : base(sourceRepresentation, source => source is TSource value ? converter(value) : default)
+        {
+        }
     }
 }

@@ -1,12 +1,18 @@
-﻿namespace Movies
+﻿using REpresentationalStateTransfer;
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Movies
 {
     public abstract class ResourceResponse
     {
-        public abstract object RawValue { get; }
+        public abstract bool TryGetRepresentation(Type type, out object value);
 
-        public virtual bool TryGetRepresentatin<T>(out T value)
+        public bool TryGetRepresentation<T>(out T value)
         {
-            if (RawValue is T t)
+            if (TryGetRepresentation(typeof(T), out var valueObj) && valueObj is T t)
             {
                 value = t;
                 return true;
@@ -22,11 +28,24 @@
     public class ResourceResponse<T> : ResourceResponse
     {
         public T Value { get; }
-        public override object RawValue => Value;
 
         public ResourceResponse(T value)
         {
             Value = value;
+        }
+
+        public override bool TryGetRepresentation(Type type, out object value)
+        {
+            if (type == null || type.IsAssignableFrom(typeof(T)))
+            {
+                value = Value;
+                return true;
+            }
+            else
+            {
+                value = default;
+                return false;
+            }
         }
     }
 }

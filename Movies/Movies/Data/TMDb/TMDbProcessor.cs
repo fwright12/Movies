@@ -24,9 +24,9 @@ namespace Movies
                 return grouped.IsHandled;
             }
 
-            if ((grouped.Response as RestResponse)?.TryGetRepresentation<IEnumerable<KeyValuePair<Uri, object>>>(out var collection) != true)
+            if (!grouped.Response.TryGetRepresentation<IEnumerable<KeyValuePair<Uri, object>>>(out var collection))
             {
-                collection = grouped.Response.RawValue as IEnumerable<KeyValuePair<Uri, object>>;
+                collection = null;
             }
 
             var index = collection?.ToReadOnlyDictionary() ?? new Dictionary<Uri, object>();
@@ -58,10 +58,7 @@ namespace Movies
                             metadata = null;
                         }
 
-                        response = new RestResponse(entities, controlData, metadata)
-                        {
-                            Expected = request.Expected
-                        };
+                        response = new RestResponse(entities, controlData, metadata);
                     }
                     else
                     {

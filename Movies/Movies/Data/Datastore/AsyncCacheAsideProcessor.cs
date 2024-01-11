@@ -55,9 +55,11 @@ namespace Movies
             // Handle from the cache
             lock (BufferLock)
             {
-                buffered.AddRange(CheckBuffer(WriteBuffer, e, eCache));
+                buffered.AddRange(CheckBuffers(e, WriteBuffer, eCache));
+                //var sources = CheckBuffers(e, WriteBuffer, buffer);
+                //eCache = new BulkEventArgs<TArgs>(buffer.Keys.OfType<TArgs>());
 
-                foreach (var request in eCache)
+                foreach (var request in e)
                 {
                     var key = Cache.GetKey(request);
 
@@ -81,53 +83,76 @@ namespace Movies
             var nextWrapper = new ProcessorFunc<IEnumerable<TArgs>>(async e1 =>
             {
                 var eNext = new BulkEventArgs<TArgs>();
-                Task<bool> response;
 
+                // Check if the request has been fulfilled in the time it took to check the cache. If the task
+                // is not complete, the underlying source has not been transitioned, meaning it's the same
+                // source we added before checking the cache. We can't await that task because it won't
+                // complete (we are expected to complete it with the response from next)
                 lock (BufferLock)
                 {
-                    //foreach (var request in e1)
-                    //{
-                    //    // The resource was already in the cache, so no need to write anything
-                    //    if (request.IsHandled)
-                    //    {
-                    //        WriteBuffer.Remove(Cache.GetKey(request));
-                    //    }
-                    //}
+                    UpdateBuffer(eCache.Concat(e1));
+                    //var completedBuffer = new Dictionary<object, TaskCompletionSource<Task<TArgs>>>(buffer.Where(kvp => kvp.Value.Task.IsCompleted));
+                    //buffered.AddRange(CheckBuffer(completedBuffer, e1, eNext));
 
-                    // Check if the request has been fulfilled in the time it took to check the cache. If the task
-                    // is not complete, the underlying source has not been transitioned, meaning it's the same
-                    // source we added before checking the cache. We can't await that task because it won't
-                    // complete (we are expected to complete it with the response from next)
-                    var completedBuffer = new Dictionary<object, TaskCompletionSource<Task<TArgs>>>(buffer.Where(kvp => kvp.Value.Task.IsCompleted));
-                    buffered.AddRange(CheckBuffer(completedBuffer, e1, eNext));
-
-                    // Little bit of a hack, assuming TMDbClient will be next - if we're going to request new data,
-                    // might as well update everything
-                    if (Cache.Cache is TMDbLocalCache)
+                    foreach (var arg in e1)
                     {
-                        (eNext as BulkEventArgs<TArgs>)?.Add(e);
+                        var key = Cache.GetKey(arg);
+
+                        if (buffer.TryGetValue(key, out var source) && source.Task.IsCompleted)
+                        {
+                            buffered.Add(Handle(arg, source));
+                        }
+                        else
+                        {
+                            //eNext.Add(arg);
+                        }
                     }
 
-                    if (eNext.Count == 0)
-                    {
-                        eCache.Add(e1);
-                        return true;
-                    }
-
-                    response = next.ProcessAsync(eNext);
-                    // The handler is allowed to add extra requests (representing additional resources that
-                    // were retured as a side effect). Make the primary batch request aware of these
-                    (e1 as BulkEventArgs<TArgs>)?.Add(eNext);
-                    eCache.Add(e1);
-
-                    // Make sure any extra requests are in the buffer, and alert existing requests that we
-                    // are expecting a response. We can choose to update items before we actually get the
-                    // response (preemptively) or wait until we have it.
-                    UpdateBuffer(eCache, response);
+                    eNext = new BulkEventArgs<TArgs>(e1.Where(arg => !buffer.TryGetValue(Cache.GetKey(arg), out var value) || !value.Task.IsCompleted));
+                    //buffered.AddRange(CheckBuffers(e1, new Dictionary<object, TaskCompletionSource<Task<TArgs>>>(buffer.Concat(WriteBuffer))));
                 }
+
+                //foreach (var request in e1)
+                //{
+                //    // The resource was already in the cache, so no need to write anything
+                //    if (request.IsHandled)
+                //    {
+                //        WriteBuffer.Remove(Cache.GetKey(request));
+                //    }
+                //}
+
+                // Little bit of a hack, assuming TMDbClient will be next - if we're going to request new data,
+                // might as well update everything
+                if (Cache.Cache is TMDbLocalCache)
+                {
+                    (eNext as BulkEventArgs<TArgs>)?.Add(e);
+                }
+
+                if (eNext.Count == 0)
+                {
+                    eCache.Add(e1);
+                    return true;
+                }
+
+                Task<bool> response = Task.FromResult(false);
 
                 try
                 {
+                    response = next.ProcessAsync(eNext);
+
+                    if (!response.IsCompleted)
+                    {
+                        // The handler is allowed to add extra requests (representing additional resources that
+                        // were retured as a side effect). Make the primary batch request aware of these
+                        (e1 as BulkEventArgs<TArgs>)?.Add(eNext);
+                        eCache.Add(e1);
+
+                        // Make sure any extra requests are in the buffer, and alert existing requests that we
+                        // are expecting a response. We can choose to update items before we actually get the
+                        // response (preemptively) or wait until we have it.
+                        UpdateBuffer(eCache, response);
+                    }
+
                     return await response;
                     //Print.Log("got from next", string.Join("\n\t", eNext));
                 }
@@ -158,12 +183,12 @@ namespace Movies
             finally
             {
                 (e as BulkEventArgs<TArgs>)?.Add(eCache);
+                UpdateBuffer(eCache, response);
 
                 lock (BufferLock)
                 {
                     // Rehandle requests with newer data
-                    buffered.AddRange(CheckBuffer(WriteBuffer, e.Except(eCache)));
-                    UpdateBuffer(eCache, response);
+                    buffered.AddRange(CheckBuffers(e.Except(eCache), WriteBuffer));
                 }
 
                 // Remove items from the buffer once writing to the cache has completed
@@ -171,7 +196,7 @@ namespace Movies
             }
         }
 
-        private List<Task> CheckBuffer(Dictionary<object, TaskCompletionSource<Task<TArgs>>> buffer, IEnumerable<TArgs> e, BulkEventArgs<TArgs> unhandled = null)
+        private List<Task> CheckBuffers(IEnumerable<TArgs> e, Dictionary<object, TaskCompletionSource<Task<TArgs>>> buffer, BulkEventArgs<TArgs> unhandled = null)
         {
             var tasks = new List<Task>();
 
@@ -190,6 +215,38 @@ namespace Movies
             }
 
             return tasks;
+        }
+
+        private IEnumerable<TaskCompletionSource<Task<TArgs>>> CheckBuffers(IEnumerable<TArgs> e, params Dictionary<object, TaskCompletionSource<Task<TArgs>>>[] buffers)
+        {
+            var sources = new List<TaskCompletionSource<Task<TArgs>>>();
+
+            foreach (var request in e)
+            {
+                var key = Cache.GetKey(request);
+                TaskCompletionSource<Task<TArgs>> source = null;
+
+                foreach (var buffer in buffers)
+                {
+                    if (buffer.TryGetValue(key, out source))
+                    {
+                        sources.Add(source);
+                        break;
+                    }
+                }
+
+                if (source == null)
+                {
+                    source = new TaskCompletionSource<Task<TArgs>>();
+
+                    foreach (var buffer in buffers)
+                    {
+                        buffer[key] = source;
+                    }
+                }
+            }
+
+            return sources;
         }
 
         private void UpdateBuffer(IEnumerable<TArgs> args, Task handling = null)
@@ -211,15 +268,8 @@ namespace Movies
                     }
                     else if (handling != null)
                     {
-                        if (handling.IsFaulted)
-                        {
-                            source.TrySetException(handling.Exception);
-                        }
                         // We are expecting a response but don't have it yet
-                        else
-                        {
-                            source.TrySetResult(GetResponseAsync(handling, request));
-                        }
+                        source.TrySetResult(GetResponseAsync(handling, request));
                     }
                 }
             }
@@ -239,30 +289,18 @@ namespace Movies
             }
         }
 
-        private async void UpdateBufferOnWriteComplete(IEnumerable<TArgs> readArgs)
-        {
-            //var writeArgs = readArgs.Where(args => args.IsHandled).Select(GetWriteArgsFromFulfilledReadArgs);
-            await Safely(Cache.Write(readArgs.Where(arg => arg.IsHandled)));
-
-            lock (BufferLock)
-            {
-                foreach (var args in readArgs)
-                {
-                    WriteBuffer.Remove(Cache.GetKey(args));
-                }
-            }
-        }
-
-        private async Task Handle(TArgs e, TaskCompletionSource<Task<TArgs>> buffered) => Cache.Process(e, await (await buffered.Task));
-
-        private static async Task<TArgs> GetResponseAsync(Task task, TArgs e)
+        private async Task Handle(TArgs e, TaskCompletionSource<Task<TArgs>> buffered)
         {
             try
             {
-                await task;
+                Cache.Process(e, await (await buffered.Task));
             }
             catch { }
+        }
 
+        private static async Task<TArgs> GetResponseAsync(Task task, TArgs e)
+        {
+            await task;
             return e;
         }
 

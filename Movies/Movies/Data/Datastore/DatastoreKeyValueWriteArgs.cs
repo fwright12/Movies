@@ -18,7 +18,7 @@
 
         public ResourceWriteArgs(TKey key, object value) : this(key, new ResourceResponse<object>(value)) { }
 
-        public ResourceWriteArgs(TKey key, ResourceResponse response) : base(key, response.RawValue)
+        public ResourceWriteArgs(TKey key, ResourceResponse response) : base(key, response.TryGetRepresentation<object>(out var value) ? value : null)
         {
             Response = response;
         }
