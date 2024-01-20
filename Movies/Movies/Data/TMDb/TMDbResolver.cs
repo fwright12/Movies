@@ -9,6 +9,7 @@ using System.Text;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using System.Web;
+using static Xamarin.Forms.UniversalSetter;
 
 namespace Movies
 {
@@ -209,6 +210,21 @@ namespace Movies
                         }
                     }
                 }
+                else
+                {
+                    foreach (var kvp in data)
+                    {
+                        if (kvp.Key is PagedTMDbRequest pagedRequest)
+                        {
+                            var value = kvp.Value;
+
+                            for (int i = 0; i < kvp.Value.Parsers.Count; i++)
+                            {
+                                value.Parsers[i] = ReplacePagedParsers(pagedRequest, value.Parsers[i], value.Args);
+                            }
+                        }
+                    }
+                }
 
                 resource = new HttpConverter(dummyUri.Item, data.Select(kvp => kvp.Value), dummyUri.ParentCollectionWasRequested);
                 return true;
@@ -235,9 +251,9 @@ namespace Movies
 
         private static IJsonParser<T> ParserToJsonParser<T>(Parser parser) => new JsonNodeParser<T>((JsonNode json, out T items) =>
         {
-            if (parser.TryGetValue(json, out var pair) && pair.Value is Task<T> task && task.IsCompletedSuccessfully)
+            if (parser.TryGetValue(json, out var pair) && pair.Value is T task)// && task.IsCompletedSuccessfully)
             {
-                items = task.Result;
+                items = task;
                 return true;
             }
 
@@ -318,6 +334,93 @@ namespace Movies
                 ParentCollectionWasRequested = parentCollectionWasRequested;
             }
 
+#if true
+            public override async Task<IEnumerable<KeyValuePair<Uri, object>>> Convert(HttpContent content)
+            {
+                var result = new Dictionary<Uri, object>();
+                var bytes = content.ReadAsByteArrayAsync();
+                var json = new JsonIndex(await bytes);
+
+                foreach (var annotation in Annotations)
+                {
+                    var lazyJson = string.IsNullOrEmpty(annotation.Path) ? new ExceptBytes(json, Annotations.Select(annotation => annotation.Path).Where(path => !string.IsNullOrEmpty(path))) : (LazyBytes)new PropertyBytes(json, annotation.Path);
+                    //JsonIndex index;
+
+                    //if (string.IsNullOrEmpty(annotation.Path))
+                    //{
+                    //    index = json;
+                    //}
+                    //else if (!json.TryGetValue(annotation.Path, out index))
+                    //{
+                    //    continue;
+                    //}
+
+                    var inner = new Dictionary<Uri, State>();
+                    var state1 = State.Create(lazyJson);
+                    state1.Add(inner);
+                    result.Add(annotation.Uri, state1);
+
+                    foreach (var parser in annotation.Parsers)
+                    {
+                        if (parser.Property == Movie.PARENT_COLLECTION)
+                        {
+                            if (!ParentCollectionWasRequested)
+                            {
+                                continue;
+                            }
+                            else if (parser.GetPair(lazyJson.Bytes).Value is Task<Collection> response)
+                            {
+                                await response;
+                            }
+                        }
+
+                        Func<IEnumerable<byte>, object> converter = null;
+
+                        if (parser.Property == TVShow.SEASONS)
+                        {
+                            //var response = await bytes;
+                            converter = source => GetTVItems(source as byte[] ?? source.ToArray(), "seasons", (JsonNode json, out TVSeason season) => TMDB.TryParseTVSeason(json, (TVShow)Item, out season));
+                        }
+                        else if (parser.Property == TVSeason.EPISODES)
+                        {
+                            if (Item is TVSeason season)
+                            {
+                                //var response = await bytes;
+                                converter = source => GetTVItems(source as byte[] ?? source.ToArray(), "episodes", (JsonNode json, out TVEpisode episode) => TMDB.TryParseTVEpisode(json, season, out episode));
+                            }
+                        }
+                        else
+                        {
+                            converter = source => parser.GetPair(source is ArraySegment<byte> segment ? segment : new ArraySegment<byte>(source.ToArray())).Value;
+                        }
+
+                        var byteRepresentation = new ObjectRepresentation<IEnumerable<byte>>(lazyJson.Bytes);
+                        var state = new State(byteRepresentation);
+
+                        if (converter != null)
+                        {
+                            state.AddRepresentation(parser.Property.FullType, new LazilyConvertedRepresentation<IEnumerable<byte>, object>(byteRepresentation, converter));
+                        }
+                        //else if (success)
+                        //{
+                        //    //var state = converted == null ? State.Null(parser.Property.FullType) : new State(converted);
+                        //    state.Add(parser.Property.FullType, converted);
+                        //}
+
+                        var uii = new UniformItemIdentifier(Item, parser.Property);
+                        inner.Add(uii, state);
+                    }
+
+                    foreach (var kvp in inner)
+                    {
+                        result.Add(kvp.Key, kvp.Value);
+                    }
+                }
+
+                return result;
+            }
+
+#else
             public override async Task<IEnumerable<KeyValuePair<Uri, object>>> Convert(HttpContent content)
             {
                 var result = new Dictionary<Uri, object>();
@@ -358,14 +461,14 @@ namespace Movies
                             if (parser.Property == TVShow.SEASONS)
                             {
                                 success = true;
-                                converted = await GetTVItems(bytes, "seasons", (JsonNode json, out TVSeason season) => TMDB.TryParseTVSeason(json, (TVShow)Item, out season));
+                                converted = GetTVItems(await bytes, "seasons", (JsonNode json, out TVSeason season) => TMDB.TryParseTVSeason(json, (TVShow)Item, out season));
                             }
                             else if (parser.Property == TVSeason.EPISODES)
                             {
                                 if (Item is TVSeason season)
                                 {
                                     success = true;
-                                    converted = await GetTVItems(bytes, "episodes", (JsonNode json, out TVEpisode episode) => TMDB.TryParseTVEpisode(json, season, out episode));
+                                    converted = GetTVItems(await bytes, "episodes", (JsonNode json, out TVEpisode episode) => TMDB.TryParseTVEpisode(json, season, out episode));
                                 }
                                 else
                                 {
@@ -375,9 +478,8 @@ namespace Movies
                             }
                             else
                             {
-                                var value = await parser.TryGetValue(parser.GetPair(Task.FromResult(lazyJson.Bytes)));
-                                success = value.Success;
-                                converted = value.Result;
+                                converted = parser.GetPair(lazyJson.Bytes).Value;
+                                success = true;
                             }
 
                             var uii = new UniformItemIdentifier(Item, parser.Property);
@@ -405,6 +507,7 @@ namespace Movies
 
                 return result;
             }
+#endif
         }
 
         public class TrojanTMDbUri : Uri
@@ -421,7 +524,7 @@ namespace Movies
             }
         }
 
-        private static async Task<IEnumerable<T>> GetTVItems<T>(Task<byte[]> json, string property, AsyncEnumerable.TryParseFunc<JsonNode, T> parse) => TMDB.TryParseCollection(JsonNode.Parse(await json), new JsonPropertyParser<IEnumerable<JsonNode>>(property), out var result, new JsonNodeParser<T>(parse)) ? result : null;
+        private static IEnumerable<T> GetTVItems<T>(byte[] json, string property, AsyncEnumerable.TryParseFunc<JsonNode, T> parse) => TMDB.TryParseCollection(JsonNode.Parse(json), new JsonPropertyParser<IEnumerable<JsonNode>>(property), out var result, new JsonNodeParser<T>(parse)) ? result : null;
 
         private static async Task<IEnumerable<T>> GetTVItems<T>(Task<ArraySegment<byte>> json, string property, AsyncEnumerable.TryParseFunc<JsonNode, T> parse) => TMDB.TryParseCollection(JsonNode.Parse(await json), new JsonPropertyParser<IEnumerable<JsonNode>>(property), out var result, new JsonNodeParser<T>(parse)) ? result : null;
 

@@ -24,7 +24,6 @@ namespace Movies
         };
 
         private const ItemType CACHEABLE_TYPES = ItemType.Movie | ItemType.TVShow | ItemType.Person;
-        private Dictionary<Uri, ResourceResponse> ResponseCache { get; } = new Dictionary<Uri, ResourceResponse>();
 
         public TMDbLocalCache(IEventAsyncCache<ResourceReadArgs<Uri>> dao, TMDbResolver resolver)
         {
@@ -33,37 +32,7 @@ namespace Movies
             Resolver = resolver;
         }
 
-        public async Task<bool> Read(IEnumerable<ResourceReadArgs<Uri>> args)
-        {
-            var result = await Processor.ProcessAsync(args);
-
-            foreach (var arg in args)
-            {
-                if (false == arg.Key is UniformItemIdentifier && arg.IsHandled && arg.Response is RestResponse restResponse && restResponse.ControlData.TryGetValue(REpresentationalStateTransfer.Rest.ETAG, out var values))
-                {
-                    if (ResponseCache.ContainsKey(arg.Key))
-                    {
-                        (restResponse.ControlData as IDictionary<string, IEnumerable<string>>)?.Remove(REpresentationalStateTransfer.Rest.ETAG);
-                    }
-                    else
-                    {
-                        var itr = values.GetEnumerator();
-
-                        if (itr.MoveNext())
-                        {
-                            var value = itr.Current;
-
-                            if (!itr.MoveNext())
-                            {
-                                ResponseCache[arg.Key] = arg.Response;
-                            }
-                        }
-                    }
-                }
-            }
-
-            return result;
-        }
+        public Task<bool> Read(IEnumerable<ResourceReadArgs<Uri>> args) => Processor.ProcessAsync(args);
 
         public Task<bool> Write(IEnumerable<ResourceReadArgs<Uri>> args) => DAO.Write(args.Where(ShouldWrite));
 
@@ -73,13 +42,8 @@ namespace Movies
             {
                 return false;
             }
-            if (!ResponseCache.TryGetValue(arg.Key, out var response))
-            {
-                ResponseCache[arg.Key] = arg.Response;
-                return true;
-            }
 
-            return response != arg.Response;
+            return true;
         }
 
         private bool IsCacheable(Uri uri)

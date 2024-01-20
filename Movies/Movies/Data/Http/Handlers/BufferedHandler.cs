@@ -36,20 +36,21 @@ namespace Movies
 
             if (source != null)
             {
-                SendAsync(key, request, cancellationToken, source);
-                return response;
+                SetResultAsync(source, key, base.SendAsync(request, cancellationToken));
             }
             else
             {
-                return RespondBuffered(response);
+                response = RespondBuffered(response);
             }
+
+            return response;
         }
 
-        private async void SendAsync(Uri key, HttpRequestMessage request, CancellationToken cancellationToken, TaskCompletionSource<HttpResponseMessage> source)
+        private async void SetResultAsync(TaskCompletionSource<HttpResponseMessage> source, Uri key, Task<HttpResponseMessage> task)
         {
             try
             {
-                source.SetResult(await base.SendAsync(request, cancellationToken));
+                source.SetResult(await task);
             }
             catch (Exception e)
             {

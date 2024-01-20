@@ -269,41 +269,20 @@ namespace Movies
                     //dict.Add(pair);
                     //dict.Add(parser.GetPair(Task.FromResult(property.Value)));
                     //break;
-                    _ = Data.ResourceCache.CreateAsync(new UniformItemIdentifier(item, pair.Property), Convert(pair.Value));
+                    _ = Data.ResourceCache.CreateAsync(new UniformItemIdentifier(item, pair.Property), Convert(pair));
                 }
             }
         }
 
-        private static Task<State> Convert(object resource)
+        private static Task<State> Convert(PropertyValuePair pair)
         {
-            if (resource is Task<State> temp)
+            if (pair.Value == null)
             {
-                return temp;
-            }
-
-            if (resource is Task task && task.GetType() != typeof(Task))
-            {
-                try
-                {
-                    return ConvertTask(task);
-                }
-                catch { }
-            }
-
-            return Task.FromResult(new State(resource));
-        }
-
-        private static async Task<State> ConvertTask(Task task)
-        {
-            var value = await (dynamic)task;
-
-            if (value == null)
-            {
-                return State.Null(task.GetType().GetGenericArguments()[0]);
+                return Task.FromResult(State.Null(pair.Property.FullType));
             }
             else
             {
-                return value as State ?? new State(value);
+                return Task.FromResult(pair.Value as State ?? new State(pair.Value));
             }
         }
 

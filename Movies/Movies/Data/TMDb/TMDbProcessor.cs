@@ -31,7 +31,7 @@ namespace Movies
 
             var index = collection?.ToReadOnlyDictionary() ?? new Dictionary<Uri, object>();
             var result = true;
-
+            
             foreach (var request in singles)
             {
                 var response = grouped.Response;
@@ -153,7 +153,7 @@ namespace Movies
             bool parentCollectionWasRequested = properties.Contains(Movie.PARENT_COLLECTION);
             var uri = new TMDbResolver.TrojanTMDbUri(url, item, parentCollectionWasRequested)
             {
-                RequestedProperties = properties
+                //RequestedProperties = properties
             };
 
             if (Resolver.TryGetConverter(uri, out var converter))

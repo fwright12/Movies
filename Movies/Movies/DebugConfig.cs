@@ -12,7 +12,7 @@ namespace Movies
         public static bool AllowTMDbRequests { get; set; } = false;
         public static bool AllowTMDbImages { get; set; } = false;
 
-        public static bool ClearLocalWebCache { get; set; } = FilterPerformanceTest || false;
+        public static bool ClearLocalWebCache { get; set; } = FilterPerformanceTest || true;
 
         public static int SimulatedDelay { get; set; } = 0;
 

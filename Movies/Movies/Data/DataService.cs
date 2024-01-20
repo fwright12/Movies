@@ -83,7 +83,7 @@ namespace Movies
         private DataService()
         {
             ResourceCache = new UiiDictionaryDatastore();
-            Controller = new AsyncCacheAsideProcessor<ResourceReadArgs<Uri>>(new ResourceBufferedCache<Uri>(ResourceCache)).ToChainLink();
+            Controller = new AsyncCacheAsideProcessor<ResourceReadArgs<Uri>>(new UriBufferedCache(ResourceCache)).ToChainLink();
         }
 
         public void BatchBegin()

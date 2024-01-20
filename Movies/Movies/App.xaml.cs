@@ -263,7 +263,7 @@ namespace Movies
             var tmdbLocalCache = new TMDbLocalCache(LocalDatabase.ItemCache, resolver);
 
             DataService.Instance.Controller
-                .SetNext(new AsyncCacheAsideProcessor<ResourceReadArgs<Uri>>(new ResourceBufferedCache<Uri>(tmdbLocalCache)))
+                .SetNext(new AsyncCacheAsideProcessor<ResourceReadArgs<Uri>>(new UriBufferedCache(tmdbLocalCache)))
                 .SetNext(tmdbHandlers);
 
 #if DEBUG

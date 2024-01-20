@@ -221,13 +221,17 @@ namespace Movies
         {
             public CollectionParser(Property<Collection> property) : base(property, new JsonNodeParser<Collection>(TryParseCollection)) { }
 
-            public override PropertyValuePair GetPair(Task<JsonNode> json) => new PropertyValuePair<Collection>((Property<Collection>)Property, FullCollectionDetails(json));
-            public override PropertyValuePair GetPair(Task<ArraySegment<byte>> bytes) => GetPair(Convert(bytes));
-
-            private async Task<Collection> FullCollectionDetails(Task<JsonNode> task)
+            public override PropertyValuePair GetPair(JsonNode json)
             {
-                var json = await task;
+                Task<Collection> details = GetCollectionAsync(json);
+                return details.IsCompleted ? new PropertyValuePair<Collection>((Property<Collection>)Property, details.Result) : (PropertyValuePair)new PropertyValuePair<Task<Collection>>(null, details);
+                //return new PropertyValuePair<Collection>((Property<Collection>)Property, details.IsCompleted ? details.Result : null);//(TryParseCollection(json, out var collection) ? collection : null));
+            }
 
+            public override PropertyValuePair GetPair(ArraySegment<byte> bytes) => GetPair(JsonNode.Parse(bytes));
+
+            private static async Task<Collection> GetCollectionAsync(JsonNode json)
+            {
                 if (json.TryGetValue("id", out int id))
                 {
                     return await GetCollection(id);

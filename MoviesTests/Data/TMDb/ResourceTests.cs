@@ -71,7 +71,7 @@ namespace MoviesTests.Data.TMDb
 
             Assert.AreEqual(0, handlers.WebHistory.Count);
             Assert.AreEqual(1, handlers.DiskCache.Count);
-            Assert.AreEqual(1, handlers.InMemoryCache.Count);
+            Assert.AreEqual(18, handlers.InMemoryCache.Count);
         }
 
         [TestMethod]
@@ -90,7 +90,7 @@ namespace MoviesTests.Data.TMDb
 
             Assert.AreEqual(1, handlers.WebHistory.Count);
             Assert.AreEqual(7, handlers.DiskCache.Count, string.Join(", ", handlers.DiskCache.Keys));
-            Assert.AreEqual(1, handlers.InMemoryCache.Count);
+            Assert.AreEqual(25, handlers.InMemoryCache.Count);
         }
 
         [TestMethod]
@@ -117,7 +117,7 @@ namespace MoviesTests.Data.TMDb
             // Normally this would just handle from the cache, but since it has an etag we need to make the api call
             Assert.AreEqual(1, handlers.WebHistory.Count);
             Assert.AreEqual(7, handlers.DiskCache.Count);
-            Assert.AreEqual(1, handlers.InMemoryCache.Count);
+            Assert.AreEqual(25, handlers.InMemoryCache.Count);
         }
 
         [TestMethod]

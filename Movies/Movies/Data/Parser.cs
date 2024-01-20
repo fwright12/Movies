@@ -217,10 +217,8 @@ namespace Movies
 
         public abstract bool TryGetValue(JsonNode json, out PropertyValuePair value);
 
-        public abstract PropertyValuePair GetPair(Task<JsonNode> node);
-        public virtual PropertyValuePair GetPair(Task<ArraySegment<byte>> bytes) => GetPair(Convert(bytes));
-        public Task<(bool Success, object Result)> TryGetValue(Task<ArraySegment<byte>> bytes) => TryGetValue(GetPair(bytes));
-        public abstract Task<(bool Success, object Result)> TryGetValue(PropertyValuePair pvp);
+        public abstract PropertyValuePair GetPair(JsonNode node);
+        public virtual PropertyValuePair GetPair(ArraySegment<byte> bytes) => GetPair(JsonNode.Parse(bytes));
 
         protected async Task<JsonNode> Convert(Task<ArraySegment<byte>> bytes) => JsonNode.Parse(await bytes);
     }
@@ -234,17 +232,15 @@ namespace Movies
             JsonParser = jsonParser;
         }
 
-        public override PropertyValuePair GetPair(Task<JsonNode> node) => GetPairInternal(Unwrap(node));
+        public override PropertyValuePair GetPair(JsonNode node) => GetPairInternal(Unwrap(node));
 
-        public override PropertyValuePair GetPair(Task<ArraySegment<byte>> bytes) => GetPairInternal(Unwrap(bytes));
+        public override PropertyValuePair GetPair(ArraySegment<byte> bytes) => GetPairInternal(Unwrap(bytes));
 
-        protected abstract PropertyValuePair GetPairInternal(Task<T> value);
+        protected abstract PropertyValuePair GetPairInternal(T value);
 
-        protected async Task<T> Unwrap(Task<JsonNode> json) => JsonParser.TryGetValue(await json, out var value) ? value : throw new FormatException();
-        protected async Task<T> Unwrap(Task<ArraySegment<byte>> response)
+        protected T Unwrap(JsonNode json) => JsonParser.TryGetValue(json, out var value) ? value : throw new FormatException();
+        protected T Unwrap(ArraySegment<byte> bytes)
         {
-            var bytes = await response;
-
             if (JsonParser.TryGetValue(bytes, out var value))
             {
                 return value;
@@ -288,9 +284,7 @@ namespace Movies
             return Parser.TryGetValue(json, out value);
         }
 
-        protected override PropertyValuePair GetPairInternal(Task<ArraySegment<byte>> value) => Parser.GetPair(value);
-
-        public override Task<(bool Success, object Result)> TryGetValue(PropertyValuePair pvp) => Parser.TryGetValue(pvp);
+        protected override PropertyValuePair GetPairInternal(ArraySegment<byte> value) => Parser.GetPair(value);
 
         //public override PropertyValuePair GetPair(Task<JsonNode> node) => Parser.GetPair(Unwrap(node));
 
@@ -304,34 +298,32 @@ namespace Movies
 
         public static implicit operator Parser<T>(Property<T> property) => Create(property);
 
-        protected override PropertyValuePair GetPairInternal(Task<T> value) => new PropertyValuePair<T>((Property<T>)Property, value);
+        protected override PropertyValuePair GetPairInternal(T value) => new PropertyValuePair<T>((Property<T>)Property, value);
 
         public override bool TryGetValue(JsonNode json, out PropertyValuePair value)
         {
             if (JsonParser.TryGetValue(json, out var value1))
             {
-                value = new PropertyValuePair<T>((Property<T>)Property, Task.FromResult(value1));
+                value = new PropertyValuePair<T>((Property<T>)Property, value1);
                 return true;
             }
 
             value = null;
             return false;
         }
-
-        public override async Task<(bool Success, object Result)> TryGetValue(PropertyValuePair pvp) => pvp.Value is Task<T> task ? (true, await task) : (false, (object)null);
     }
 
     public class MultiParser<T> : Parser<IEnumerable<T>>
     {
         public MultiParser(MultiProperty<T> property, IJsonParser<IEnumerable<T>> jsonParser) : base(property, jsonParser) { }
 
-        protected override PropertyValuePair GetPairInternal(Task<IEnumerable<T>> value) => new PropertyValuePair<T>((MultiProperty<T>)Property, value);
+        protected override PropertyValuePair GetPairInternal(IEnumerable<T> value) => new PropertyValuePair<T>((MultiProperty<T>)Property, value);
 
         public override bool TryGetValue(JsonNode json, out PropertyValuePair value)
         {
             if (JsonParser.TryGetValue(json, out var value1))
             {
-                value = new PropertyValuePair<T>((MultiProperty<T>)Property, Task.FromResult(value1));
+                value = new PropertyValuePair<T>((MultiProperty<T>)Property, value1);
                 return true;
             }
 

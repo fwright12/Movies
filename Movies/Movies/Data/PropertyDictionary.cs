@@ -27,8 +27,8 @@ namespace Movies
 
     public class PropertyValuePair<T> : PropertyValuePair
     {
-        public PropertyValuePair(Property<T> property, Task<T> value) : base(property, value) { }
-        public PropertyValuePair(MultiProperty<T> property, Task<IEnumerable<T>> value) : base(property, value) { }
+        public PropertyValuePair(Property<T> property, T value) : base(property, value) { }
+        public PropertyValuePair(MultiProperty<T> property, IEnumerable<T> value) : base(property, value) { }
     }
 
     public partial class TMDB
