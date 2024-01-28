@@ -8,65 +8,73 @@ using Metadata = System.Collections.Generic.IEnumerable<System.Collections.Gener
 
 namespace Movies
 {
-    public class RestRequestArgs : ResourceReadArgs<Uri>
+    public class RestRequestEventArgs : KeyValueReadEventArgs<Uri>
     {
+        public Representation<string> Representation { get; set; }
+        public IDictionary<string, IEnumerable<string>> ControlData { get; }
         public string MimeType { get; }
 
-        public Representation<string> Representation { get; set; }
-        public IDictionary<string, IEnumerable<string>> ControlData { get; } = new Dictionary<string, IEnumerable<string>>();
+        public RestRequestEventArgs(Uri key, Type expected = null) : this(key, null, new Dictionary<string, IEnumerable<string>>(), expected) { }
 
-        public RestRequestArgs(Uri uri, Type expected = null) : base(uri)
-        {
-            Expected = expected;
-        }
-
-        //public RestRequestArgs(RestRequest request) : this(request.Uri, request.Representation, request.ControlData) { }
-
-        public RestRequestArgs(Uri uri, Representation<string> representation, IDictionary<string, IEnumerable<string>> controlData) : base(uri)
+        public RestRequestEventArgs(Uri uri, Representation<string> representation, IDictionary<string, IEnumerable<string>> controlData, Type expected = null) : base(uri, expected ?? (true == controlData?.TryGetValue(Rest.CONTENT_TYPE, out _) ? typeof(string) : null))
         {
             Representation = representation;
             ControlData = controlData;
-
-            if (controlData.TryGetValue(Rest.CONTENT_TYPE, out var expected))
-            {
-                Expected = typeof(string);
-            }
         }
+    }
 
-        //protected override bool Accept(DatastoreResponse response) => response is RestResponse && base.Accept(response);
+    public class RestRequestArgs : ResourceRequestArgs<Uri>
+    {
+        public new RestRequestEventArgs Request => base.Request as RestRequestEventArgs;
+
+        public RestRequestArgs(Uri uri, Type expected = null) : base(new RestRequestEventArgs(uri, expected)) { }
+
+        public RestRequestArgs(Uri uri, Representation<string> representation, IDictionary<string, IEnumerable<string>> controlData, Type expected = null) : base(new RestRequestEventArgs(uri, representation, controlData, expected ?? (true == controlData?.TryGetValue(Rest.CONTENT_TYPE, out _) ? typeof(string) : null))) { }
     }
 
     public class RestRequestArgs<T> : RestRequestArgs
     {
-        public new virtual T Value => base.Response?.TryGetRepresentation<T>(out var value) == true ? value : default;
+        public new T Value => base.Value == null ? default : (T)base.Value;
 
         public RestRequestArgs(Uri uri) : base(uri, typeof(T)) { }
     }
 
     public class RestResponse : ResourceResponse
     {
-        //public override object RawValue => Expected != null && TryGetRepresentation(Entities, Expected, out var value) ? value : Entities.Select(entity => entity.Value).OfType<Representation<object>>().FirstOrDefault()?.Value;
-        public IEnumerable<Entity> Entities => Resource.Get();
         public IResource Resource { get; }
         public ControlData ControlData { get; private set; }
         public Metadata Metadata { get; private set; }
 
         public RestResponse(params Entity[] entities) : this((IEnumerable<Entity>)entities) { }
-        public RestResponse(IEnumerable<Entity> entities) : this(entities, null, null) { }
+        public RestResponse(IEnumerable<Entity> entities, Type expected = null) : this(entities, null, null) { }
 
-        public RestResponse(Representation<object> representation, ControlData controlData, Metadata metadata) : this((IResource)new State(representation.Value), controlData, metadata) { }
-        public RestResponse(State state, ControlData controlData, Metadata metadata) : this(new StaticResource(state), controlData, metadata) { }
-        public RestResponse(IEnumerable<Entity> representations, ControlData controlData, Metadata metadata) : this(new StaticResource(representations), controlData, metadata) { }
-        public RestResponse(IResource resource, ControlData controlData, Metadata metadata)
+        public RestResponse(Representation<object> representation, ControlData controlData, Metadata metadata, Type expected = null) : this((IResource)new State(representation.Value), controlData, metadata, expected) { }
+        //public RestResponse(State state, ControlData controlData, Metadata metadata, Type expected = null) : this(new StaticResource(state), controlData, metadata, expected) { }
+        public RestResponse(IEnumerable<Entity> representations, ControlData controlData, Metadata metadata, Type expected = null) : this(new StaticResource(representations), controlData, metadata, expected) { }
+        public RestResponse(IResource resource, ControlData controlData, Metadata metadata, Type expected = null) : base(TryGetRepresentation(resource, expected, out var value) ? value : null)
         {
             Resource = resource;
             ControlData = controlData ?? Enumerable.Empty<KeyValuePair<string, IEnumerable<string>>>();
             Metadata = metadata ?? Enumerable.Empty<KeyValuePair<string, string>>();
         }
 
-        public override bool TryGetRepresentation(Type type, out object value)
+        public static RestResponse Create(IResource resource, ControlData controlData, Metadata metadata, Type expected = null)
         {
-            if (Resource.Get() is State state && state.TryGetRepresentation(type, out var representation))
+            if (false)
+            {
+
+            }
+            else
+            {
+                return null;
+            }
+        }
+
+        public override bool TryGetRepresentation(Type type, out object value) => TryGetRepresentation(Resource, type, out value);
+
+        private static bool TryGetRepresentation(IResource resource, Type type, out object value)
+        {
+            if (resource.Get() is State state && state.TryGetRepresentation(type, out var representation))
             {
                 value = representation.Value;
                 return true;
@@ -93,7 +101,7 @@ namespace Movies
 
             foreach (var representation in representations)
             {
-                Add(representation);
+                AddRepresentation(representation);
             }
 
             Set(this);
@@ -113,7 +121,7 @@ namespace Movies
         public static State Null(Type type) => new State(type, null);
 
         public void Add<T>(T value) => Add(typeof(T), value);
-        public void Add(Type type, object value) => AddRepresentation(type, new ObjectRepresentation<object>(value));
+        public void Add(Type type, object value) => AddRepresentation(type, value as Representation<object> ?? new ObjectRepresentation<object>(value));
         public void AddRepresentation<T>(Representation<T> representation) where T : class => AddRepresentation(typeof(T), representation);
         public void AddRepresentation(Type type, Representation<object> representation)
         {

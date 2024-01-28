@@ -4,7 +4,8 @@ using System.Threading.Tasks;
 
 namespace Movies
 {
-    public class DatastoreProcessor<TKey, TValue> : IAsyncEventProcessor<ResourceReadArgs<TKey>>, IAsyncEventProcessor<DatastoreWriteArgs>, IAsyncEventProcessor<DatastoreKeyValueWriteArgs<TKey, State>>
+    public class DatastoreProcessor<TKey, TValue> : IAsyncEventProcessor<ResourceRequestArgs<TKey>>, IAsyncEventProcessor<DatastoreWriteArgs>, IAsyncEventProcessor<DatastoreKeyValueWriteArgs<TKey, State>>
+        where TKey : Uri
     {
         public IDataStore<TKey, State> Datastore { get; }
 
@@ -13,13 +14,13 @@ namespace Movies
             Datastore = datastore;
         }
 
-        public virtual async Task<bool> ProcessAsync(ResourceReadArgs<TKey> e)
+        public virtual async Task<bool> ProcessAsync(ResourceRequestArgs<TKey> e)
         {
-            var state = Datastore.ReadAsync(e.Key);
+            var state = Datastore.ReadAsync(e.Request.Key);
 
             if (state != null)
             {
-                return e.Handle(new RestResponse(await state));
+                return e.Handle(new RestResponse(await state, e.Request.Expected));
             }
             else
             {

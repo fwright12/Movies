@@ -5,15 +5,26 @@ using System.Threading.Tasks;
 
 namespace Movies
 {
-    public class ResourceBufferedCache<TKey> : BufferedCache<ResourceReadArgs<TKey>>
+    public class ResourceBufferedCache<TKey> : BufferedCache<ResourceRequestArgs<TKey>>
+        where TKey : Uri
     {
-        public ResourceBufferedCache(IEventAsyncCache<ResourceReadArgs<TKey>> cache) : base(cache) { }
+        public ResourceBufferedCache(IEventAsyncCache<ResourceRequestArgs<TKey>> cache) : base(cache) { }
 
-        public override object GetKey(ResourceReadArgs<TKey> e) => e.Key;
+        public override object GetKey(ResourceRequestArgs<TKey> e) => e.Request.Key;
 
-        public override void Process(ResourceReadArgs<TKey> e, ResourceReadArgs<TKey> buffered) => e.Handle(buffered.Response);
+        public override void Process(ResourceRequestArgs<TKey> e, ResourceRequestArgs<TKey> buffered)
+        {
+            if (buffered.Response is RestResponse restResponse && restResponse.TryGetRepresentation(e.Request.Expected, out var value))
+            {
+                e.Handle(new RestResponse(restResponse.Resource, restResponse.ControlData, restResponse.Metadata, e.Request.Expected));
+            }
+            else
+            {
+                e.Handle(buffered.Response);
+            }
+        }
 
-        public override async Task<bool> ProcessAsync(IEnumerable<ResourceReadArgs<TKey>> e, IAsyncEventProcessor<IEnumerable<ResourceReadArgs<TKey>>> next)
+        public override async Task<bool> ProcessAsync(IEnumerable<ResourceRequestArgs<TKey>> e, IAsyncEventProcessor<IEnumerable<ResourceRequestArgs<TKey>>> next)
         {
             if (await Read(e))
             {
@@ -32,17 +43,17 @@ namespace Movies
 
     public class UriBufferedCache : ResourceBufferedCache<Uri>
     {
-        private IAsyncEventProcessor<IEnumerable<ResourceReadArgs<Uri>>> Processor { get; }
+        private IAsyncEventProcessor<IEnumerable<ResourceRequestArgs<Uri>>> Processor { get; }
 
-        public UriBufferedCache(IEventAsyncCache<ResourceReadArgs<Uri>> cache) : base(cache)
+        public UriBufferedCache(IEventAsyncCache<ResourceRequestArgs<Uri>> cache) : base(cache)
         {
-            Processor = new EventCacheReadProcessor<ResourceReadArgs<Uri>>(cache);
+            Processor = new EventCacheReadProcessor<ResourceRequestArgs<Uri>>(cache);
         }
 
-        public override Task<bool> ProcessAsync(IEnumerable<ResourceReadArgs<Uri>> e, IAsyncEventProcessor<IEnumerable<ResourceReadArgs<Uri>>> next)
+        public override Task<bool> ProcessAsync(IEnumerable<ResourceRequestArgs<Uri>> e, IAsyncEventProcessor<IEnumerable<ResourceRequestArgs<Uri>>> next)
         {
-            var batchedProcessor = new BatchedEventProcessor<ResourceReadArgs<Uri>>(e, Processor);
-            var batchedNext = new BatchedEventProcessor<ResourceReadArgs<Uri>>(e, next);
+            var batchedProcessor = new BatchedEventProcessor<ResourceRequestArgs<Uri>>(e, Processor);
+            var batchedNext = new BatchedEventProcessor<ResourceRequestArgs<Uri>>(e, next);
             var etagProcessor = new EtaggedUriAsyncCoRProcessor(batchedProcessor);
 
             return etagProcessor.ProcessAllAsync(e, batchedProcessor, batchedNext);
@@ -98,16 +109,17 @@ namespace Movies
         }
     }
 
-    public abstract class EtaggedAsyncCoRProcessor<T> : IAsyncCoRProcessor<ResourceReadArgs<T>>
+    public abstract class EtaggedAsyncCoRProcessor<T> : IAsyncCoRProcessor<ResourceRequestArgs<T>>
+        where T : Uri
     {
-        public IAsyncEventProcessor<ResourceReadArgs<T>> Processor { get; }
+        public IAsyncEventProcessor<ResourceRequestArgs<T>> Processor { get; }
 
-        protected EtaggedAsyncCoRProcessor(IAsyncEventProcessor<ResourceReadArgs<T>> processor)
+        protected EtaggedAsyncCoRProcessor(IAsyncEventProcessor<ResourceRequestArgs<T>> processor)
         {
             Processor = processor;
         }
 
-        public async Task<bool> ProcessAsync(ResourceReadArgs<T> e, IAsyncEventProcessor<ResourceReadArgs<T>> next)
+        public async Task<bool> ProcessAsync(ResourceRequestArgs<T> e, IAsyncEventProcessor<ResourceRequestArgs<T>> next)
         {
             var result = await Processor.ProcessAsync(e);
 
@@ -116,7 +128,7 @@ namespace Movies
                 return result;
             }
 
-            ResourceReadArgs<T> arg;
+            ResourceRequestArgs<T> arg;
 
             if (e.IsHandled)
             {
@@ -144,22 +156,19 @@ namespace Movies
             return result;
         }
 
-        protected abstract ResourceReadArgs<T> GetEtaggedRequest(ResourceReadArgs<T> original, string etag);
+        protected abstract ResourceRequestArgs<T> GetEtaggedRequest(ResourceRequestArgs<T> original, string etag);
     }
 
     public class EtaggedUriAsyncCoRProcessor : EtaggedAsyncCoRProcessor<Uri>
     {
-        public EtaggedUriAsyncCoRProcessor(IAsyncEventProcessor<ResourceReadArgs<Uri>> processor) : base(processor) { }
+        public EtaggedUriAsyncCoRProcessor(IAsyncEventProcessor<ResourceRequestArgs<Uri>> processor) : base(processor) { }
 
-        protected override ResourceReadArgs<Uri> GetEtaggedRequest(ResourceReadArgs<Uri> original, string etag)
+        protected override ResourceRequestArgs<Uri> GetEtaggedRequest(ResourceRequestArgs<Uri> original, string etag)
         {
-            return new RestRequestArgs(original.Key, null, new Dictionary<string, IEnumerable<string>>
+            return new RestRequestArgs(original.Request.Key, null, new Dictionary<string, IEnumerable<string>>
             {
                 [REpresentationalStateTransfer.Rest.IF_NONE_MATCH] = new List<string> { etag }
-            })
-            {
-                Expected = original.Expected
-            };
+            }, original.Request.Expected);
         }
     }
 

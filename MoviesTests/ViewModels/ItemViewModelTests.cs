@@ -9,7 +9,7 @@ namespace MoviesTests.ViewModels
         public ItemViewModelTests()
         {
             var handlers = new ResourceTests.HandlerChain();
-            DataService.Instance.Controller.SetNext(new AsyncCacheAsideProcessor<ResourceReadArgs<Uri>>(new ResourceBufferedCache<Uri>(handlers.LocalTMDbCache)))
+            DataService.Instance.Controller.SetNext(new AsyncCacheAsideProcessor<ResourceRequestArgs<Uri>>(new ResourceBufferedCache<Uri>(handlers.LocalTMDbCache)))
                     .SetNext(handlers.RemoteTMDbProcessor);
         }
 

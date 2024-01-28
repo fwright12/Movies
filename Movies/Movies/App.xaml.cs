@@ -259,11 +259,11 @@ namespace Movies
             Session.LastAccessed = DateTime.Now;
 
             var resolver = new TMDbResolver(TMDB.ITEM_PROPERTIES);
-            IAsyncEventProcessor<IEnumerable<ResourceReadArgs<Uri>>> tmdbHandlers = new TMDbHttpProcessor(TMDB.WebClient, resolver, TMDbApi.AutoAppend);
+            IAsyncEventProcessor<IEnumerable<ResourceRequestArgs<Uri>>> tmdbHandlers = new TMDbHttpProcessor(TMDB.WebClient, resolver, TMDbApi.AutoAppend);
             var tmdbLocalCache = new TMDbLocalCache(LocalDatabase.ItemCache, resolver);
 
             DataService.Instance.Controller
-                .SetNext(new AsyncCacheAsideProcessor<ResourceReadArgs<Uri>>(new UriBufferedCache(tmdbLocalCache)))
+                .SetNext(new AsyncCacheAsideProcessor<ResourceRequestArgs<Uri>>(new UriBufferedCache(tmdbLocalCache)))
                 .SetNext(tmdbHandlers);
 
 #if DEBUG

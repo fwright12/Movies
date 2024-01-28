@@ -2,12 +2,12 @@
 
 namespace Movies
 {
-    public class KeyValueBufferedCache<TKey> : BufferedCache<KeyValueReadArgs<TKey>>
+    public class KeyValueBufferedCache<TKey> : BufferedCache<KeyValueRequestArgs<TKey>>
     {
-        public KeyValueBufferedCache(IEventAsyncCache<KeyValueReadArgs<TKey>> cache) : base(cache) { }
+        public KeyValueBufferedCache(IEventAsyncCache<KeyValueRequestArgs<TKey>> cache) : base(cache) { }
 
-        public override object GetKey(KeyValueReadArgs<TKey> e) => e.Key;
+        public override object GetKey(KeyValueRequestArgs<TKey> e) => e.Request.Key;
 
-        public override void Process(KeyValueReadArgs<TKey> e, KeyValueReadArgs<TKey> buffered) => e.Handle(buffered.Value);
+        public override void Process(KeyValueRequestArgs<TKey> e, KeyValueRequestArgs<TKey> buffered) => e.Handle(new KeyValueResponse(buffered.Value));
     }
 }

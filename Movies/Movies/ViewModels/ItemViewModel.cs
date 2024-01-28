@@ -27,7 +27,7 @@ namespace Movies.ViewModels
         public virtual string PrimaryImagePath => null;
         public ICommand AddToListCommand { get; }
 
-        private ChainLink<EventArgsAsyncWrapper<IEnumerable<ResourceReadArgs<Uri>>>> Controller => DataService.Instance.Controller;
+        private ChainLink<EventArgsAsyncWrapper<IEnumerable<ResourceRequestArgs<Uri>>>> Controller => DataService.Instance.Controller;
 
         protected delegate bool TryGet<T>(out T value);
 

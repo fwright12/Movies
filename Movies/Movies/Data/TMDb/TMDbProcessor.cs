@@ -8,18 +8,18 @@ using System.Threading.Tasks;
 
 namespace Movies
 {
-    public class TMDbProcessor : AsyncGroupEventProcessor<ResourceReadArgs<Uri>, ResourceReadArgs<Uri>>
+    public class TMDbProcessor : AsyncGroupEventProcessor<ResourceRequestArgs<Uri>, ResourceRequestArgs<Uri>>
     {
         public TMDbResolver Resolver { get; }
 
-        public TMDbProcessor(IAsyncEventProcessor<ResourceReadArgs<Uri>> processor, TMDbResolver resolver) : base(new TrojanProcessor(processor, resolver))
+        public TMDbProcessor(IAsyncEventProcessor<ResourceRequestArgs<Uri>> processor, TMDbResolver resolver) : base(new TrojanProcessor(processor, resolver))
         {
             Resolver = resolver;
         }
 
-        protected override bool Handle(ResourceReadArgs<Uri> grouped, IEnumerable<ResourceReadArgs<Uri>> singles)
+        protected override bool Handle(ResourceRequestArgs<Uri> grouped, IEnumerable<ResourceRequestArgs<Uri>> singles)
         {
-            if (false == (grouped.Key as TMDbResolver.TrojanTMDbUri)?.Converter is HttpResourceCollectionConverter resources)
+            if (false == (grouped.Request.Key as TMDbResolver.TrojanTMDbUri)?.Converter is HttpResourceCollectionConverter resources)
             {
                 return grouped.IsHandled;
             }
@@ -40,7 +40,7 @@ namespace Movies
                 {
                     response = request.Response ?? response;
                 }
-                else*/ if (true == collection?.TryGetValue(request.Key, out var value))
+                else*/ if (true == collection?.TryGetValue(request.Request.Key, out var value))
                 {
                     if (value is IEnumerable<Entity> entities)
                     {
@@ -58,7 +58,7 @@ namespace Movies
                             metadata = null;
                         }
 
-                        response = new RestResponse(entities, controlData, metadata);
+                        response = new RestResponse(entities, controlData, metadata, request.Request.Expected);
                     }
                     else
                     {
@@ -72,26 +72,26 @@ namespace Movies
             return result;
         }
 
-        protected override IEnumerable<KeyValuePair<ResourceReadArgs<Uri>, IEnumerable<ResourceReadArgs<Uri>>>> GroupRequests(IEnumerable<ResourceReadArgs<Uri>> args)
+        protected override IEnumerable<KeyValuePair<ResourceRequestArgs<Uri>, IEnumerable<ResourceRequestArgs<Uri>>>> GroupRequests(IEnumerable<ResourceRequestArgs<Uri>> args)
         {
-            var item = args.Select(arg => arg.Key).OfType<UniformItemIdentifier>().Select(uii => uii.Item).FirstOrDefault(item => item != null);
+            var item = args.Select(arg => arg.Request.Key).OfType<UniformItemIdentifier>().Select(uii => uii.Item).FirstOrDefault(item => item != null);
 
             foreach (var kvp in GroupUrls(args))
             {
                 var url = kvp.Key;
                 var requests = kvp.Value.ToArray();
                 var uri = GetUri(item, url, requests);
-                IEnumerable<ResourceReadArgs<Uri>> grouped = requests;
+                IEnumerable<ResourceRequestArgs<Uri>> grouped = requests;
 
-                if (uri.Converter is HttpResourceCollectionConverter converter && args is BulkEventArgs<ResourceReadArgs<Uri>> batch)
+                if (uri.Converter is HttpResourceCollectionConverter converter && args is BulkEventArgs<ResourceRequestArgs<Uri>> batch)
                 {
-                    var index = requests.ToDictionary(req => req.Key, req => req);
+                    var index = requests.ToDictionary(req => req.Request.Key, req => req);
 
                     foreach (var resource in converter.Resources)
                     {
                         if (!index.ContainsKey(resource))
                         {
-                            var request = new ResourceReadArgs<Uri>(resource);
+                            var request = new ResourceRequestArgs<Uri>(resource);
 
                             index.Add(resource, request);
                             batch.Add(request);
@@ -104,20 +104,20 @@ namespace Movies
                 var groupRequest = new RestRequestArgs(uri);
                 if (TryGetSingleIfNoneMatch(requests, out var etag))
                 {
-                    groupRequest.ControlData[REpresentationalStateTransfer.Rest.IF_NONE_MATCH] = new List<string> { etag };
+                    groupRequest.Request.ControlData[REpresentationalStateTransfer.Rest.IF_NONE_MATCH] = new List<string> { etag };
                 }
 
-                yield return new KeyValuePair<ResourceReadArgs<Uri>, IEnumerable<ResourceReadArgs<Uri>>>(groupRequest, grouped);
+                yield return new KeyValuePair<ResourceRequestArgs<Uri>, IEnumerable<ResourceRequestArgs<Uri>>>(groupRequest, grouped);
             }
         }
 
-        private static bool TryGetSingleIfNoneMatch(IEnumerable<ResourceReadArgs<Uri>> requests, out string etag)
+        private static bool TryGetSingleIfNoneMatch(IEnumerable<ResourceRequestArgs<Uri>> requests, out string etag)
         {
             etag = null;
 
             foreach (var request in requests)
             {
-                if (request is RestRequestArgs restRequest && restRequest.ControlData.TryGetValue(REpresentationalStateTransfer.Rest.IF_NONE_MATCH, out var etags))
+                if (request is RestRequestArgs restRequest && restRequest.Request.ControlData.TryGetValue(REpresentationalStateTransfer.Rest.IF_NONE_MATCH, out var etags))
                 {
                     var itr = etags.GetEnumerator();
 
@@ -138,15 +138,15 @@ namespace Movies
             return true;
         }
 
-        protected virtual IEnumerable<KeyValuePair<string, IEnumerable<ResourceReadArgs<Uri>>>> GroupUrls(IEnumerable<ResourceReadArgs<Uri>> args) => args
+        protected virtual IEnumerable<KeyValuePair<string, IEnumerable<ResourceRequestArgs<Uri>>>> GroupUrls(IEnumerable<ResourceRequestArgs<Uri>> args) => args
             .Where(arg => !arg.IsHandled)
-            .Select(arg => new KeyValuePair<string, IEnumerable<ResourceReadArgs<Uri>>>(Resolver.ResolveUrl(arg.Key), arg.AsEnumerable()))
-            .GroupBy(kvp => kvp.Key, (key, group) => new KeyValuePair<string, IEnumerable<ResourceReadArgs<Uri>>>(key, group.SelectMany(pair => pair.Value)));
+            .Select(arg => new KeyValuePair<string, IEnumerable<ResourceRequestArgs<Uri>>>(Resolver.ResolveUrl(arg.Request.Key), arg.AsEnumerable()))
+            .GroupBy(kvp => kvp.Key, (key, group) => new KeyValuePair<string, IEnumerable<ResourceRequestArgs<Uri>>>(key, group.SelectMany(pair => pair.Value)));
 
-        private TMDbResolver.TrojanTMDbUri GetUri(Item item, string url, ResourceReadArgs<Uri>[] requests)
+        private TMDbResolver.TrojanTMDbUri GetUri(Item item, string url, ResourceRequestArgs<Uri>[] requests)
         {
             var properties = requests
-                    .Select(arg => arg.Key)
+                    .Select(arg => arg.Request.Key)
                     .OfType<UniformItemIdentifier>()
                     .Select(uii => uii.Property)
                     .ToHashSet();
@@ -164,24 +164,24 @@ namespace Movies
             return uri;
         }
 
-        private class TrojanProcessor : IAsyncEventProcessor<ResourceReadArgs<Uri>>
+        private class TrojanProcessor : IAsyncEventProcessor<ResourceRequestArgs<Uri>>
         {
-            public IAsyncEventProcessor<ResourceReadArgs<Uri>> Processor { get; }
+            public IAsyncEventProcessor<ResourceRequestArgs<Uri>> Processor { get; }
             public TMDbResolver Resolver { get; }
 
-            public TrojanProcessor(IAsyncEventProcessor<ResourceReadArgs<Uri>> processor, TMDbResolver resolver)
+            public TrojanProcessor(IAsyncEventProcessor<ResourceRequestArgs<Uri>> processor, TMDbResolver resolver)
             {
                 Processor = processor;
                 Resolver = resolver;
             }
 
-            public async Task<bool> ProcessAsync(ResourceReadArgs<Uri> e)
+            public async Task<bool> ProcessAsync(ResourceRequestArgs<Uri> e)
             {
                 var response = await Processor.ProcessAsync(e);
 
                 if (e.Response is RestResponse restResponse)
                 {
-                    var converter = (e.Key as TMDbResolver.TrojanTMDbUri)?.Converter ?? (Resolver.TryGetConverter(e.Key, out var temp) ? temp : null);
+                    var converter = (e.Request.Key as TMDbResolver.TrojanTMDbUri)?.Converter ?? (Resolver.TryGetConverter(e.Request.Key, out var temp) ? temp : null);
 
                     if (converter != null)
                     {
@@ -190,7 +190,7 @@ namespace Movies
                             await httpResponse.BindingDelay;
                         }
 
-                        if (restResponse.Entities is State state && restResponse.TryGetRepresentation<IEnumerable<byte>>(out var bytes))
+                        if (restResponse.Resource.Get() is State state && restResponse.TryGetRepresentation<IEnumerable<byte>>(out var bytes))
                         {
                             var converted = await converter.Convert(new System.Net.Http.ByteArrayContent(bytes as byte[] ?? bytes.ToArray()));
                             state.Add(converted.GetType(), converted);

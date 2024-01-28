@@ -4,7 +4,7 @@
     public class TMDbClientTests : Resources
     {
         private readonly TMDbHttpProcessor TMDbReadHandler;
-        private ChainLink<EventArgsAsyncWrapper<IEnumerable<ResourceReadArgs<Uri>>>> Chain => AsyncCoRExtensions.Create<IEnumerable<ResourceReadArgs<Uri>>>(TMDbReadHandler);
+        private ChainLink<EventArgsAsyncWrapper<IEnumerable<ResourceRequestArgs<Uri>>>> Chain => AsyncCoRExtensions.Create<IEnumerable<ResourceRequestArgs<Uri>>>(TMDbReadHandler);
         
 
         public TMDbClientTests()
@@ -125,6 +125,6 @@
             Assert.AreEqual(1, WebHistory.Count);
         }
 
-        private void AssertHandled(params ResourceReadArgs<Uri>[] e) => Assert.IsTrue(e.All(arg => arg.IsHandled), "The following uris where not handled:\n" + string.Join('\n', e.Where(arg => !arg.IsHandled).Select(arg => arg.Key.ToString())));
+        private void AssertHandled(params ResourceRequestArgs<Uri>[] e) => Assert.IsTrue(e.All(arg => arg.IsHandled), "The following uris where not handled:\n" + string.Join('\n', e.Where(arg => !arg.IsHandled).Select(arg => arg.Request.Key.ToString())));
     }
 }

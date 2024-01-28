@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 
 namespace Movies
 {
-    public class ItemInfoCache : IJsonCache, IEventAsyncCache<ResourceReadArgs<Uri>>, IDataStore<Uri, State>, IAsyncEnumerable<KeyValuePair<string, JsonResponse>>
+    public class ItemInfoCache : IJsonCache, IEventAsyncCache<ResourceRequestArgs<Uri>>, IDataStore<Uri, State>, IAsyncEnumerable<KeyValuePair<string, JsonResponse>>
     {
         public static readonly Table.Column ID = new Table.Column("id", "integer");
         public static readonly Table.Column TYPE = new Table.Column("type", "integer");
@@ -284,13 +284,13 @@ namespace Movies
             }
         }
 
-        public async Task<bool> Read(IEnumerable<ResourceReadArgs<Uri>> args) => (await Task.WhenAll(args.Select(Read))).All(result => result);
+        public async Task<bool> Read(IEnumerable<ResourceRequestArgs<Uri>> args) => (await Task.WhenAll(args.Select(Read))).All(result => result);
 
-        public async Task<bool> Write(IEnumerable<ResourceReadArgs<Uri>> args) => (await Task.WhenAll(args.Select(Write))).All(result => result);
+        public async Task<bool> Write(IEnumerable<ResourceRequestArgs<Uri>> args) => (await Task.WhenAll(args.Select(Write))).All(result => result);
 
-        private async Task<bool> Read(ResourceReadArgs<Uri> arg)
+        private async Task<bool> Read(ResourceRequestArgs<Uri> arg)
         {
-            var url = arg.Key.ToString();
+            var url = arg.Request.Key.ToString();
             var response = await TryGetValueAsync(url);
 
             if (response == null)
@@ -305,10 +305,10 @@ namespace Movies
                 controlData[REpresentationalStateTransfer.Rest.ETAG] = response.ETag.AsEnumerable();
             }
 
-            return arg.Handle(new RestResponse(representation, controlData, null));
+            return arg.Handle(new RestResponse(representation, controlData, null, arg.Request.Expected));
         }
 
-        private async Task<bool> Write(ResourceReadArgs<Uri> arg)
+        private async Task<bool> Write(ResourceRequestArgs<Uri> arg)
         {
             if (arg.Response == null)
             {
@@ -328,7 +328,7 @@ namespace Movies
                 }
             }
 
-            return await UpdateAsync(arg.Key, state ?? State.Create(arg.Value), etag);
+            return await UpdateAsync(arg.Request.Key, state ?? State.Create(arg.Value), etag);
         }
 
         public Task<bool> CreateAsync(Uri key, State value) => UpdateAsync(key, value);

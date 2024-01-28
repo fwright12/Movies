@@ -3,25 +3,26 @@ using System.Collections.Concurrent;
 
 namespace MoviesTests
 {
-    public class DummyDatastore<TKey> : ConcurrentDictionary<TKey, ResourceResponse>, IAsyncEventProcessor<ResourceReadArgs<TKey>>, IEventAsyncCache<ResourceReadArgs<TKey>>
+    public class DummyDatastore<TKey> : ConcurrentDictionary<TKey, ResourceResponse>, IAsyncEventProcessor<ResourceRequestArgs<TKey>>, IEventAsyncCache<ResourceRequestArgs<TKey>>
+        where TKey : Uri
     {
         public int SimulatedDelay { get; set; }
 
-        public async Task<bool> Read(IEnumerable<ResourceReadArgs<TKey>> args) => (await Task.WhenAll(args.Select(ProcessAsync))).All(result => result);
+        public async Task<bool> Read(IEnumerable<ResourceRequestArgs<TKey>> args) => (await Task.WhenAll(args.Select(ProcessAsync))).All(result => result);
 
-        public async Task<bool> Write(IEnumerable<ResourceReadArgs<TKey>> args) => (await Task.WhenAll(args.Select(Write))).All(result => result);
-        public async Task<bool> Write(ResourceReadArgs<TKey> args)
+        public async Task<bool> Write(IEnumerable<ResourceRequestArgs<TKey>> args) => (await Task.WhenAll(args.Select(Write))).All(result => result);
+        public async Task<bool> Write(ResourceRequestArgs<TKey> args)
         {
             await Delay();
-            return TryAdd(args.Key, new ResourceResponse<object>(args.Value));
+            return TryAdd(args.Request.Key, new ResourceResponse<object>(args.Value));
         }
 
-        public async Task<bool> ProcessAsync(ResourceReadArgs<TKey> e)
+        public async Task<bool> ProcessAsync(ResourceRequestArgs<TKey> e)
         {
             await Delay();
-            if (TryGetValue(e.Key, out var response))
+            if (TryGetValue(e.Request.Key, out var response))
             {
-                return e.Handle(response as RestResponse ?? new RestResponse(State.Create(response.TryGetRepresentation<object>(out var value) ? value : null)));
+                return e.Handle(response as RestResponse ?? new RestResponse(State.Create(response.TryGetRepresentation<object>(out var value) ? value : null), e.Request.Expected));
             }
             else
             {

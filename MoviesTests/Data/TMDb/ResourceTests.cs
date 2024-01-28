@@ -62,7 +62,7 @@ namespace MoviesTests.Data.TMDb
             handlers.DiskCache.TryAdd(uri, new ResourceResponse<IEnumerable<byte>>(Encoding.UTF8.GetBytes(json)));
             Assert.AreEqual(1, handlers.DiskCache.Count);
 
-            var request = new ResourceReadArgs<Uri, TimeSpan?>(new UniformItemIdentifier(Constants.Movie, Media.RUNTIME));
+            var request = new ResourceRequestArgs<Uri, TimeSpan?>(new UniformItemIdentifier(Constants.Movie, Media.RUNTIME));
             await chain.Get(request);
             await CachedAsync(handlers.DiskCache);
 
@@ -80,7 +80,7 @@ namespace MoviesTests.Data.TMDb
             var handlers = new HandlerChain();
             var chain = handlers.Chain;
 
-            var args = new ResourceReadArgs<Uri, TimeSpan>(new UniformItemIdentifier(Constants.Movie, Media.RUNTIME));
+            var args = new ResourceRequestArgs<Uri, TimeSpan>(new UniformItemIdentifier(Constants.Movie, Media.RUNTIME));
             await chain.Get(args);
             await CachedAsync(handlers.DiskCache);
 
@@ -101,13 +101,13 @@ namespace MoviesTests.Data.TMDb
 
             var uri = new Uri("3/movie/0?language=en-US", UriKind.Relative);
             var json = DUMMY_TMDB_DATA.HARRY_POTTER_AND_THE_DEATHLY_HALLOWS_PART_2_PARTIAL_RESPONSE;// "{ \"runtime\": 130 }";
-            handlers.DiskCache.TryAdd(uri, new RestResponse(State.Create<ArraySegment<byte>>(Encoding.UTF8.GetBytes(json)), new Dictionary<string, IEnumerable<string>>
+            handlers.DiskCache.TryAdd(uri, new RestResponse((IEnumerable<REpresentationalStateTransfer.Entity>) State.Create<ArraySegment<byte>>(Encoding.UTF8.GetBytes(json)), new Dictionary<string, IEnumerable<string>>
             {
                 [REpresentationalStateTransfer.Rest.ETAG] = new List<string> { "\"non matching etag\"" }
             }, new Dictionary<string, string>()));
             Assert.AreEqual(1, handlers.DiskCache.Count);
 
-            var request = new ResourceReadArgs<Uri, TimeSpan?>(new UniformItemIdentifier(Constants.Movie, Media.RUNTIME));
+            var request = new ResourceRequestArgs<Uri, TimeSpan?>(new UniformItemIdentifier(Constants.Movie, Media.RUNTIME));
             await chain.Get(request);
             await CachedAsync(handlers.DiskCache);
 
@@ -153,7 +153,7 @@ namespace MoviesTests.Data.TMDb
             var handlers = new HandlerChain();
             var chain = handlers.Chain;
 
-            var request = new ResourceReadArgs<Uri, Collection>(new UniformItemIdentifier(Constants.Movie, Movie.PARENT_COLLECTION));
+            var request = new ResourceRequestArgs<Uri, Collection>(new UniformItemIdentifier(Constants.Movie, Movie.PARENT_COLLECTION));
             await chain.Get(request);
 
             Assert.IsTrue(request.IsHandled);
@@ -170,13 +170,13 @@ namespace MoviesTests.Data.TMDb
             var handlers = new HandlerChain();
             var chain = handlers.Chain;
 
-            var r1 = new ResourceReadArgs<Uri, DateTime>(new UniformItemIdentifier(Constants.Person, Person.BIRTHDAY));
-            var r2 = new ResourceReadArgs<Uri, IEnumerable<Item>>(new UniformItemIdentifier(Constants.Person, Person.CREDITS));
+            var r1 = new ResourceRequestArgs<Uri, DateTime>(new UniformItemIdentifier(Constants.Person, Person.BIRTHDAY));
+            var r2 = new ResourceRequestArgs<Uri, IEnumerable<Item>>(new UniformItemIdentifier(Constants.Person, Person.CREDITS));
             var temp = chain.Get(r1, r2);
 
             await Task.Delay(20);
 
-            var request1 = new ResourceReadArgs<Uri, IEnumerable<Item>>(new UniformItemIdentifier(Constants.Person, Person.CREDITS));
+            var request1 = new ResourceRequestArgs<Uri, IEnumerable<Item>>(new UniformItemIdentifier(Constants.Person, Person.CREDITS));
 
             await Task.WhenAll(chain.Get(request1), temp);
 
@@ -196,7 +196,7 @@ namespace MoviesTests.Data.TMDb
             Assert.IsTrue(await handlers.DiskCache.CreateAsync(uri, State.Create<ArraySegment<byte>>(Encoding.UTF8.GetBytes(json))));
 
             uri = new UniformItemIdentifier(Constants.Movie, Media.RUNTIME);
-            var request = new ResourceReadArgs<Uri, TimeSpan>(uri);
+            var request = new ResourceRequestArgs<Uri, TimeSpan>(uri);
             await chain.Get(request);
 
             Assert.IsTrue(request.IsHandled);
@@ -206,14 +206,14 @@ namespace MoviesTests.Data.TMDb
             await CachedAsync(handlers.DiskCache);
 
             // This will force an api call (since watch providers are at a different endpoint)
-            var requests = new ResourceReadArgs<Uri>[]
+            var requests = new ResourceRequestArgs<Uri>[]
             {
-                request = new ResourceReadArgs<Uri, TimeSpan>(uri),
+                request = new ResourceRequestArgs<Uri, TimeSpan>(uri),
                 CreateArgs(Movie.WATCH_PROVIDERS)
             };
             await chain.Get(requests);
 
-            Assert.IsTrue(requests.All(request => request.IsHandled), string.Join(", ", requests.Where(req => !req.IsHandled).Select(req => req.Key)));
+            Assert.IsTrue(requests.All(request => request.IsHandled), string.Join(", ", requests.Where(req => !req.IsHandled).Select(req => req.Request.Key)));
             // We want this to have changed, since it should have been overwritten
             // with the newer data that was just fetched
             Assert.AreEqual(Constants.HARRY_POTTER_RUNTIME, request.Value);
@@ -228,7 +228,7 @@ namespace MoviesTests.Data.TMDb
 
             var uri = new Uri("3/movie/0?language=en-US", UriKind.Relative);
             var json = DUMMY_TMDB_DATA.INTERSTELLAR_RESPONSE;
-            handlers.DiskCache.TryAdd(uri, new RestResponse(State.Create<ArraySegment<byte>>(Encoding.UTF8.GetBytes(json)), new Dictionary<string, IEnumerable<string>>
+            handlers.DiskCache.TryAdd(uri, new RestResponse((IEnumerable<REpresentationalStateTransfer.Entity>) State.Create<ArraySegment<byte>>(Encoding.UTF8.GetBytes(json)), new Dictionary<string, IEnumerable<string>>
             {
                 [REpresentationalStateTransfer.Rest.ETAG] = new List<string> { MockHandler.DEFAULT_ETAG }
             }, new Dictionary<string, string> { }));
@@ -236,13 +236,13 @@ namespace MoviesTests.Data.TMDb
             Assert.AreEqual(1, handlers.DiskCache.Count);
 
             uri = new UniformItemIdentifier(Constants.Movie, Media.RUNTIME);
-            var request = new ResourceReadArgs<Uri, TimeSpan>(uri);
+            var request = new ResourceRequestArgs<Uri, TimeSpan>(uri);
             await handlers.LocalTMDbCache.Read(request.AsEnumerable());
 
             Assert.IsTrue(request.IsHandled);
             Assert.AreEqual(Constants.INTERSTELLAR_RUNTIME, request.Value);
             
-            request = new ResourceReadArgs<Uri, TimeSpan>(uri);
+            request = new ResourceRequestArgs<Uri, TimeSpan>(uri);
             await chain.Get(request);
             await CachedAsync(handlers.DiskCache);
 
@@ -255,8 +255,8 @@ namespace MoviesTests.Data.TMDb
 
         private static IEnumerable<UniformItemIdentifier> GetUiis(params Property[] properties) => properties.Select(property => new UniformItemIdentifier(Constants.Movie, property));
 
-        private static ResourceReadArgs<Uri, T> CreateArgs<T>(Property<T> property) => new ResourceReadArgs<Uri, T>(new UniformItemIdentifier(Constants.Movie, property));
-        private static ResourceReadArgs<Uri, IEnumerable<T>> CreateArgs<T>(MultiProperty<T> property) => new ResourceReadArgs<Uri, IEnumerable<T>>(new UniformItemIdentifier(Constants.Movie, property));
+        private static ResourceRequestArgs<Uri, T> CreateArgs<T>(Property<T> property) => new ResourceRequestArgs<Uri, T>(new UniformItemIdentifier(Constants.Movie, property));
+        private static ResourceRequestArgs<Uri, IEnumerable<T>> CreateArgs<T>(MultiProperty<T> property) => new ResourceRequestArgs<Uri, IEnumerable<T>>(new UniformItemIdentifier(Constants.Movie, property));
 
         [TestMethod]
         public async Task RetrieveRecommendedMovies()
@@ -264,7 +264,7 @@ namespace MoviesTests.Data.TMDb
             var handlers = new HandlerChain();
             var chain = handlers.Chain;
 
-            var request = new ResourceReadArgs<Uri, IAsyncEnumerable<Item>>(new UniformItemIdentifier(Constants.Movie, Media.RECOMMENDED));
+            var request = new ResourceRequestArgs<Uri, IAsyncEnumerable<Item>>(new UniformItemIdentifier(Constants.Movie, Media.RECOMMENDED));
             await chain.Get(request);
 
             Assert.IsTrue(request.IsHandled);
@@ -288,8 +288,8 @@ namespace MoviesTests.Data.TMDb
             handlers.DiskCache.SimulatedDelay = 50;
 
             var uri = new UniformItemIdentifier(Constants.Movie, Media.TITLE);
-            var arg1 = new ResourceReadArgs<Uri, string>(uri);
-            var arg2 = new ResourceReadArgs<Uri, string>(uri);
+            var arg1 = new ResourceRequestArgs<Uri, string>(uri);
+            var arg2 = new ResourceRequestArgs<Uri, string>(uri);
             // Should take 50 ms to read (and fail) from disk, then another 50 ms to write
             // Send the second request while (hopefully) still writing to disk, but after response
             // cleared from the http handler cache
@@ -336,9 +336,9 @@ namespace MoviesTests.Data.TMDb
             DebugConfig.SimulatedDelay = 0;
             handlers.DiskCache.SimulatedDelay = 100;
 
-            var arg1 = new ResourceReadArgs<Uri, string>(new UniformItemIdentifier(Constants.Movie, Media.TITLE));
-            var arg2 = new ResourceReadArgs<Uri, IEnumerable<WatchProvider>>(new UniformItemIdentifier(Constants.Movie, Movie.WATCH_PROVIDERS));
-            var arg3 = new ResourceReadArgs<Uri, IAsyncEnumerable<Item>>(new UniformItemIdentifier(Constants.Movie, Media.RECOMMENDED));
+            var arg1 = new ResourceRequestArgs<Uri, string>(new UniformItemIdentifier(Constants.Movie, Media.TITLE));
+            var arg2 = new ResourceRequestArgs<Uri, IEnumerable<WatchProvider>>(new UniformItemIdentifier(Constants.Movie, Movie.WATCH_PROVIDERS));
+            var arg3 = new ResourceRequestArgs<Uri, IAsyncEnumerable<Item>>(new UniformItemIdentifier(Constants.Movie, Media.RECOMMENDED));
 
             // The request for arg1 and arg2 gets delayed reading from the disk cache, while arg3 goes through
             // immediately because the disk cache knows that property is not cacheable. However, we already know
@@ -360,8 +360,8 @@ namespace MoviesTests.Data.TMDb
             handlers.DiskCache.SimulatedDelay = 0;
 
             var uri = new UniformItemIdentifier(Constants.Movie, Media.TITLE);
-            var arg1 = new ResourceReadArgs<Uri, string>(uri);
-            var arg2 = new ResourceReadArgs<Uri, string>(uri);
+            var arg1 = new ResourceRequestArgs<Uri, string>(uri);
+            var arg2 = new ResourceRequestArgs<Uri, string>(uri);
             await Task.WhenAll(chain.Get(arg1), chain.Get(arg2));
 
             Assert.AreEqual(1, handlers.WebHistory.Count);
@@ -379,8 +379,8 @@ namespace MoviesTests.Data.TMDb
             DebugConfig.SimulatedDelay = 0;
             handlers.DiskCache.SimulatedDelay = 0;
 
-            var arg1 = new ResourceReadArgs<Uri, IEnumerable<TVSeason>>(new UniformItemIdentifier(Constants.TVShow, TVShow.SEASONS));
-            var arg2 = new ResourceReadArgs<Uri, string>(new UniformItemIdentifier(Constants.TVShow, Media.TITLE));
+            var arg1 = new ResourceRequestArgs<Uri, IEnumerable<TVSeason>>(new UniformItemIdentifier(Constants.TVShow, TVShow.SEASONS));
+            var arg2 = new ResourceRequestArgs<Uri, string>(new UniformItemIdentifier(Constants.TVShow, Media.TITLE));
             await Task.WhenAll(chain.Get(arg1), chain.Get(arg2));
 
             Assert.AreEqual(1, handlers.WebHistory.Count);
@@ -392,12 +392,12 @@ namespace MoviesTests.Data.TMDb
             var handlers = new HandlerChain();
             var chain = handlers.Chain;
 
-            ResourceReadArgs<Uri>[] getAllRequests() => GetAllRequests(AllMovieProperties().Except(new Property[] { Movie.PARENT_COLLECTION }));
+            ResourceRequestArgs<Uri>[] getAllRequests() => GetAllRequests(AllMovieProperties().Except(new Property[] { Movie.PARENT_COLLECTION }));
 
             var requests = getAllRequests();
             await Task.WhenAll(chain.Get(requests));
             await CachedAsync(handlers.DiskCache);
-            Assert.IsTrue(requests.All(request => request.IsHandled), "The following requests were not handled:\n\t" + string.Join("\n\t", requests.Where(request => !request.IsHandled).Select(request => request.Key)));
+            Assert.IsTrue(requests.All(request => request.IsHandled), "The following requests were not handled:\n\t" + string.Join("\n\t", requests.Where(request => !request.IsHandled).Select(request => request.Request.Key)));
             Assert.AreEqual(1, handlers.WebHistory.Count);
 
             // No additional api calls should be made, everything should be cached in memory
@@ -437,8 +437,8 @@ namespace MoviesTests.Data.TMDb
                 var requests = GetAllRequests();
                 await Task.WhenAll(chain.Get(requests));
 
-                var runtime = (ResourceReadArgs<Uri, TimeSpan>)requests.Where(request => (request.Key as UniformItemIdentifier)?.Property == Media.RUNTIME).FirstOrDefault();
-                var watchProviders = (ResourceReadArgs<Uri, IEnumerable<WatchProvider>>)requests.Where(request => (request.Key as UniformItemIdentifier)?.Property == Movie.WATCH_PROVIDERS).FirstOrDefault();
+                var runtime = (ResourceRequestArgs<Uri, TimeSpan>)requests.Where(request => (request.Request.Key as UniformItemIdentifier)?.Property == Media.RUNTIME).FirstOrDefault();
+                var watchProviders = (ResourceRequestArgs<Uri, IEnumerable<WatchProvider>>)requests.Where(request => (request.Request.Key as UniformItemIdentifier)?.Property == Movie.WATCH_PROVIDERS).FirstOrDefault();
 
                 Assert.AreEqual(2, WebHistory.Count);
                 Assert.AreEqual(new TimeSpan(2, 10, 0), runtime.Value);
@@ -455,11 +455,11 @@ namespace MoviesTests.Data.TMDb
 
         private Property[] AllMovieProperties() => GetProperties(typeof(Media)).Concat(GetProperties(typeof(Movie))).Append(TMDB.POPULARITY).ToArray();
 
-        private ResourceReadArgs<Uri>[] GetAllRequests() => GetAllRequests(AllMovieProperties());
-        private ResourceReadArgs<Uri>[] GetAllRequests(IEnumerable<Property> properties) => properties
+        private ResourceRequestArgs<Uri>[] GetAllRequests() => GetAllRequests(AllMovieProperties());
+        private ResourceRequestArgs<Uri>[] GetAllRequests(IEnumerable<Property> properties) => properties
             .Select(property => CreateRequest(Constants.Movie, property))
             .ToArray();
-        private static ResourceReadArgs<Uri> CreateRequest(Item item, Property property) => (ResourceReadArgs<Uri>)Activator.CreateInstance(typeof(ResourceReadArgs<,>).MakeGenericType(typeof(Uri), property.FullType), new UniformItemIdentifier(item, property));
+        private static ResourceRequestArgs<Uri> CreateRequest(Item item, Property property) => (ResourceRequestArgs<Uri>)Activator.CreateInstance(typeof(ResourceRequestArgs<,>).MakeGenericType(typeof(Uri), property.FullType), new UniformItemIdentifier(item, property));
 
         private static readonly IReadOnlySet<Property> NO_CHANGE_KEY = new HashSet<Property>
         {
@@ -528,10 +528,10 @@ namespace MoviesTests.Data.TMDb
         {
             var properties = GetProperties(type);
 
-            foreach (var test in new (ChainLink<EventArgsAsyncWrapper<IEnumerable<ResourceReadArgs<Uri>>>> Controller, IEnumerable<Property> Properties)[]
+            foreach (var test in new (ChainLink<EventArgsAsyncWrapper<IEnumerable<ResourceRequestArgs<Uri>>>> Controller, IEnumerable<Property> Properties)[]
             {
                 (handlers.Chain, properties),
-                (AsyncCoRExtensions.Create<IEnumerable<ResourceReadArgs<Uri>>>(handlers.LocalTMDbCache.Processor), type == typeof(TVSeason) || type == typeof(TVEpisode) ? Enumerable.Empty<Property>() : properties)
+                (AsyncCoRExtensions.Create<IEnumerable<ResourceRequestArgs<Uri>>>(handlers.LocalTMDbCache.Processor), type == typeof(TVSeason) || type == typeof(TVEpisode) ? Enumerable.Empty<Property>() : properties)
             })
             {
                 foreach (var property in test.Properties)
@@ -608,7 +608,7 @@ namespace MoviesTests.Data.TMDb
         public class HandlerChain
         {
             //public readonly ChainLink<MultiRestEventArgs> Chain;
-            public readonly ChainLink<EventArgsAsyncWrapper<IEnumerable<ResourceReadArgs<Uri>>>> Chain;
+            public readonly ChainLink<EventArgsAsyncWrapper<IEnumerable<ResourceRequestArgs<Uri>>>> Chain;
             public readonly TMDbResolver Resolver;
 
             public List<string> WebHistory => MockHttpHandler.LocalCallHistory;
@@ -637,8 +637,8 @@ namespace MoviesTests.Data.TMDb
                 var invoker = new HttpMessageInvoker(new BufferedHandler(new TMDbBufferedHandler(MockHttpHandler = new MockHandler())));
                 RemoteTMDbProcessor = new TMDbHttpProcessor(invoker, Resolver, TMDbApi.AutoAppend);
 
-                Chain = new AsyncCacheAsideProcessor<ResourceReadArgs<Uri>>(new UriBufferedCache(InMemoryCache)).ToChainLink();
-                Chain.SetNext(new AsyncCacheAsideProcessor<ResourceReadArgs<Uri>>(new UriBufferedCache(LocalTMDbCache)))
+                Chain = new AsyncCacheAsideProcessor<ResourceRequestArgs<Uri>>(new UriBufferedCache(InMemoryCache)).ToChainLink();
+                Chain.SetNext(new AsyncCacheAsideProcessor<ResourceRequestArgs<Uri>>(new UriBufferedCache(LocalTMDbCache)))
                     .SetNext(RemoteTMDbProcessor);
             }
         }

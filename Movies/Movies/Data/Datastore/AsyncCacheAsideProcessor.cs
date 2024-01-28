@@ -169,7 +169,7 @@ namespace Movies
                     //UpdateBuffer(eCache);
 
                     var eNext = new BulkEventArgs<TArgs>();
-                    Print.Log(Cache.Cache, string.Join(", ", e1));
+                    //Print.Log(Cache.Cache, string.Join(", ", e1));
                     // Check if the request has been fulfilled in the time it took to check the cache. If the task
                     // is not complete, the underlying source has not been transitioned, meaning it's the same
                     // source we added before checking the cache. We can't await that task because it won't
@@ -193,7 +193,7 @@ namespace Movies
                             }
                             else
                             {
-                                Print.Log("here");
+                                //Print.Log("here");
                                 eNext.Add(arg);
                             }
                         }
@@ -206,13 +206,13 @@ namespace Movies
                             {
                                 if (WriteBuffer.TryGetValue(key, out var source))
                                 {
-                                    Print.Log("\t" + arg);
+                                    //Print.Log("\t" + arg);
                                     //source.TrySetResult(Task.FromResult(arg));
                                 }
                             }
                         }
                     }
-                    Print.Log();
+                    //Print.Log();
                     try
                     {
                         return await SetResultAsync(() => next.ProcessAsync(eNext), eNext, e1, e);

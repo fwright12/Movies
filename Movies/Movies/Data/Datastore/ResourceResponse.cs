@@ -6,8 +6,11 @@ using System.Linq;
 
 namespace Movies
 {
-    public abstract class ResourceResponse
+    public abstract class ResourceResponse : KeyValueResponse
     {
+        protected ResourceResponse() : base(null) { }
+        protected ResourceResponse(object value) : base(value) { }
+
         public abstract bool TryGetRepresentation(Type type, out object value);
 
         public bool TryGetRepresentation<T>(out T value)
@@ -27,12 +30,9 @@ namespace Movies
 
     public class ResourceResponse<T> : ResourceResponse
     {
-        public T Value { get; }
+        public new T Value => (T)base.Value;
 
-        public ResourceResponse(T value)
-        {
-            Value = value;
-        }
+        public ResourceResponse(T value) : base(value) { }
 
         public override bool TryGetRepresentation(Type type, out object value)
         {
