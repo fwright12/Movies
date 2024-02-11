@@ -7,7 +7,7 @@
         private TVShow Show = new TVShow("show").WithID(TMDB.IDKey, 0);
         private Person Person = new Person("person").WithID(TMDB.IDKey, 0);
 
-        private UiiDictionaryDatastore InMemoryCache { get; }
+        private UiiDictionaryDataStore InMemoryCache { get; }
 
         //private PropertyDictionary InMemoryCache1 = new PropertyDictionary
         //{
@@ -37,7 +37,7 @@
             Chain = AsyncCoRExtensions.Create<IEnumerable<ResourceRequestArgs<Uri>>>(RemoteTMDbHandlers);
             DebugConfig.SimulatedDelay = 0;
 
-            InMemoryCache = new UiiDictionaryDatastore();
+            InMemoryCache = new UiiDictionaryDataStore();
             InMemoryCache.CreateAsync(new UniformItemIdentifier(Constants.Movie, Movie.RELEASE_DATE), State.Create(DateTime.Now));
             InMemoryCache.CreateAsync(new UniformItemIdentifier(Constants.Movie, Movie.WATCH_PROVIDERS), State.Create(new WatchProvider()));
             InMemoryCache.CreateAsync(new UniformItemIdentifier(Constants.TVShow, TVShow.WATCH_PROVIDERS), State.Create(new WatchProvider()));
@@ -304,7 +304,7 @@
         private Task AssertOrderCached(FilterPredicate filter, params Property[] expected) => AssertOrder(Constants.Movie, filter, InMemoryCache, PersistentCache, expected);
         //private Task AssertOrder(FilterPredicate filter, PropertyDictionary dict, IJsonCache cache, params Property[] expected) => AssertOrder(filter, dict, cache, (IEnumerable<Property>)expected);
 
-        private async Task AssertOrder(Item item, FilterPredicate filter, UiiDictionaryDatastore datastore, IJsonCache cache, IEnumerable<Property> expected)
+        private async Task AssertOrder(Item item, FilterPredicate filter, UiiDictionaryDataStore datastore, IJsonCache cache, IEnumerable<Property> expected)
         {
             var actual = (await ItemHelpers.DefferedPredicates(item, filter, datastore, cache).ReadAll()).Select(predicate => predicate.LHS);
             Assert.IsTrue(actual.SequenceEqual(expected), $"Expected <[{string.Join(',', expected)}]>. Actual <[{string.Join(',', actual)}]>");

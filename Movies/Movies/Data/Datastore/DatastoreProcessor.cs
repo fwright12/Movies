@@ -7,9 +7,9 @@ namespace Movies
     public class DatastoreProcessor<TKey, TValue> : IAsyncEventProcessor<ResourceRequestArgs<TKey>>, IAsyncEventProcessor<DatastoreWriteArgs>, IAsyncEventProcessor<DatastoreKeyValueWriteArgs<TKey, State>>
         where TKey : Uri
     {
-        public IDataStore<TKey, State> Datastore { get; }
+        public IAsyncDataStore<TKey, State> Datastore { get; }
 
-        public DatastoreProcessor(IDataStore<TKey, State> datastore)
+        public DatastoreProcessor(IAsyncDataStore<TKey, State> datastore)
         {
             Datastore = datastore;
         }

@@ -27,7 +27,7 @@ namespace MoviesTests.Data.TMDb
 
             for (int i = 0; i < count; i++)
             {
-                await GetCredits();
+                await ResourcesCanBeRetrievedFromDiskCache();
             }
         }
 
@@ -613,7 +613,7 @@ namespace MoviesTests.Data.TMDb
 
             public List<string> WebHistory => MockHttpHandler.LocalCallHistory;
 
-            public UiiDictionaryDatastore InMemoryCache { get; }
+            public UiiDictionaryDataStore InMemoryCache { get; }
             public DummyDatastore<Uri> DiskCache { get; }
 
             public TMDbLocalCache LocalTMDbCache { get; }
@@ -628,7 +628,7 @@ namespace MoviesTests.Data.TMDb
                 {
                     SimulatedDelay = 50
                 };
-                InMemoryCache = new UiiDictionaryDatastore();
+                InMemoryCache = new UiiDictionaryDataStore();
 
                 LocalTMDbCache = new TMDbLocalCache(DiskCache, Resolver)
                 {

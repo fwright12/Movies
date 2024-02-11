@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 
 namespace Movies
 {
-    public class ItemInfoCache : IJsonCache, IEventAsyncCache<ResourceRequestArgs<Uri>>, IDataStore<Uri, State>, IAsyncEnumerable<KeyValuePair<string, JsonResponse>>
+    public class ItemInfoCache : IJsonCache, IEventAsyncCache<ResourceRequestArgs<Uri>>, IAsyncDataStore<Uri, State>, IAsyncEnumerable<KeyValuePair<string, JsonResponse>>
     {
         public static readonly Table.Column ID = new Table.Column("id", "integer");
         public static readonly Table.Column TYPE = new Table.Column("type", "integer");

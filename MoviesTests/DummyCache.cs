@@ -54,7 +54,7 @@ namespace MoviesTests
         private Task Delay() => Task.Delay(SimulatedDelay);
     }
 
-    public class DummyCache : Dictionary<string, JsonResponse>, IJsonCache, IDataStore<Uri, State>
+    public class DummyCache : Dictionary<string, JsonResponse>, IJsonCache, IAsyncDataStore<Uri, State>
     {
         public int SimulatedDelay { get; set; }
 

@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 
 namespace Movies
 {
-    public class HttpDatastore : IDataStore<Uri, State>
+    public class HttpDatastore : IAsyncDataStore<Uri, State>
     {
         public HttpMessageInvoker Invoker { get; }
 

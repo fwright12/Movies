@@ -121,36 +121,40 @@ namespace Movies
 
         public async Task<bool> ProcessAsync(ResourceRequestArgs<T> e, IAsyncEventProcessor<ResourceRequestArgs<T>> next)
         {
-            var result = await Processor.ProcessAsync(e);
-
             if (next == null)
             {
-                return result;
+                return await Processor.ProcessAsync(e);
             }
 
-            ResourceRequestArgs<T> arg;
+            var e1 = new ResourceRequestArgs<T>(e.Request);
+            var result = await Processor.ProcessAsync(e1);
+            ResourceRequestArgs<T> eNext;
 
-            if (e.IsHandled)
+            if (e1.IsHandled)
             {
-                if (e.Response is RestResponse restResponse && restResponse.ControlData.TryGetValue(REpresentationalStateTransfer.Rest.ETAG, out var etag) && etag.Count() == 1)
+                if (e1.Response is RestResponse restResponse && restResponse.ControlData.TryGetValue(REpresentationalStateTransfer.Rest.ETAG, out var etag) && etag.Count() == 1)
                 {
-                    arg = GetEtaggedRequest(e, etag.First());
+                    eNext = GetEtaggedRequest(e1, etag.First());
                 }
                 else
                 {
-                    return true;
+                    eNext = null;
                 }
             }
             else
             {
-                arg = e;
+                eNext = e;
             }
 
-            result = await next.ProcessAsync(arg);
-
-            if (arg != e && arg.IsHandled)
+            if (eNext != null)
             {
-                e.Handle(arg.Response);
+                result = await next.ProcessAsync(eNext);
+            }
+
+            var response = eNext?.Response ?? e1.Response;
+            if (response != e.Response)
+            {
+                e.Handle(response);
             }
 
             return result;

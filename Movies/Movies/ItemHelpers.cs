@@ -201,7 +201,7 @@ namespace Movies.Models
             }
         }
 
-        public static async IAsyncEnumerable<OperatorPredicate> DefferedPredicates(Item item, FilterPredicate predicate, UiiDictionaryDatastore datastore = null, IJsonCache cache = null)
+        public static async IAsyncEnumerable<OperatorPredicate> DefferedPredicates(Item item, FilterPredicate predicate, UiiDictionaryDataStore datastore = null, IJsonCache cache = null)
         {
             var cachedInMemory = new Queue<OperatorPredicate>();
             var cachedPersistent = new Queue<OperatorPredicate>();

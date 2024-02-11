@@ -36,7 +36,7 @@ namespace Movies
 
             if (source != null)
             {
-                SetResultAsync(source, key, base.SendAsync(request, cancellationToken));
+                SetResultAsync(source, key, () => base.SendAsync(request, cancellationToken));
             }
             else
             {
@@ -46,11 +46,11 @@ namespace Movies
             return response;
         }
 
-        private async void SetResultAsync(TaskCompletionSource<HttpResponseMessage> source, Uri key, Task<HttpResponseMessage> task)
+        private async void SetResultAsync(TaskCompletionSource<HttpResponseMessage> source, Uri key, Func<Task<HttpResponseMessage>> request)
         {
             try
             {
-                source.SetResult(await task);
+                source.SetResult(await request());
             }
             catch (Exception e)
             {

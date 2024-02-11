@@ -2,7 +2,7 @@
 
 namespace Movies
 {
-    public interface IDataStore<TKey, TValue>
+    public interface IAsyncDataStore<TKey, TValue>
     {
         Task<bool> CreateAsync(TKey key, TValue value);
         Task<TValue> ReadAsync(TKey key);
