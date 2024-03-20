@@ -8,7 +8,6 @@ namespace Movies
 {
     public abstract class ResourceResponse : KeyValueResponse
     {
-        protected ResourceResponse() : base(null) { }
         protected ResourceResponse(object value) : base(value) { }
 
         public abstract bool TryGetRepresentation(Type type, out object value);
@@ -36,7 +35,7 @@ namespace Movies
 
         public override bool TryGetRepresentation(Type type, out object value)
         {
-            if (type == null || type.IsAssignableFrom(typeof(T)))
+            if (type.IsAssignableFrom(typeof(T)))
             {
                 value = Value;
                 return true;

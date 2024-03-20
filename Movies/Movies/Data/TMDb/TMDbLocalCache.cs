@@ -28,7 +28,10 @@ namespace Movies
         public TMDbLocalCache(IEventAsyncCache<ResourceRequestArgs<Uri>> dao, TMDbResolver resolver)
         {
             DAO = dao;
-            Processor = new TMDbProcessor(new TMDbSQLProcessor(dao), resolver);
+            Processor = new TMDbProcessor(new TMDbSQLProcessor(dao), resolver)
+            {
+                Flag = false
+            };
             Resolver = resolver;
         }
 

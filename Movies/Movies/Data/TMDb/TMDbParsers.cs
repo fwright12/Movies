@@ -217,20 +217,22 @@ namespace Movies
             public bool TryGetValue(JsonNode json, out IEnumerable<TChild> value) => TryParseCollection(json, new JsonPropertyParser<IEnumerable<JsonNode>>(Property), out value, new JsonNodeParser<TChild>((JsonNode json, out TChild result) => Parse(json, (TParent)Parent, out result)));
         }
 
-        private class CollectionParser : Parser<Collection>
+        public class CollectionParser : Parser<Collection>
         {
             public CollectionParser(Property<Collection> property) : base(property, new JsonNodeParser<Collection>(TryParseCollection)) { }
 
             public override PropertyValuePair GetPair(JsonNode json)
             {
-                Task<Collection> details = GetCollectionAsync(json);
-                return details.IsCompleted ? new PropertyValuePair<Collection>((Property<Collection>)Property, details.Result) : (PropertyValuePair)new PropertyValuePair<Task<Collection>>(null, details);
+                return new PropertyValuePair<int>(null, json.TryGetValue("id", out int id) ? id : -1);
+
+                //Task<Collection> details = GetCollectionAsync(json);
+                //return details.IsCompleted ? new PropertyValuePair<Collection>((Property<Collection>)Property, details.Result) : (PropertyValuePair)new PropertyValuePair<Task<Collection>>(null, details);
                 //return new PropertyValuePair<Collection>((Property<Collection>)Property, details.IsCompleted ? details.Result : null);//(TryParseCollection(json, out var collection) ? collection : null));
             }
 
             public override PropertyValuePair GetPair(ArraySegment<byte> bytes) => GetPair(JsonNode.Parse(bytes));
 
-            private static async Task<Collection> GetCollectionAsync(JsonNode json)
+            public static async Task<Collection> GetCollectionAsync(JsonNode json)
             {
                 if (json.TryGetValue("id", out int id))
                 {

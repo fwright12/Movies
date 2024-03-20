@@ -70,6 +70,7 @@ namespace REpresentationalStateTransfer
     {
         T Value { get; }
         Metadata Metadata { get; }
+        Type Type => typeof(T);
     }
 
     public delegate IEnumerable<Entity> Resource();
@@ -126,6 +127,9 @@ namespace REpresentationalStateTransfer
     {
         public const string CONTENT_TYPE = "content type";
         public const string ETAG = "ETag";
+        public const string AGE = "age";
+        public const string DATE = "date";
+        public const string CACHE_CONTROL = "cache-control";
         public const string IF_NONE_MATCH = "If-None-Match";
 
         public static IResource EmptyResource = new StaticResource();

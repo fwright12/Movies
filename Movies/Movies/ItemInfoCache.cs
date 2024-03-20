@@ -40,10 +40,10 @@ namespace Movies
             }
 
             Print.Log((await cache.DB.QueryScalarsAsync<int>($"select count(*) from {cache.Table}")).FirstOrDefault() + " items in cache");
-            var rows = await cache.DB.QueryAsync<(string, byte[], string, string, string, string)>($"select * from {cache.Table} limit 10");
+            var rows = await cache.DB.QueryAsync<(string, byte[], string, string, string, string, string)>($"select * from {cache.Table} limit 10");
             foreach (var row in rows)
             {
-                Print.Log(row.Item1, row.Item2.Length, row.Item3, row.Item4, row.Item5, row.Item6);//, row.Item2);
+                Print.Log(row.Item1, row.Item2.Length, row.Item3, row.Item4, row.Item5, row.Item6, row.Item7);//, row.Item2);
             }
 #endif
 
@@ -114,8 +114,8 @@ namespace Movies
             BatchQuery = null;
 
             var cache = await Cache;
-            var cols = string.Join(", ", SQLJsonCache.URL, SQLJsonCache.RESPONSE, SQLJsonCache.TIMESTAMP, TYPE, ID, SQLJsonCache.ETAG);
-            var valueRow = "(?,?,?,?,?,?)";
+            var cols = string.Join(", ", SQLJsonCache.URL, SQLJsonCache.RESPONSE, SQLJsonCache.TIMESTAMP, TYPE, ID, SQLJsonCache.ETAG, SQLJsonCache.EXPIRES_AT);
+            var valueRow = "(?,?,?,?,?,?,?)";
             using var itr = Segment(batched.GetEnumerator());
 
 #if DEBUG
@@ -197,7 +197,7 @@ namespace Movies
         private static async Task<IEnumerable<object>> Unwrap((ItemType type, int id, string url, Task<JsonResponse> response) item)
         {
             var json = await item.response;
-            return new object[] { item.url, await json.Content.ReadAsByteArrayAsync(), json.Timestamp, (int)Database.LocalList.AppItemTypeToDatabaseItemType(item.type), item.id, json.ETag };
+            return new object[] { item.url, await json.Content.ReadAsByteArrayAsync(), json.Timestamp, (int)Database.LocalList.AppItemTypeToDatabaseItemType(item.type), item.id, json.ETag, json.ExpiresAt };
         }
 
         public async Task Clear() => await (await Cache).Clear();
@@ -299,13 +299,20 @@ namespace Movies
             }
 
             var representation = new ObjectRepresentation<byte[]>(await response.Content.ReadAsByteArrayAsync());
-            var controlData = new Dictionary<string, IEnumerable<string>>();
+            var headers = new System.Net.Http.HttpResponseMessage().Headers;
+
             if (response.ETag != null)
             {
-                controlData[REpresentationalStateTransfer.Rest.ETAG] = response.ETag.AsEnumerable();
+                headers.ETag = new System.Net.Http.Headers.EntityTagHeaderValue(response.ETag);
+            }
+            if (response.ExpiresAt.HasValue)
+            {
+                var now = DateTimeOffset.UtcNow;
+                headers.Date = now;
+                headers.CacheControl = System.Net.Http.Headers.CacheControlHeaderValue.Parse("public, max-age=" + (int)Math.Max(0, (response.ExpiresAt.Value - now).TotalSeconds));
             }
 
-            return arg.Handle(new RestResponse(representation, controlData, null, arg.Request.Expected));
+            return arg.Handle(new RestResponse(representation, headers, null, arg.Request.Expected));
         }
 
         private async Task<bool> Write(ResourceRequestArgs<Uri> arg)
@@ -317,18 +324,22 @@ namespace Movies
 
             State state = null;
             string etag = null;
+            DateTimeOffset? expiresAt = null;
 
             if (arg.Response is RestResponse restResponse)
             {
                 state = restResponse.Resource.Get() as State;
-
-                if (restResponse.ControlData.TryGetValue(REpresentationalStateTransfer.Rest.ETAG, out var values) && !values.Skip(1).Any())
+                var headers = new System.Net.Http.HttpResponseMessage().Headers;
+                foreach (var kvp in restResponse.ControlData)
                 {
-                    etag = values.FirstOrDefault();
+                    headers.Add(kvp.Key, kvp.Value);
                 }
+
+                etag = headers.ETag?.Tag;
+                expiresAt = headers.Date + headers.CacheControl.MaxAge - (headers.Age ?? TimeSpan.Zero);
             }
 
-            return await UpdateAsync(arg.Request.Key, state ?? State.Create(arg.Value), etag);
+            return await UpdateAsync(arg.Request.Key, state ?? State.Create(arg.Value), etag, expiresAt);
         }
 
         public Task<bool> CreateAsync(Uri key, State value) => UpdateAsync(key, value);
@@ -345,8 +356,8 @@ namespace Movies
             return State.Create(await response.Content.ReadAsByteArrayAsync());
         }
 
-        public Task<bool> UpdateAsync(Uri key, State updatedValue) => UpdateAsync(key, updatedValue, null);
-        private async Task<bool> UpdateAsync(Uri key, State updatedValue, string etag)
+        public Task<bool> UpdateAsync(Uri key, State updatedValue) => UpdateAsync(key, updatedValue, null, null);
+        private async Task<bool> UpdateAsync(Uri key, State updatedValue, string etag, DateTimeOffset? expiresAt)
         {
             if (!updatedValue.TryGetValue<IEnumerable<byte>>(out var bytes))
             {
@@ -368,7 +379,7 @@ namespace Movies
                 return false;
             }
 
-            await AddAsync(type, id, url, new JsonResponse(new LazyContent(bytes), etag));
+            await AddAsync(type, id, url, new JsonResponse(new LazyContent(bytes), etag, expiresAt));
             return true;
         }
 

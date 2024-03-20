@@ -362,19 +362,7 @@ namespace Movies
 
                     foreach (var parser in annotation.Parsers)
                     {
-                        if (parser.Property == Movie.PARENT_COLLECTION)
-                        {
-                            if (!ParentCollectionWasRequested)
-                            {
-                                continue;
-                            }
-                            else if (parser.GetPair(lazyJson.Bytes).Value is Task<Collection> response)
-                            {
-                                await response;
-                            }
-                        }
-
-                        Func<IEnumerable<byte>, object> converter = null;
+                        Func<IEnumerable<byte>, object> converter;
 
                         if (parser.Property == TVShow.SEASONS)
                         {
@@ -387,6 +375,22 @@ namespace Movies
                             {
                                 //var response = await bytes;
                                 converter = source => GetTVItems(source as byte[] ?? source.ToArray(), "episodes", (JsonNode json, out TVEpisode episode) => TMDB.TryParseTVEpisode(json, season, out episode));
+                            }
+                            else
+                            {
+                                converter = null;
+                            }
+                        }
+                        else if (parser.Property == Movie.PARENT_COLLECTION)
+                        {
+                            if (!ParentCollectionWasRequested)
+                            {
+                                converter = null;
+                            }
+                            else //if (parser.GetPair(lazyJson.Bytes).Value is Task<Collection> response)
+                            {
+                                var collection = parser.GetPair(lazyJson.Bytes).Value is int id && id != -1 ? await TMDB.GetCollection(id) : null;
+                                converter = source => collection;
                             }
                         }
                         else

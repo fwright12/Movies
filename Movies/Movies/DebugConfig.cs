@@ -8,11 +8,11 @@ namespace Movies
         public static bool FilterPerformanceTest { get; set; } = false;
 
         public static bool AllowLiveRequests { get; set; } = false;
-        public static bool LogWebRequests { get; set; } = !FilterPerformanceTest && true;
+        public static bool LogWebRequests { get; set; } = true && !FilterPerformanceTest;
         public static bool AllowTMDbRequests { get; set; } = false;
         public static bool AllowTMDbImages { get; set; } = false;
 
-        public static bool ClearLocalWebCache { get; set; } = FilterPerformanceTest || true;
+        public static bool ClearLocalWebCache { get; set; } = false || FilterPerformanceTest;
 
         public static int SimulatedDelay { get; set; } = 0;
 

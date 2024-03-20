@@ -6,23 +6,54 @@ namespace MoviesTests
     public class DummyDatastore<TKey> : ConcurrentDictionary<TKey, ResourceResponse>, IAsyncEventProcessor<ResourceRequestArgs<TKey>>, IEventAsyncCache<ResourceRequestArgs<TKey>>
         where TKey : Uri
     {
-        public int SimulatedDelay { get; set; }
+        public int ReadLatency { get; set; }
+        public int WriteLatency { get; set; }
 
         public async Task<bool> Read(IEnumerable<ResourceRequestArgs<TKey>> args) => (await Task.WhenAll(args.Select(ProcessAsync))).All(result => result);
 
         public async Task<bool> Write(IEnumerable<ResourceRequestArgs<TKey>> args) => (await Task.WhenAll(args.Select(Write))).All(result => result);
         public async Task<bool> Write(ResourceRequestArgs<TKey> args)
         {
-            await Delay();
-            return TryAdd(args.Request.Key, new ResourceResponse<object>(args.Value));
+            await WriteDelay();
+            return TryAdd(args.Request.Key, args.Response);
         }
 
         public async Task<bool> ProcessAsync(ResourceRequestArgs<TKey> e)
         {
-            await Delay();
-            if (TryGetValue(e.Request.Key, out var response))
+            await ReadDelay();
+            
+            if (TryGetValue(e.Request.Key, out var resourceResponse))
             {
-                return e.Handle(response as RestResponse ?? new RestResponse(State.Create(response.TryGetRepresentation<object>(out var value) ? value : null), e.Request.Expected));
+                var response = resourceResponse as RestResponse ?? RestResponse.Create(e.Request.Expected, State.Create(resourceResponse.TryGetRepresentation<object>(out var value1) ? value1 : null));
+                return response == null ? false : e.Handle(response);
+                //return e.Handle(resourceResponse as RestResponse ?? new RestResponse(State.Create(resourceResponse.TryGetRepresentation<object>(out var value1) ? value1 : null), e.Request.Expected));
+
+                var restResponse = resourceResponse as RestResponse;
+
+                if (restResponse == null)
+                {
+                    object value;
+
+                    if (e.Request.Expected == null)
+                    {
+                        value = resourceResponse.Value;
+
+                        if (value == null)
+                        {
+                            return false;
+                        }
+                    }
+                    else if (!resourceResponse.TryGetRepresentation(e.Request.Expected, out value))
+                    {
+                        value = null;
+                    }
+
+                    var resource = value == null ? State.Null(e.Request.Expected) : State.Create(value);
+                    restResponse = RestResponse.Create(e.Request.Expected, resource);
+                    //restResponse = new RestResponse(resource, e.Request.Expected);
+                }
+
+                return e.Handle(restResponse);
             }
             else
             {
@@ -34,7 +65,7 @@ namespace MoviesTests
 
         public async Task<State> DeleteAsync(TKey key)
         {
-            await Delay();
+            await WriteDelay();
             return TryRemove(key, out var value) ? State.Create(value) : null;
         }
 
@@ -46,12 +77,20 @@ namespace MoviesTests
 
         public async Task<bool> UpdateAsync(TKey key, State updatedValue)
         {
-            await Delay();
-            TryAdd(key, new RestResponse(updatedValue));
+            await WriteDelay();
+
+            var response = RestResponse.Create(null, updatedValue);
+            if (response == null)
+            {
+                return false;
+            }
+
+            TryAdd(key, response);
             return true;
         }
 
-        private Task Delay() => Task.Delay(SimulatedDelay);
+        private Task ReadDelay() => Task.Delay(ReadLatency);
+        private Task WriteDelay() => Task.Delay(WriteLatency);
     }
 
     public class DummyCache : Dictionary<string, JsonResponse>, IJsonCache, IAsyncDataStore<Uri, State>

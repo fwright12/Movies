@@ -274,15 +274,15 @@ namespace Movies
             }
         }
 
-        private static Task<State> Convert(PropertyValuePair pair)
+        private static State Convert(PropertyValuePair pair)
         {
             if (pair.Value == null)
             {
-                return Task.FromResult(State.Null(pair.Property.FullType));
+                return State.Null(pair.Property.FullType);
             }
             else
             {
-                return Task.FromResult(pair.Value as State ?? new State(pair.Value));
+                return State.Create(pair.Value);
             }
         }
 

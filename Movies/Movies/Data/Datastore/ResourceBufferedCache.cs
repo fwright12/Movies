@@ -1,10 +1,41 @@
-﻿using System;
+﻿using FFImageLoading.Helpers.Exif;
+using REpresentationalStateTransfer;
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Http.Headers;
+using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace Movies
 {
+    public class BufferedProcessor<TArgs> : IAsyncEventProcessor<IEnumerable<TArgs>>
+    {
+        public IAsyncEventProcessor<IEnumerable<TArgs>> Processor { get; }
+        private IEventAsyncCache<TArgs> ReadOnlyCache { get; }
+
+        public BufferedProcessor(IAsyncEventProcessor<IEnumerable<TArgs>> processor)
+        {
+            //ReadOnlyCache = new ResourceBufferedCache<TArgs>(new ReadOnlyEventCache<ResourceRequestArgs<TArgs>>(processor));
+        }
+
+        public Task<bool> ProcessAsync(IEnumerable<TArgs> e) => ReadOnlyCache.Read(e);
+    }
+
+    public class ReadOnlyEventCache<TArgs> : IEventAsyncCache<TArgs>
+    {
+        public IAsyncEventProcessor<IEnumerable<TArgs>> Processor { get; }
+
+        public ReadOnlyEventCache(IAsyncEventProcessor<IEnumerable<TArgs>> processor)
+        {
+            Processor = processor;
+        }
+
+        public Task<bool> Read(IEnumerable<TArgs> args) => Processor.ProcessAsync(args);
+
+        public Task<bool> Write(IEnumerable<TArgs> args) => Task.FromResult(false);
+    }
+
     public class ResourceBufferedCache<TKey> : BufferedCache<ResourceRequestArgs<TKey>>
         where TKey : Uri
     {
@@ -14,29 +45,18 @@ namespace Movies
 
         public override void Process(ResourceRequestArgs<TKey> e, ResourceRequestArgs<TKey> buffered)
         {
-            if (buffered.Response is RestResponse restResponse && restResponse.TryGetRepresentation(e.Request.Expected, out var value))
+            if (buffered.Response is RestResponse restResponse)
             {
-                e.Handle(new RestResponse(restResponse.Resource, restResponse.ControlData, restResponse.Metadata, e.Request.Expected));
+                var response = RestResponse.Create(e.Request.Expected, restResponse.Resource, restResponse.ControlData, restResponse.Metadata);
+
+                if (response != null)
+                {
+                    e.Handle(response);
+                }
             }
             else
             {
                 e.Handle(buffered.Response);
-            }
-        }
-
-        public override async Task<bool> ProcessAsync(IEnumerable<ResourceRequestArgs<TKey>> e, IAsyncEventProcessor<IEnumerable<ResourceRequestArgs<TKey>>> next)
-        {
-            if (await Read(e))
-            {
-                return true;
-            }
-            else if (next == null)
-            {
-                return false;
-            }
-            else
-            {
-                return await next.ProcessAsync(e);
             }
         }
     }
@@ -47,7 +67,7 @@ namespace Movies
 
         public UriBufferedCache(IEventAsyncCache<ResourceRequestArgs<Uri>> cache) : base(cache)
         {
-            Processor = new EventCacheReadProcessor<ResourceRequestArgs<Uri>>(cache);
+            Processor = new EventCacheReadProcessor<ResourceRequestArgs<Uri>>(this);
         }
 
         public override Task<bool> ProcessAsync(IEnumerable<ResourceRequestArgs<Uri>> e, IAsyncEventProcessor<IEnumerable<ResourceRequestArgs<Uri>>> next)
@@ -132,13 +152,20 @@ namespace Movies
 
             if (e1.IsHandled)
             {
-                if (e1.Response is RestResponse restResponse && restResponse.ControlData.TryGetValue(REpresentationalStateTransfer.Rest.ETAG, out var etag) && etag.Count() == 1)
+                eNext = null;
+
+                if (e1.Response is RestResponse restResponse)
                 {
-                    eNext = GetEtaggedRequest(e1, etag.First());
-                }
-                else
-                {
-                    eNext = null;
+                    var headers = new System.Net.Http.HttpResponseMessage().Headers;
+                    foreach (var kvp in restResponse.ControlData)
+                    {
+                        headers.Add(kvp.Key, kvp.Value);
+                    }
+
+                    if (headers.ETag?.Tag is string etag && !isFresh(headers))
+                    {
+                        eNext = GetEtaggedRequest(e1, etag);
+                    }
                 }
             }
             else
@@ -161,6 +188,12 @@ namespace Movies
         }
 
         protected abstract ResourceRequestArgs<T> GetEtaggedRequest(ResourceRequestArgs<T> original, string etag);
+
+        private static bool isFresh(HttpResponseHeaders headers)
+        {
+            var expirationDate = headers.Date + headers.CacheControl?.MaxAge - (headers.Age ?? TimeSpan.Zero);
+            return DateTimeOffset.UtcNow < expirationDate;
+        }
     }
 
     public class EtaggedUriAsyncCoRProcessor : EtaggedAsyncCoRProcessor<Uri>

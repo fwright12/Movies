@@ -539,6 +539,7 @@ namespace Movies
             //new MultiParser<Credit>(Media.CAST, new JsonNodeParser<IEnumerable<Credit>>(TryParseTVCast)),
             //new MultiParser<Credit>(Media.CREW, new JsonNodeParser<IEnumerable<Credit>>(TryParseTVCrew))
         };
+        public static readonly Parser COLLECTION_PARSER = new ParserWrapper(new CollectionParser(Movie.PARENT_COLLECTION), new JsonPropertyParser<ArraySegment<byte>>("belongs_to_collection", new JsonNodeParser<ArraySegment<byte>>(bytes => bytes)));
 
         private static List<Parser> MEDIA_PARSERS = new ParserList
         {
@@ -555,7 +556,7 @@ namespace Movies
 
         private static readonly ItemProperties MOVIE_PROPERTIES = new ItemProperties(new Dictionary<TMDbRequest, List<Parser>>
         {
-            [API.MOVIES.GET_DETAILS] = new ParserList(MEDIA_PARSERS)
+            [API.MOVIES.GET_DETAILS] = new ParserList(MEDIA_PARSERS.Append(COLLECTION_PARSER))
             {
                 ["title"] = TITLE_PARSER,
                 ["genres"] = new MultiParser<Genre>(Movie.GENRES, GENRES_PARSER),
@@ -566,8 +567,8 @@ namespace Movies
                 ["revenue"] = new Parser<long>(Movie.REVENUE, MONEY_PARSER),
                 //["budget"] = Parser.Create(Movie.BUDGET),
                 //["revenue"] = Parser.Create(Movie.REVENUE),
-                ["belongs_to_collection"] = new CollectionParser(Movie.PARENT_COLLECTION),
-                [""] = new Parser<Rating>(Media.RATING, MOVIE_RATING_PARSER)
+                //["belongs_to_collection"] = new CollectionParser(Movie.PARENT_COLLECTION),
+                [""] = new Parser<Rating>(Media.RATING, MOVIE_RATING_PARSER),
             },
             [API.MOVIES.GET_CREDITS] = CREDITS_PARSERS,
             [API.MOVIES.GET_KEYWORDS] = new ParserList

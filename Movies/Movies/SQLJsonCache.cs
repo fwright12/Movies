@@ -12,7 +12,7 @@ namespace Movies
         public const string TABLE_NAME = "WebResourceCache1";
 
         public SQLiteAsyncConnection DB { get; }
-        public Table Table { get; } = new Table(URL, RESPONSE, TIMESTAMP, ETAG)
+        public Table Table { get; } = new Table(URL, RESPONSE, TIMESTAMP, ETAG, EXPIRES_AT)
         {
             Name = TABLE_NAME
         };
@@ -21,6 +21,7 @@ namespace Movies
         public static readonly Table.Column RESPONSE = new Table.Column("json", "blob");
         public static readonly Table.Column TIMESTAMP = new Table.Column("timestamp", "text");
         public static readonly Table.Column ETAG = new Table.Column("etag", "text");
+        public static readonly Table.Column EXPIRES_AT = new Table.Column("expires", "text");
 
         public Task Setup { get; }
 
@@ -53,11 +54,11 @@ namespace Movies
         {
             await Setup;
 
-            var rows = await DB.QueryAsync<(byte[], DateTime, string)>($"select {RESPONSE}, {TIMESTAMP}, {ETAG} from {Table} where {URL} = ?", url);
+            var rows = await DB.QueryAsync<(byte[], DateTime, string, DateTimeOffset)>($"select {RESPONSE}, {TIMESTAMP}, {ETAG}, {EXPIRES_AT} from {Table} where {URL} = ?", url);
 
             if (rows.Count == 1)
             {
-                return new JsonResponse(rows[0].Item1, rows[0].Item2, rows[0].Item3);
+                return new JsonResponse(rows[0].Item1, rows[0].Item2, rows[0].Item3, rows[0].Item4);
             }
             else
             {

@@ -36,8 +36,8 @@ namespace Movies
 
         private HttpResponseMessage Message { get; }
 
-        public HttpResponse(HttpResponseMessage message, Type expected = null) : this(message, message.IsSuccessStatusCode ? BindLate(message.Content) : Task.FromResult(Rest.EmptyResource), expected) { }
-        private HttpResponse(HttpResponseMessage message, Task<IResource> resource, Type expected = null) : base(new LateBoundResource(resource), new HttpHeaderDictionary(message.Headers), null, expected)
+        public HttpResponse(HttpResponseMessage message) : this(message, message.IsSuccessStatusCode ? BindLate(message.Content) : Task.FromResult(Rest.EmptyResource)) { }
+        private HttpResponse(HttpResponseMessage message, Task<IResource> resource) : base(new LateBoundResource(resource), new HttpHeaderDictionary(message.Headers), null)
         {
             Message = message;
             BindingDelay = resource;

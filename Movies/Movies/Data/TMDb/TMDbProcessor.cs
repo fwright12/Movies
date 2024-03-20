@@ -1,5 +1,4 @@
-﻿using FFImageLoading.Helpers.Exif;
-using Movies.Models;
+﻿using Movies.Models;
 using REpresentationalStateTransfer;
 using System;
 using System.Collections.Generic;
@@ -91,10 +90,10 @@ namespace Movies
                     {
                         if (!index.ContainsKey(resource))
                         {
-                            var request = new ResourceRequestArgs<Uri>(resource);
+                            var request = new ResourceRequestArgs<Uri>(resource);//, (resource as UniformItemIdentifier)?.Property.FullType);
 
                             index.Add(resource, request);
-                            batch.Add(request);
+                            //batch.Add(request);
                         }
                     }
 

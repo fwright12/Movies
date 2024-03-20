@@ -157,9 +157,14 @@ namespace Movies
                     {
                         Content = new StringContent(content),
                         RequestMessage = request,
+                        Headers =
+                        {
+                            ETag = new System.Net.Http.Headers.EntityTagHeaderValue(DEFAULT_ETAG, true),
+                            Date = DateTimeOffset.UtcNow - TimeSpan.FromMinutes(5),
+                            Age = TimeSpan.FromSeconds(100),
+                            CacheControl = System.Net.Http.Headers.CacheControlHeaderValue.Parse("public, max-age=6390")
+                        }
                     };
-
-                    response.Headers.Add(REpresentationalStateTransfer.Rest.ETAG, DEFAULT_ETAG);
                 }
             }
 
@@ -190,7 +195,16 @@ namespace Movies
             {
                 Print.Log($"web request{(!isLive ? " (mock)" : string.Empty)} ({response?.StatusCode}): {request.RequestUri}");
             }
-            DebugConfig.Breakpoint();
+            if (!new HashSet<string> {
+                "https://api.themoviedb.org/3/trending/movie/week?page=1",
+                "https://api.themoviedb.org/3/trending/tv/week?page=1",
+                "https://api.themoviedb.org/3/trending/person/week?page=1",
+                "https://api.themoviedb.org/4/account/60ca51a299259c002a18d468/lists?page=1",
+                "https://api.themoviedb.org/3/configuration/countries"
+            }.Contains(request.RequestUri.ToString()))
+            {
+                DebugConfig.Breakpoint();
+            }
 
             return response;
         }

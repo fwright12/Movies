@@ -46,45 +46,45 @@ namespace Movies
         public Metadata Metadata { get; private set; }
 
         public RestResponse(params Entity[] entities) : this((IEnumerable<Entity>)entities) { }
-        public RestResponse(IEnumerable<Entity> entities, Type expected = null) : this(entities, null, null) { }
+        public RestResponse(IEnumerable<Entity> entities, Type expected = null) : this(entities, null, null, expected) { }
 
-        public RestResponse(Representation<object> representation, ControlData controlData, Metadata metadata, Type expected = null) : this((IResource)new State(representation.Value), controlData, metadata, expected) { }
+        public RestResponse(Representation<object> representation, ControlData controlData, Metadata metadata, Type expected = null) : this((IResource)new State(representation), controlData, metadata, expected) { }
         //public RestResponse(State state, ControlData controlData, Metadata metadata, Type expected = null) : this(new StaticResource(state), controlData, metadata, expected) { }
         public RestResponse(IEnumerable<Entity> representations, ControlData controlData, Metadata metadata, Type expected = null) : this(new StaticResource(representations), controlData, metadata, expected) { }
-        public RestResponse(IResource resource, ControlData controlData, Metadata metadata, Type expected = null) : base(TryGetRepresentation(resource, expected, out var value) ? value : null)
+        public RestResponse(IResource resource, ControlData controlData, Metadata metadata, Type expected = null) : this(resource, controlData, metadata, TryGetRepresentation(resource, expected, out var value) ? value : null) { }
+        private RestResponse(IResource resource, ControlData controlData, Metadata metadata, object value) : base(value)
         {
             Resource = resource;
             ControlData = controlData ?? Enumerable.Empty<KeyValuePair<string, IEnumerable<string>>>();
             Metadata = metadata ?? Enumerable.Empty<KeyValuePair<string, string>>();
         }
 
-        public static RestResponse Create(IResource resource, ControlData controlData, Metadata metadata, Type expected = null)
+        public static bool TryGetRepresentation(IResource resource, Type type, out object value)
         {
-            if (false)
+            if (type == null)
             {
+                var representation = resource.Get().Select(entity => entity.Value).OfType<Representation<object>>().FirstOrDefault();
 
+                if (representation != null)
+                {
+                    value = representation.Value;
+                    return true;
+                }
             }
-            else
-            {
-                return null;
-            }
-        }
-
-        public override bool TryGetRepresentation(Type type, out object value) => TryGetRepresentation(Resource, type, out value);
-
-        private static bool TryGetRepresentation(IResource resource, Type type, out object value)
-        {
-            if (resource.Get() is State state && state.TryGetRepresentation(type, out var representation))
+            else if (resource.Get() is State state && state.TryGetRepresentation(type, out var representation))
             {
                 value = representation.Value;
                 return true;
             }
-            else
-            {
-                value = default;
-                return false;
-            }
+
+            value = default;
+            return false;
         }
+
+        //public static RestResponse Create(Type expected, IResource resource, ControlData controlData = null, Metadata metadata = null) => new RestResponse(resource, controlData, metadata, expected);
+        public static RestResponse Create(Type expected, IResource resource, ControlData controlData = null, Metadata metadata = null) => TryGetRepresentation(resource, expected, out var value) ? new RestResponse(resource, controlData, metadata, value) : null;
+
+        public override bool TryGetRepresentation(Type type, out object value) => TryGetRepresentation(Resource, type, out value);
     }
 
     public class State : StaticResource, IEnumerable, IEnumerable<Representation<object>>, IEnumerable<Entity>
@@ -93,7 +93,6 @@ namespace Movies
 
         private Dictionary<Type, Representation<object>> Representations { get; }
 
-        public State(object initial) : this(initial.GetType(), initial) { }
         public State(params Representation<object>[] representations) : this((IEnumerable<Representation<object>>)representations) { }
         public State(IEnumerable<Representation<object>> representations)
         {
@@ -101,7 +100,7 @@ namespace Movies
 
             foreach (var representation in representations)
             {
-                AddRepresentation(representation);
+                AddRepresentation(representation.Type, representation);
             }
 
             Set(this);
@@ -117,7 +116,7 @@ namespace Movies
         }
 
         public static State Create<T>(T value) => value as State ?? new State(typeof(T), value);
-        public static State Create(object value) => value as State ?? new State(value);
+        public static State Create(object value) => value as State ?? new State(value.GetType(), value);
         public static State Null(Type type) => new State(type, null);
 
         public void Add<T>(T value) => Add(typeof(T), value);

@@ -1,5 +1,4 @@
-﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
-using System.Collections;
+﻿using System.Collections;
 using System.Diagnostics;
 using System.Text;
 
@@ -94,7 +93,7 @@ namespace MoviesTests.Data.TMDb
         }
 
         [TestMethod]
-        public async Task ResourcesWithEtagDontHandleImmediately()
+        public async Task EtagDoesNotMatch()
         {
             var handlers = new HandlerChain();
             var chain = handlers.Chain;
@@ -165,6 +164,31 @@ namespace MoviesTests.Data.TMDb
         }
 
         [TestMethod]
+        public async Task RetrieveMovieParentCollectionPartial()
+        {
+            var handlers = new HandlerChain();
+            var chain = handlers.Chain;
+
+            var request = new ResourceRequestArgs<Uri, Collection>(new UniformItemIdentifier(Constants.Movie, Media.RUNTIME));
+            await chain.Get(request);
+
+            Assert.IsTrue(request.IsHandled);
+            Assert.AreEqual(1, WebHistory.Count);
+            Assert.AreEqual($"3/movie/0?language=en-US&{Constants.APPEND_TO_RESPONSE}=credits,keywords,recommendations,release_dates,videos,watch/providers", handlers.WebHistory[0]);
+
+            await CachedAsync(handlers.DiskCache);
+
+            request = new ResourceRequestArgs<Uri, Collection>(new UniformItemIdentifier(Constants.Movie, Movie.PARENT_COLLECTION));
+            await chain.Get(request);
+
+            Assert.IsTrue(request.IsHandled);
+            Assert.AreEqual(new Collection().WithID(TMDB.IDKey, 1241), request.Value);
+
+            Assert.AreEqual(2, WebHistory.Count);
+            Assert.AreEqual("3/collection/1241?language=en-US", WebHistory[1]);
+        }
+
+        [TestMethod]
         public async Task GetCredits()
         {
             var handlers = new HandlerChain();
@@ -221,7 +245,7 @@ namespace MoviesTests.Data.TMDb
         }
 
         [TestMethod]
-        public async Task DontUpdateResourcesOnEtagMatch()
+        public async Task EtagDoesMatch()
         {
             var handlers = new HandlerChain();
             var chain = handlers.Chain;
@@ -285,7 +309,7 @@ namespace MoviesTests.Data.TMDb
             var chain = handlers.Chain;
 
             DebugConfig.SimulatedDelay = 0;
-            handlers.DiskCache.SimulatedDelay = 50;
+            handlers.DiskCache.ReadLatency = handlers.DiskCache.WriteLatency = 50;
 
             var uri = new UniformItemIdentifier(Constants.Movie, Media.TITLE);
             var arg1 = new ResourceRequestArgs<Uri, string>(uri);
@@ -308,25 +332,28 @@ namespace MoviesTests.Data.TMDb
             var chain = handlers.Chain;
 
             DebugConfig.SimulatedDelay = 0;
-            handlers.DiskCache.SimulatedDelay = 100;
+            handlers.DiskCache.ReadLatency = 100;
+            handlers.DiskCache.WriteLatency = 1000;
 
             var arg1 = CreateArgs(Media.TITLE);
             var arg2 = CreateArgs(Media.RECOMMENDED);
             Task t1 = chain.Get(arg1, arg2);
-
+            
             // Requests arg1 and arg2 get delayed reading from the disk cache, but we allow arg3 to go through
             // synchronously. However, we already know we want recommended movies, so the web request should only be made once
-            handlers.DiskCache.SimulatedDelay = 0;
+            handlers.DiskCache.ReadLatency = 0;
             var arg3 = CreateArgs(Movie.WATCH_PROVIDERS);
             Task t2 = chain.Get(arg3);
-            handlers.DiskCache.SimulatedDelay = 100;
-
+            handlers.DiskCache.ReadLatency = 100;
+            
             await Task.WhenAll(t1, t2);
 
+            Assert.IsTrue(arg1.IsHandled);
+            Assert.IsTrue(arg2.IsHandled);
+            Assert.IsTrue(arg3.IsHandled);
             Assert.AreEqual(1, handlers.WebHistory.Count);
         }
 
-        // Not ready for this yet
         //[TestMethod]
         public async Task ExtraRequestsAreCached()
         {
@@ -334,7 +361,7 @@ namespace MoviesTests.Data.TMDb
             var chain = handlers.Chain;
 
             DebugConfig.SimulatedDelay = 0;
-            handlers.DiskCache.SimulatedDelay = 100;
+            handlers.DiskCache.ReadLatency = handlers.DiskCache.WriteLatency = 100;
 
             var arg1 = new ResourceRequestArgs<Uri, string>(new UniformItemIdentifier(Constants.Movie, Media.TITLE));
             var arg2 = new ResourceRequestArgs<Uri, IEnumerable<WatchProvider>>(new UniformItemIdentifier(Constants.Movie, Movie.WATCH_PROVIDERS));
@@ -357,7 +384,7 @@ namespace MoviesTests.Data.TMDb
             var chain = handlers.Chain;
 
             DebugConfig.SimulatedDelay = 100;
-            handlers.DiskCache.SimulatedDelay = 0;
+            handlers.DiskCache.ReadLatency = handlers.DiskCache.WriteLatency = 0;
 
             var uri = new UniformItemIdentifier(Constants.Movie, Media.TITLE);
             var arg1 = new ResourceRequestArgs<Uri, string>(uri);
@@ -377,7 +404,7 @@ namespace MoviesTests.Data.TMDb
             var chain = handlers.Chain;
 
             DebugConfig.SimulatedDelay = 0;
-            handlers.DiskCache.SimulatedDelay = 0;
+            handlers.DiskCache.ReadLatency = handlers.DiskCache.WriteLatency = 0;
 
             var arg1 = new ResourceRequestArgs<Uri, IEnumerable<TVSeason>>(new UniformItemIdentifier(Constants.TVShow, TVShow.SEASONS));
             var arg2 = new ResourceRequestArgs<Uri, string>(new UniformItemIdentifier(Constants.TVShow, Media.TITLE));
@@ -450,7 +477,7 @@ namespace MoviesTests.Data.TMDb
 
         private static Task CachedAsync(DummyDatastore<Uri> diskCache)
         {
-            return Task.Delay((diskCache.SimulatedDelay + DebugConfig.SimulatedDelay) * 2);
+            return Task.Delay((Math.Max(diskCache.ReadLatency, diskCache.WriteLatency) + DebugConfig.SimulatedDelay) * 2);
         }
 
         private Property[] AllMovieProperties() => GetProperties(typeof(Media)).Concat(GetProperties(typeof(Movie))).Append(TMDB.POPULARITY).ToArray();
@@ -484,7 +511,7 @@ namespace MoviesTests.Data.TMDb
             var handlers = new HandlerChain();
 
             DebugConfig.SimulatedDelay = 0;
-            handlers.DiskCache.SimulatedDelay = 0;
+            handlers.DiskCache.ReadLatency = handlers.DiskCache.WriteLatency = 0;
 
             await AllResources(handlers, Constants.Movie, typeof(Media), new Dictionary<Property, object>
             {
@@ -536,6 +563,11 @@ namespace MoviesTests.Data.TMDb
             {
                 foreach (var property in test.Properties)
                 {
+                    if (property == Movie.PARENT_COLLECTION && test.Controller != handlers.Chain)
+                    {
+                        continue;
+                    }
+
                     var request = CreateRequest(item, property);
                     await test.Controller.Get(request);
                     var value = request.Value;
@@ -626,7 +658,8 @@ namespace MoviesTests.Data.TMDb
 
                 DiskCache = new DummyDatastore<Uri>
                 {
-                    SimulatedDelay = 50
+                    ReadLatency = 50,
+                    WriteLatency = 50,
                 };
                 InMemoryCache = new UiiDictionaryDataStore();
 
@@ -637,9 +670,14 @@ namespace MoviesTests.Data.TMDb
                 var invoker = new HttpMessageInvoker(new BufferedHandler(new TMDbBufferedHandler(MockHttpHandler = new MockHandler())));
                 RemoteTMDbProcessor = new TMDbHttpProcessor(invoker, Resolver, TMDbApi.AutoAppend);
 
-                Chain = new AsyncCacheAsideProcessor<ResourceRequestArgs<Uri>>(new UriBufferedCache(InMemoryCache)).ToChainLink();
+                //var context = new DataSyncContext<IEnumerable<ResourceRequestArgs<Uri>>>();
+                //Chain = context.Synchronize((dynamic)InMemoryCache);
+                //Chain.SetNext(context.Synchronize(LocalTMDbCache)).SetNext(context.Synchronize(RemoteTMDbProcessor));
+
+                Chain = new AsyncCacheAsideProcessor<ResourceRequestArgs<Uri>>(new ResourceBufferedCache<Uri>(InMemoryCache)).ToChainLink();
                 Chain.SetNext(new AsyncCacheAsideProcessor<ResourceRequestArgs<Uri>>(new UriBufferedCache(LocalTMDbCache)))
                     .SetNext(RemoteTMDbProcessor);
+                    //.SetNext(new EventCacheReadProcessor<ResourceRequestArgs<Uri>>(new ResourceBufferedCache<Uri>(new ReadOnlyEventCache<ResourceRequestArgs<Uri>>(RemoteTMDbProcessor))));
             }
         }
     }
