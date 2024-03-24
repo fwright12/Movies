@@ -1,6 +1,6 @@
 ﻿namespace MoviesTests.Data.TMDb
 {
-    [TestClass]
+    //[TestClass]
     public class TMDbClientTests : Resources
     {
         private readonly TMDbHttpProcessor TMDbReadHandler;

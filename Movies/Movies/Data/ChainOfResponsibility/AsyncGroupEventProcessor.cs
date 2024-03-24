@@ -33,7 +33,7 @@ namespace Movies
             return result;
         }
 
-        private async Task<bool> ProcessAsync(KeyValuePair<TGrouped, IEnumerable<TSingle>> kvp) => await Processor.ProcessAsync(kvp.Key) && Handle(kvp.Key, kvp.Value);
+        private async Task<bool> ProcessAsync(KeyValuePair<TGrouped, IEnumerable<TSingle>> kvp) => await Processor.ProcessAsync(kvp.Key) & Handle(kvp.Key, kvp.Value);
 
         protected abstract IEnumerable<KeyValuePair<TGrouped, IEnumerable<TSingle>>> GroupRequests(IEnumerable<TSingle> args);
 

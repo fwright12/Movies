@@ -8,6 +8,8 @@ namespace Movies
 {
     public abstract class ResourceResponse : KeyValueResponse
     {
+        public abstract int Count { get; }
+
         protected ResourceResponse(object value) : base(value) { }
 
         public abstract bool TryGetRepresentation(Type type, out object value);
@@ -30,6 +32,7 @@ namespace Movies
     public class ResourceResponse<T> : ResourceResponse
     {
         public new T Value => (T)base.Value;
+        public override int Count => 1;
 
         public ResourceResponse(T value) : base(value) { }
 

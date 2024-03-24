@@ -15,6 +15,8 @@ namespace Movies
         where TResponse : ResourceResponse
     {
         public ResourceRequestArgs(TRequest request) : base(request) { }
+
+        protected override bool Accept(TResponse response) => response.Count > 0 && base.Accept(response);
     }
 
     public class ResourceRequestArgs<TKey, TValue> : ResourceRequestArgs<TKey>

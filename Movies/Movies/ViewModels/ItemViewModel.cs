@@ -95,7 +95,18 @@ namespace Movies.ViewModels
             //}
 
             //return false;
-            return TryGetValue(GetValue<T>(property), out value, propertyName);
+            try
+            {
+                return TryGetValue(GetValue<T>(property), out value, propertyName);
+            }
+            catch (Exception e)
+            {
+#if DEBUG
+                System.Diagnostics.Debug.WriteLine(e);
+#endif
+                value = default;
+                return false;
+            }
         }
 
         private async Task<T> GetValue<T>(Property property)

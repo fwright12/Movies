@@ -183,9 +183,6 @@ namespace Movies.Models
                                 return false;
                             }
 
-#if !DEBUG
-                            lajsdsalf
-#endif
                             value = request.Value;
                         }
                     }

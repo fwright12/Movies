@@ -7,7 +7,7 @@ namespace Movies
         public EventArgs Request { get; }
         public object Response { get; private set; }
 
-        public bool IsHandled => Response != null;
+        public bool IsHandled { get; private set; }
 
         public EventArgsRequest(EventArgs request)
         {
@@ -16,10 +16,11 @@ namespace Movies
 
         public bool Handle(object response)
         {
+            Response = response;
+
             if (Accept(response))
             {
-                Response = response;
-                return true;
+                return IsHandled = true;
             }
             else
             {

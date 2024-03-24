@@ -30,9 +30,9 @@ namespace Movies
             }
         }
 
-        public async Task<bool> ProcessAsync2(IEnumerable<TArgs> args, IAsyncEventProcessor<IEnumerable<TArgs>> next)
+        public Task<bool> ProcessAsync2(IEnumerable<TArgs> args, IAsyncEventProcessor<IEnumerable<TArgs>> next)
         {
-            return await Cache.ProcessAsync(args, new ProcessorFunc<IEnumerable<TArgs>>(async eNext =>
+            return Cache.ProcessAsync(args, new ProcessorFunc<IEnumerable<TArgs>>(async eNext =>
             {
                 var source = new TaskCompletionSource<bool>();
 
@@ -63,7 +63,7 @@ namespace Movies
                 catch (Exception e)
                 {
                     source.SetException(e);
-                    return false;
+                    throw e;
                 }
                 finally
                 {

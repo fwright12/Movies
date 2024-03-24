@@ -13,9 +13,14 @@
             ChangeKeys = new HashSetAsyncWrapper<string>(Task.FromResult(Enumerable.Empty<string>()));
 
 #if DEBUG
-            DebugConfig.AllowLiveRequests = false;
-            DebugConfig.SimulatedDelay = 1000;
             DebugConfig.LogWebRequests = true;
+
+            DebugConfig.UseLiveRequestsFor.Clear();
+            DebugConfig.AllowLiveRequests = false;
+            DebugConfig.AllowTMDbRequests = false;
+            DebugConfig.AllowTMDbImages = false;
+
+            DebugConfig.SimulatedDelay = 1000;
 #endif
         }
     }

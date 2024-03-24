@@ -45,6 +45,8 @@ namespace Movies
         public ControlData ControlData { get; private set; }
         public Metadata Metadata { get; private set; }
 
+        public override int Count => Resource.Get().Count();
+
         public RestResponse(params Entity[] entities) : this((IEnumerable<Entity>)entities) { }
         public RestResponse(IEnumerable<Entity> entities, Type expected = null) : this(entities, null, null, expected) { }
 

@@ -175,10 +175,20 @@ namespace Movies
 
             if (eNext != null)
             {
-                result = await next.ProcessAsync(eNext);
+                try
+                {
+                    result = await next.ProcessAsync(eNext);
+                }
+                catch (Exception exception)
+                {
+                    if (!e1.IsHandled)
+                    {
+                        throw exception;
+                    }
+                }
             }
 
-            var response = eNext?.Response ?? e1.Response;
+            var response = eNext?.IsHandled == true ? eNext.Response : e1.Response;
             if (response != e.Response)
             {
                 e.Handle(response);

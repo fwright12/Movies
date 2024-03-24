@@ -100,7 +100,7 @@ namespace MoviesTests.Data.TMDb
 
             var uri = new Uri("3/movie/0?language=en-US", UriKind.Relative);
             var json = DUMMY_TMDB_DATA.HARRY_POTTER_AND_THE_DEATHLY_HALLOWS_PART_2_PARTIAL_RESPONSE;// "{ \"runtime\": 130 }";
-            handlers.DiskCache.TryAdd(uri, new RestResponse((IEnumerable<REpresentationalStateTransfer.Entity>) State.Create<ArraySegment<byte>>(Encoding.UTF8.GetBytes(json)), new Dictionary<string, IEnumerable<string>>
+            handlers.DiskCache.TryAdd(uri, new RestResponse((IEnumerable<REpresentationalStateTransfer.Entity>)State.Create<ArraySegment<byte>>(Encoding.UTF8.GetBytes(json)), new Dictionary<string, IEnumerable<string>>
             {
                 [REpresentationalStateTransfer.Rest.ETAG] = new List<string> { "\"non matching etag\"" }
             }, new Dictionary<string, string>()));
@@ -128,9 +128,15 @@ namespace MoviesTests.Data.TMDb
             handlers.MockHttpHandler.Disconnect();
 
             var uii = new UniformItemIdentifier(Constants.Movie, Media.RUNTIME);
-            var response = await chain.TryGet<TimeSpan>(uii);
-
-            Assert.IsFalse(response.IsHandled);
+            try
+            {
+                await chain.TryGet<TimeSpan>(uii);
+                Assert.Fail();
+            }
+            catch (Exception e)
+            {
+                Print.Log(e);
+            }
 
             await CachedAsync(handlers.DiskCache);
 
@@ -140,10 +146,35 @@ namespace MoviesTests.Data.TMDb
 
             handlers.MockHttpHandler.Reconnect();
 
-            response = await chain.TryGet<TimeSpan>(uii);
+            var response = await chain.TryGet<TimeSpan>(uii);
 
             Assert.IsTrue(response.IsHandled);
             Assert.AreEqual(response.Value, new TimeSpan(2, 10, 0));
+        }
+
+        [TestMethod]
+        public async Task UseStaleDataIfEtaggedRequestFails()
+        {
+            var handlers = new HandlerChain();
+            var chain = handlers.Chain;
+
+            handlers.MockHttpHandler.Disconnect();
+
+            var uri = new Uri("3/movie/0?language=en-US", UriKind.Relative);
+            var json = DUMMY_TMDB_DATA.HARRY_POTTER_AND_THE_DEATHLY_HALLOWS_PART_2_PARTIAL_RESPONSE;// "{ \"runtime\": 130 }";
+            handlers.DiskCache.TryAdd(uri, new RestResponse((IEnumerable<REpresentationalStateTransfer.Entity>)State.Create<ArraySegment<byte>>(Encoding.UTF8.GetBytes(json)), new Dictionary<string, IEnumerable<string>>
+            {
+                [REpresentationalStateTransfer.Rest.ETAG] = new List<string> { "\"non matching etag\"" }
+            }, new Dictionary<string, string>()));
+            Assert.AreEqual(1, handlers.DiskCache.Count);
+
+            var request = new ResourceRequestArgs<Uri, TimeSpan?>(new UniformItemIdentifier(Constants.Movie, Media.RUNTIME));
+            await chain.Get(request);
+            await CachedAsync(handlers.DiskCache);
+
+            Assert.IsTrue(request.IsHandled);
+            Assert.AreEqual(new TimeSpan(2, 10, 0), request.Value);
+            Assert.AreEqual(0, handlers.WebHistory.Count);
         }
 
         [TestMethod]
@@ -252,7 +283,7 @@ namespace MoviesTests.Data.TMDb
 
             var uri = new Uri("3/movie/0?language=en-US", UriKind.Relative);
             var json = DUMMY_TMDB_DATA.INTERSTELLAR_RESPONSE;
-            handlers.DiskCache.TryAdd(uri, new RestResponse((IEnumerable<REpresentationalStateTransfer.Entity>) State.Create<ArraySegment<byte>>(Encoding.UTF8.GetBytes(json)), new Dictionary<string, IEnumerable<string>>
+            handlers.DiskCache.TryAdd(uri, new RestResponse((IEnumerable<REpresentationalStateTransfer.Entity>)State.Create<ArraySegment<byte>>(Encoding.UTF8.GetBytes(json)), new Dictionary<string, IEnumerable<string>>
             {
                 [REpresentationalStateTransfer.Rest.ETAG] = new List<string> { MockHandler.DEFAULT_ETAG }
             }, new Dictionary<string, string> { }));
@@ -265,7 +296,7 @@ namespace MoviesTests.Data.TMDb
 
             Assert.IsTrue(request.IsHandled);
             Assert.AreEqual(Constants.INTERSTELLAR_RUNTIME, request.Value);
-            
+
             request = new ResourceRequestArgs<Uri, TimeSpan>(uri);
             await chain.Get(request);
             await CachedAsync(handlers.DiskCache);
@@ -338,14 +369,14 @@ namespace MoviesTests.Data.TMDb
             var arg1 = CreateArgs(Media.TITLE);
             var arg2 = CreateArgs(Media.RECOMMENDED);
             Task t1 = chain.Get(arg1, arg2);
-            
+
             // Requests arg1 and arg2 get delayed reading from the disk cache, but we allow arg3 to go through
             // synchronously. However, we already know we want recommended movies, so the web request should only be made once
             handlers.DiskCache.ReadLatency = 0;
             var arg3 = CreateArgs(Movie.WATCH_PROVIDERS);
             Task t2 = chain.Get(arg3);
             handlers.DiskCache.ReadLatency = 100;
-            
+
             await Task.WhenAll(t1, t2);
 
             Assert.IsTrue(arg1.IsHandled);
@@ -677,7 +708,7 @@ namespace MoviesTests.Data.TMDb
                 Chain = new AsyncCacheAsideProcessor<ResourceRequestArgs<Uri>>(new ResourceBufferedCache<Uri>(InMemoryCache)).ToChainLink();
                 Chain.SetNext(new AsyncCacheAsideProcessor<ResourceRequestArgs<Uri>>(new UriBufferedCache(LocalTMDbCache)))
                     .SetNext(RemoteTMDbProcessor);
-                    //.SetNext(new EventCacheReadProcessor<ResourceRequestArgs<Uri>>(new ResourceBufferedCache<Uri>(new ReadOnlyEventCache<ResourceRequestArgs<Uri>>(RemoteTMDbProcessor))));
+                //.SetNext(new EventCacheReadProcessor<ResourceRequestArgs<Uri>>(new ResourceBufferedCache<Uri>(new ReadOnlyEventCache<ResourceRequestArgs<Uri>>(RemoteTMDbProcessor))));
             }
         }
     }

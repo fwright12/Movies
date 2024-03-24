@@ -9,7 +9,6 @@ using System.Text;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using System.Web;
-using static Xamarin.Forms.UniversalSetter;
 
 namespace Movies
 {
@@ -389,8 +388,15 @@ namespace Movies
                             }
                             else //if (parser.GetPair(lazyJson.Bytes).Value is Task<Collection> response)
                             {
-                                var collection = parser.GetPair(lazyJson.Bytes).Value is int id && id != -1 ? await TMDB.GetCollection(id) : null;
-                                converter = source => collection;
+                                try
+                                {
+                                    var collection = parser.GetPair(lazyJson.Bytes).Value is int id && id != -1 ? await TMDB.GetCollection(id) : null;
+                                    converter = source => collection;
+                                }
+                                catch
+                                {
+                                    converter = null;
+                                }
                             }
                         }
                         else

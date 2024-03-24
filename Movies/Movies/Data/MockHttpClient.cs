@@ -98,7 +98,9 @@ namespace Movies
 
         static MockHandler()
         {
-            Router = new Router(DetailsRoutes.Concat(TMDbRoutes).Concat(TraktRoutes).Select<KeyValuePair<object, string>, (string, string)>(kvp =>
+            Router = new Router(DetailsRoutes.Concat(TMDbRoutes).Concat(TraktRoutes)
+                .Where(kvp => !DebugConfig.UseLiveRequestsFor.Contains(kvp.Key))
+                .Select<KeyValuePair<object, string>, (string, string)>(kvp =>
             {
                 string url;
 
@@ -121,11 +123,25 @@ namespace Movies
 
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
+            if (!Connected)
+            {
+                throw new Exception("Mock HTTP handler is not connected");
+            }
+
             HttpResponseMessage response = null;
 
             if (request.Headers.TryGetValues(REpresentationalStateTransfer.Rest.IF_NONE_MATCH, out var etags) && !etags.Skip(1).Any() && etags.FirstOrDefault() == DEFAULT_ETAG)
             {
-                response = new HttpResponseMessage(HttpStatusCode.NotModified);
+                response = new HttpResponseMessage(HttpStatusCode.NotModified)
+                {
+                    Headers =
+                    {
+                        ETag = new System.Net.Http.Headers.EntityTagHeaderValue(DEFAULT_ETAG, true),
+                        Date = DateTimeOffset.UtcNow - TimeSpan.FromMinutes(5),
+                        Age = TimeSpan.FromSeconds(100),
+                        CacheControl = System.Net.Http.Headers.CacheControlHeaderValue.Parse("public, max-age=6390")
+                    }
+                };
             }
             else
             {
@@ -146,11 +162,6 @@ namespace Movies
                     content ??= "{}";
                 }
 
-                if (!Connected)
-                {
-                    throw new Exception("Mock HTTP handler is not connected");
-                }
-
                 if (content != null)
                 {
                     response = new HttpResponseMessage
@@ -167,7 +178,7 @@ namespace Movies
                     };
                 }
             }
-
+            
             string url = request.RequestUri.IsAbsoluteUri ? request.RequestUri.PathAndQuery.TrimStart('/') : request.RequestUri.ToString();
             CallHistory.Add(url);
             LocalCallHistory.Add(url);

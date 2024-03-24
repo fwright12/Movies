@@ -14,6 +14,11 @@ namespace MoviesTests
         public async Task<bool> Write(IEnumerable<ResourceRequestArgs<TKey>> args) => (await Task.WhenAll(args.Select(Write))).All(result => result);
         public async Task<bool> Write(ResourceRequestArgs<TKey> args)
         {
+            if (!args.IsHandled)// && (args.Response as HttpResponse)?.StatusCode != System.Net.HttpStatusCode.NotModified)
+            {
+                return false;
+            }
+
             await WriteDelay();
             return TryAdd(args.Request.Key, args.Response);
         }

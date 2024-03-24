@@ -139,7 +139,7 @@ namespace Movies
 
             try
             {
-                return await Cache.Write(args.Where(arg => arg.IsHandled));
+                return await Cache.Write(args);
             }
             catch
             {

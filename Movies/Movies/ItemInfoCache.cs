@@ -133,10 +133,18 @@ namespace Movies
                     break;
                 }
 
-                var values = string.Join(", ", Enumerable.Repeat(valueRow, rows.Length));
-                var query = $"insert or replace into {cache.Table} ({cols}) values {values}";
+                string query;
+                if (rows[0].Length == 7)
+                {
+                    var values = string.Join(", ", Enumerable.Repeat(valueRow, rows.Length));
+                    query = $"insert or replace into {cache.Table} ({cols}) values {values} on conflict do nothing";
+                }
+                else
+                {
+                    query = $"update {cache.Table} set {SQLJsonCache.TIMESTAMP} = ?, {SQLJsonCache.EXPIRES_AT} = ? where {SQLJsonCache.URL} = ?";
+                }
 
-                await cache.DB.ExecuteAsync(query, rows.SelectMany().ToArray());
+                var result = await cache.DB.ExecuteAsync(query, rows.SelectMany().ToArray());
             }
 
 #if DEBUG
@@ -194,10 +202,17 @@ namespace Movies
             //await cache.DB.ExecuteAsync($"update {cache.Table} set {TYPE} = ?, {ID} = ? where {SQLJsonCache.URL} = ?", (int)type, id, url);
         }
 
-        private static async Task<IEnumerable<object>> Unwrap((ItemType type, int id, string url, Task<JsonResponse> response) item)
+        private static async Task<object[]> Unwrap((ItemType type, int id, string url, Task<JsonResponse> response) item)
         {
             var json = await item.response;
-            return new object[] { item.url, await json.Content.ReadAsByteArrayAsync(), json.Timestamp, (int)Database.LocalList.AppItemTypeToDatabaseItemType(item.type), item.id, json.ETag, json.ExpiresAt };
+            if (json.Content == null)
+            {
+                return new object[] { json.Timestamp, json.ExpiresAt, item.url };
+            }
+            else
+            {
+                return new object[] { item.url, await json.Content.ReadAsByteArrayAsync(), json.Timestamp, (int)Database.LocalList.AppItemTypeToDatabaseItemType(item.type), item.id, json.ETag, json.ExpiresAt };
+            }
         }
 
         public async Task Clear() => await (await Cache).Clear();
@@ -301,15 +316,21 @@ namespace Movies
             var representation = new ObjectRepresentation<byte[]>(await response.Content.ReadAsByteArrayAsync());
             var headers = new System.Net.Http.HttpResponseMessage().Headers;
 
-            if (response.ETag != null)
+            if (response.ETag != null && System.Net.Http.Headers.EntityTagHeaderValue.TryParse(response.ETag, out var etag))
             {
-                headers.ETag = new System.Net.Http.Headers.EntityTagHeaderValue(response.ETag);
+                headers.ETag = etag;
             }
             if (response.ExpiresAt.HasValue)
             {
                 var now = DateTimeOffset.UtcNow;
                 headers.Date = now;
                 headers.CacheControl = System.Net.Http.Headers.CacheControlHeaderValue.Parse("public, max-age=" + (int)Math.Max(0, (response.ExpiresAt.Value - now).TotalSeconds));
+#if DEBUG
+                if (DebugConfig.SimulateStaleCache)
+                {
+                    headers.CacheControl = null;
+                }
+#endif
             }
 
             return arg.Handle(new RestResponse(representation, headers, null, arg.Request.Expected));
@@ -334,12 +355,12 @@ namespace Movies
                 {
                     headers.Add(kvp.Key, kvp.Value);
                 }
-
-                etag = headers.ETag?.Tag;
-                expiresAt = headers.Date + headers.CacheControl.MaxAge - (headers.Age ?? TimeSpan.Zero);
+                
+                etag = headers.ETag?.ToString();
+                expiresAt = headers.Date + headers.CacheControl?.MaxAge - (headers.Age ?? TimeSpan.Zero);
             }
 
-            return await UpdateAsync(arg.Request.Key, state ?? State.Create(arg.Value), etag, expiresAt);
+            return await UpdateAsync(arg.Request.Key, arg.IsHandled ? state ?? State.Create(arg.Value) : null, etag, expiresAt);
         }
 
         public Task<bool> CreateAsync(Uri key, State value) => UpdateAsync(key, value);
@@ -359,11 +380,6 @@ namespace Movies
         public Task<bool> UpdateAsync(Uri key, State updatedValue) => UpdateAsync(key, updatedValue, null, null);
         private async Task<bool> UpdateAsync(Uri key, State updatedValue, string etag, DateTimeOffset? expiresAt)
         {
-            if (!updatedValue.TryGetValue<IEnumerable<byte>>(out var bytes))
-            {
-                return false;
-            }
-
             var url = key.ToString();
             var path = url.Split('?').FirstOrDefault();
             var parts = path.Split('/');
@@ -379,7 +395,9 @@ namespace Movies
                 return false;
             }
 
-            await AddAsync(type, id, url, new JsonResponse(new LazyContent(bytes), etag, expiresAt));
+            var content = updatedValue?.TryGetValue<IEnumerable<byte>>(out var bytes) == true ? new LazyContent(bytes) : null;
+
+            await AddAsync(type, id, url, new JsonResponse(content, etag, expiresAt));
             return true;
         }
 

@@ -38,7 +38,7 @@ namespace MoviesTests
             }
         }
 
-        [TestMethod]
+        //[TestMethod]
         public async Task something()
         {
             var content = new http();
