@@ -162,7 +162,7 @@ namespace Movies
                         headers.Add(kvp.Key, kvp.Value);
                     }
 
-                    if (headers.ETag?.Tag is string etag && !isFresh(headers))
+                    if (headers.ETag?.ToString() is string etag && !isFresh(headers))
                     {
                         eNext = GetEtaggedRequest(e1, etag);
                     }

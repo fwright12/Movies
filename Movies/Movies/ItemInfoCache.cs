@@ -137,7 +137,7 @@ namespace Movies
                 if (rows[0].Length == 7)
                 {
                     var values = string.Join(", ", Enumerable.Repeat(valueRow, rows.Length));
-                    query = $"insert or replace into {cache.Table} ({cols}) values {values} on conflict do nothing";
+                    query = $"insert or replace into {cache.Table} ({cols}) values {values}";
                 }
                 else
                 {
