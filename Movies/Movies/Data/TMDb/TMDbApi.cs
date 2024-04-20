@@ -10,6 +10,7 @@ namespace Movies
             [API.MOVIES.GET_DETAILS] = new List<TMDbRequest>
             {
                 API.MOVIES.GET_CREDITS,
+                API.MOVIES.GET_EXTERNAL_IDS,
                 API.MOVIES.GET_KEYWORDS,
                 API.MOVIES.GET_RECOMMENDATIONS,
                 API.MOVIES.GET_RELEASE_DATES,
@@ -20,6 +21,7 @@ namespace Movies
             {
                 API.TV.GET_AGGREGATE_CREDITS,
                 API.TV.GET_CONTENT_RATINGS,
+                API.TV.GET_EXTERNAL_IDS,
                 API.TV.GET_KEYWORDS,
                 API.TV.GET_RECOMMENDATIONS,
                 API.TV.GET_VIDEOS,

@@ -1,12 +1,11 @@
 ﻿namespace MoviesTests.Data.TMDb
 {
-    //[TestClass]
+    [TestClass]
     public class TMDbClientTests : Resources
     {
         private readonly TMDbHttpProcessor TMDbReadHandler;
         private ChainLink<EventArgsAsyncWrapper<IEnumerable<ResourceRequestArgs<Uri>>>> Chain => AsyncCoRExtensions.Create<IEnumerable<ResourceRequestArgs<Uri>>>(TMDbReadHandler);
         
-
         public TMDbClientTests()
         {
             var resolver = new TMDbResolver(TMDB.ITEM_PROPERTIES);

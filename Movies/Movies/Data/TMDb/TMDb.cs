@@ -16,6 +16,36 @@ using System.Threading.Tasks;
 
 namespace Movies
 {
+    public class IMDb
+    {
+        public static readonly ID<string>.Key IDKey = new ID<string>.Key();
+        public static readonly ID<string> ID = IDKey.ID;
+    }
+
+    public class Wikidata
+    {
+        public static readonly ID<string>.Key IDKey = new ID<string>.Key();
+        public static readonly ID<string> ID = IDKey.ID;
+    }
+
+    public class Facebook
+    {
+        public static readonly ID<string>.Key IDKey = new ID<string>.Key();
+        public static readonly ID<string> ID = IDKey.ID;
+    }
+
+    public class Instagram
+    {
+        public static readonly ID<string>.Key IDKey = new ID<string>.Key();
+        public static readonly ID<string> ID = IDKey.ID;
+    }
+
+    public class Twitter
+    {
+        public static readonly ID<string>.Key IDKey = new ID<string>.Key();
+        public static readonly ID<string> ID = IDKey.ID;
+    }
+
     public partial class TMDB : IAssignID<int>
     {
         public static Language LANGUAGE = CultureInfo.CurrentCulture;
@@ -430,6 +460,48 @@ namespace Movies
             }
 
             return null;
+        }
+
+        public static async Task<Item> WithExternalIdsAsync(Item item, int id)
+        {
+            TMDbRequest request;
+
+            var type = item.ItemType;
+            if (type == ItemType.Movie) request = API.MOVIES.GET_EXTERNAL_IDS;
+            else if (type == ItemType.TVShow) request = API.TV.GET_EXTERNAL_IDS;
+            else return item;
+
+            var uri = new Uri(string.Format(request.GetURL(), id), UriKind.Relative);
+            var externalIdsRequest = await DataService.Instance.Controller.TryGet<IEnumerable<byte>>(uri);
+            if (!externalIdsRequest.IsHandled)
+            {
+                return item;
+            }
+
+            var externalIdsJson = JsonDocument.Parse(externalIdsRequest.Value.ToArray()).RootElement;
+
+            if (externalIdsJson.TryGetProperty("imdb_id", out var imdbId))
+            {
+                item = item.WithID(IMDb.IDKey, imdbId.ToString());
+            }
+            if (externalIdsJson.TryGetProperty("wikidata_id", out var wikiId))
+            {
+                item = item.WithID(Wikidata.IDKey, wikiId.ToString());
+            }
+            if (externalIdsJson.TryGetProperty("facebook_id", out var fbId))
+            {
+                item = item.WithID(Facebook.IDKey, fbId.ToString());
+            }
+            if (externalIdsJson.TryGetProperty("instagram_id", out var igId))
+            {
+                item = item.WithID(Instagram.IDKey, igId.ToString());
+            }
+            if (externalIdsJson.TryGetProperty("twitter_id", out var twitterId))
+            {
+                item = item.WithID(Twitter.IDKey, twitterId.ToString());
+            }
+
+            return item;
         }
     }
 }

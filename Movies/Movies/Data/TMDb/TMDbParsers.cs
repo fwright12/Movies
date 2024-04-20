@@ -46,6 +46,12 @@ namespace Movies
             if (json.TryGetValue("id", out int id) && json.TryGetValue("title", out string title) && json.TryGetValue("release_date", out string releaseDate))
             {
                 movie = new Movie(title, DateTime.TryParse(releaseDate, out var year) ? (int?)year.Year : null).WithID(IDKey, id);
+
+                if (json.TryGetValue("imdb_id", out string imdbId))
+                {
+                    movie = movie.WithID(IMDb.IDKey, imdbId);
+                }
+
                 return true;
             }
 
@@ -491,7 +497,7 @@ namespace Movies
         public static Rating ParseRating(JsonNode json) => new Rating
         {
             Company = TMDb,
-            Score = json["vote_average"]?.TryGetValue<double>(),
+            Score = json["vote_average"]?.TryGetValue(out double score) == true ? Math.Round(score * 10, 0).ToString() + "%" : null,
             TotalVotes = json["vote_count"]?.TryGetValue<double>() ?? 0,
         };
 

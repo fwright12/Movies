@@ -89,7 +89,7 @@
       <Version>2.4.11.982</Version>
     </PackageReference>
     <PackageReference Include="Xamarin.Forms">
-      <Version>5.0.0.2612</Version>
+      <Version>5.0.0.2662</Version>
     </PackageReference>
     <PackageReference Include="Xamarin.Forms.AppLinks">
       <Version>5.0.0.2612</Version>
@@ -101,6 +101,8 @@
   <ItemGroup>
     <Compile Include="AdRenderer.cs" />
     <Compile Include="ItemsViewRenderer.cs" />
+    <Compile Include="JavaScriptEvaluator.cs" />
+    <Compile Include="LabelRenderer.cs" />
     <Compile Include="MainActivity.cs" />
     <Compile Include="Resources\Resource.designer.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

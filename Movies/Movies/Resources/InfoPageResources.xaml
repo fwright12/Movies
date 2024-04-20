@@ -1,21 +1,20 @@
 ﻿<?xml version="1.0" encoding="utf-8" ?>
 <ResourceDictionary xmlns="http://xamarin.com/schemas/2014/forms"
                     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-                    xmlns:forms="clr-namespace:Xamarin.Forms;assembly=Xamarin.Forms.Extensions"
-                    xmlns:ext="clr-namespace:Xamarin.Forms.Extensions;assembly=Xamarin.Forms.Extensions"
-                    xmlns:views="clr-namespace:Movies.Views"
-                    xmlns:viewmodels="clr-namespace:Movies.ViewModels"
-                    xmlns:models="clr-namespace:Movies.Models"
-                    xmlns:generic="clr-namespace:System.Collections.Generic;assembly=netstandard"
-                    xmlns:sys="clr-namespace:System;assembly=mscorlib"
                     xmlns:movies="clr-namespace:Movies"
-                    xmlns:collections="clr-namespace:System.Collections;assembly=mscorlib"
-                    xmlns:templates="clr-namespace:Movies.Templates"
                     xmlns:converters="clr-namespace:Movies.Converters"
+                    xmlns:models="clr-namespace:Movies.Models"
+                    xmlns:templates="clr-namespace:Movies.Templates"
+                    xmlns:viewmodels="clr-namespace:Movies.ViewModels"
+                    xmlns:views="clr-namespace:Movies.Views"
+                    xmlns:generic="clr-namespace:System.Collections.Generic;assembly=netstandard"
+                    xmlns:ext="clr-namespace:Xamarin.Forms.Extensions;assembly=Xamarin.Forms.Extensions"
+                    xmlns:forms="clr-namespace:Xamarin.Forms;assembly=Xamarin.Forms.Extensions"
+                    xmlns:ffil="clr-namespace:FFImageLoading.Forms;assembly=FFImageLoading.Forms"
                     x:Class="Movies.Views.InfoPageResources">
     <DataTemplate x:Key="DefaultTemplate">
         <Label Text="{Binding}"
-               IsVisible="{Binding Text, Source={RelativeSource Self}, Converter={Static forms:ObjectToFalseConverter.Instance}, ConverterParameter={Static x:String.Empty}}"/>
+               IsVisible="{Binding Text, Source={RelativeSource Self}, Converter={Static forms:ObjectToFalseConverter.Instance}, ConverterParameter={Static x:String.Empty}}" />
     </DataTemplate>
 
     <DataTemplate x:Key="DefaultInfoTemplate">
@@ -45,34 +44,101 @@
             <View.GestureRecognizers>
                 <TapGestureRecognizer CommandParameter="{Binding}">
                     <TapGestureRecognizer.Command>
-                        <views:PushPageCommand>
+                        <viewmodels:OpenReviewsCommand>
                             <DataTemplate>
                                 <views:ReviewsPage Title="{Binding Company.Name}" />
                             </DataTemplate>
-                        </views:PushPageCommand>
+                        </viewmodels:OpenReviewsCommand>
                     </TapGestureRecognizer.Command>
                 </TapGestureRecognizer>
             </View.GestureRecognizers>
 
-            <Grid RowDefinitions="*, Auto"
+            <StackLayout Orientation="Vertical">
+                <Label Text="{Binding Company.Name}"
+                       FontSize="Small"
+                       LineBreakMode="TailTruncation" />
+
+                <StackLayout Orientation="Horizontal"
+                             VerticalOptions="FillAndExpand">
+                    <Image HorizontalOptions="FillAndExpand"
+                           WidthRequest="0"
+                           HeightRequest="0">
+                        <Image.Source>
+                            <Binding Path="Company.LogoPath"
+                                     Converter="{Static converters:UriToImageSourceConverter.Instance}">
+                                <Binding.ConverterParameter>
+                                    <UriImageSource CacheValidity="{Static movies:App.LogoCacheValidity}" />
+                                </Binding.ConverterParameter>
+                            </Binding>
+                        </Image.Source>
+                    </Image>
+
+                    <Label Text="{Binding Score}"
+                           VerticalTextAlignment="Center"
+                           FontAttributes="Bold"
+                           FontSize="{OnPlatform Android=Title}"
+                           TextColor="{AppThemeBinding Light={StaticResource LightPrimaryText}, Dark={StaticResource DarkPrimaryText}}"
+                           views:Extensions.AutoSizeFont="True" />
+                </StackLayout>
+
+                <Label Text="See Reviews >"
+                       FontSize="Caption"
+                       HorizontalTextAlignment="End"
+                       LineBreakMode="HeadTruncation" />
+            </StackLayout>
+        </Frame>
+    </DataTemplate>
+
+    <DataTemplate x:Key="ExternalRatingTemplate2"
+                  x:DataType="models:Rating">
+        <Frame Style="{StaticResource RatingStyle}">
+            <View.GestureRecognizers>
+                <TapGestureRecognizer CommandParameter="{Binding}">
+                    <TapGestureRecognizer.Command>
+                        <viewmodels:OpenReviewsCommand>
+                            <DataTemplate>
+                                <views:ReviewsPage Title="{Binding Company.Name}" />
+                            </DataTemplate>
+                        </viewmodels:OpenReviewsCommand>
+                    </TapGestureRecognizer.Command>
+                </TapGestureRecognizer>
+            </View.GestureRecognizers>
+
+            <Grid RowDefinitions="*, Auto, *"
                   ColumnDefinitions="*, Auto"
                   ColumnSpacing="10">
-                <Image Source="{Binding Company.LogoPath, Converter={Static converters:UriToImageSourceConverter.Instance}}"
+                <Label Text="{Binding Company.Name}"
+                       FontSize="Small"
+                       LineBreakMode="TailTruncation"
                        Grid.Row="0"
-                       Grid.Column="0" />
+                       Grid.Column="0"
+                       Grid.ColumnSpan="2" />
 
-                <Label Text="{Binding Score, StringFormat='{0:0.0}'}"
+                <Image Grid.Row="1"
+                       Grid.Column="0">
+                    <Image.Source>
+                        <Binding Path="Company.LogoPath"
+                                 Converter="{Static converters:UriToImageSourceConverter.Instance}">
+                            <Binding.ConverterParameter>
+                                <UriImageSource CacheValidity="{Static movies:App.LogoCacheValidity}" />
+                            </Binding.ConverterParameter>
+                        </Binding>
+                    </Image.Source>
+                </Image>
+
+                <Label Text="{Binding Score}"
                        Style="{StaticResource ValueDescriptorStyle}"
                        FontSize="Title"
                        VerticalOptions="Center"
-                       Grid.Row="0"
+                       Grid.Row="1"
                        Grid.Column="1" />
 
                 <Label Text="See Reviews >"
                        FontSize="Caption"
                        HorizontalOptions="End"
                        LineBreakMode="HeadTruncation"
-                       Grid.Row="1"
+                       IsVisible="{Binding Reviews, Converter={Static forms:FalseIfNullConverter.Instance}}"
+                       Grid.Row="2"
                        Grid.Column="0"
                        Grid.ColumnSpan="2" />
             </Grid>
@@ -399,7 +465,7 @@
                 <WebView Source="{Binding Converter={StaticResource EmbedVideo}}"
                          WidthRequest="177.778"
                          HeightRequest="100"
-                         IsFocused="{Binding IsVideoPlaying, Mode=OneWayToSource, Source={RelativeSource AncestorType={x:Type viewmodels:MediaViewModel}}}"/>
+                         IsFocused="{Binding IsVideoPlaying, Mode=OneWayToSource, Source={RelativeSource AncestorType={x:Type viewmodels:MediaViewModel}}}" />
             </DataTemplate>
         </forms:MediaTemplateSelector.VideoTemplate>
     </forms:MediaTemplateSelector>

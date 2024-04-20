@@ -13,15 +13,6 @@ namespace Movies
 {
     public partial class TMDB : IListProvider
     {
-#if DEBUG
-        public async IAsyncEnumerable<Models.List> GetAllListsAsync1()
-        {
-            for (int i = 0; i < 20; i++)
-                yield return new DummyList();
-            await Task.CompletedTask;
-        }
-#endif
-
         public Models.List CreateList() => new List(UserAccessToken, this);
 
         public async Task<List<Models.List>> GetAllLists()

@@ -17,7 +17,7 @@ namespace Movies
 
         public Task<bool> Read(IEnumerable<ResourceRequestArgs<Uri>> args) => Datastore.Read(args);
 
-        public Task<bool> Write(IEnumerable<ResourceRequestArgs<Uri>> args) => Datastore.Write(args.Where(arg => arg.IsHandled && arg.Request.Key is UniformItemIdentifier));
+        public Task<bool> Write(IEnumerable<ResourceRequestArgs<Uri>> args) => Datastore.Write(args.Where(arg => arg.IsHandled && (arg.Request.Key is UniformItemIdentifier || arg.Request.Key.ToString().Contains("/external_ids"))));
 
         public Task<bool> CreateAsync(Uri key, State value) => UpdateAsync(key, value);
         public async Task<bool> CreateAsync(Uri key, Task<State> value) => await UpdateAsync(key, await value);

@@ -84,7 +84,7 @@
     <MtouchUseLlvm>true</MtouchUseLlvm>
     <MtouchFloat32>true</MtouchFloat32>
   </PropertyGroup>
- <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release Ad Hoc|iPhoneSimulator'">
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release Ad Hoc|iPhoneSimulator'">
     <OutputPath>bin\iPhoneSimulator\Release Ad Hoc\</OutputPath>
     <DefineConstants>__IOS__;__MOBILE__;__UNIFIED__;</DefineConstants>
     <Optimize>true</Optimize>
@@ -112,6 +112,7 @@
     <Compile Include="AdRenderer.cs" />
     <Compile Include="DrawerViewRenderer.cs" />
     <Compile Include="ItemsViewRenderer.cs" />
+    <Compile Include="JavaScriptEvaluator.cs" />
     <Compile Include="Main.cs" />
     <Compile Include="AppDelegate.cs" />
     <None Include="Entitlements.plist" />
@@ -198,7 +199,7 @@
       <Version>2.4.11.982</Version>
     </PackageReference>
     <PackageReference Include="Xamarin.Forms">
-      <Version>5.0.0.2612</Version>
+      <Version>5.0.0.2662</Version>
     </PackageReference>
     <PackageReference Include="Xamarin.Google.iOS.MobileAds">
       <Version>8.13.0.3</Version>

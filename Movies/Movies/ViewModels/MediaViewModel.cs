@@ -1,10 +1,11 @@
-﻿using System;
-using System.Collections;
+﻿using Movies.Models;
+using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Text;
-using Movies.Models;
+using System.Text.Json;
+using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 
 namespace Movies.ViewModels
 {
@@ -45,7 +46,7 @@ namespace Movies.ViewModels
         public string TrailerPath => null;
         //public override string PrimaryImagePath => TrailerPath;
 
-        public IEnumerable<Rating> Ratings => RequestValue(Media.RATING) is Rating rating ? new List<Rating> { rating } : null;
+        public IEnumerable<Rating> Ratings => _Ratings ??= GetRatings();
         public List<Group<Credit>> Cast => GetCrew(RequestValue(Media.CAST));
         public List<Group<Credit>> Crew => GetCrew(RequestValue(Media.CREW));
         public IEnumerable<Company> ProductionCompanies => RequestValue(Media.PRODUCTION_COMPANIES);
@@ -66,6 +67,7 @@ namespace Movies.ViewModels
 
         private CollectionViewModel _Recommended;
         private bool _IsVideoPlaying = false;
+        private IList<Rating> _Ratings;
 
         protected static CollectionViewModel ForceLoad(CollectionViewModel cvm)
         {
@@ -74,6 +76,233 @@ namespace Movies.ViewModels
         }
 
         public MediaViewModel(Item item) : base(item) { }
+
+        private ObservableCollection<Rating> GetRatings()
+        {
+            string tmdbRating = nameof(tmdbRating);
+            PropertyChanged += (sender, e) =>
+            {
+                if (e.PropertyName != tmdbRating)
+                {
+                    return;
+                }
+
+                var rating = RequestValue(Media.RATING, tmdbRating);
+                UpdateRating(0, rating);
+            };
+
+            RequestValue(Media.RATING, tmdbRating);
+
+            var itr = App.Current.RatingTemplateManager.Items.GetEnumerator();
+            for (int i = 1; itr.MoveNext(); i++)
+            {
+                try
+                {
+                    UpdateRatingAsync(i, GetRatingAsync(itr.Current));
+                }
+                catch { }
+            }
+
+            return new ObservableCollection<Rating>(App.Current.RatingTemplateManager.Items.Select(template => new Rating
+            {
+                Company = new Company
+                {
+                    Name = template.Name,
+                    LogoPath = template.LogoURL
+                },
+            }).Prepend(TMDB_DUMMY_RATING));
+        }
+
+        private static readonly Rating TMDB_DUMMY_RATING = new Rating
+        {
+            Company = TMDB.TMDb
+        };
+
+        private void UpdateRating(int index, Rating rating)
+        {
+            _Ratings[index] = rating;
+        }
+
+        private async void UpdateRatingAsync(int index, Task<Rating> rating)
+        {
+            try
+            {
+                UpdateRating(index, await rating);
+            }
+            catch (Exception e)
+            {
+                System.Diagnostics.Debug.WriteLine(e);
+            }
+        }
+
+        private static async Task<string> GetMediaJsonAsync(Media media)
+        {
+            var json = $"item = {{ title: '{media.Title}', year: {media.Year}";
+
+            if (media.TryGetID(TMDB.ID, out var tmdbId))
+            {
+                media = await TMDB.WithExternalIdsAsync(media, tmdbId) as Media ?? media;
+                var ids = new Dictionary<string, string>();
+                ids.Add("tmdb", tmdbId.ToString());
+
+                if (media.TryGetID(IMDb.ID, out var imdbId))
+                {
+                    ids.Add("imdb", $"'{imdbId}'");
+                }
+                if (media.TryGetID(Wikidata.ID, out var wikiId))
+                {
+                    ids.Add("wikidata", $"'{wikiId}'");
+                }
+                if (media.TryGetID(Facebook.ID, out var fbId))
+                {
+                    ids.Add("facebook", $"'{fbId}'");
+                }
+                if (media.TryGetID(Instagram.ID, out var igId))
+                {
+                    ids.Add("instagram", $"'{igId}'");
+                }
+                if (media.TryGetID(Twitter.ID, out var twitterId))
+                {
+                    ids.Add("twitter", $"'{twitterId}'");
+                }
+
+                if (ids.Count > 0)
+                {
+                    json += ", id: { ";
+                    json += string.Join(", ", ids.Select(kvp => $"{kvp.Key}: {kvp.Value}"));
+                    json += " }";
+                }
+            }
+
+            return json + " }";
+        }
+
+        private async Task<Rating> GetRatingAsync(RatingTemplate template)
+        {
+            try
+            {
+                var rating = new Rating
+                {
+                    Company = new Company
+                    {
+                        Name = template.Name,
+                        LogoPath = template.LogoURL
+                    },
+                };
+
+                try
+                {
+                    var json = await GetMediaJsonAsync((Media)Item);
+                    var response = await App.JavaScriptEvaluator.Evaluate(json + ";" + template.URLJavaScipt);
+                    Print.Log(response);
+                    var doc = JsonDocument.Parse(response);
+                    var urls = doc.RootElement.ValueKind == JsonValueKind.Array ? doc.RootElement.EnumerateArray().Select(element => element.ToString()) : new string[] { doc.RootElement.ToString() };
+
+                    Print.Log("urls: " + string.Join(", ", urls));
+
+                    foreach (var url in urls)
+                    {
+                        try
+                        {
+                            var esacpedUrl = new Uri(url.ToLower(), UriKind.RelativeOrAbsolute).ToString();
+                            response = await App.JavaScriptEvaluator.Evaluate(template.ScoreJavaScript);
+                            doc = JsonDocument.Parse(response);
+
+                            if (doc.RootElement.ValueKind == JsonValueKind.Object)
+                            {
+                                if (doc.RootElement.TryGetProperty("score", out var scoreElem))
+                                {
+                                    rating.Score = scoreElem.ToString();
+                                }
+                                if (doc.RootElement.TryGetProperty("logo", out var logoElem))
+                                {
+                                    rating.Company.LogoPath = logoElem.ToString();
+                                }
+                            }
+                            else
+                            {
+                                rating.Score = doc.RootElement.ToString();
+                            }
+
+                            break;
+                        }
+                        catch { }
+                    }
+                }
+                catch (Exception e)
+                {
+                    System.Diagnostics.Debug.WriteLine(e);
+                    return rating;
+                }
+
+                return rating;
+            }
+            catch (Exception e)
+            {
+                Print.Log(e);
+                return null;
+            }
+        }
+
+        public static string[] ApplyToTemplate(string template, Media media)
+        {
+            var urls = new List<string> { template };
+
+            foreach (var match in Regex.Matches(template, "\\${(.+?)}").Reverse())
+            {
+                var substitutions = Substitute(match.Groups[1].Value, media);
+                var temp = new List<string>();
+
+                foreach (var substitute in substitutions)
+                {
+                    foreach (var url in urls)
+                    {
+                        temp.Add(url.Substring(0, match.Index) + substitute + url.Substring(match.Index + match.Length));
+                    }
+                }
+
+                urls = temp;
+            }
+
+            return urls.ToArray();
+        }
+
+        private static object[] Substitute(string property, Media media)
+        {
+            if (property == "title") return new object[] { media.Title };
+            else if (property == "year") return new object[] { media.Year };
+            else if (property.StartsWith("id."))
+            {
+                property = property.Substring(3);
+
+                if (property == "tmdb")
+                {
+                    if (media.TryGetID(TMDB.ID, out var tmdbId)) return new object[] { tmdbId };
+                }
+                else if (property == "imdb")
+                {
+                    if (media.TryGetID(IMDb.ID, out var imdbId)) return new object[] { imdbId };
+                }
+                else if (property == "rt")
+                {
+                    List<string> ids = new List<string>
+                    {
+                        $"{media.Title}_{media.Year}",
+                        $"{media.Title}",
+                    };
+
+                    if (media.Title.ToLower().StartsWith("the"))
+                    {
+                        ids.Insert(1, ids[0]);
+                        ids.Insert(3, ids[2]);
+                    }
+
+                    return ids.ToArray();
+                }
+            }
+
+            throw new Exception($"Unknown property {property}");
+        }
 
         public static List<Group<Credit>> GetCrew(IEnumerable<Credit> crew)
         {

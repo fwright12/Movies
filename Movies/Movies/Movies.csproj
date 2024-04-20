@@ -38,7 +38,7 @@
 		<PackageReference Include="Xamarin.Essentials" Version="1.8.0" />
 		<PackageReference Include="Xamarin.FFImageLoading" Version="2.4.11.982" />
 		<PackageReference Include="Xamarin.FFImageLoading.Forms" Version="2.4.11.982" />
-		<PackageReference Include="Xamarin.Forms" Version="5.0.0.2612" />
+		<PackageReference Include="Xamarin.Forms" Version="5.0.0.2662" />
 	</ItemGroup>
 
 	<ItemGroup>
@@ -135,6 +135,9 @@
 		</EmbeddedResource>
 		<EmbeddedResource Update="Views\QuickActionView.xaml">
 			<Generator>MSBuild:UpdateDesignTimeXaml</Generator>
+		</EmbeddedResource>
+		<EmbeddedResource Update="Views\RatingsBuilderPage.xaml">
+		  <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
 		</EmbeddedResource>
 		<EmbeddedResource Update="Views\ReviewsPage.xaml">
 			<Generator>MSBuild:UpdateDesignTimeXaml</Generator>

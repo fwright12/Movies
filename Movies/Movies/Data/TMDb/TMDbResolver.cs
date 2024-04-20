@@ -328,7 +328,7 @@ namespace Movies
             public HttpConverter(Item item, IEnumerable<(Uri, string, List<Parser>, IEnumerable<object>)> annotations, bool parentCollectionWasRequested)
             {
                 Item = item;
-                Resources = annotations.SelectMany(temp => temp.Item3.Select(parser => new UniformItemIdentifier(Item, parser.Property)).Prepend(temp.Item1)).ToArray();
+                Resources = annotations.SelectMany(temp => (Item == null ? Enumerable.Empty<Uri>() : temp.Item3.Select(parser => new UniformItemIdentifier(Item, parser.Property))).Prepend(temp.Item1)).ToArray();
                 Annotations = annotations;
                 ParentCollectionWasRequested = parentCollectionWasRequested;
             }
@@ -354,10 +354,10 @@ namespace Movies
                     //    continue;
                     //}
 
-                    var inner = new Dictionary<Uri, State>();
                     var state1 = State.Create(lazyJson);
-                    state1.Add(inner);
                     result.Add(annotation.Uri, state1);
+
+                    var inner = new Dictionary<Uri, State>();
 
                     foreach (var parser in annotation.Parsers)
                     {
@@ -404,26 +404,35 @@ namespace Movies
                             converter = source => parser.GetPair(source is ArraySegment<byte> segment ? segment : new ArraySegment<byte>(source.ToArray())).Value;
                         }
 
-                        var byteRepresentation = new ObjectRepresentation<IEnumerable<byte>>(lazyJson.Bytes);
-                        var state = new State(byteRepresentation);
-
-                        if (converter != null)
+                        try
                         {
-                            state.AddRepresentation(parser.Property.FullType, new LazilyConvertedRepresentation<IEnumerable<byte>, object>(byteRepresentation, converter));
-                        }
-                        //else if (success)
-                        //{
-                        //    //var state = converted == null ? State.Null(parser.Property.FullType) : new State(converted);
-                        //    state.Add(parser.Property.FullType, converted);
-                        //}
+                            var byteRepresentation = new ObjectRepresentation<IEnumerable<byte>>(lazyJson.Bytes);
+                            var state = new State(byteRepresentation);
 
-                        var uii = new UniformItemIdentifier(Item, parser.Property);
-                        inner.Add(uii, state);
+                            if (converter != null)
+                            {
+                                state.AddRepresentation(parser.Property.FullType, new LazilyConvertedRepresentation<IEnumerable<byte>, object>(byteRepresentation, converter));
+                            }
+                            //else if (success)
+                            //{
+                            //    //var state = converted == null ? State.Null(parser.Property.FullType) : new State(converted);
+                            //    state.Add(parser.Property.FullType, converted);
+                            //}
+
+                            var uii = new UniformItemIdentifier(Item, parser.Property);
+                            inner.Add(uii, state);
+                        }
+                        catch { }
                     }
 
-                    foreach (var kvp in inner)
+                    if (inner.Count > 0)
                     {
-                        result.Add(kvp.Key, kvp.Value);
+                        state1.Add(inner);
+
+                        foreach (var kvp in inner)
+                        {
+                            result.Add(kvp.Key, kvp.Value);
+                        }
                     }
                 }
 

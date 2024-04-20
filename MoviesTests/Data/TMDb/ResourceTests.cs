@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
+using System.Collections;
 using System.Diagnostics;
 using System.Text;
 
@@ -90,6 +91,43 @@ namespace MoviesTests.Data.TMDb
             Assert.AreEqual(1, handlers.WebHistory.Count);
             Assert.AreEqual(7, handlers.DiskCache.Count, string.Join(", ", handlers.DiskCache.Keys));
             Assert.AreEqual(25, handlers.InMemoryCache.Count);
+        }
+
+        [TestMethod]
+        public async Task GetExternalIds()
+        {
+            var handlers = new HandlerChain();
+            DataService.Instance.Controller
+                .SetNext(handlers.LocalTMDbProcessor)
+                .SetNext(handlers.RemoteTMDbProcessor);
+
+            var movie = await TMDB.WithExternalIdsAsync(Constants.Movie, 0);
+            await CachedAsync(handlers.DiskCache);
+
+            Assert.AreEqual(1, handlers.WebHistory.Count);
+            Assert.AreEqual(8, handlers.DiskCache.Count, string.Join(", ", handlers.DiskCache.Keys));
+            Assert.AreEqual(1, DataService.Instance.ResourceCache.Count);
+
+            Assert.IsTrue(movie.TryGetID(IMDb.ID, out var imdbId));
+            Assert.AreEqual("tt1201607", imdbId);
+
+            Assert.IsTrue(movie.TryGetID(Wikidata.ID, out var wikiId));
+            Assert.AreEqual("Q232009", wikiId);
+
+            Assert.IsTrue(movie.TryGetID(Facebook.ID, out var fbId));
+            Assert.AreEqual("harrypottermovie", fbId);
+
+            Assert.IsTrue(movie.TryGetID(Instagram.ID, out var igId));
+            Assert.AreEqual("harrypotterfilm", igId);
+
+            Assert.IsTrue(movie.TryGetID(Twitter.ID, out var twitterId));
+            Assert.AreEqual("HarryPotterFilm", twitterId);
+
+            handlers.DiskCache.Clear();
+            await TMDB.WithExternalIdsAsync(Constants.Movie, 0);
+            await CachedAsync(handlers.DiskCache);
+
+            Assert.AreEqual(1, handlers.WebHistory.Count);
         }
 
         [TestMethod]
@@ -485,25 +523,22 @@ namespace MoviesTests.Data.TMDb
         [TestMethod]
         public async Task GetAllResources()
         {
-            for (int i = 0; i < 1; i++)
-            {
-                var handlers = new HandlerChain();
-                var chain = handlers.Chain;
+            var handlers = new HandlerChain();
+            var chain = handlers.Chain;
 
-                await handlers.InMemoryCache.CreateAsync(new UniformItemIdentifier(Constants.Movie, Media.RUNTIME), State.Create(new TimeSpan(2, 10, 0)));
+            await handlers.InMemoryCache.CreateAsync(new UniformItemIdentifier(Constants.Movie, Media.RUNTIME), State.Create(new TimeSpan(2, 10, 0)));
 
-                var requests = GetAllRequests();
-                await Task.WhenAll(chain.Get(requests));
+            var requests = GetAllRequests();
+            await Task.WhenAll(chain.Get(requests));
 
-                var runtime = (ResourceRequestArgs<Uri, TimeSpan>)requests.Where(request => (request.Request.Key as UniformItemIdentifier)?.Property == Media.RUNTIME).FirstOrDefault();
-                var watchProviders = (ResourceRequestArgs<Uri, IEnumerable<WatchProvider>>)requests.Where(request => (request.Request.Key as UniformItemIdentifier)?.Property == Movie.WATCH_PROVIDERS).FirstOrDefault();
+            var runtime = (ResourceRequestArgs<Uri, TimeSpan>)requests.Where(request => (request.Request.Key as UniformItemIdentifier)?.Property == Media.RUNTIME).FirstOrDefault();
+            var watchProviders = (ResourceRequestArgs<Uri, IEnumerable<WatchProvider>>)requests.Where(request => (request.Request.Key as UniformItemIdentifier)?.Property == Movie.WATCH_PROVIDERS).FirstOrDefault();
 
-                Assert.AreEqual(2, WebHistory.Count);
-                Assert.AreEqual(new TimeSpan(2, 10, 0), runtime.Value);
-                Assert.AreEqual("Apple iTunes", watchProviders.Value.FirstOrDefault()?.Company.Name);
+            Assert.AreEqual(2, WebHistory.Count);
+            Assert.AreEqual(new TimeSpan(2, 10, 0), runtime.Value);
+            Assert.AreEqual("fuboTV", watchProviders.Value.FirstOrDefault()?.Company.Name);
 
-                WebHistory.RemoveAt(1);
-            }
+            WebHistory.RemoveAt(1);
         }
 
         private static Task CachedAsync(DummyDatastore<Uri> diskCache)
@@ -549,7 +584,7 @@ namespace MoviesTests.Data.TMDb
                 [Media.TITLE] = "Harry Potter and the Deathly Hallows: Part 2",
                 [Media.RUNTIME] = new TimeSpan(2, 10, 0),
                 [Media.PRODUCTION_COUNTRIES] = "United Kingdom",
-                [Media.KEYWORDS] = new Keyword { Id = 83, Name = "saving the world" },
+                [Media.KEYWORDS] = new Keyword { Id = 616, Name = "witch" },
             });
             await AllResources(handlers, Constants.Movie, new Dictionary<Property, object>
             {
@@ -680,6 +715,7 @@ namespace MoviesTests.Data.TMDb
             public DummyDatastore<Uri> DiskCache { get; }
 
             public TMDbLocalCache LocalTMDbCache { get; }
+            public IAsyncCoRProcessor<IEnumerable<ResourceRequestArgs<Uri>>> LocalTMDbProcessor { get; }
             public TMDbHttpProcessor RemoteTMDbProcessor { get; }
             public MockHandler MockHttpHandler { get; }
 
@@ -706,7 +742,7 @@ namespace MoviesTests.Data.TMDb
                 //Chain.SetNext(context.Synchronize(LocalTMDbCache)).SetNext(context.Synchronize(RemoteTMDbProcessor));
 
                 Chain = new AsyncCacheAsideProcessor<ResourceRequestArgs<Uri>>(new ResourceBufferedCache<Uri>(InMemoryCache)).ToChainLink();
-                Chain.SetNext(new AsyncCacheAsideProcessor<ResourceRequestArgs<Uri>>(new UriBufferedCache(LocalTMDbCache)))
+                Chain.SetNext(LocalTMDbProcessor = new AsyncCacheAsideProcessor<ResourceRequestArgs<Uri>>(new UriBufferedCache(LocalTMDbCache)))
                     .SetNext(RemoteTMDbProcessor);
                 //.SetNext(new EventCacheReadProcessor<ResourceRequestArgs<Uri>>(new ResourceBufferedCache<Uri>(new ReadOnlyEventCache<ResourceRequestArgs<Uri>>(RemoteTMDbProcessor))));
             }

@@ -136,6 +136,7 @@ namespace Movies
             {
                 HasLanguageParameter = true
             };
+            public static readonly TMDbRequest GET_EXTERNAL_IDS = "movie/{0}/external_ids";
             public static readonly TMDbRequest GET_KEYWORDS = "movie/{0}/keywords";
             public static readonly PagedTMDbRequest GET_RECOMMENDATIONS = new PagedTMDbRequest("movie/{0}/recommendations")
             {
@@ -246,6 +247,7 @@ namespace Movies
             {
                 HasLanguageParameter = true
             };
+            public static readonly TMDbRequest GET_EXTERNAL_IDS = "tv/{0}/external_ids";
             public static readonly TMDbRequest GET_KEYWORDS = "tv/{0}/keywords";
             public static readonly PagedTMDbRequest GET_RECOMMENDATIONS = new PagedTMDbRequest("tv/{0}/recommendations")
             {
@@ -529,6 +531,14 @@ namespace Movies
             ["cast"] = new MultiParser<Credit>(Media.CAST, new JsonNodeParser<IEnumerable<Credit>>(TryParseTVCredits)),
             ["crew"] = new MultiParser<Credit>(Media.CREW, new JsonNodeParser<IEnumerable<Credit>>(TryParseTVCredits))
         };
+        private static readonly List<Parser> EXTERNAL_IDS_PARSERS = new ParserList
+        {
+            //["imdb_id"] = Parser.Create(new Property<string>("IMDb ID")),
+            //["wikidata_id"],
+            //["facebook_id"],
+            //["instagram_id"],
+            //["twitter_id"],
+        };
         private static readonly List<Parser> CREDITS_PARSERS1 = new List<Parser>
         {
             //new MultiParser<Credit>(Media.CAST, new JsonNodeParser<IEnumerable<Credit>>(TryParseCast)),
@@ -571,6 +581,7 @@ namespace Movies
                 [""] = new Parser<Rating>(Media.RATING, MOVIE_RATING_PARSER),
             },
             [API.MOVIES.GET_CREDITS] = CREDITS_PARSERS,
+            [API.MOVIES.GET_EXTERNAL_IDS] = EXTERNAL_IDS_PARSERS,
             [API.MOVIES.GET_KEYWORDS] = new ParserList
             {
                 ["keywords"] = KEYWORDS_PARSER
@@ -612,6 +623,7 @@ namespace Movies
                 ["results"] = Parser.Create(TVShow.CONTENT_RATING, ParseTVCertification)
             },
             [API.TV.GET_AGGREGATE_CREDITS] = TV_CREDITS_PARSERS,
+            [API.TV.GET_EXTERNAL_IDS] = EXTERNAL_IDS_PARSERS,
             [API.TV.GET_RECOMMENDATIONS] = new ParserList
             {
                 ["results"] = Parser.Create(Media.RECOMMENDED, json => ParseRecommended<TVShow>(json, TryParseTVShow))

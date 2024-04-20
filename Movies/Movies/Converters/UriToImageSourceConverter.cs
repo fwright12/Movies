@@ -10,18 +10,15 @@ namespace Movies.Converters
 
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
-            var uri = value as Uri;
+            Uri uri;
 
-            if (uri == null)
+            try
             {
-                if (value is string url)
-                {
-                    uri = new Uri(url);
-                }
-                else
-                {
-                    return value;
-                }
+                uri = new Uri(value.ToString(), UriKind.RelativeOrAbsolute);
+            }
+            catch
+            {
+                return value;
             }
 
             if (uri.Scheme == "file")
@@ -30,7 +27,9 @@ namespace Movies.Converters
             }
             else
             {
-                return ImageSource.FromUri(uri);
+                var source = parameter as UriImageSource ?? new UriImageSource();
+                source.Uri = uri;
+                return source;
             }
         }
 

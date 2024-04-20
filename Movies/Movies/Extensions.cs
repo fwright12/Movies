@@ -305,6 +305,11 @@ namespace Movies.Views
 
     public static class Extensions
     {
+        public static readonly BindableProperty AutoSizeFontProperty = BindableProperty.CreateAttached("AutoSizeFont", typeof(bool), typeof(Label), false);
+
+        public static bool GetAutoSizeFont(this Label bindable) => (bool)bindable.GetValue(AutoSizeFontProperty);
+        public static void SetAutoSizeFont(this Label bindable, bool value) => bindable.SetValue(AutoSizeFontProperty, value);
+
         public static readonly BindableProperty YearProperty = BindableProperty.CreateAttached(nameof(DateTime.Year), typeof(int), typeof(DatePicker), null, propertyChanged: (bindable, oldValue, newValue) =>
         {
             var picker = (DatePicker)bindable;
@@ -1155,9 +1160,9 @@ namespace Movies.Views
         public ElementTemplate PageTemplate { get; set; }
         public bool Modal { get; set; }
 
-        public bool CanExecute(object parameter) => true;
+        public virtual bool CanExecute(object parameter) => true;
 
-        public async void Execute(object parameter)
+        public virtual async void Execute(object parameter)
         {
             object content = PageTemplate.CreateContent();
             Page page = content as Page ?? new ContentPage { Content = (View)content };
@@ -1174,6 +1179,27 @@ namespace Movies.Views
             else
             {
                 await Application.Current.MainPage.Navigation.PushAsync(page);
+            }
+        }
+    }
+
+    public class PopPageCommand : ICommand
+    {
+        public event EventHandler CanExecuteChanged;
+
+        public bool Modal { get; set; }
+
+        public bool CanExecute(object parameter) => true;
+
+        public async void Execute(object parameter)
+        {
+            if (Modal)
+            {
+                await Application.Current.MainPage.Navigation.PopModalAsync();
+            }
+            else
+            {
+                await Application.Current.MainPage.Navigation.PopAsync();
             }
         }
     }
