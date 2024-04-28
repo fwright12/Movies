@@ -305,6 +305,30 @@ namespace Movies.Views
 
     public static class Extensions
     {
+        public static readonly BindableProperty DisappearingCommandProperty = BindableProperty.Create("DisappearingCommand", typeof(ICommand), typeof(Page), defaultValueCreator: bindable =>
+        {
+            Page page = (Page)bindable;
+            page.Disappearing += (sender, e) =>
+            {
+                var command = page.GetDisappearingCommand();
+                var commandParameter = page.GetDisappearingCommandParameter();
+
+                if (command?.CanExecute(commandParameter) == true)
+                {
+                    command.Execute(commandParameter);
+                }
+            };
+
+            return null;
+        });
+        public static readonly BindableProperty DisappearingCommandParameterProperty = BindableProperty.Create("DisappearingCommandParameter", typeof(object), typeof(Page));
+
+        public static ICommand GetDisappearingCommand(this Page page) => (ICommand)page.GetValue(DisappearingCommandProperty);
+        public static void SetDisappearingCommand(this Page page, ICommand value) => page.SetValue(DisappearingCommandProperty, value);
+
+        public static ICommand GetDisappearingCommandParameter(this Page page) => (ICommand)page.GetValue(DisappearingCommandParameterProperty);
+        public static void SetDisappearingCommandParameter(this Page page, object value) => page.SetValue(DisappearingCommandParameterProperty, value);
+
         public static readonly BindableProperty AutoSizeFontProperty = BindableProperty.CreateAttached("AutoSizeFont", typeof(bool), typeof(Label), false);
 
         public static bool GetAutoSizeFont(this Label bindable) => (bool)bindable.GetValue(AutoSizeFontProperty);

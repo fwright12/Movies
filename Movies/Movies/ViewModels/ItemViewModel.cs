@@ -29,6 +29,9 @@ namespace Movies.ViewModels
 
         private ChainLink<EventArgsAsyncWrapper<IEnumerable<ResourceRequestArgs<Uri>>>> Controller => DataService.Instance.Controller;
 
+        protected Task BatchRequest => BatchRequestSource?.Task ?? Task.CompletedTask;
+        private TaskCompletionSource<bool> BatchRequestSource;
+
         protected delegate bool TryGet<T>(out T value);
 
 #if true
@@ -52,6 +55,8 @@ namespace Movies.ViewModels
             Batched = new Dictionary<string, RestRequestArgs>();
 
             await Controller.Get(batch.Values);
+            BatchRequestSource.SetResult(true);
+            BatchRequestSource = null;
 
             foreach (var kvp in batch)
             {
@@ -78,6 +83,7 @@ namespace Movies.ViewModels
                 }
 
                 Batched[propertyName] = new RestRequestArgs(new UniformItemIdentifier(Item, property), property.FullType);
+                BatchRequestSource ??= new TaskCompletionSource<bool>();
                 DataService.Instance.BatchCommitted -= BatchEnded;
                 DataService.Instance.BatchCommitted += BatchEnded;
 

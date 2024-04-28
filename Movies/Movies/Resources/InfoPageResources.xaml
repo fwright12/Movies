@@ -76,15 +76,15 @@
                     <Label Text="{Binding Score}"
                            VerticalTextAlignment="Center"
                            FontAttributes="Bold"
-                           FontSize="{OnPlatform Android=Title}"
-                           TextColor="{AppThemeBinding Light={StaticResource LightPrimaryText}, Dark={StaticResource DarkPrimaryText}}"
-                           views:Extensions.AutoSizeFont="True" />
+                           FontSize="Title"
+                           TextColor="{AppThemeBinding Light={StaticResource LightPrimaryText}, Dark={StaticResource DarkPrimaryText}}" />
                 </StackLayout>
 
                 <Label Text="See Reviews >"
                        FontSize="Caption"
                        HorizontalTextAlignment="End"
-                       LineBreakMode="HeadTruncation" />
+                       LineBreakMode="HeadTruncation"
+                       Opacity="{Binding Reviews, Converter={Static viewmodels:NullToBooleanIntConverter.Instance}}"/>
             </StackLayout>
         </Frame>
     </DataTemplate>

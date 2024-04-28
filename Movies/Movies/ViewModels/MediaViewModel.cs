@@ -92,16 +92,7 @@ namespace Movies.ViewModels
             };
 
             RequestValue(Media.RATING, tmdbRating);
-
-            var itr = App.Current.RatingTemplateManager.Items.GetEnumerator();
-            for (int i = 1; itr.MoveNext(); i++)
-            {
-                try
-                {
-                    UpdateRatingAsync(i, GetRatingAsync(itr.Current));
-                }
-                catch { }
-            }
+            UpdateRatings(App.Current.RatingTemplateManager.Items);
 
             return new ObservableCollection<Rating>(App.Current.RatingTemplateManager.Items.Select(template => new Rating
             {
@@ -123,16 +114,128 @@ namespace Movies.ViewModels
             _Ratings[index] = rating;
         }
 
-        private async void UpdateRatingAsync(int index, Task<Rating> rating)
+        private async void UpdateRatings(IEnumerable<RatingTemplate> templates)
         {
             try
             {
-                UpdateRating(index, await rating);
+                await UpdateRatingsAsync(templates);
             }
             catch (Exception e)
             {
                 System.Diagnostics.Debug.WriteLine(e);
             }
+        }
+
+        private static async Task<string> EvaluateJsSafe(IJavaScriptEvaluator evaluator, string script)
+        {
+            try
+            {
+                return await evaluator.Evaluate(script);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private async Task UpdateRatingsAsync(IEnumerable<RatingTemplate> templates)
+        {
+            await BatchRequest;
+
+            var json = await GetMediaJsonAsync((Media)Item);
+            var urlEvaluator = App.JavaScriptEvaluatorFactory.Create();
+            var responses = await Task.WhenAll(templates.Select(template => EvaluateJsSafe(urlEvaluator, json + ";" + template.URLJavaScipt)));
+            urlEvaluator.Dispose();
+
+            var evaluators = new Dictionary<string, Lazy<IJavaScriptEvaluator>>();
+            var results = new Lazy<IJavaScriptEvaluator>[responses.Length][];
+
+            for (int i = 0; i < responses.Length; i++)
+            {
+                var response = responses[i];
+                if (response == null)
+                {
+                    results[i] = new Lazy<IJavaScriptEvaluator>[0];
+                    continue;
+                }
+
+                var doc = JsonDocument.Parse(response);
+                var urls = doc.RootElement.ValueKind == JsonValueKind.Array
+                    ? doc.RootElement.EnumerateArray().Select(element => element.ToString()).ToArray()
+                    : new string[] { doc.RootElement.ToString() };
+                var result = results[i] = new Lazy<IJavaScriptEvaluator>[urls.Length];
+
+                for (int j = 0; j < urls.Length; j++)
+                {
+                    var url = urls[j];
+                    if (!evaluators.TryGetValue(url, out var evaluator))
+                    {
+                        evaluators.Add(url, evaluator = new Lazy<IJavaScriptEvaluator>(() => App.JavaScriptEvaluatorFactory.Create(url)));
+                    }
+
+                    result[j] = evaluator;
+                }
+            }
+
+            var tasks = templates.Zip(results, GetRatingAsync).ToList();
+            var remaining = new List<Task<Rating>>(tasks);
+            while (remaining.Count > 0)
+            {
+                var task = await Task.WhenAny(remaining);
+                remaining.Remove(task);
+
+                UpdateRating(tasks.IndexOf(task) + 1, await task);
+            }
+
+            foreach (var evaluator in results.SelectMany(result => result))
+            {
+                if (evaluator.IsValueCreated)
+                {
+                    evaluator.Value.Dispose();
+                }
+            }
+        }
+
+        private async Task<Rating> GetRatingAsync(RatingTemplate template, IEnumerable<Lazy<IJavaScriptEvaluator>> evaluators)
+        {
+            var rating = new Rating
+            {
+                Company = new Company
+                {
+                    Name = template.Name,
+                    LogoPath = template.LogoURL
+                },
+            };
+
+            foreach (var evaluator in evaluators)
+            {
+                try
+                {
+                    var json = await evaluator.Value.Evaluate(template.ScoreJavaScript);
+                    var doc = JsonDocument.Parse(json);
+
+                    if (doc.RootElement.ValueKind == JsonValueKind.Object)
+                    {
+                        if (doc.RootElement.TryGetProperty("score", out var scoreElem))
+                        {
+                            rating.Score = scoreElem.ToString();
+                        }
+                        if (doc.RootElement.TryGetProperty("logo", out var logoElem))
+                        {
+                            rating.Company.LogoPath = logoElem.ToString();
+                        }
+                    }
+                    else
+                    {
+                        rating.Score = doc.RootElement.ToString();
+                    }
+
+                    break;
+                }
+                catch { }
+            }
+
+            return rating;
         }
 
         private static async Task<string> GetMediaJsonAsync(Media media)
@@ -176,134 +279,6 @@ namespace Movies.ViewModels
 
             return json + " }";
         }
-
-        private async Task<Rating> GetRatingAsync(RatingTemplate template)
-        {
-            try
-            {
-                var rating = new Rating
-                {
-                    Company = new Company
-                    {
-                        Name = template.Name,
-                        LogoPath = template.LogoURL
-                    },
-                };
-
-                try
-                {
-                    var json = await GetMediaJsonAsync((Media)Item);
-                    var response = await App.JavaScriptEvaluator.Evaluate(json + ";" + template.URLJavaScipt);
-                    Print.Log(response);
-                    var doc = JsonDocument.Parse(response);
-                    var urls = doc.RootElement.ValueKind == JsonValueKind.Array ? doc.RootElement.EnumerateArray().Select(element => element.ToString()) : new string[] { doc.RootElement.ToString() };
-
-                    Print.Log("urls: " + string.Join(", ", urls));
-
-                    foreach (var url in urls)
-                    {
-                        try
-                        {
-                            var esacpedUrl = new Uri(url.ToLower(), UriKind.RelativeOrAbsolute).ToString();
-                            response = await App.JavaScriptEvaluator.Evaluate(template.ScoreJavaScript);
-                            doc = JsonDocument.Parse(response);
-
-                            if (doc.RootElement.ValueKind == JsonValueKind.Object)
-                            {
-                                if (doc.RootElement.TryGetProperty("score", out var scoreElem))
-                                {
-                                    rating.Score = scoreElem.ToString();
-                                }
-                                if (doc.RootElement.TryGetProperty("logo", out var logoElem))
-                                {
-                                    rating.Company.LogoPath = logoElem.ToString();
-                                }
-                            }
-                            else
-                            {
-                                rating.Score = doc.RootElement.ToString();
-                            }
-
-                            break;
-                        }
-                        catch { }
-                    }
-                }
-                catch (Exception e)
-                {
-                    System.Diagnostics.Debug.WriteLine(e);
-                    return rating;
-                }
-
-                return rating;
-            }
-            catch (Exception e)
-            {
-                Print.Log(e);
-                return null;
-            }
-        }
-
-        public static string[] ApplyToTemplate(string template, Media media)
-        {
-            var urls = new List<string> { template };
-
-            foreach (var match in Regex.Matches(template, "\\${(.+?)}").Reverse())
-            {
-                var substitutions = Substitute(match.Groups[1].Value, media);
-                var temp = new List<string>();
-
-                foreach (var substitute in substitutions)
-                {
-                    foreach (var url in urls)
-                    {
-                        temp.Add(url.Substring(0, match.Index) + substitute + url.Substring(match.Index + match.Length));
-                    }
-                }
-
-                urls = temp;
-            }
-
-            return urls.ToArray();
-        }
-
-        private static object[] Substitute(string property, Media media)
-        {
-            if (property == "title") return new object[] { media.Title };
-            else if (property == "year") return new object[] { media.Year };
-            else if (property.StartsWith("id."))
-            {
-                property = property.Substring(3);
-
-                if (property == "tmdb")
-                {
-                    if (media.TryGetID(TMDB.ID, out var tmdbId)) return new object[] { tmdbId };
-                }
-                else if (property == "imdb")
-                {
-                    if (media.TryGetID(IMDb.ID, out var imdbId)) return new object[] { imdbId };
-                }
-                else if (property == "rt")
-                {
-                    List<string> ids = new List<string>
-                    {
-                        $"{media.Title}_{media.Year}",
-                        $"{media.Title}",
-                    };
-
-                    if (media.Title.ToLower().StartsWith("the"))
-                    {
-                        ids.Insert(1, ids[0]);
-                        ids.Insert(3, ids[2]);
-                    }
-
-                    return ids.ToArray();
-                }
-            }
-
-            throw new Exception($"Unknown property {property}");
-        }
-
         public static List<Group<Credit>> GetCrew(IEnumerable<Credit> crew)
         {
             if (crew == null)

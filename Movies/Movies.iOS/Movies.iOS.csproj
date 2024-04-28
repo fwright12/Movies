@@ -27,7 +27,7 @@
     <WarningLevel>4</WarningLevel>
     <ConsolePause>false</ConsolePause>
     <MtouchArch>x86_64</MtouchArch>
-    <MtouchLink>None</MtouchLink>
+    <MtouchLink>SdkOnly</MtouchLink>
     <MtouchDebug>true</MtouchDebug>
     <CodesignKey>Apple Development: Created via API (UJYAVK5R6G)</CodesignKey>
     <CodesignProvision>VS: com.gml.MoviesDebug Development</CodesignProvision>
@@ -111,6 +111,7 @@
   <ItemGroup>
     <Compile Include="AdRenderer.cs" />
     <Compile Include="DrawerViewRenderer.cs" />
+    <Compile Include="LabelRenderer.cs" />
     <Compile Include="ItemsViewRenderer.cs" />
     <Compile Include="JavaScriptEvaluator.cs" />
     <Compile Include="Main.cs" />
@@ -223,7 +224,7 @@
   </ItemGroup>
   <ProjectExtensions>
     <VisualStudio>
-      <UserProperties XamarinHotReloadWrongLinkerErrorInfoBarMoviesiOSHideInfoBar="True" XamarinHotReloadMonoInterpreterErrorInfoBarMoviesiOSHideInfoBar="True" />
+      <UserProperties XamarinHotReloadMonoInterpreterErrorInfoBarMoviesiOSHideInfoBar="True" XamarinHotReloadWrongLinkerErrorInfoBarMoviesiOSHideInfoBar="True" />
     </VisualStudio>
   </ProjectExtensions>
 </Project>

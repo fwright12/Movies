@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Globalization;
+using System.Windows.Input;
 using Xamarin.Forms;
 
 namespace Movies.ViewModels
@@ -13,6 +14,18 @@ namespace Movies.ViewModels
     public class OpenReviewsCommand : PushPageCommand
     {
         public override bool CanExecute(object parameter) => false == parameter is Rating rating || rating.Reviews != null;
+    }
+
+    public class NullToBooleanIntConverter : IValueConverter
+    {
+        public static readonly NullToBooleanIntConverter Instance = new NullToBooleanIntConverter();
+
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture) => value == null ? 0 : 1;
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
     }
 
     public class NewObjectConverter<T> : IValueConverter where T : new()
@@ -25,7 +38,7 @@ namespace Movies.ViewModels
         }
     }
 
-    public class CollectionManagerViewModel<T> : BindableViewModel where T : new()
+    public class CollectionManagerViewModel<T> : BindableViewModel
     {
         public ICollection<T> Items { get; }
         public T SelectedItem

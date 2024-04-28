@@ -6,8 +6,48 @@
              xmlns:viewmodels="clr-namespace:Movies.ViewModels"
              xmlns:views="clr-namespace:Movies.Views"
              x:Class="Movies.Views.RatingsBuilderPage"
-             BindingContext="{Binding RatingTemplateManager, Source={Static Application.Current}}">
+             BindingContext="{Binding RatingTemplateManager, Source={Static Application.Current}}"
+             views:Extensions.DisappearingCommand="{Binding SaveRatingTemplatesCommand, Source={Static Application.Current}}">
+    <ContentPage.ToolbarItems>
+        <ToolbarItem IsDestructive="True"
+                     Command="{Binding RemoveCommand}"
+                     CommandParameter="{Binding CurrentItem, Source={x:Reference carouselView}}">
+            <ToolbarItem.IconImageSource>
+                <FontImageSource Glyph="{OnPlatform iOS=&#xf4c4;, Android=&#xf37f;}"
+                                 FontFamily="{StaticResource IoniconsFont}" />
+            </ToolbarItem.IconImageSource>
+        </ToolbarItem>
+
+        <ToolbarItem Command="{Binding AddCommand}">
+            <ToolbarItem.IconImageSource>
+                <FontImageSource Glyph="&#xf218;"
+                                 Size="Large"
+                                 FontFamily="{StaticResource IoniconsFont}" />
+            </ToolbarItem.IconImageSource>
+
+            <ToolbarItem.CommandParameter>
+                <Binding Path="Items.Count">
+                    <Binding.Converter>
+                        <viewmodels:NewObjectConverter x:TypeArguments="models:RatingTemplate" />
+                    </Binding.Converter>
+                </Binding>
+            </ToolbarItem.CommandParameter>
+        </ToolbarItem>
+    </ContentPage.ToolbarItems>
+
     <VisualElement.Resources>
+        <Style x:Key="DoneButtonStyle"
+               TargetType="Button">
+            <Setter Property="Text"
+                    Value="Done" />
+            <Setter Property="HorizontalOptions"
+                    Value="End" />
+            <Setter Property="FontSize"
+                    Value="Body" />
+            <Setter Property="Command"
+                    Value="{views:PopPageCommand Modal=True}" />
+        </Style>
+
         <DataTemplate x:Key="UrlJsExplainerTemplate">
             <ContentPage Title="URL JavaScript"
                          Padding="{StaticResource PagePadding}"
@@ -15,26 +55,25 @@
                 <ScrollView Orientation="Vertical">
                     <StackLayout Orientation="Vertical"
                                  Spacing="20">
-                        <Button Text="Done"
-                                HorizontalOptions="End" 
-                                Command="{views:PopPageCommand Modal=True}"/>
-                        
+                        <Button Style="{StaticResource DoneButtonStyle}" />
+
                         <Label Text="The JavaScript in this section determines the URL from which the score for a movie or show can be accessed. The environment that this JavaScript is executed in will have access to the following object with information about the movie or show, which can be used to construct the URL:" />
+
                         <Label FontSize="Small"
-                               Margin="0,-20,0,0">
+                               Margin="10,0,0,0">
                             <Label.Text>
                                 item: {
-        title: string
-        year: number
-        id: {
-            tmdb: number
-            imdb: string
-            wikidata: string
-            facebook: string
-            instagram: string
-            twitter: string
-        }
+    title: string
+    year: number
+    id: {
+        tmdb: number
+        imdb: string
+        wikidata: string
+        facebook: string
+        instagram: string
+        twitter: string
     }
+}
                             </Label.Text>
                         </Label>
 
@@ -52,10 +91,8 @@
                          ios:Page.ModalPresentationStyle="Automatic">
                 <ScrollView Orientation="Vertical">
                     <StackLayout Orientation="Vertical">
-                        <Button Text="Done"
-                                HorizontalOptions="End"
-                                Command="{views:PopPageCommand Modal=True}" />
-                        
+                        <Button Style="{StaticResource DoneButtonStyle}" />
+
                         <Label Text="The result of evaluting this JavaScript in a REPL environment containing the target webpage should be a single string representing the value to be displayed as the score for a movie or show." />
                     </StackLayout>
                 </ScrollView>
@@ -63,163 +100,108 @@
         </DataTemplate>
     </VisualElement.Resources>
 
-    <ContentPage.ToolbarItems>
-        <ToolbarItem Text="i">
-            <ToolbarItem.Command>
-                <views:PushPageCommand>
-                    <DataTemplate>
-                        <ContentPage Padding="{StaticResource PagePadding}">
-                            <ScrollView Orientation="Vertical">
-                                <StackLayout Orientation="Vertical">
-                                    <Label Text="Build templates for additional ratings to be displayed for movies and shows. A knowledge of JavaScript/JSON is required here as templates are specified using syntax from that language." />
+    <StackLayout Padding="{StaticResource PagePadding}">
+        <IndicatorView x:Name="indicatorView"
+                       IndicatorColor="{AppThemeBinding Light={StaticResource LightSecondaryBackground}, Dark={StaticResource DarkSecondaryBackground}}"
+                       SelectedIndicatorColor="{StaticResource Primary}" />
 
-                                    <Label Text="The area labeled 'JavaScript' should contain JavaScript code that, when executed on the target webpage, will return a string value representing the rating to be displayed for a movie or show." />
+        <CarouselView x:Name="carouselView"
+                      ItemsSource="{Binding Items}"
+                      CurrentItem="{Binding SelectedItem}"
+                      IndicatorView="indicatorView"
+                      Loop="false">
+            <CarouselView.ItemTemplate>
+                <DataTemplate x:DataType="models:RatingTemplate">
+                    <ScrollView Orientation="Vertical">
+                        <StackLayout>
+                            <StackLayout.Resources>
+                                <Style TargetType="Entry">
+                                    <Setter Property="WidthRequest"
+                                            Value="0" />
+                                    <Setter Property="HorizontalOptions"
+                                            Value="FillAndExpand" />
+                                </Style>
 
-                                    <Label Text="The target webpage is determined by evaluating the template URL using the JSON object for a given movie or show. The schema for the JSON object is specified below:" />
-                                    <Label FontSize="Small">
-                                        <Label.Text>
-                                            {
-        title: The title of the movie or show
-        year: The year the movie was released. For shows, this will be the year the first episode aired
-        id: {
-            tmdb
-            imdb
-            rt
-        }
-    }
-                                        </Label.Text>
-                                    </Label>
+                                <Style TargetType="Editor">
+                                    <Setter Property="FontSize"
+                                            Value="Small" />
+                                    <Setter Property="HeightRequest"
+                                            Value="400" />
+                                    <Setter Property="BackgroundColor"
+                                            Value="{AppThemeBinding Light={StaticResource LightSecondaryBackground}, Dark={StaticResource DarkSecondaryBackground}}" />
+                                </Style>
 
-                                    <Label Text="The template URL should be defined using JavaScript template literal/string syntax (backticks not needed). For example, the following could be valid template urls:" />
-                                    <Label Text="   https://www.website.com/movie/${title}"
-                                           FontSize="Small" />
-                                    <Label Text="   https://www.website.com/${id.tmdb}"
-                                           FontSize="Small" />
-                                </StackLayout>
-                            </ScrollView>
-                        </ContentPage>
-                    </DataTemplate>
-                </views:PushPageCommand>
-            </ToolbarItem.Command>
-        </ToolbarItem>
-    </ContentPage.ToolbarItems>
+                                <Style x:Key="InfoButtonStyle"
+                                       TargetType="ImageButton">
+                                    <Setter Property="BackgroundColor"
+                                            Value="Transparent" />
 
-    <ContentPage.Content>
-        <StackLayout Padding="{StaticResource PagePadding}">
-            <IndicatorView x:Name="indicatorView"
-                           IndicatorColor="{AppThemeBinding Light={StaticResource LightSecondaryBackground}, Dark={StaticResource DarkSecondaryBackground}}"
-                           SelectedIndicatorColor="{StaticResource Primary}" />
+                                    <Setter Property="Source">
+                                        <FontImageSource Glyph="&#9432;"
+                                                         FontFamily="{StaticResource IoniconsFont}"
+                                                         Size="Large"
+                                                         Color="{StaticResource Primary}" />
+                                    </Setter>
+                                </Style>
 
-            <CarouselView x:Name="carouselView"
-                          ItemsSource="{Binding Items}"
-                          CurrentItem="{Binding SelectedItem}"
-                          IndicatorView="indicatorView"
-                          Loop="false">
-                <CarouselView.ItemTemplate>
-                    <DataTemplate x:DataType="models:RatingTemplate">
-                        <ScrollView Orientation="Vertical">
-                            <StackLayout>
-                                <StackLayout.Resources>
-                                    <Style TargetType="Entry">
-                                        <Setter Property="WidthRequest"
-                                                Value="0" />
-                                        <Setter Property="HorizontalOptions"
-                                                Value="FillAndExpand" />
-                                    </Style>
+                                <Style x:Key="SpacerStyle"
+                                       TargetType="BoxView">
+                                    <Setter Property="BackgroundColor"
+                                            Value="Transparent" />
+                                    <Setter Property="FlexLayout.Basis"
+                                            Value="5" />
+                                </Style>
+                            </StackLayout.Resources>
 
-                                    <Style TargetType="Editor">
-                                        <Setter Property="FontSize"
-                                                Value="Small" />
-                                        <Setter Property="HeightRequest"
-                                                Value="400" />
-                                        <Setter Property="BackgroundColor"
-                                                Value="{AppThemeBinding Light={StaticResource LightSecondaryBackground}, Dark={StaticResource DarkSecondaryBackground}}" />
-                                    </Style>
+                            <FlexLayout Direction="Row"
+                                        AlignContent="Center">
+                                <Label Text="Name:"
+                                       VerticalOptions="Center" />
+                                <BoxView Style="{StaticResource SpacerStyle}" />
+                                <Entry VerticalOptions="Center"
+                                       Text="{Binding Name, Mode=TwoWay}"
+                                       FlexLayout.Grow="1" />
+                            </FlexLayout>
 
-                                    <Style x:Key="InfoButtonStyle"
-                                           TargetType="Button">
-                                        <Setter Property="Text"
-                                                Value="i" />
-                                    </Style>
+                            <FlexLayout Direction="Row"
+                                        AlignContent="Center">
+                                <Label Text="Logo URL:"
+                                       VerticalOptions="Center" />
+                                <BoxView Style="{StaticResource SpacerStyle}" />
+                                <Entry VerticalOptions="Center"
+                                       Text="{Binding LogoURL, Mode=TwoWay}"
+                                       Placeholder="https://www.example.com/logo.png"
+                                       FlexLayout.Grow="1" />
+                            </FlexLayout>
 
-                                    <Style x:Key="SpacerStyle"
-                                           TargetType="BoxView">
-                                        <Setter Property="BackgroundColor"
-                                                Value="Transparent" />
-                                        <Setter Property="FlexLayout.Basis"
-                                                Value="10" />
-                                    </Style>
-                                </StackLayout.Resources>
-
-                                <FlexLayout Direction="Row"
-                                            AlignContent="Center">
-                                    <Label Text="Name:"
-                                           VerticalOptions="Center" />
-                                    <BoxView Style="{StaticResource SpacerStyle}" />
-                                    <Entry VerticalOptions="Center"
-                                           Text="{Binding Name, Mode=TwoWay}"
-                                           FlexLayout.Grow="1" />
-                                </FlexLayout>
-
-                                <FlexLayout Direction="Row"
-                                            AlignContent="Center">
-                                    <Label Text="Logo URL:"
-                                           VerticalOptions="Center" />
-                                    <BoxView Style="{StaticResource SpacerStyle}" />
-                                    <Entry VerticalOptions="Center"
-                                           Text="{Binding LogoURL, Mode=TwoWay}"
-                                           Placeholder="https://www.example.com/logo.png"
-                                           FlexLayout.Grow="1" />
-                                </FlexLayout>
-
-                                <FlexLayout Direction="Row"
-                                            AlignContent="Center">
-                                    <Label Text="URL JavaScript:" />
-                                    <Button Style="{StaticResource InfoButtonStyle}"
-                                            Command="{views:PushPageCommand PageTemplate={StaticResource UrlJsExplainerTemplate}, Modal=True}" />
-                                </FlexLayout>
-                                <Editor Text="{Binding URLJavaScipt, Mode=TwoWay}">
-                                    <Editor.Placeholder>
-                                        title = item.title.replaceAll(' ', '_').toLowerCase();
+                            <FlexLayout Direction="Row"
+                                        AlignContent="Center">
+                                <Label Text="URL JavaScript:" />
+                                <BoxView Style="{StaticResource SpacerStyle}" />
+                                <ImageButton Style="{StaticResource InfoButtonStyle}"
+                                             Command="{views:PushPageCommand PageTemplate={StaticResource 
+                                        UrlJsExplainerTemplate}, Modal=True}" />
+                            </FlexLayout>
+                            <Editor Text="{Binding URLJavaScipt, Mode=TwoWay}">
+                                <Editor.Placeholder>
+                                    title = item.title.replaceAll(' ', '_').toLowerCase();
 `https://www.website.com/movie/${title}`;
-                                    </Editor.Placeholder>
-                                </Editor>
+                                </Editor.Placeholder>
+                            </Editor>
 
-                                <FlexLayout Direction="Row"
-                                            AlignContent="Center">
-                                    <Label Text="Score Javascript:" />
-                                    <Button Style="{StaticResource InfoButtonStyle}"
-                                            Command="{views:PushPageCommand PageTemplate={StaticResource ScoreJsExplainerTemplate}, Modal=True}" />
-                                </FlexLayout>
-                                <Editor Text="{Binding ScoreJavaScript, Mode=TwoWay}"
-                                        Placeholder="document.getElementById('score').textContent" />
-                            </StackLayout>
-                        </ScrollView>
-                    </DataTemplate>
-                </CarouselView.ItemTemplate>
-            </CarouselView>
-
-            <FlexLayout Direction="Row"
-                        JustifyContent="SpaceBetween">
-                <Button Text="Delete"
-                        TextColor="Red"
-                        Command="{Binding RemoveCommand}"
-                        CommandParameter="{Binding CurrentItem, Source={x:Reference carouselView}}" />
-                <Button Text="Save"
-                        Command="{Binding SaveRatingTemplatesCommand, Source={Static Application.Current}}" />
-                <Button Text="New Rating Template"
-                        TextColor="{StaticResource Primary}"
-                        Command="{Binding AddCommand}"
-                        HorizontalOptions="EndAndExpand">
-                    <Button.CommandParameter>
-                        <Binding Path="Items.Count">
-                            <Binding.Converter>
-                                <viewmodels:NewObjectConverter x:TypeArguments="models:RatingTemplate" />
-                            </Binding.Converter>
-                        </Binding>
-                    </Button.CommandParameter>
-                </Button>
-            </FlexLayout>
-        </StackLayout>
-    </ContentPage.Content>
+                            <FlexLayout Direction="Row"
+                                        AlignContent="Center">
+                                <Label Text="Score Javascript:" />
+                                <BoxView Style="{StaticResource SpacerStyle}" />
+                                <ImageButton Style="{StaticResource InfoButtonStyle}"
+                                             Command="{views:PushPageCommand PageTemplate={StaticResource ScoreJsExplainerTemplate}, Modal=True}" />
+                            </FlexLayout>
+                            <Editor Text="{Binding ScoreJavaScript, Mode=TwoWay}"
+                                    Placeholder="document.getElementById('score').textContent" />
+                        </StackLayout>
+                    </ScrollView>
+                </DataTemplate>
+            </CarouselView.ItemTemplate>
+        </CarouselView>
+    </StackLayout>
 </ContentPage>

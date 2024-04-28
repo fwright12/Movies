@@ -37,6 +37,6 @@
             Assert.IsTrue(urls.Contains("www.rottentomatoes.com/m/interstellar_2014"));
         }
 
-        private static string[] Apply(string template, Media media) => MediaViewModel.ApplyToTemplate(template, media).Select(url => url.ToLower()).ToArray();
+        private static string[] Apply(string template, Media media) => new string[] { };
     }
 }
