@@ -15,7 +15,7 @@ namespace Movies.Data
                 Name = "Rotten Tomatoes",
                 //LogoURL = "https://www.rottentomatoes.com/assets/pizza-pie/images/rottentomatoes_logo_40.336d6fe66ff.png",
                 URLJavaScipt = @"
-titles = [item.title.split(' ').join('_').split(/\\W/g).join('').toLowerCase()];
+titles = [item.title.split(' ').join('_').split(/\W/g).join('').toLowerCase()];
 if (titles[0].startsWith('the_')) titles.push(titles[0].substring(4));
 titles.flatMap(title => [`https://www.rottentomatoes.com/m/${title}_${item.year}`, `https://www.rottentomatoes.com/m/${title}`])
 ",
@@ -25,7 +25,7 @@ titles.flatMap(title => [`https://www.rottentomatoes.com/m/${title}_${item.year}
             {
                 Name = "Rotten Tomatoes",
                 URLJavaScipt = @"
-titles = [item.title.split(' ').join('_').split(/\\W/g).join('').toLowerCase()];
+titles = [item.title.split(' ').join('_').split(/\W/g).join('').toLowerCase()];
 if (titles[0].startsWith('the_')) titles.push(titles[0].substring(4));
 titles.flatMap(title => [`https://www.rottentomatoes.com/m/${title}_${item.year}`, `https://www.rottentomatoes.com/m/${title}`])
 ",
@@ -43,6 +43,10 @@ titles.flatMap(title => [`https://www.rottentomatoes.com/m/${title}_${item.year}
 `www.twitter.com/${item.id.twitter}`,
 ]",
                 ScoreJavaScript = "return 4;"
+            },
+            new RatingTemplate
+            {
+                Name = "Empty",
             }
         };
     }

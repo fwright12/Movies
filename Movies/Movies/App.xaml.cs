@@ -41,6 +41,16 @@ namespace Movies
      * 
      */
 
+    public static class JavaScriptEvaluationService
+    {
+        public static IJavaScriptEvaluatorFactory Factory { get; private set; }
+
+        public static void Register(IJavaScriptEvaluatorFactory factory)
+        {
+            Factory = factory;
+        }
+    }
+
     public partial class App : Application
     {
         public static readonly string[] AdKeywords = "movie,tv,shows,tv show,series,streaming,entertainment,watch,list,film,actor,guide,library,theater".Split(',').ToArray();
@@ -151,13 +161,6 @@ namespace Movies
         {
         }
 #endif
-
-        public static IJavaScriptEvaluatorFactory JavaScriptEvaluatorFactory { get; private set; }
-
-        public App(IJavaScriptEvaluatorFactory javaScriptEvaluatorFactory) : this()
-        {
-            JavaScriptEvaluatorFactory = javaScriptEvaluatorFactory;
-        }
 
         public App()
         {
@@ -594,7 +597,7 @@ namespace Movies
             {
                 return _Popular;
             }
-
+            
             _Popular = new CollectionViewModel(null, TMDB.Database.Instance, ItemType.Movie | ItemType.TVShow | ItemType.Person | ItemType.Collection, TMDB.Database.Instance)// | ItemType.Company)
             {
                 //Name = "Popular",
@@ -802,7 +805,7 @@ namespace Movies
 
         public static TimeSpan LogoCacheValidity = new TimeSpan(7, 0, 0, 0);
 
-        public CollectionManagerViewModel<RatingTemplate> RatingTemplateManager { get; } = new CollectionManagerViewModel<RatingTemplate>();
+        public RatingTemplateCollectionViewModel RatingTemplateManager { get; } = new RatingTemplateCollectionViewModel();
 
         protected override void OnStart()
         {
@@ -814,7 +817,8 @@ namespace Movies
             if (Properties.TryGetValue(RATING_TEMPLATES_KEY, out var templatesObj))
             {
                 var templates = JsonSerializer.Deserialize<IEnumerable<RatingTemplate>>(templatesObj.ToString());
-                //RatingTemplateManager.Items.Add(templates.First());
+                //templates.Last().ScoreJavaScript = "9";
+                //RatingTemplateManager.Items.Add(templates.Last());
                 RatingTemplateManager.Items.AddRange(templates);
             }
         }

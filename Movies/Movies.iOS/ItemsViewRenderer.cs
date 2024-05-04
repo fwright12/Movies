@@ -1,11 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using Movies.Views;
+using System;
 using System.ComponentModel;
 using System.Linq;
-using System.Text;
-
-using Foundation;
-using Movies.Views;
 using UIKit;
 using Xamarin.Forms;
 using Xamarin.Forms.Platform.iOS;
@@ -14,7 +10,6 @@ using Xamarin.Forms.Platform.iOS;
 //[assembly: ExportRenderer(typeof(ScrollView), typeof(Movies.iOS.ScrollViewRenderer))]
 //[assembly: ExportRenderer(typeof(PageRenderer), typeof(Movies.iOS.PageRenderer))]
 //[assembly: ExportRenderer(typeof(Shell), typeof(Movies.iOS.Test))]
-[assembly: ExportRenderer(typeof(SearchBar), typeof(Movies.iOS.SearchBarRenderer))]
 [assembly: ExportRenderer(typeof(CollectionView), typeof(Movies.iOS.CollectionViewRenderer))]
 [assembly: ExportRenderer(typeof(CarouselView), typeof(Movies.iOS.CarouselViewRenderer))]
 [assembly: ResolutionGroupName("Movies")]
@@ -83,32 +78,6 @@ namespace Movies.iOS
         public EntryRenderer()
         {
             
-        }
-    }
-
-    public class SearchBarRenderer : Xamarin.Forms.Platform.iOS.SearchBarRenderer
-    {
-        protected override void OnElementChanged(ElementChangedEventArgs<SearchBar> e)
-        {
-            base.OnElementChanged(e);
-
-            if (Control != null)
-            {
-                UISearchBar.Appearance.TintColor = e.NewElement?.CancelButtonColor.ToUIColor();
-
-                Control.TextChanged += (sender, e1) =>
-                {
-                    Control.ShowsCancelButton = true;
-                };
-                Control.OnEditingStarted += (sender, e1) =>
-                {
-                    Control.SetShowsCancelButton(true, true);
-                };
-                Control.OnEditingStopped += (sender, e1) =>
-                {
-                    Control.SetShowsCancelButton(false, true);
-                };
-            }
         }
     }
 

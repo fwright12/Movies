@@ -32,8 +32,9 @@ namespace Movies.Droid
 
             //Firebase.InitializeApp(this);
             AndroidAppLinks.Init(this);
-            
-            LoadApplication(app as App ?? new App(new JavaScriptEvaluatorFactory(ApplicationContext)));
+
+            JavaScriptEvaluationService.Register(new JavaScriptEvaluatorFactory(ApplicationContext));
+            LoadApplication(app as App ?? new App());
         }
     }
 }

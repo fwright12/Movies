@@ -61,6 +61,10 @@ namespace Movies.Droid
 
         public async Task<string> Evaluate(string javaScript)
         {
+            if (javaScript == null)
+            {
+                throw new ArgumentNullException(nameof(javaScript));
+            }
             await LoadUrlTask;
 
             Client.ClearConsole();

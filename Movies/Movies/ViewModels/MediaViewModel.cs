@@ -92,7 +92,7 @@ namespace Movies.ViewModels
             };
 
             RequestValue(Media.RATING, tmdbRating);
-            UpdateRatings(App.Current.RatingTemplateManager.Items);
+            UpdateRatings(App.Current.RatingTemplateManager);
 
             return new ObservableCollection<Rating>(App.Current.RatingTemplateManager.Items.Select(template => new Rating
             {
@@ -114,7 +114,7 @@ namespace Movies.ViewModels
             _Ratings[index] = rating;
         }
 
-        private async void UpdateRatings(IEnumerable<RatingTemplate> templates)
+        private async void UpdateRatings(RatingTemplateCollectionViewModel templates)
         {
             try
             {
@@ -126,58 +126,11 @@ namespace Movies.ViewModels
             }
         }
 
-        private static async Task<string> EvaluateJsSafe(IJavaScriptEvaluator evaluator, string script)
-        {
-            try
-            {
-                return await evaluator.Evaluate(script);
-            }
-            catch
-            {
-                return null;
-            }
-        }
-
-        private async Task UpdateRatingsAsync(IEnumerable<RatingTemplate> templates)
+        private async Task UpdateRatingsAsync(RatingTemplateCollectionViewModel templates)
         {
             await BatchRequest;
 
-            var json = await GetMediaJsonAsync((Media)Item);
-            var urlEvaluator = App.JavaScriptEvaluatorFactory.Create();
-            var responses = await Task.WhenAll(templates.Select(template => EvaluateJsSafe(urlEvaluator, json + ";" + template.URLJavaScipt)));
-            urlEvaluator.Dispose();
-
-            var evaluators = new Dictionary<string, Lazy<IJavaScriptEvaluator>>();
-            var results = new Lazy<IJavaScriptEvaluator>[responses.Length][];
-
-            for (int i = 0; i < responses.Length; i++)
-            {
-                var response = responses[i];
-                if (response == null)
-                {
-                    results[i] = new Lazy<IJavaScriptEvaluator>[0];
-                    continue;
-                }
-
-                var doc = JsonDocument.Parse(response);
-                var urls = doc.RootElement.ValueKind == JsonValueKind.Array
-                    ? doc.RootElement.EnumerateArray().Select(element => element.ToString()).ToArray()
-                    : new string[] { doc.RootElement.ToString() };
-                var result = results[i] = new Lazy<IJavaScriptEvaluator>[urls.Length];
-
-                for (int j = 0; j < urls.Length; j++)
-                {
-                    var url = urls[j];
-                    if (!evaluators.TryGetValue(url, out var evaluator))
-                    {
-                        evaluators.Add(url, evaluator = new Lazy<IJavaScriptEvaluator>(() => App.JavaScriptEvaluatorFactory.Create(url)));
-                    }
-
-                    result[j] = evaluator;
-                }
-            }
-
-            var tasks = templates.Zip(results, GetRatingAsync).ToList();
+            var tasks = new List<Task<Rating>>(await templates.ApplyTemplatesAsync((Media)Item));
             var remaining = new List<Task<Rating>>(tasks);
             while (remaining.Count > 0)
             {
@@ -186,99 +139,8 @@ namespace Movies.ViewModels
 
                 UpdateRating(tasks.IndexOf(task) + 1, await task);
             }
-
-            foreach (var evaluator in results.SelectMany(result => result))
-            {
-                if (evaluator.IsValueCreated)
-                {
-                    evaluator.Value.Dispose();
-                }
-            }
         }
 
-        private async Task<Rating> GetRatingAsync(RatingTemplate template, IEnumerable<Lazy<IJavaScriptEvaluator>> evaluators)
-        {
-            var rating = new Rating
-            {
-                Company = new Company
-                {
-                    Name = template.Name,
-                    LogoPath = template.LogoURL
-                },
-            };
-
-            foreach (var evaluator in evaluators)
-            {
-                try
-                {
-                    var json = await evaluator.Value.Evaluate(template.ScoreJavaScript);
-                    var doc = JsonDocument.Parse(json);
-
-                    if (doc.RootElement.ValueKind == JsonValueKind.Object)
-                    {
-                        if (doc.RootElement.TryGetProperty("score", out var scoreElem))
-                        {
-                            rating.Score = scoreElem.ToString();
-                        }
-                        if (doc.RootElement.TryGetProperty("logo", out var logoElem))
-                        {
-                            rating.Company.LogoPath = logoElem.ToString();
-                        }
-                    }
-                    else
-                    {
-                        rating.Score = doc.RootElement.ToString();
-                    }
-
-                    break;
-                }
-                catch { }
-            }
-
-            return rating;
-        }
-
-        private static async Task<string> GetMediaJsonAsync(Media media)
-        {
-            var json = $"item = {{ title: '{media.Title}', year: {media.Year}";
-
-            if (media.TryGetID(TMDB.ID, out var tmdbId))
-            {
-                media = await TMDB.WithExternalIdsAsync(media, tmdbId) as Media ?? media;
-                var ids = new Dictionary<string, string>();
-                ids.Add("tmdb", tmdbId.ToString());
-
-                if (media.TryGetID(IMDb.ID, out var imdbId))
-                {
-                    ids.Add("imdb", $"'{imdbId}'");
-                }
-                if (media.TryGetID(Wikidata.ID, out var wikiId))
-                {
-                    ids.Add("wikidata", $"'{wikiId}'");
-                }
-                if (media.TryGetID(Facebook.ID, out var fbId))
-                {
-                    ids.Add("facebook", $"'{fbId}'");
-                }
-                if (media.TryGetID(Instagram.ID, out var igId))
-                {
-                    ids.Add("instagram", $"'{igId}'");
-                }
-                if (media.TryGetID(Twitter.ID, out var twitterId))
-                {
-                    ids.Add("twitter", $"'{twitterId}'");
-                }
-
-                if (ids.Count > 0)
-                {
-                    json += ", id: { ";
-                    json += string.Join(", ", ids.Select(kvp => $"{kvp.Key}: {kvp.Value}"));
-                    json += " }";
-                }
-            }
-
-            return json + " }";
-        }
         public static List<Group<Credit>> GetCrew(IEnumerable<Credit> crew)
         {
             if (crew == null)

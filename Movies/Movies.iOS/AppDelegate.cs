@@ -23,7 +23,8 @@ namespace Movies.iOS
         public override bool FinishedLaunching(UIApplication app, NSDictionary options)
         {
             global::Xamarin.Forms.Forms.Init();
-            LoadApplication(new App(new JavaScriptEvaluatorFactory()));
+            JavaScriptEvaluationService.Register(new JavaScriptEvaluatorFactory());
+            LoadApplication(new App());
 
             FFImageLoading.Forms.Platform.CachedImageRenderer.Init();
             FFImageLoading.Forms.Platform.CachedImageRenderer.InitImageSourceHandler();

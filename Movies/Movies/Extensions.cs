@@ -305,7 +305,51 @@ namespace Movies.Views
 
     public static class Extensions
     {
-        public static readonly BindableProperty DisappearingCommandProperty = BindableProperty.Create("DisappearingCommand", typeof(ICommand), typeof(Page), defaultValueCreator: bindable =>
+        public static readonly BindableProperty AutoFocusProperty = BindableProperty.CreateAttached("AutoFocus", typeof(bool), typeof(VisualElement), false, defaultValueCreator: bindable =>
+        {
+            var visualElem = (VisualElement)bindable;
+            if (visualElem?.Parent<Page>() is Page page)
+            {
+                page.Appearing += (sender, e) =>
+                {
+                    if (visualElem.GetAutoFocus())
+                    {
+                        visualElem.Focus();
+                    }
+                };
+            }
+
+            return false;
+        });
+
+        public static bool GetAutoFocus(this VisualElement bindable) => (bool)bindable.GetValue(AutoFocusProperty);
+        public static void SetAutoFocus(this VisualElement bindable, bool value) => bindable.SetValue(AutoFocusProperty, value);
+
+        public static readonly BindableProperty AppearingCommandProperty = BindableProperty.CreateAttached("AppearingCommand", typeof(ICommand), typeof(Page), null, defaultValueCreator: bindable =>
+        {
+            Page page = (Page)bindable;
+            page.Appearing += (sender, e) =>
+            {
+                var command = page.GetAppearingCommand();
+                var commandParameter = page.GetAppearingCommandParameter();
+
+                if (command?.CanExecute(commandParameter) == true)
+                {
+                    command.Execute(commandParameter);
+                }
+            };
+
+            return null;
+        });
+        public static readonly BindableProperty AppearingCommandParameterProperty = BindableProperty.CreateAttached("AppearingCommandParameter", typeof(object), typeof(Page), null);
+
+        public static ICommand GetAppearingCommand(this Page page) => (ICommand)page.GetValue(AppearingCommandProperty);
+        public static void SetAppearingCommand(this Page page, ICommand value) => page.SetValue(AppearingCommandProperty, value);
+
+        public static ICommand GetAppearingCommandParameter(this Page page) => (ICommand)page.GetValue(AppearingCommandParameterProperty);
+        public static void SetAppearingCommandParameter(this Page page, object value) => page.SetValue(AppearingCommandParameterProperty, value);
+
+        public static readonly BindableProperty DisappearingCommandProperty = BindableProperty.CreateAttached("DisappearingCommand", typeof(ICommand), typeof(Page), null, defaultValueCreator: bindable =>
         {
             Page page = (Page)bindable;
             page.Disappearing += (sender, e) =>
@@ -321,7 +365,7 @@ namespace Movies.Views
 
             return null;
         });
-        public static readonly BindableProperty DisappearingCommandParameterProperty = BindableProperty.Create("DisappearingCommandParameter", typeof(object), typeof(Page));
+        public static readonly BindableProperty DisappearingCommandParameterProperty = BindableProperty.CreateAttached("DisappearingCommandParameter", typeof(object), typeof(Page), null);
 
         public static ICommand GetDisappearingCommand(this Page page) => (ICommand)page.GetValue(DisappearingCommandProperty);
         public static void SetDisappearingCommand(this Page page, ICommand value) => page.SetValue(DisappearingCommandProperty, value);
@@ -1132,7 +1176,7 @@ namespace Movies.Views
             {
                 return;
             }
-            
+
             UpdateTemplates();
         }
 
@@ -1181,14 +1225,14 @@ namespace Movies.Views
     {
         public event EventHandler CanExecuteChanged;
 
-        public ElementTemplate PageTemplate { get; set; }
+        public object PageTemplate { get; set; }
         public bool Modal { get; set; }
 
         public virtual bool CanExecute(object parameter) => true;
 
         public virtual async void Execute(object parameter)
         {
-            object content = PageTemplate.CreateContent();
+            object content = (PageTemplate as ElementTemplate)?.CreateContent() ?? PageTemplate;
             Page page = content as Page ?? new ContentPage { Content = (View)content };
 
             if (parameter != null)
@@ -1209,15 +1253,20 @@ namespace Movies.Views
 
     public class PopPageCommand : ICommand
     {
+        public static readonly PopPageCommand NonModal = new PopPageCommand { IsModal = false };
+        public static readonly PopPageCommand Modal = new PopPageCommand { IsModal = true };
+
         public event EventHandler CanExecuteChanged;
 
-        public bool Modal { get; set; }
+        public bool IsModal { get; set; }
+
+        private PopPageCommand() { }
 
         public bool CanExecute(object parameter) => true;
 
         public async void Execute(object parameter)
         {
-            if (Modal)
+            if (IsModal)
             {
                 await Application.Current.MainPage.Navigation.PopModalAsync();
             }
