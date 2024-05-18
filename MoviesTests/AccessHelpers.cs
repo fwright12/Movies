@@ -1,6 +1,6 @@
 ﻿namespace MoviesTests
 {
-    internal static class AccessHelpers
+    public static class AccessHelpers
     {
         public static void Set(this Type type, string name, object value) => type.GetProperty(name)?.SetValue(null, value);
 

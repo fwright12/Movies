@@ -14,6 +14,7 @@ namespace Movies
         public static List<object> UseLiveRequestsFor = new List<object>
         {
             //API.MOVIES.GET_DETAILS
+            //API.TV.GET_DETAILS
         };
         // False means no live requests can be made. When true, live requests will only be made when a mock response is not available
         public static bool AllowLiveRequests { get; set; } = false || UseLiveRequestsFor.Count > 0;
@@ -21,7 +22,7 @@ namespace Movies
         public static bool AllowTMDbRequests { get; set; } = false || AllowLiveRequests;
         public static bool AllowTMDbImages { get; set; } = false;
 
-        public static bool ClearLocalWebCache { get; set; } = true || FilterPerformanceTest;
+        public static bool ClearLocalWebCache { get; set; } = false || FilterPerformanceTest;
         public static bool SimulateStaleCache { get; set; } = false;
 
         public static int SimulatedDelay { get; set; } = 0;

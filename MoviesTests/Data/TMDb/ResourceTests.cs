@@ -1,4 +1,6 @@
 ﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Movies.Models;
+using Movies;
 using System.Collections;
 using System.Diagnostics;
 using System.Text;
@@ -86,11 +88,10 @@ namespace MoviesTests.Data.TMDb
 
             Assert.IsTrue(args.IsHandled);
             Assert.AreEqual(new TimeSpan(2, 10, 0), args.Value);
-            Assert.AreEqual($"3/movie/0?language=en-US&{Constants.APPEND_TO_RESPONSE}=credits,keywords,recommendations,release_dates,videos,watch/providers", handlers.WebHistory.Last());
-
+            Assert.AreEqual($"3/movie/0?language=en-US&{Constants.APPEND_TO_RESPONSE}=credits,external_ids,keywords,recommendations,release_dates,videos,watch/providers", handlers.WebHistory.Last());
             Assert.AreEqual(1, handlers.WebHistory.Count);
-            Assert.AreEqual(7, handlers.DiskCache.Count, string.Join(", ", handlers.DiskCache.Keys));
-            Assert.AreEqual(25, handlers.InMemoryCache.Count);
+            Assert.AreEqual(8, handlers.DiskCache.Count, string.Join(", ", handlers.DiskCache.Keys));
+            Assert.AreEqual(26, handlers.InMemoryCache.Count);
         }
 
         [TestMethod]
@@ -153,8 +154,8 @@ namespace MoviesTests.Data.TMDb
 
             // Normally this would just handle from the cache, but since it has an etag we need to make the api call
             Assert.AreEqual(1, handlers.WebHistory.Count);
-            Assert.AreEqual(7, handlers.DiskCache.Count);
-            Assert.AreEqual(25, handlers.InMemoryCache.Count);
+            Assert.AreEqual(8, handlers.DiskCache.Count);
+            Assert.AreEqual(26, handlers.InMemoryCache.Count);
         }
 
         [TestMethod]
@@ -228,7 +229,7 @@ namespace MoviesTests.Data.TMDb
             Assert.AreEqual(new Collection().WithID(TMDB.IDKey, 1241), request.Value);
 
             Assert.AreEqual(2, WebHistory.Count);
-            Assert.AreEqual($"3/movie/0?language=en-US&{Constants.APPEND_TO_RESPONSE}=credits,keywords,recommendations,release_dates,videos,watch/providers", handlers.WebHistory[0]);
+            Assert.AreEqual($"3/movie/0?language=en-US&{Constants.APPEND_TO_RESPONSE}=credits,external_ids,keywords,recommendations,release_dates,videos,watch/providers", handlers.WebHistory[0]);
             Assert.AreEqual("3/collection/1241?language=en-US", WebHistory[1]);
         }
 
@@ -243,7 +244,7 @@ namespace MoviesTests.Data.TMDb
 
             Assert.IsTrue(request.IsHandled);
             Assert.AreEqual(1, WebHistory.Count);
-            Assert.AreEqual($"3/movie/0?language=en-US&{Constants.APPEND_TO_RESPONSE}=credits,keywords,recommendations,release_dates,videos,watch/providers", handlers.WebHistory[0]);
+            Assert.AreEqual($"3/movie/0?language=en-US&{Constants.APPEND_TO_RESPONSE}=credits,external_ids,keywords,recommendations,release_dates,videos,watch/providers", handlers.WebHistory[0]);
 
             await CachedAsync(handlers.DiskCache);
 
@@ -365,9 +366,9 @@ namespace MoviesTests.Data.TMDb
             int count = 0;
             try { await foreach (var item in request.Value) { count++; } } catch { }
 
-            Assert.AreEqual(21, count);
+            Assert.AreEqual(20, count);
             Assert.AreEqual(2, WebHistory.Count);
-            Assert.AreEqual($"3/movie/0?language=en-US&{Constants.APPEND_TO_RESPONSE}=recommendations,credits,keywords,release_dates,videos,watch/providers", handlers.WebHistory[0]);
+            Assert.AreEqual($"3/movie/0?language=en-US&{Constants.APPEND_TO_RESPONSE}=recommendations,credits,external_ids,keywords,release_dates,videos,watch/providers", handlers.WebHistory[0]);
             Assert.AreEqual($"3/movie/0/recommendations?language=en-US&page=2", WebHistory[1]);
         }
 

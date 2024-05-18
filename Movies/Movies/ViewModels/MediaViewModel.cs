@@ -130,7 +130,7 @@ namespace Movies.ViewModels
         {
             await BatchRequest;
 
-            var tasks = new List<Task<Rating>>(await templates.ApplyTemplatesAsync((Media)Item));
+            var tasks = new List<Task<Rating>>(await templates.ApplyTemplatesAsync(Item));
             var remaining = new List<Task<Rating>>(tasks);
             while (remaining.Count > 0)
             {

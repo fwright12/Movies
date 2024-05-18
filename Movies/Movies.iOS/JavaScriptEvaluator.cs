@@ -9,76 +9,114 @@ namespace Movies.iOS
     public class JavaScriptEvaluatorFactory : IJavaScriptEvaluatorFactory
     {
         public IJavaScriptEvaluator Create(string url = null) => new JavaScriptEvaluator(url);
-    }
 
-    public class JavaScriptEvaluator : IJavaScriptEvaluator
-    {
-        private WKWebView WebView;
-
-        private Task LoadUrlTask;
-
-        public JavaScriptEvaluator(string url = null)
+        private class JavaScriptEvaluator : IJavaScriptEvaluator
         {
-            var config = new WKWebViewConfiguration();
-            WebView = new WKWebView(CGRect.Empty, config);
+            private static readonly NSObject JAVASCRIPT_EXCEPTION_KEY = new NSString("WKJavaScriptExceptionMessage");
+            private static readonly int TIMEOUT = 5000;
 
-            LoadUrlTask = url == null ? Task.CompletedTask : LoadUrl(url);
-        }
+            private WKWebView WebView;
+            private Task LoadUrlTask;
 
-        private async Task LoadUrl(string url)
-        {
-            //UIApplication.SharedApplication.Windows.FirstOrDefault()?.AddSubview(webView);
-            var source = new TaskCompletionSource<bool>();
-
-            var del = new CustomWebViewDelegate();
-            del.PageFinished += (sender, e) =>
+            public JavaScriptEvaluator(string url = null)
             {
-                source.TrySetResult(true);
-            };
-            WebView.NavigationDelegate = del;
+                var config = new WKWebViewConfiguration();
+                WebView = new WKWebView(CGRect.Empty, config);
+
+                LoadUrlTask = url == null ? Task.CompletedTask : LoadUrl(url);
+            }
+
+            private Task LoadUrl(string url)
+            {
+                //UIApplication.SharedApplication.Windows.FirstOrDefault()?.AddSubview(webView);
+                var source = new TaskCompletionSource<bool>();
+
+                var del = new CustomWebViewDelegate();
+                del.PageFinished += (sender, e) =>
+                {
+                    source.TrySetResult(true);
+                };
+                WebView.NavigationDelegate = del;
 
 #if DEBUG
-            WebView.LoadHtmlString(Data.Dummy.RottenTomatoes.HARRY_POTTER_7_PART_2, null);
+                WebView.LoadHtmlString(Data.Dummy.RottenTomatoes.HARRY_POTTER_7_PART_2, null);
 #else
-                webView.LoadRequest(new NSUrlRequest(new NSUrl(url)));
+                WebView.LoadRequest(new NSUrlRequest(new NSUrl(url)));
 #endif
 
-            await source.Task;
-            //webView.RemoveFromSuperview();
-        }
+                TimeoutSource(source, TIMEOUT);
+                return source.Task;
+                //webView.RemoveFromSuperview();
+            }
 
-        public async Task<string> Evaluate(string javaScript)
-        {
-            await LoadUrlTask;
-
-            try
+            public async Task<string> Evaluate(string javaScript)
             {
-                var result = await WebView.EvaluateJavaScriptAsync(javaScript);
+                await LoadUrlTask;
+                NSObject result;
+
+                try
+                {
+                    result = await WebView.EvaluateJavaScriptAsync(javaScript);
+                }
+                catch (NSErrorException e)
+                {
+                    if (e.UserInfo.TryGetValue(JAVASCRIPT_EXCEPTION_KEY, out var value))
+                    {
+                        throw new Exception(value.ToString());
+                    }
+                    else
+                    {
+                        throw e;
+                    }
+                }
+
                 return NSJsonSerialization.Serialize(result, NSJsonWritingOptions.FragmentsAllowed | NSJsonWritingOptions.WithoutEscapingSlashes, out _)?.ToString();
             }
-            catch (NSErrorException e)
+
+            public void Dispose()
             {
-                throw new Exception(e.UserInfo["WKJavaScriptExceptionMessage"].ToString());
-            }
-        }
-
-        public void Dispose()
-        {
-            WebView.Dispose();
-        }
-
-        public class CustomWebViewDelegate : WKNavigationDelegate
-        {
-            public event EventHandler PageFinished;
-
-            public override void DidFinishNavigation(WKWebView webView, WKNavigation navigation)
-            {
-                PageFinished?.Invoke(webView, new EventArgs());
+                WebView.Dispose();
             }
 
-            public override void DidFailNavigation(WKWebView webView, WKNavigation navigation, NSError error)
+            private static async void TimeoutSource<T>(TaskCompletionSource<T> source, int timeout)
             {
-                PageFinished?.Invoke(webView, new EventArgs());
+                await Task.Delay(timeout);
+                source.TrySetException(new TimeoutException());
+            }
+
+            private class CustomWebViewDelegate : WKNavigationDelegate
+            {
+                public event EventHandler PageFinished;
+
+                public override void DecidePolicy(WKWebView webView, WKNavigationAction navigationAction, Action<WKNavigationActionPolicy> decisionHandler)
+                {
+                    decisionHandler(WKNavigationActionPolicy.Allow);
+                }
+
+                public override void DecidePolicy(WKWebView webView, WKNavigationResponse navigationResponse, Action<WKNavigationResponsePolicy> decisionHandler)
+                {
+                    decisionHandler(WKNavigationResponsePolicy.Allow);
+                }
+
+                public override void DidFinishNavigation(WKWebView webView, WKNavigation navigation)
+                {
+                    PageFinished?.Invoke(webView, EventArgs.Empty);
+                }
+
+                public override void DidFailNavigation(WKWebView webView, WKNavigation navigation, NSError error)
+                {
+                    PageFinished?.Invoke(webView, EventArgs.Empty);
+                }
+
+                public override void DidFailProvisionalNavigation(WKWebView webView, WKNavigation navigation, NSError error)
+                {
+                    PageFinished?.Invoke(webView, EventArgs.Empty);
+                }
+
+                public override void ContentProcessDidTerminate(WKWebView webView)
+                {
+                    PageFinished?.Invoke(webView, EventArgs.Empty);
+                }
             }
         }
     }

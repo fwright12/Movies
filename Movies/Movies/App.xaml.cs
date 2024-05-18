@@ -818,7 +818,8 @@ namespace Movies
             {
                 var templates = JsonSerializer.Deserialize<IEnumerable<RatingTemplate>>(templatesObj.ToString());
                 //templates.Last().ScoreJavaScript = "9";
-                //RatingTemplateManager.Items.Add(templates.Last());
+                //RatingTemplateManager.Items.Add(templates.First());
+                //RatingTemplateManager.Items.AddRange(templates.Take(2));
                 RatingTemplateManager.Items.AddRange(templates);
             }
         }
