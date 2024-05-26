@@ -279,110 +279,60 @@ namespace Movies.ViewModels
 
         public async Task Test(Item item)
         {
-            string[] urls = null;
+            UrlJavaScriptTestResult = null;
+            ScoreJavaScriptTestResult = null;
 
             if (item == null || SelectedItem?.URLJavaScipt == null || !TryGetItemJson(item, out var jsonTask))
             {
-                UrlJavaScriptTestResult = null;
+                return;
             }
-            else
+
+            string[] urls;
+            using (var evaluator = JavaScriptEvaluationService.Factory.Create())
             {
-                using (var evaluator = JavaScriptEvaluationService.Factory.Create())
+                try
+                {
+                    var json = await evaluator.Evaluate(string.Join(";", await jsonTask, SelectedItem.URLJavaScipt));
+                    urls = ParseUrls(json);
+                    UrlJavaScriptTestResult = JsonToString(json);
+                }
+                catch (Exception e)
+                {
+                    UrlJavaScriptTestResult = new JavaScriptEvaluationException(e);
+                    return;
+                }
+            }
+
+            if (SelectedItem.ScoreJavaScript == null)
+            {
+                return;
+            }
+
+            Exception exception = null;
+
+            foreach (var url in urls)
+            {
+                using (var scoreEvaluator = JavaScriptEvaluationService.Factory.Create(url))
                 {
                     try
                     {
-                        var json = await evaluator.Evaluate(string.Join(";", await jsonTask, SelectedItem.URLJavaScipt));
-                        urls = ParseUrls(json);
-                        UrlJavaScriptTestResult = JsonToString(json);
+                        ScoreJavaScriptTestResult = JsonToString(await scoreEvaluator.Evaluate(SelectedItem.ScoreJavaScript));
+                        return;
                     }
                     catch (Exception e)
                     {
-                        UrlJavaScriptTestResult = new JavaScriptEvaluationException(e);
+                        exception = e;
                     }
                 }
             }
 
-            if (urls == null || SelectedItem.ScoreJavaScript == null)
-            {
-                ScoreJavaScriptTestResult = null;
-            }
-            else
-            {
-                Exception exception = null;
-
-                foreach (var url in urls)
-                {
-                    using (var scoreEvaluator = JavaScriptEvaluationService.Factory.Create(url))
-                    {
-                        try
-                        {
-                            ScoreJavaScriptTestResult = JsonToString(await scoreEvaluator.Evaluate(SelectedItem.ScoreJavaScript));
-                            return;
-                        }
-                        catch (Exception e)
-                        {
-                            exception = e;
-                        }
-                    }
-                }
-
-                ScoreJavaScriptTestResult = exception == null ? null : new JavaScriptEvaluationException(exception);
-            }
-        }
-
-        private class CachedJsEvaluatorFactory : IJavaScriptEvaluatorFactory, IDisposable
-        {
-            public IJavaScriptEvaluatorFactory Inner { get; }
-
-            private Dictionary<string, IJavaScriptEvaluator> Evaluators { get; } = new Dictionary<string, IJavaScriptEvaluator>();
-
-            public CachedJsEvaluatorFactory(IJavaScriptEvaluatorFactory inner)
-            {
-                Inner = inner;
-            }
-
-            public IJavaScriptEvaluator Create(string url = null)
-            {
-                var key = url ?? string.Empty;
-
-                lock (Evaluators)
-                {
-                    if (!Evaluators.TryGetValue(key, out var evaluator))
-                    {
-                        Evaluators[key] = evaluator = new JavaScriptEvaluator(Inner.Create(url));
-                    }
-
-                    return evaluator;
-                }
-            }
-
-            public void Dispose()
-            {
-                foreach (var evaluator in Evaluators.Values)
-                {
-                    (evaluator as JavaScriptEvaluator).Inner.Dispose();
-                }
-            }
-
-            private class JavaScriptEvaluator : IJavaScriptEvaluator
-            {
-                public IJavaScriptEvaluator Inner { get; }
-
-                public JavaScriptEvaluator(IJavaScriptEvaluator inner)
-                {
-                    Inner = inner;
-                }
-
-                public Task<string> Evaluate(string javaScript) => Inner.Evaluate(javaScript);
-
-                public void Dispose() { }
-            }
+            ScoreJavaScriptTestResult = exception == null ? null : new JavaScriptEvaluationException(exception);
         }
 
         public Task<IEnumerable<Task<Rating>>> ApplyTemplatesAsync(Item item) => ApplyTemplatesAsync(item, Items);
 
         public static Task<IEnumerable<Task<Rating>>> ApplyTemplatesAsync(Item item, IEnumerable<RatingTemplate> templates) => ApplyTemplatesAsync(item, templates.ToArray());
-        public static async Task<IEnumerable<Task<Rating>>> ApplyTemplatesAsync(Item item, params RatingTemplate[] templates) 
+        public static async Task<IEnumerable<Task<Rating>>> ApplyTemplatesAsync(Item item, params RatingTemplate[] templates)
         {
             if (!TryGetItemJson(item, out var jsonTask))
             {
@@ -412,7 +362,7 @@ namespace Movies.ViewModels
             {
                 try
                 {
-                    await UpdateRatingAsync(rating, evaluatorFactory, template, itemJson);
+                    await UpdateRatingAsync(rating, template, evaluatorFactory, itemJson);
                 }
                 catch { }
             }
@@ -420,7 +370,7 @@ namespace Movies.ViewModels
             return rating;
         }
 
-        private static async Task UpdateRatingAsync(Rating rating, IJavaScriptEvaluatorFactory evaluatorFactory, RatingTemplate template, string itemJson)
+        private static async Task UpdateRatingAsync(Rating rating, RatingTemplate template, IJavaScriptEvaluatorFactory evaluatorFactory, string itemJson)
         {
             string[] urls;
             using (var evaluator = evaluatorFactory.Create())
@@ -428,7 +378,7 @@ namespace Movies.ViewModels
                 try
                 {
                     var urlResponse = await evaluator.Evaluate(string.Join(";", itemJson, template.URLJavaScipt));
-                    urls = RatingTemplateCollectionViewModel.ParseUrls(urlResponse);
+                    urls = ParseUrls(urlResponse);
                 }
                 catch
                 {
@@ -468,137 +418,6 @@ namespace Movies.ViewModels
                 }
 
                 break;
-            }
-        }
-
-        public static async Task<IEnumerable<Task<Rating>>> ApplyTemplatesAsync1(IEnumerable<RatingTemplate> templates, Item item)
-        {
-            if (!TryGetItemJson(item, out var jsonTask))
-            {
-                return Enumerable.Empty<Task<Rating>>();
-            }
-            var itemJson = await jsonTask;
-
-            string[] responses;
-            using (var urlEvaluator = JavaScriptEvaluationService.Factory.Create())
-            {
-                responses = await Task.WhenAll(templates.Select(template => EvaluateJsSafe(string.Join(";", itemJson, template.URLJavaScipt), urlEvaluator)));
-            }
-
-            var evaluators = new Dictionary<string, Lazy<IJavaScriptEvaluator>>();
-            var results = new Lazy<IJavaScriptEvaluator>[responses.Length][];
-
-            for (int i = 0; i < responses.Length; i++)
-            {
-                var response = responses[i];
-                if (response == null)
-                {
-                    results[i] = new Lazy<IJavaScriptEvaluator>[0];
-                    continue;
-                }
-
-                var urls = RatingTemplateCollectionViewModel.ParseUrls(response);
-                var result = results[i] = new Lazy<IJavaScriptEvaluator>[urls.Length];
-
-                for (int j = 0; j < urls.Length; j++)
-                {
-                    var url = urls[j];
-                    if (!evaluators.TryGetValue(url, out var evaluator))
-                    {
-                        evaluators.Add(url, evaluator = new Lazy<IJavaScriptEvaluator>(() => JavaScriptEvaluationService.Factory.Create(url)));
-                    }
-
-                    result[j] = evaluator;
-                }
-            }
-
-            var tasks = templates.Zip(results, GetRatingAsync).ToList();
-            DisposeEvaluators(Task.WhenAll(tasks), results.SelectMany(result => result));
-            return tasks;
-        }
-
-        private static async Task<Rating> GetRatingAsync(RatingTemplate template, IEnumerable<Lazy<IJavaScriptEvaluator>> evaluators)
-        {
-            var rating = new Rating
-            {
-                Company = new Company
-                {
-                    Name = template.Name,
-                    LogoPath = template.LogoURL
-                },
-            };
-
-            foreach (var evaluator in evaluators)
-            {
-                JsonDocument doc;
-                try
-                {
-                    doc = JsonDocument.Parse(await evaluator.Value.Evaluate(template.ScoreJavaScript));
-                }
-                catch (Exception e)
-                {
-                    continue;
-                }
-
-                if (doc.RootElement.ValueKind == JsonValueKind.Object)
-                {
-                    if (doc.RootElement.TryGetProperty("score", out var scoreElem))
-                    {
-                        rating.Score = scoreElem.ToString();
-                    }
-                    if (doc.RootElement.TryGetProperty("logo", out var logoElem))
-                    {
-                        rating.Company.LogoPath = logoElem.ToString();
-                    }
-                }
-                else
-                {
-                    rating.Score = doc.RootElement.ToString();
-                }
-
-                break;
-            }
-
-            return rating;
-        }
-
-        private static async Task<string> EvaluateJsSafe(string js, IJavaScriptEvaluator evaluator)
-        {
-            try
-            {
-                return await evaluator.Evaluate(js);
-            }
-            catch
-            {
-                return null;
-            }
-        }
-
-        private static async Task<string[]> GetUrlsAsync(string js, IJavaScriptEvaluator evaluator, string itemJson)
-        {
-            if (js != null)
-            {
-                try
-                {
-                    var response = await evaluator.Evaluate(string.Join(";", itemJson, js));
-                    return RatingTemplateCollectionViewModel.ParseUrls(response);
-                }
-                catch { }
-            }
-
-            return new string[0];
-        }
-
-        private static async void DisposeEvaluators(Task task, IEnumerable<Lazy<IJavaScriptEvaluator>> evaluators)
-        {
-            await task;
-
-            foreach (var evaluator in evaluators)
-            {
-                if (evaluator.IsValueCreated)
-                {
-                    evaluator.Value.Dispose();
-                }
             }
         }
 
@@ -707,6 +526,55 @@ namespace Movies.ViewModels
             return doc.RootElement.ValueKind == JsonValueKind.Array
                 ? doc.RootElement.EnumerateArray().Select(element => element.ToString()).ToArray()
                 : new string[] { doc.RootElement.ToString() };
+        }
+
+        private class CachedJsEvaluatorFactory : IJavaScriptEvaluatorFactory, IDisposable
+        {
+            public IJavaScriptEvaluatorFactory Inner { get; }
+
+            private Dictionary<string, IJavaScriptEvaluator> Evaluators { get; } = new Dictionary<string, IJavaScriptEvaluator>();
+
+            public CachedJsEvaluatorFactory(IJavaScriptEvaluatorFactory inner)
+            {
+                Inner = inner;
+            }
+
+            public IJavaScriptEvaluator Create(string url = null)
+            {
+                var key = url ?? string.Empty;
+
+                lock (Evaluators)
+                {
+                    if (!Evaluators.TryGetValue(key, out var evaluator))
+                    {
+                        Evaluators[key] = evaluator = new JavaScriptEvaluator(Inner.Create(url));
+                    }
+
+                    return evaluator;
+                }
+            }
+
+            public void Dispose()
+            {
+                foreach (var evaluator in Evaluators.Values)
+                {
+                    (evaluator as JavaScriptEvaluator).Inner.Dispose();
+                }
+            }
+
+            private class JavaScriptEvaluator : IJavaScriptEvaluator
+            {
+                public IJavaScriptEvaluator Inner { get; }
+
+                public JavaScriptEvaluator(IJavaScriptEvaluator inner)
+                {
+                    Inner = inner;
+                }
+
+                public Task<string> Evaluate(string javaScript) => Inner.Evaluate(javaScript);
+
+                public void Dispose() { }
+            }
         }
     }
 }

@@ -204,7 +204,7 @@
       <Version>2.4.11.982</Version>
     </PackageReference>
     <PackageReference Include="Xamarin.Forms">
-      <Version>5.0.0.2662</Version>
+      <Version>5.0.0.2612</Version>
     </PackageReference>
     <PackageReference Include="Xamarin.Google.iOS.MobileAds">
       <Version>8.13.0.3</Version>
@@ -228,7 +228,7 @@
   </ItemGroup>
   <ProjectExtensions>
     <VisualStudio>
-      <UserProperties XamarinHotReloadWrongLinkerErrorInfoBarMoviesiOSHideInfoBar="True" XamarinHotReloadMonoInterpreterErrorInfoBarMoviesiOSHideInfoBar="True" />
+      <UserProperties XamarinHotReloadMonoInterpreterErrorInfoBarMoviesiOSHideInfoBar="True" XamarinHotReloadWrongLinkerErrorInfoBarMoviesiOSHideInfoBar="True" />
     </VisualStudio>
   </ProjectExtensions>
 </Project>

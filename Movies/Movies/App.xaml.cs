@@ -3,8 +3,10 @@ using Movies.Models;
 using Movies.ViewModels;
 using Movies.Views;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -817,9 +819,11 @@ namespace Movies
             if (Properties.TryGetValue(RATING_TEMPLATES_KEY, out var templatesObj))
             {
                 var templates = JsonSerializer.Deserialize<IEnumerable<RatingTemplate>>(templatesObj.ToString());
+#if DEBUG
                 //templates.Last().ScoreJavaScript = "9";
                 //RatingTemplateManager.Items.Add(templates.First());
                 //RatingTemplateManager.Items.AddRange(templates.Take(2));
+#endif
                 RatingTemplateManager.Items.AddRange(templates);
             }
         }

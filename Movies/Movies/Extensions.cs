@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Movies.ViewModels;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -305,6 +306,30 @@ namespace Movies.Views
 
     public static class Extensions
     {
+        public static readonly BindableProperty FocusedCommandProperty = BindableProperty.CreateAttached("FocusedCommand", typeof(ICommand), typeof(VisualElement), null, propertyChanged: (bindable, oldValue, newValue) =>
+        {
+            var visualElement = (VisualElement)bindable;
+            var command = (ICommand)newValue;
+
+            visualElement.Focused += (sender, e) =>
+            {
+                var parameter = visualElement.GetFocusedCommandParameter();
+
+                if (command.CanExecute(parameter))
+                {
+                    command.Execute(parameter);
+                }
+            };
+        });
+
+        public static ICommand GetFocusedCommand(this VisualElement bindable) => (ICommand)bindable.GetValue(FocusedCommandProperty);
+        public static void SetFocusedCommand(this VisualElement bindable, ICommand value) => bindable.SetValue(FocusedCommandProperty, value);
+
+        public static readonly BindableProperty FocusedCommandParameterProperty = BindableProperty.CreateAttached("FocusedCommandParameter", typeof(object), typeof(VisualElement), null);
+
+        public static object GetFocusedCommandParameter(this VisualElement bindable) => bindable.GetValue(FocusedCommandParameterProperty);
+        public static void SetFocusedCommandParameter(this VisualElement bindable, object value) => bindable.SetValue(FocusedCommandParameterProperty, value);
+
         public static readonly BindableProperty AutoFocusProperty = BindableProperty.CreateAttached("AutoFocus", typeof(bool), typeof(VisualElement), false, defaultValueCreator: bindable =>
         {
             var visualElem = (VisualElement)bindable;

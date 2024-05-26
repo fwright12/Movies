@@ -91,7 +91,7 @@
                                  Style="{StaticResource InfoSectionStyle}" />
 
                     <views:SectionView Title="Ratings"
-                                       ext:ContentView.ItemSource="{Binding Ratings, TargetNullValue={StaticResource EmptyRatings}}"
+                                       ext:ContentView.ItemSource="{Binding AllRatings, TargetNullValue={StaticResource EmptyRatings}}"
                                        Style="{StaticResource InfoSectionStyle}" />
 
                     <forms:AdView Style="{StaticResource InlineBannerAdStyle}"

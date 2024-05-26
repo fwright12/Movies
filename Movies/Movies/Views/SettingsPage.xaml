@@ -5,7 +5,9 @@
              xmlns:converters="clr-namespace:Movies.Converters"
              xmlns:viewmodels="clr-namespace:Movies.ViewModels"
              xmlns:ext="clr-namespace:Xamarin.Forms.Extensions;assembly=Xamarin.Forms.Extensions"
-             x:Class="Movies.Views.SettingsPage">
+             xmlns:views="clr-namespace:Movies.Views"
+             x:Class="Movies.Views.SettingsPage"
+             Title="Settings">
     <VisualElement.Resources>
         <Style TargetType="Label">
             <Setter Property="TextColor"
@@ -118,6 +120,12 @@
                     <ContentView BindingContext="{Binding Accounts[1]}"
                                  Style="{StaticResource AccountStyle}" />
                 </ViewCell>
+            </TableSection>
+
+            <TableSection Title="Personalization">
+                <TextCell Text="Ratings Builder"
+                          TextColor="{AppThemeBinding Light={StaticResource LightPrimaryText}, Dark={StaticResource DarkPrimaryText}}"
+                          Command="{views:PushPageCommand PageTemplate={DataTemplate views:RatingsBuilderPage}}" />
             </TableSection>
 
             <TableSection Title="Localization"

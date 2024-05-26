@@ -89,7 +89,7 @@
       <Version>2.4.11.982</Version>
     </PackageReference>
     <PackageReference Include="Xamarin.Forms">
-      <Version>5.0.0.2662</Version>
+      <Version>5.0.0.2612</Version>
     </PackageReference>
     <PackageReference Include="Xamarin.Forms.AppLinks">
       <Version>5.0.0.2612</Version>

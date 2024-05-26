@@ -9,6 +9,12 @@
              x:Class="Movies.Views.RatingsBuilderPage"
              BindingContext="{Binding RatingTemplateManager, Source={Static Application.Current}}"
              views:Extensions.DisappearingCommand="{Binding SaveRatingTemplatesCommand, Source={Static Application.Current}}">
+    <Shell.TitleView>
+        <IndicatorView x:Name="indicatorView"
+                       IndicatorColor="{AppThemeBinding Light={StaticResource LightSecondaryBackground}, Dark={StaticResource DarkSecondaryBackground}}"
+                       SelectedIndicatorColor="{StaticResource Primary}" />
+    </Shell.TitleView>
+
     <ContentPage.ToolbarItems>
         <ToolbarItem IsDestructive="True"
                      Command="{Binding RemoveCommand}"
@@ -78,12 +84,6 @@
                     Value="Body" />
         </Style>
 
-        <Style x:Key="TestItemSearchbarStyle"
-               TargetType="SearchBar">
-            <Setter Property="Text"
-                    Value="{Binding SelectedItem.Title, Source={x:Reference testMediaCollectionView}}" />
-        </Style>
-
         <Style x:Key="ModalPageDismissButton"
                TargetType="Button">
             <Setter Property="HorizontalOptions"
@@ -112,6 +112,7 @@
                                Margin="10,0,0,0">
                             <Label.Text>
                                 item: {
+    type: 'movie' or 'tv'
     title: string
     year: number
     id: {
@@ -165,7 +166,7 @@
                         Text="Cancel" />
 
                 <SearchBar x:Name="testMediaSearchBar"
-                           Style="{StaticResource TestItemSearchbarStyle}"
+                           Text="{Binding SelectedItem.Title, Source={x:Reference testMediaCollectionView}}"
                            SearchCommand="{Binding SearchCommand}"
                            SearchCommandParameter="{Binding Text, Source={RelativeSource Self}}"
                            ios:SearchBar.SearchBarStyle="Minimal" />
@@ -200,10 +201,6 @@
     <ScrollView Orientation="Vertical"
                 Padding="{StaticResource PagePadding}">
         <StackLayout x:DataType="viewmodels:RatingTemplateCollectionViewModel">
-            <IndicatorView x:Name="indicatorView"
-                           IndicatorColor="{AppThemeBinding Light={StaticResource LightSecondaryBackground}, Dark={StaticResource DarkSecondaryBackground}}"
-                           SelectedIndicatorColor="{StaticResource Primary}" />
-
             <CarouselView x:Name="carouselView"
                           ItemsSource="{Binding Items}"
                           CurrentItem="{Binding SelectedItem}"
@@ -306,25 +303,29 @@
             <StackLayout Orientation="Vertical">
                 <FlexLayout Direction="Row"
                             JustifyContent="Center">
-                    <Grid WidthRequest="0"
-                          FlexLayout.Grow="1">
-                        <SearchBar Style="{StaticResource TestItemSearchbarStyle}"
-                                   Placeholder="Pick a movie to test with" />
+                    <SearchBar Text="{Binding Text, Source={x:Reference testMediaSearchBar}, Mode=TwoWay}"
+                               Placeholder="Test a movie or show"
+                               views:Extensions.FocusedCommandParameter="{Binding}"
+                               WidthRequest="0"
+                               FlexLayout.Grow="1">
+                        <views:Extensions.FocusedCommand>
+                            <viewmodels:MultiCommand>
+                                <views:PushPageCommand PageTemplate="{StaticResource TestMovieSelectionPage}"
+                                                       Modal="True" />
+                                <viewmodels:FocusCommand Target="{x:Reference testMediaSearchBar}" />
+                            </viewmodels:MultiCommand>
+                        </views:Extensions.FocusedCommand>
+                    </SearchBar>
 
-                        <BoxView>
+                    <!--<BoxView>
                             <View.GestureRecognizers>
                                 <TapGestureRecognizer CommandParameter="{Binding}">
                                     <TapGestureRecognizer.Command>
-                                        <viewmodels:MultiCommand>
-                                            <views:PushPageCommand PageTemplate="{StaticResource TestMovieSelectionPage}"
-                                                                   Modal="True" />
-                                            <viewmodels:FocusCommand Target="{x:Reference testMediaSearchBar}" />
-                                        </viewmodels:MultiCommand>
+                
                                     </TapGestureRecognizer.Command>
                                 </TapGestureRecognizer>
                             </View.GestureRecognizers>
-                        </BoxView>
-                    </Grid>
+                        </BoxView>-->
 
                     <Button Text="Test it!"
                             Command="{Binding TestCommand}"

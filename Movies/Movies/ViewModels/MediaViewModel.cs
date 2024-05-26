@@ -46,7 +46,8 @@ namespace Movies.ViewModels
         public string TrailerPath => null;
         //public override string PrimaryImagePath => TrailerPath;
 
-        public IEnumerable<Rating> Ratings => _Ratings ??= GetRatings();
+        public IEnumerable<Rating> Ratings => RequestValue(Media.RATING) is Rating rating ? new List<Rating> { rating } : null;
+        public IEnumerable<Rating> AllRatings => _Ratings ??= GetRatings();
         public List<Group<Credit>> Cast => GetCrew(RequestValue(Media.CAST));
         public List<Group<Credit>> Crew => GetCrew(RequestValue(Media.CREW));
         public IEnumerable<Company> ProductionCompanies => RequestValue(Media.PRODUCTION_COMPANIES);

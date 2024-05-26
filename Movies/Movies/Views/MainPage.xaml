@@ -99,10 +99,6 @@
                           ContentTemplate="{StaticResource ExploreTemplate}" />
         </viewmodels:ShellTabFix>
 
-        <ShellContent>
-            <views:RatingsBuilderPage />
-        </ShellContent>
-
         <ShellContent Title="Find">
             <ShellContent.Icon>
                 <FontImageSource Glyph="{OnPlatform iOS='&#xf4a4;', Android='&#xf2f5;'}"
