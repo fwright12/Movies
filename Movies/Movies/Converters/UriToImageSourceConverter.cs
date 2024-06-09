@@ -15,22 +15,25 @@ namespace Movies.Converters
             try
             {
                 uri = new Uri(value.ToString(), UriKind.RelativeOrAbsolute);
+
+                if (uri.IsAbsoluteUri)
+                {
+                    if (uri.Scheme == "file")
+                    {
+                        return ImageSource.FromResource(uri.OriginalString.Replace(uri.Scheme, string.Empty).Trim('/', ':'));
+                    }
+                    else
+                    {
+                        var source = parameter as UriImageSource ?? new UriImageSource();
+                        source.Uri = uri;
+                        return source;
+                    }
+                }
             }
             catch
-            {
-                return value;
-            }
+            { }
 
-            if (uri.Scheme == "file")
-            {
-                return ImageSource.FromResource(uri.OriginalString.Replace(uri.Scheme, string.Empty).Trim('/', ':'));
-            }
-            else
-            {
-                var source = parameter as UriImageSource ?? new UriImageSource();
-                source.Uri = uri;
-                return source;
-            }
+            return null;
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)

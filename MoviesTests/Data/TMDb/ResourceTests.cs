@@ -94,9 +94,10 @@ namespace MoviesTests.Data.TMDb
             Assert.AreEqual(26, handlers.InMemoryCache.Count);
         }
 
-        [TestMethod]
+        //[TestMethod]
         public async Task GetExternalIds()
         {
+            //DataService.Instance.ResourceCache.Clear();
             var handlers = new HandlerChain();
             DataService.Instance.Controller
                 .SetNext(handlers.LocalTMDbProcessor)

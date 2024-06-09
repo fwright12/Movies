@@ -74,7 +74,7 @@
         private static readonly Genre COMEDY_GENRE = new Genre { Id = 35, Name = "Comedy" };
         private static readonly Keyword WIZARD_KEYWORD = new Keyword { Id = 177912, Name = "wizard" };
         private static readonly Person EVANNA_LYNCH = new Person("Evanna Lynch").WithID(TMDB.IDKey, 140367);
-        private static readonly WatchProvider HBO = new WatchProvider { Id = 384 };
+        private static readonly WatchProvider FUBO_TV = new WatchProvider { Id = 257 };
         private static readonly WatchProvider PEACOCK = new WatchProvider { Id = 386 };
         private static OperatorPredicate ADVENTURE_MOVIES => new OperatorPredicate
         {
@@ -206,7 +206,7 @@
             {
                 LHS = TVShow.WATCH_PROVIDERS,
                 Operator = Operators.Equal,
-                RHS = HBO
+                RHS = FUBO_TV
             };
             filter.Predicates[0] = hbo;
 
@@ -242,7 +242,7 @@
 
             exp = Helpers.DummyExpression(Enumerable.Repeat(Movie.WATCH_PROVIDERS, 5).ToArray());
             exp.IsAnd = false;
-            (exp.Predicates[2] as OperatorPredicate).RHS = HBO;
+            (exp.Predicates[2] as OperatorPredicate).RHS = FUBO_TV;
             filter.Predicates[0] = exp;
 
             Assert.IsTrue(await Evaluate(Movie, filter));

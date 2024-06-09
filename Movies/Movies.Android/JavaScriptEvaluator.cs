@@ -5,6 +5,7 @@ using Android.Webkit;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Movies.Droid
@@ -62,23 +63,33 @@ namespace Movies.Droid
                 return source.Task;
             }
 
+            private SemaphoreSlim EvaluationSemaphore = new SemaphoreSlim(1, 1);
+
             public async Task<string> Evaluate(string javaScript)
             {
                 await LoadUrlTask;
-                
-                Client.ClearConsole();
+                await EvaluationSemaphore.WaitAsync();
 
-                var callback = new Callback();
-                WebView.EvaluateJavascript(javaScript, callback);
-                var result = await callback.Result;
-
-                var errors = Client.Messages.Where(message => message.InvokeMessageLevel().Name() == "ERROR").ToArray();
-                if (errors.Length > 0)
+                try
                 {
-                    throw new Exception(string.Join("\n", errors.Select(error => error.Message())));
-                }
+                    Client.ClearConsole();
 
-                return result;
+                    var callback = new Callback();
+                    WebView.EvaluateJavascript(javaScript, callback);
+                    var result = await callback.Result;
+
+                    var errors = Client.Messages.Where(message => message.InvokeMessageLevel().Name() == "ERROR").ToArray();
+                    if (errors.Length > 0)
+                    {
+                        throw new Exception(string.Join("\n", errors.Select(error => error.Message())));
+                    }
+
+                    return result;
+                }
+                finally
+                {
+                    EvaluationSemaphore.Release();
+                }
             }
 
             public void Dispose()
@@ -101,7 +112,7 @@ namespace Movies.Droid
                 public override bool OnConsoleMessage(ConsoleMessage consoleMessage)
                 {
                     _Messages.Add(consoleMessage);
-                    return base.OnConsoleMessage(consoleMessage);
+                    return true;// base.OnConsoleMessage(consoleMessage);
                 }
 
                 public void ClearConsole()

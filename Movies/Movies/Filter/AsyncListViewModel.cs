@@ -201,21 +201,12 @@ namespace Movies.ViewModels
         {
             LoadCount = Math.Max(LoadCount, count);
 
-            lock (Items)
+            if (Loading)
             {
-                if (Loading)
-                {
-                    return;
-                }
-
-                Loading = true;
+                return;
             }
 
-            if (_Items != null)
-            {
-                Items = new List<T>();
-                OnPropertyChanged(nameof(Items));
-            }
+            Loading = true;
 
             try
             {
@@ -223,7 +214,7 @@ namespace Movies.ViewModels
                 {
                     if (Itr.Current != null)
                     {
-                        (_Items ?? Items).Add(Itr.Current);
+                        Items.Add(Itr.Current);
                     }
                 }
             }
@@ -235,19 +226,8 @@ namespace Movies.ViewModels
 #endif
             }
 
-            if (_Items != null)
-            {
-                Items = _Items;
-                OnPropertyChanged(nameof(Items));
-
-                _Items = null;
-            }
-
             LoadCount = 0;
-            lock (Items)
-            {
-                Loading = false;
-            }
+            Loading = false;
             IsRefreshRequired = false;
         }
 
@@ -257,20 +237,13 @@ namespace Movies.ViewModels
             await LoadMore(InitialCount);
         }
 
-        // Fix for bug on iOS. Remove after upgrade to .NET MAUI
-        private IList<T> _Items = null;
-
         public void Reset()
         {
             CancelLoad?.Cancel();
             CancelLoad = new CancellationTokenSource();
             Itr = Source.GetAsyncEnumerator(CancelLoad.Token);
 
-#if __IOS__
-            _Items = Items;
-#endif
             Items.Clear();
-
             IsRefreshRequired = true;
         }
 

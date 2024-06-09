@@ -358,7 +358,7 @@ namespace Movies.ViewModels
                 },
             };
 
-            if (template.URLJavaScipt != null && template.ScoreJavaScript != null)
+            if (!string.IsNullOrEmpty(template.URLJavaScipt) && !string.IsNullOrEmpty(template.ScoreJavaScript))
             {
                 try
                 {

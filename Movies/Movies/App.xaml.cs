@@ -812,7 +812,7 @@ namespace Movies
         protected override void OnStart()
         {
 #if DEBUG
-            //if (!Properties.ContainsKey(RATING_TEMPLATES_KEY))
+            if (!Properties.ContainsKey(RATING_TEMPLATES_KEY))
             _ = SaveRatingsTemplates(MockData.RATING_TEMPLATES);
 #endif
 
@@ -822,7 +822,8 @@ namespace Movies
 #if DEBUG
                 //templates.Last().ScoreJavaScript = "9";
                 //RatingTemplateManager.Items.Add(templates.First());
-                //RatingTemplateManager.Items.AddRange(templates.Take(2));
+                //RatingTemplateManager.Items.Add(templates.Last());
+                //RatingTemplateManager.Items.AddRange(templates.TakeLast(2));
 #endif
                 RatingTemplateManager.Items.AddRange(templates);
             }

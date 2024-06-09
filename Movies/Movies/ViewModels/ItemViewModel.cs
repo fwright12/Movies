@@ -55,7 +55,7 @@ namespace Movies.ViewModels
             Batched = new Dictionary<string, RestRequestArgs>();
 
             await Controller.Get(batch.Values);
-            BatchRequestSource.SetResult(true);
+            BatchRequestSource?.SetResult(true);
             BatchRequestSource = null;
 
             foreach (var kvp in batch)

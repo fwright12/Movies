@@ -31,6 +31,9 @@
         [TestMethod]
         public async Task BufferedGetRequests()
         {
+            var backup = DebugConfig.SimulatedDelay;
+            DebugConfig.SimulatedDelay = 100;
+
             var first = new HttpRequestMessage(HttpMethod.Get, "3/movie/0?language=en-US");
             var second = new HttpRequestMessage(HttpMethod.Get, "3/movie/0?language=en-US");
 
@@ -42,6 +45,7 @@
             await Task.WhenAll(tasks);
 
             Assert.AreEqual(1, CallHistory.Count);
+            DebugConfig.SimulatedDelay = backup;
         }
     }
 }
