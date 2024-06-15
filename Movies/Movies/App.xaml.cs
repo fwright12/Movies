@@ -825,6 +825,7 @@ namespace Movies
                 //RatingTemplateManager.Items.Add(templates.Last());
                 //RatingTemplateManager.Items.AddRange(templates.TakeLast(2));
 #endif
+
                 RatingTemplateManager.Items.AddRange(templates);
             }
         }

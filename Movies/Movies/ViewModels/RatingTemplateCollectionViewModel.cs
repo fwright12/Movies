@@ -281,7 +281,7 @@ namespace Movies.ViewModels
         {
             UrlJavaScriptTestResult = null;
             ScoreJavaScriptTestResult = null;
-
+            
             if (item == null || SelectedItem?.URLJavaScipt == null || !TryGetItemJson(item, out var jsonTask))
             {
                 return;
@@ -477,42 +477,42 @@ namespace Movies.ViewModels
                 return false;
             }
 
-            json = $"item = {{ type: '{type}', title: '{item.Name}'";
+            json = $"item = {{ type: '{type}', title: '{System.Web.HttpUtility.JavaScriptStringEncode(item.Name)}'";
             if (year.HasValue)
             {
                 json += $", year: {year}";
             }
-            var ids = new Dictionary<string, string>();
+            var ids = new Dictionary<string, object>();
 
             if (item.TryGetID(TMDB.ID, out var tmdbId))
             {
-                ids.Add("tmdb", tmdbId.ToString());
+                ids.Add("tmdb", tmdbId);
             }
             if (item.TryGetID(IMDb.ID, out var imdbId))
             {
-                ids.Add("imdb", $"'{imdbId}'");
+                ids.Add("imdb", imdbId);
             }
             if (item.TryGetID(Wikidata.ID, out var wikiId))
             {
-                ids.Add("wikidata", $"'{wikiId}'");
+                ids.Add("wikidata", wikiId);
             }
             if (item.TryGetID(Facebook.ID, out var fbId))
             {
-                ids.Add("facebook", $"'{fbId}'");
+                ids.Add("facebook", fbId);
             }
             if (item.TryGetID(Instagram.ID, out var igId))
             {
-                ids.Add("instagram", $"'{igId}'");
+                ids.Add("instagram", igId);
             }
             if (item.TryGetID(Twitter.ID, out var twitterId))
             {
-                ids.Add("twitter", $"'{twitterId}'");
+                ids.Add("twitter", twitterId);
             }
 
             if (ids.Count > 0)
             {
                 json += ", id: { ";
-                json += string.Join(", ", ids.Select(kvp => $"{kvp.Key}: {kvp.Value}"));
+                json += string.Join(", ", ids.Select(kvp => $"{kvp.Key}: {JsonSerializer.Serialize(kvp.Value)}"));
                 json += " }";
             }
 

@@ -217,7 +217,7 @@
         public void GetMediaJson()
         {
             Assert.IsTrue(RatingTemplateCollectionViewModel.TryGetItemJson(DUMMY_MOVIE, null, out var movieJson));
-            Assert.AreEqual(@"item = { type: 'movie', title: 'test', id: { tmdb: 0, imdb: 'tt00000', wikidata: 'wikidata_id', facebook: 'facebook_id', instagram: 'instagram_id', twitter: 'twitter_id' } }", movieJson);
+            Assert.AreEqual(@"item = { type: 'movie', title: 'test', id: { tmdb: 0, imdb: ""tt00000"", wikidata: ""wikidata_id"", facebook: ""facebook_id"", instagram: ""instagram_id"", twitter: ""twitter_id"" } }", movieJson);
 
             Assert.IsTrue(RatingTemplateCollectionViewModel.TryGetItemJson(Constants.TVShow, 2024, out var tvJson));
             Assert.AreEqual(@"item = { type: 'tv', title: 'test', year: 2024, id: { tmdb: 0 } }", tvJson);
