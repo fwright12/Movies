@@ -5,6 +5,7 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Input;
+using Movies.Data.Local;
 using Movies.Models;
 using Xamarin.Forms;
 
@@ -27,7 +28,18 @@ namespace Movies.ViewModels
         public virtual string PrimaryImagePath => null;
         public ICommand AddToListCommand { get; }
 
-        private ChainLink<EventArgsAsyncWrapper<IEnumerable<ResourceRequestArgs<Uri>>>> Controller => DataService.Instance.Controller;
+        private static IEventProcessor<EventArgsAsyncWrapper<IEnumerable<ResourceRequestArgs<Uri>>>> DefaultController { get; }
+        private IEventProcessor<EventArgsAsyncWrapper<IEnumerable<ResourceRequestArgs<Uri>>>> Controller { get; }
+
+        static ItemViewModel()
+        {
+            var inMemory = new AsyncCacheAsideProcessor<ResourceRequestArgs<Uri>>(DataService.GetService<InMemoryService>().Cache).ToChainLink();
+            var local = new AsyncCacheAsideProcessor<ResourceRequestArgs<Uri>>(DataService.GetService<PersistenceService>().Processor);
+            var tmdb = DataService.GetService<TMDbService>().Processor;
+
+            inMemory.SetNext(local).SetNext(tmdb);
+            DefaultController = inMemory;
+        }
 
         protected Task BatchRequest => BatchRequestSource?.Task ?? Task.CompletedTask;
         private TaskCompletionSource<bool> BatchRequestSource;
@@ -37,6 +49,7 @@ namespace Movies.ViewModels
 #if true
         public ItemViewModel(Item item)
         {
+            Controller = DefaultController;
             Item = item;
 
             AddToListCommand = new Command<IEnumerable<object>>(async lists =>

@@ -1,4 +1,5 @@
 ﻿using Movies.Data;
+using Movies.Data.Local;
 using Movies.Models;
 using Movies.ViewModels;
 using Movies.Views;
@@ -269,6 +270,10 @@ namespace Movies
             var resolver = new TMDbResolver(TMDB.ITEM_PROPERTIES);
             IAsyncEventProcessor<IEnumerable<ResourceRequestArgs<Uri>>> tmdbHandlers = new TMDbHttpProcessor(TMDB.WebClient, resolver, TMDbApi.AutoAppend);
             var tmdbLocalCache = new TMDbLocalCache(LocalDatabase.ItemCache, resolver);
+            
+            DataService.Register(new InMemoryService(DataService.Instance.ResourceCache));
+            DataService.Register(new PersistenceService(new ResourceDAO()));
+            DataService.Register(new TMDbService(TMDB.WebClient, resolver));
 
             DataService.Instance.Controller
                 .SetNext(new AsyncCacheAsideProcessor<ResourceRequestArgs<Uri>>(new UriBufferedCache(tmdbLocalCache)))

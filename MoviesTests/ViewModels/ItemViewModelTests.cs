@@ -6,13 +6,6 @@ namespace MoviesTests.ViewModels
     {
         public static int DEFAULT_TIMEOUT = 5000;
 
-        public ItemViewModelTests()
-        {
-            var handlers = new ResourceTests.HandlerChain();
-            DataService.Instance.Controller.SetNext(new AsyncCacheAsideProcessor<ResourceRequestArgs<Uri>>(new ResourceBufferedCache<Uri>(handlers.LocalTMDbCache)))
-                    .SetNext(handlers.RemoteTMDbProcessor);
-        }
-
         protected static Task<T> GetValue<T>(ItemViewModel model, string propertyName)
         {
             var source = new TaskCompletionSource<T>();

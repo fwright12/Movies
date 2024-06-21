@@ -64,6 +64,36 @@ namespace Movies
         }
     }
 
+    public class InMemoryService
+    {
+        public ResourceBufferedCache<Uri> Cache { get; }
+
+        public InMemoryService(UiiDictionaryDataStore datastore)
+        {
+            Cache = new ResourceBufferedCache<Uri>(datastore);
+        }
+    }
+
+    public class PersistenceService
+    {
+        public UriBufferedCache Processor { get; }
+
+        public PersistenceService(IEventAsyncCache<ResourceRequestArgs<Uri>> processor)
+        {
+            Processor = new UriBufferedCache(processor);
+        }
+    }
+
+    public class TMDbService
+    {
+        public IAsyncEventProcessor<IEnumerable<ResourceRequestArgs<Uri>>> Processor { get; }
+
+        public TMDbService(HttpMessageInvoker invoker, TMDbResolver resolver)
+        {
+            Processor = new TMDbHttpProcessor(invoker, resolver, TMDbApi.AutoAppend);
+        }
+    }
+
     public partial class DataService
     {
         public static readonly DataService Instance = new DataService();
@@ -80,10 +110,22 @@ namespace Movies
 
         public bool Batched { get; private set; }
 
+        private static Dictionary<Type, object> Services = new Dictionary<Type, object>();
+
         private DataService()
         {
             ResourceCache = new UiiDictionaryDataStore();
             Controller = new AsyncCacheAsideProcessor<ResourceRequestArgs<Uri>>(new ResourceBufferedCache<Uri>(ResourceCache)).ToChainLink();
+        }
+
+        public static void Register<T>(T service)
+        {
+            Services[typeof(T)] = service;
+        }
+
+        public static T GetService<T>()
+        {
+            return Services.TryGetValue(typeof(T), out var service) && service is T ? (T)service : default;
         }
 
         public void BatchBegin()
