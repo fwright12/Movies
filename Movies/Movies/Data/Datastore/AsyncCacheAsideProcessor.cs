@@ -5,6 +5,11 @@ using System.Threading.Tasks;
 
 namespace Movies
 {
+    public static class AsyncCacheAsideProcessor
+    {
+        public static AsyncCacheAsideProcessor<T> Create<T>(BufferedCache<T> cache) where T : EventArgsRequest  => new AsyncCacheAsideProcessor<T>(cache);
+    }
+
     public class AsyncCacheAsideProcessor<TArgs> : IAsyncCoRProcessor<IEnumerable<TArgs>> where TArgs : EventArgsRequest
     {
         public BufferedCache<TArgs> Cache { get; }

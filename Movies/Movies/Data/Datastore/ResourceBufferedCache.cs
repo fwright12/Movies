@@ -212,10 +212,11 @@ namespace Movies
 
         protected override ResourceRequestArgs<Uri> GetEtaggedRequest(ResourceRequestArgs<Uri> original, string etag)
         {
-            return new RestRequestArgs(original.Request.Key, null, new Dictionary<string, IEnumerable<string>>
+            var controlData = new Dictionary<string, IEnumerable<string>>
             {
                 [REpresentationalStateTransfer.Rest.IF_NONE_MATCH] = new List<string> { etag }
-            }, original.Request.Expected);
+            };
+            return new ResourceRequestArgs<Uri>(new RestRequestEventArgs(original.Request.Key, null, controlData, original.Request.Expected ?? (true == controlData?.TryGetValue(Rest.CONTENT_TYPE, out _) ? typeof(string) : null)));
         }
     }
 

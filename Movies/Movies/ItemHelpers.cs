@@ -144,9 +144,9 @@ namespace Movies.Models
 
                         if (property == Movies.ViewModels.CollectionViewModel.People)
                         {
-                            var requests = new List<RestRequestArgs<IEnumerable<Credit>>>{
-                                new RestRequestArgs<IEnumerable<Credit>>(new UniformItemIdentifier(item, Media.CAST)),
-                                new RestRequestArgs<IEnumerable<Credit>>(new UniformItemIdentifier(item, Media.CREW))
+                            var requests = new List<ResourceRequestArgs<Uri, IEnumerable<Credit>>>{
+                                new ResourceRequestArgs<Uri, IEnumerable<Credit>>(new UniformItemIdentifier(item, Media.CAST)),
+                                new ResourceRequestArgs<Uri, IEnumerable<Credit>>(new UniformItemIdentifier(item, Media.CREW))
                             };
                             await controller.Get(requests);
 
@@ -163,7 +163,7 @@ namespace Movies.Models
                         }
                         else if (property == TMDB.SCORE)
                         {
-                            var request = new RestRequestArgs<Rating>(new UniformItemIdentifier(item, Media.RATING));
+                            var request = new ResourceRequestArgs<Uri, Rating>(new UniformItemIdentifier(item, Media.RATING));
                             await controller.Get(request);
 
                             if (!request.IsHandled)
@@ -175,7 +175,7 @@ namespace Movies.Models
                         }
                         else
                         {
-                            var request = new RestRequestArgs(new UniformItemIdentifier(item, property), property.FullType);
+                            var request = new ResourceRequestArgs<Uri>(new UniformItemIdentifier(item, property), property.FullType);
                             await controller.Get(request);
 
                             if (!request.IsHandled)// || !request.Response.TryGetRepresentation(property.FullType, out value))

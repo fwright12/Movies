@@ -298,6 +298,12 @@
             Assert.IsTrue(await Evaluate(Movie, predicate));
         }
 
+        [TestMethod]
+        public async Task FilterTMDbScore()
+        {
+            throw new NotImplementedException();
+        }
+
         private Task<bool> Evaluate(Item item, FilterPredicate filter) => ItemHelpers.Evaluate(Chain, item, filter);
 
         private Task AssertOrder(FilterPredicate filter, params Property[] expected) => AssertOrder(Constants.Movie, filter, null, null, expected);

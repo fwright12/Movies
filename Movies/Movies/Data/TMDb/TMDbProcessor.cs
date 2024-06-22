@@ -100,13 +100,13 @@ namespace Movies
                     grouped = index.Values;
                 }
 
-                var groupRequest = new RestRequestArgs(uri);
+                var groupRequest = new RestRequestEventArgs(uri);
                 if (TryGetSingleIfNoneMatch(requests, out var etag))
                 {
-                    groupRequest.Request.ControlData[REpresentationalStateTransfer.Rest.IF_NONE_MATCH] = new List<string> { etag };
+                    groupRequest.ControlData[REpresentationalStateTransfer.Rest.IF_NONE_MATCH] = new List<string> { etag };
                 }
 
-                yield return new KeyValuePair<ResourceRequestArgs<Uri>, IEnumerable<ResourceRequestArgs<Uri>>>(groupRequest, grouped);
+                yield return new KeyValuePair<ResourceRequestArgs<Uri>, IEnumerable<ResourceRequestArgs<Uri>>>(new ResourceRequestArgs<Uri>(groupRequest), grouped);
             }
         }
 
@@ -116,7 +116,7 @@ namespace Movies
 
             foreach (var request in requests)
             {
-                if (request is RestRequestArgs restRequest && restRequest.Request.ControlData.TryGetValue(REpresentationalStateTransfer.Rest.IF_NONE_MATCH, out var etags))
+                if (request.Request is RestRequestEventArgs restRequest && restRequest.ControlData.TryGetValue(REpresentationalStateTransfer.Rest.IF_NONE_MATCH, out var etags))
                 {
                     var itr = etags.GetEnumerator();
 

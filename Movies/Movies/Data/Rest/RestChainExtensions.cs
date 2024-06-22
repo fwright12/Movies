@@ -7,11 +7,11 @@ namespace Movies
 {
     public static class RestChainExtensions
     {
-        public static async Task<RestRequestArgs> Get(this IEventProcessor<EventArgsAsyncWrapper<IEnumerable<ResourceRequestArgs<Uri>>>> chain, string url) => (await Get(chain, new string[] { url }))[0];
-        public static Task<RestRequestArgs[]> Get(this IEventProcessor<EventArgsAsyncWrapper<IEnumerable<ResourceRequestArgs<Uri>>>> chain, params string[] urls) => Get(chain, urls.Select(url => new Uri(url, UriKind.Relative)));
-        public static async Task<RestRequestArgs[]> Get(this IEventProcessor<EventArgsAsyncWrapper<IEnumerable<ResourceRequestArgs<Uri>>>> chain, IEnumerable<Uri> uris)
+        public static async Task<ResourceRequestArgs<Uri>> Get(this IEventProcessor<EventArgsAsyncWrapper<IEnumerable<ResourceRequestArgs<Uri>>>> chain, string url) => (await Get(chain, new string[] { url }))[0];
+        public static Task<ResourceRequestArgs<Uri>[]> Get(this IEventProcessor<EventArgsAsyncWrapper<IEnumerable<ResourceRequestArgs<Uri>>>> chain, params string[] urls) => Get(chain, urls.Select(url => new Uri(url, UriKind.Relative)));
+        public static async Task<ResourceRequestArgs<Uri>[]> Get(this IEventProcessor<EventArgsAsyncWrapper<IEnumerable<ResourceRequestArgs<Uri>>>> chain, IEnumerable<Uri> uris)
         {
-            var args = uris.Select(uri => new RestRequestArgs(uri)).ToArray();
+            var args = uris.Select(uri => new ResourceRequestArgs<Uri>(uri)).ToArray();
             await Get(chain, args);
             return args;
         }
@@ -27,6 +27,13 @@ namespace Movies
         {
             var e = new ResourceRequestArgs<Uri, T>(uri);
             await processor.ProcessAsync(new EventArgsAsyncWrapper<IEnumerable<ResourceRequestArgs<Uri>>>(new BulkEventArgs<ResourceRequestArgs<Uri>>(e)));
+            return e;
+        }
+
+        public static async Task<ResourceRequestArgs<Uri, T>> TryGet<T>(this IAsyncEventProcessor<IEnumerable<ResourceRequestArgs<Uri>>> processor, Uri uri)
+        {
+            var e = new ResourceRequestArgs<Uri, T>(uri);
+            await processor.ProcessAsync(new BulkEventArgs<ResourceRequestArgs<Uri>>(e));
             return e;
         }
 

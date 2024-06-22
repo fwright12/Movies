@@ -22,13 +22,6 @@ namespace Movies
         public IEnumerable<Entity> Get(DateTime time) => (BindingDelay.IsCompleted ? BindingDelay.Result : Rest.EmptyResource).Get(time);
     }
 
-    public class HttpRequestArgs : RestRequestArgs
-    {
-        public HttpRequestArgs(Uri uri, Type expected = null) : base(uri, expected)
-        {
-        }
-    }
-
     public class HttpResponse : RestResponse
     {
         public Task BindingDelay { get; }

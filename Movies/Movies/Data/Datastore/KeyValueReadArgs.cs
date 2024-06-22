@@ -2,15 +2,23 @@
 
 namespace Movies
 {
-    public class KeyValueReadEventArgs<TKey> : EventArgs
+    public abstract class KeyValueReadEventArgs : EventArgs
     {
-        public TKey Key { get; }
         public Type Expected { get; }
 
-        public KeyValueReadEventArgs(TKey key, Type expected = null)
+        protected KeyValueReadEventArgs(Type expected)
+        {
+            Expected = expected;
+        }
+    }
+
+    public class KeyValueReadEventArgs<TKey> : KeyValueReadEventArgs
+    {
+        public TKey Key { get; }
+
+        public KeyValueReadEventArgs(TKey key, Type expected = null) : base(expected)
         {
             Key = key;
-            Expected = expected;
         }
 
         public override int GetHashCode() => Key.GetHashCode();
@@ -19,21 +27,14 @@ namespace Movies
         public override string ToString() => Key?.ToString();
     }
 
-    public class KeyValueRequestArgs<TKey> : KeyValueRequestArgs<KeyValueReadEventArgs<TKey>, TKey, KeyValueResponse>
-    {
-        public KeyValueRequestArgs(KeyValueReadEventArgs<TKey> request) : base(request) { }
-        public KeyValueRequestArgs(TKey key, Type expected = null) : this(new KeyValueReadEventArgs<TKey>(key, expected)) { }
-    }
-
-    public class KeyValueRequestArgs<TRequest, TKey, TResponse> : EventArgsRequest<TRequest, TResponse>
-        where TRequest : KeyValueReadEventArgs<TKey>
-        where TResponse : KeyValueResponse
+    public class KeyValueRequestArgs<TKey> : EventArgsRequest<KeyValueReadEventArgs<TKey>, KeyValueResponse>
     {
         public object Value => Response?.Value;
 
-        public KeyValueRequestArgs(TRequest request) : base(request) { }
+        public KeyValueRequestArgs(KeyValueReadEventArgs<TKey> request) : base(request) { }
+        public KeyValueRequestArgs(TKey key, Type expected = null) : this(new KeyValueReadEventArgs<TKey>(key, expected)) { }
 
-        protected override bool Accept(TResponse response)
+        protected override bool Accept(KeyValueResponse response)
         {
             if (Request.Expected == null)
             {
@@ -50,9 +51,11 @@ namespace Movies
         }
     }
 
-    public class KeyValueRequestArgs<TKey, TValue> : KeyValueRequestArgs<KeyValueReadEventArgs<TKey>, TKey, KeyValueResponseArgs<TValue>>
+    public class KeyValueRequestArgs<TKey, TValue> : KeyValueRequestArgs<TKey>
     {
-        public KeyValueRequestArgs(KeyValueReadEventArgs<TKey> request) : base(request) { }
+        public new TValue Value => base.Value == null ? default : (TValue)base.Value;
+
+        public KeyValueRequestArgs(TKey key) : base(key, typeof(TValue)) { }
     }
 
     public class KeyValueResponse

@@ -272,9 +272,9 @@ namespace Movies
             var tmdbLocalCache = new TMDbLocalCache(LocalDatabase.ItemCache, resolver);
             
             DataService.Register(new InMemoryService(DataService.Instance.ResourceCache));
-            DataService.Register(new PersistenceService(new ResourceDAO()));
+            //DataService.Register(new PersistenceService(new ResourceDAO()));
             DataService.Register(new TMDbService(TMDB.WebClient, resolver));
-
+            
             DataService.Instance.Controller
                 .SetNext(new AsyncCacheAsideProcessor<ResourceRequestArgs<Uri>>(new UriBufferedCache(tmdbLocalCache)))
                 .SetNext(tmdbHandlers);

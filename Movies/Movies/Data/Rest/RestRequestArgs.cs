@@ -23,22 +23,6 @@ namespace Movies
         }
     }
 
-    public class RestRequestArgs : ResourceRequestArgs<Uri>
-    {
-        public new RestRequestEventArgs Request => base.Request as RestRequestEventArgs;
-
-        public RestRequestArgs(Uri uri, Type expected = null) : base(new RestRequestEventArgs(uri, expected)) { }
-
-        public RestRequestArgs(Uri uri, Representation<string> representation, IDictionary<string, IEnumerable<string>> controlData, Type expected = null) : base(new RestRequestEventArgs(uri, representation, controlData, expected ?? (true == controlData?.TryGetValue(Rest.CONTENT_TYPE, out _) ? typeof(string) : null))) { }
-    }
-
-    public class RestRequestArgs<T> : RestRequestArgs
-    {
-        public new T Value => base.Value == null ? default : (T)base.Value;
-
-        public RestRequestArgs(Uri uri) : base(uri, typeof(T)) { }
-    }
-
     public class RestResponse : ResourceResponse
     {
         public IResource Resource { get; }
