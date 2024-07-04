@@ -28,9 +28,9 @@ namespace Movies
             }
         }
 
-        protected override IEnumerable<KeyValuePair<string, IEnumerable<ResourceRequestArgs<Uri>>>> GroupUrls(IEnumerable<ResourceRequestArgs<Uri>> args)
+        protected override IEnumerable<KeyValuePair<string, IEnumerable<KeyValueRequestArgs<Uri>>>> GroupUrls(IEnumerable<KeyValueRequestArgs<Uri>> args)
         {
-            var trie = new Dictionary<string, List<(string Url, string Path, string Query, ResourceRequestArgs<Uri> Arg)>>();
+            var trie = new Dictionary<string, List<(string Url, string Path, string Query, KeyValueRequestArgs<Uri> Arg)>>();
             if (args.All(arg => arg.IsHandled && (arg.Response as RestResponse)?.ControlData.TryGetValue(REpresentationalStateTransfer.Rest.ETAG, out _) != true))
             {
                 yield break;
@@ -42,7 +42,7 @@ namespace Movies
 
                 foreach (var value in values)
                 {
-                    var arg = value as ResourceRequestArgs<Uri>;
+                    var arg = value as KeyValueRequestArgs<Uri>;
                     var url = value as string ?? Resolver.ResolveUrl(arg.Request.Key);
                     var parts = url.Split('?');
                     AddToTrie(trie, parts[0], (url, parts[0], parts.Length > 1 ? parts[1] : string.Empty, arg));
@@ -72,7 +72,7 @@ namespace Movies
                     url += "?" + query;
                 }
 
-                yield return new KeyValuePair<string, IEnumerable<ResourceRequestArgs<Uri>>>(url, kvp.Value.Select(value => value.Arg).Where(arg => arg != null));
+                yield return new KeyValuePair<string, IEnumerable<KeyValueRequestArgs<Uri>>>(url, kvp.Value.Select(value => value.Arg).Where(arg => arg != null));
             }
         }
 

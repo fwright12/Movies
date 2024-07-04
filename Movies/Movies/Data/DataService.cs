@@ -7,6 +7,7 @@ using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using FFImageLoading.Cache;
+using Movies.Data.Local;
 using Movies.Models;
 
 namespace Movies
@@ -78,15 +79,16 @@ namespace Movies
     {
         public UriBufferedCache Processor { get; }
 
-        public PersistenceService(IEventAsyncCache<ResourceRequestArgs<Uri>> processor)
+        public PersistenceService(IEventAsyncCache<KeyValueRequestArgs<Uri>> processor)
         {
+            //Processor = new UriBufferedCache(new ResourceDAO());
             Processor = new UriBufferedCache(processor);
         }
     }
 
     public class TMDbService
     {
-        public IAsyncEventProcessor<IEnumerable<ResourceRequestArgs<Uri>>> Processor { get; }
+        public IAsyncEventProcessor<IEnumerable<KeyValueRequestArgs<Uri>>> Processor { get; }
 
         public TMDbService(HttpMessageInvoker invoker, TMDbResolver resolver)
         {
@@ -98,7 +100,7 @@ namespace Movies
     {
         public static readonly DataService Instance = new DataService();
 
-        public ChainLink<EventArgsAsyncWrapper<IEnumerable<ResourceRequestArgs<Uri>>>> Controller { get; }
+        public ChainLink<EventArgsAsyncWrapper<IEnumerable<KeyValueRequestArgs<Uri>>>> Controller { get; }
         public UiiDictionaryDataStore ResourceCache { get; }
         public const int BATCH_TIMEOUT = 5000;
 
@@ -115,7 +117,7 @@ namespace Movies
         private DataService()
         {
             ResourceCache = new UiiDictionaryDataStore();
-            Controller = new AsyncCacheAsideProcessor<ResourceRequestArgs<Uri>>(new ResourceBufferedCache<Uri>(ResourceCache)).ToChainLink();
+            //Controller = new AsyncCacheAsideProcessor<KeyValueRequestArgs<Uri>>(new ResourceBufferedCache<Uri>(ResourceCache)).ToChainLink();
         }
 
         public static void Register<T>(T service)

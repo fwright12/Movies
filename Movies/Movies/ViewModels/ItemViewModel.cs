@@ -28,17 +28,17 @@ namespace Movies.ViewModels
         public virtual string PrimaryImagePath => null;
         public ICommand AddToListCommand { get; }
 
-        private static IAsyncEventProcessor<IEnumerable<ResourceRequestArgs<Uri>>> DefaultController { get; }
-        private IAsyncEventProcessor<IEnumerable<ResourceRequestArgs<Uri>>> Controller { get; }
+        private static IAsyncEventProcessor<IEnumerable<KeyValueRequestArgs<Uri>>> DefaultController { get; }
+        private IAsyncEventProcessor<IEnumerable<KeyValueRequestArgs<Uri>>> Controller { get; }
 
         static ItemViewModel()
         {
-            var inMemory = AsyncChainLink.Create(AsyncCacheAsideProcessor.Create(DataService.GetService<InMemoryService>().Cache));
-            var local = AsyncCacheAsideProcessor.Create(DataService.GetService<PersistenceService>().Processor);
-            var tmdb = DataService.GetService<TMDbService>().Processor;
+            //var inMemory = AsyncChainLink.Create(AsyncCacheAsideProcessor.Create(DataService.GetService<InMemoryService>().Cache));
+            //var local = AsyncCacheAsideProcessor.Create(DataService.GetService<PersistenceService>().Processor);
+            //var tmdb = DataService.GetService<TMDbService>().Processor;
 
             //inMemory.SetNext(local).SetNext(tmdb);
-            DefaultController = inMemory;
+            //DefaultController = inMemory;
         }
 
         protected Task BatchRequest => BatchRequestSource?.Task ?? Task.CompletedTask;
@@ -58,14 +58,14 @@ namespace Movies.ViewModels
             });
         }
 
-        private Dictionary<string, ResourceRequestArgs<Uri>> Batched = new Dictionary<string, ResourceRequestArgs<Uri>>();
+        private Dictionary<string, KeyValueRequestArgs<Uri>> Batched = new Dictionary<string, KeyValueRequestArgs<Uri>>();
 
         private async void BatchEnded(object sender, EventArgs e)
         {
             DataService.Instance.BatchCommitted -= BatchEnded;
 
             var batch = Batched;
-            Batched = new Dictionary<string, ResourceRequestArgs<Uri>>();
+            Batched = new Dictionary<string, KeyValueRequestArgs<Uri>>();
 
             await Controller.ProcessAsync(batch.Values);
             BatchRequestSource?.SetResult(true);
@@ -86,16 +86,16 @@ namespace Movies.ViewModels
             {
                 if (this is PersonViewModel && Batched.Count == 0)
                 {
-                    Batched["credits"] = new ResourceRequestArgs<Uri>(new UniformItemIdentifier(Item, Person.CREDITS), Person.CREDITS.FullType);
+                    Batched["credits"] = new KeyValueRequestArgs<Uri>(new UniformItemIdentifier(Item, Person.CREDITS), Person.CREDITS.FullType);
                 }
                 if (this is TVSeasonViewModel && Batched.Count == 0)
                 {
-                    Batched["episodes"] = new ResourceRequestArgs<Uri>(new UniformItemIdentifier(Item, TVSeason.EPISODES), TVSeason.EPISODES.FullType);
-                    Batched[nameof(TVSeasonViewModel.Cast)] = new ResourceRequestArgs<Uri>(new UniformItemIdentifier(Item, TVSeason.CAST), TVSeason.CAST.FullType);
-                    Batched[nameof(TVSeasonViewModel.Crew)] = new ResourceRequestArgs<Uri>(new UniformItemIdentifier(Item, TVSeason.CREW), TVSeason.CREW.FullType);
+                    Batched["episodes"] = new KeyValueRequestArgs<Uri>(new UniformItemIdentifier(Item, TVSeason.EPISODES), TVSeason.EPISODES.FullType);
+                    Batched[nameof(TVSeasonViewModel.Cast)] = new KeyValueRequestArgs<Uri>(new UniformItemIdentifier(Item, TVSeason.CAST), TVSeason.CAST.FullType);
+                    Batched[nameof(TVSeasonViewModel.Crew)] = new KeyValueRequestArgs<Uri>(new UniformItemIdentifier(Item, TVSeason.CREW), TVSeason.CREW.FullType);
                 }
 
-                Batched[propertyName] = new ResourceRequestArgs<Uri>(new UniformItemIdentifier(Item, property), property.FullType);
+                Batched[propertyName] = new KeyValueRequestArgs<Uri>(new UniformItemIdentifier(Item, property), property.FullType);
                 BatchRequestSource ??= new TaskCompletionSource<bool>();
                 DataService.Instance.BatchCommitted -= BatchEnded;
                 DataService.Instance.BatchCommitted += BatchEnded;

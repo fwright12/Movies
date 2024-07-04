@@ -6,7 +6,239 @@ using System.Threading.Tasks;
 
 namespace Movies
 {
-    public abstract class BufferedCache<TArgs> : IEventAsyncCache<TArgs>, IAsyncCoRProcessor<IEnumerable<TArgs>> where TArgs : EventArgsRequest
+    public interface ITaskCache<TArgs>
+    {
+        Task<bool> HandleAsync(Task<TArgs> args);
+        bool TryGetTask(TArgs args, out Task task);
+        void Add(TArgs args, Task task);
+        void Update(TArgs args, Task task);
+        bool TryRemove(TArgs arg);
+    }
+
+    public class BufferCache<TKey> : ITaskCache<KeyValueRequestArgs<TKey>>
+    {
+        private Dictionary<TKey, (KeyValueRequestArgs<TKey> Arg, Task Task)> Buffer;
+
+        public void Add(KeyValueRequestArgs<TKey> args, Task task) => Buffer.Add(args.Request.Key, (args, task));
+
+        public async Task<bool> HandleAsync(Task<KeyValueRequestArgs<TKey>> args)
+        {
+            var arg = await args;
+            if (Buffer.TryGetValue(arg.Request.Key, out var buffered))
+            {
+                arg.Handle(buffered.Item1.Response);
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        public bool TryGetTask(KeyValueRequestArgs<TKey> args, out Task task)
+        {
+            if (Buffer.TryGetValue(args.Request.Key, out var value))
+            {
+                task = value.Task;
+                return true;
+            }
+            else
+            {
+                task = default;
+                return false;
+            }
+        }
+
+        public bool TryRemove(KeyValueRequestArgs<TKey> arg) => Buffer.TryGetValue(arg.Request.Key, out var buffered) && arg == buffered.Arg;
+
+        public void Update(KeyValueRequestArgs<TKey> args, Task task) => Add(args, task);
+    }
+
+    public interface IAsyncDatastore<TReadArgs, TWriteArgs>
+    {
+        public Task<bool> Read(TReadArgs args);
+        public Task<bool> Write(TWriteArgs args);
+    }
+
+    public class BufferedDatastore<TArgs> : IEventAsyncCache<TArgs>
+    {
+        private ITaskCache<TArgs> Buffer { get; }
+
+        private IEventAsyncCache<TArgs> Datastore { get; }
+        private BufferedProcessor<TArgs> BufferedProcessor { get; }
+
+        public BufferedDatastore(IEventAsyncCache<TArgs> datastore, ITaskCache<TArgs> buffer)
+        {
+            Datastore = datastore;
+            Buffer = buffer;
+            BufferedProcessor = new BufferedProcessor<TArgs>(new EventCacheReadProcessor<TArgs>(datastore), buffer);
+        }
+
+        public Task<bool> Read(IEnumerable<TArgs> args) => BufferedProcessor.ProcessAsync(args);
+
+        public Task<bool> WriteAsync(TArgs args) => Write(args.AsEnumerable());
+        public async Task<bool> Write(IEnumerable<TArgs> args)
+        {
+            lock (Buffer)
+            {
+                foreach (var arg in args)
+                {
+                    Buffer.Update(arg, Task.CompletedTask);
+                }
+            }
+
+            try
+            {
+                return await Datastore.Write(args);
+            }
+            catch
+            {
+                return false;
+            }
+            finally
+            {
+                lock (Buffer)
+                {
+                    foreach (var arg in args)
+                    {
+                        //TryRemove(arg);
+                    }
+                }
+            }
+        }
+
+        public void Write(TArgs args, Task task) => Write(args.AsEnumerable(), task);
+        public async void Write(IEnumerable<TArgs> args, Task task)
+        {
+            try
+            {
+                lock (Buffer)
+                {
+                    foreach (var arg in args)
+                    {
+                        Buffer.Update(arg, task);
+                    }
+                }
+
+                try
+                {
+                    await task;
+                }
+                finally
+                {
+                    await Write(args);
+                }
+            }
+            catch (Exception e)
+            {
+                System.Diagnostics.Debug.WriteLine(e);
+            }
+        }
+    }
+
+    public class BufferedProcessor<TArgs> : IAsyncEventProcessor<IEnumerable<TArgs>>
+    {
+        public IAsyncEventProcessor<IEnumerable<TArgs>> Datastore { get; }
+        private IDictionary<TArgs, Task> Buffer { get; }
+
+        public BufferedProcessor(IAsyncEventProcessor<IEnumerable<TArgs>> datastore, ITaskCache<TArgs> buffer)
+        {
+            Datastore = datastore;
+            //Buffer = buffer;
+        }
+
+        public async Task<bool> ProcessAsync(IEnumerable<TArgs> args)
+        {
+            var buffer = new Task<TArgs>[args.Count()];
+            var unbuffered = new BulkEventArgs<TArgs>();
+            var source = new TaskCompletionSource<bool>();
+            Task<bool> response;
+            
+            lock (Buffer)
+            {
+                var itr = args.GetEnumerator();
+                for (int i = 0; itr.MoveNext(); i++)
+                {
+                    var arg = itr.Current;
+                    Task task;
+
+                    if (!Buffer.TryGetValue(arg, out task))
+                    {
+                        Buffer.Add(arg, task = source.Task);
+                        unbuffered.Add(arg);
+                    }
+
+                    buffer[i] = task.ContinueWith(_ => arg);
+                }
+
+                if (unbuffered.Count == 0)
+                {
+                    response = Task.FromResult(true);
+                }
+                else
+                {
+                    try
+                    {
+                        response = Datastore.ProcessAsync(unbuffered);
+
+                        foreach (var arg in unbuffered)
+                        {
+                            Buffer[arg] = source.Task;
+                        }
+                    }
+                    finally
+                    {
+                        (args as BulkEventArgs<TArgs>)?.Add(unbuffered);
+                    }
+                }
+            }
+
+            bool result;
+            try
+            {
+                source.SetResult(result = await response);
+            }
+            catch (Exception e)
+            {
+                source.SetException(e);
+                result = false;
+            }
+            finally
+            {
+                (args as BulkEventArgs<TArgs>)?.Add(unbuffered);
+            }
+
+            var tasks = new List<Task>();
+
+            lock (Buffer)
+            {
+                var itr = args.GetEnumerator();
+                for (int i = 0; itr.MoveNext(); i++)
+                {
+                    var arg = itr.Current;
+                    Task<TArgs> task;
+
+                    if (Buffer.TryGetValue(arg, out var task1))
+                    {
+                        task = task1.ContinueWith(_ => arg);
+                    }
+                    else
+                    {
+                        task = buffer[i];
+                    }
+
+                    //tasks.Add(Buffer.HandleAsync(task));
+                    //Buffer.TryRemove(arg);
+                }
+            }
+
+            await Task.WhenAll(tasks);
+            //Print.Log(unbuffered.Count, string.Join("\n\t", args.Select(arg => arg.ToString() + ", " + ((EventArgsRequest)arg).IsHandled).Prepend(Cache.ToString())));
+            return true;// args.All(arg => arg.IsHandled);
+        }
+    }
+
+    public abstract class BufferedCache<TArgs> : IEventAsyncCache<TArgs> where TArgs : EventArgsRequest
     {
         public IEventAsyncCache<TArgs> Cache { get; }
 
@@ -17,22 +249,6 @@ namespace Movies
 
         public abstract void Process(TArgs e, TArgs buffered);
         public virtual object GetKey(TArgs e) => e;
-
-        public virtual async Task<bool> ProcessAsync(IEnumerable<TArgs> e, IAsyncEventProcessor<IEnumerable<TArgs>> next)
-        {
-            if (await Read(e))
-            {
-                return true;
-            }
-            else if (next == null)
-            {
-                return false;
-            }
-            else
-            {
-                return await next.ProcessAsync(e);
-            }
-        }
 
         private Dictionary<object, Value> Buffer = new Dictionary<object, Value>();
 

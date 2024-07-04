@@ -3,16 +3,16 @@ using System.Collections.Concurrent;
 
 namespace MoviesTests
 {
-    public class DummyDatastore<TKey> : ConcurrentDictionary<TKey, ResourceResponse>, IAsyncEventProcessor<ResourceRequestArgs<TKey>>, IEventAsyncCache<ResourceRequestArgs<TKey>>
+    public class DummyDatastore<TKey> : ConcurrentDictionary<TKey, ResourceResponse>, IAsyncEventProcessor<KeyValueRequestArgs<TKey>>, IEventAsyncCache<KeyValueRequestArgs<TKey>>
         where TKey : Uri
     {
         public int ReadLatency { get; set; }
         public int WriteLatency { get; set; }
 
-        public async Task<bool> Read(IEnumerable<ResourceRequestArgs<TKey>> args) => (await Task.WhenAll(args.Select(ProcessAsync))).All(result => result);
+        public async Task<bool> Read(IEnumerable<KeyValueRequestArgs<TKey>> args) => (await Task.WhenAll(args.Select(ProcessAsync))).All(result => result);
 
-        public async Task<bool> Write(IEnumerable<ResourceRequestArgs<TKey>> args) => (await Task.WhenAll(args.Select(Write))).All(result => result);
-        public async Task<bool> Write(ResourceRequestArgs<TKey> args)
+        public async Task<bool> Write(IEnumerable<KeyValueRequestArgs<TKey>> args) => (await Task.WhenAll(args.Select(Write))).All(result => result);
+        public async Task<bool> Write(KeyValueRequestArgs<TKey> args)
         {
             if (!args.IsHandled)// && (args.Response as HttpResponse)?.StatusCode != System.Net.HttpStatusCode.NotModified)
             {
@@ -20,10 +20,10 @@ namespace MoviesTests
             }
 
             await WriteDelay();
-            return TryAdd(args.Request.Key, args.Response);
+            return TryAdd(args.Request.Key, args.Response as ResourceResponse);
         }
 
-        public async Task<bool> ProcessAsync(ResourceRequestArgs<TKey> e)
+        public async Task<bool> ProcessAsync(KeyValueRequestArgs<TKey> e)
         {
             await ReadDelay();
             

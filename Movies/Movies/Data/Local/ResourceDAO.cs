@@ -8,7 +8,44 @@ using Xamarin.Essentials;
 
 namespace Movies.Data.Local
 {
-    internal class ResourceDAO : IEventAsyncCache<ResourceRequestArgs<Uri>>, IAsyncEventProcessor<IEnumerable<ResourceRequestArgs<Uri>>>
+    public class PersistentCache : IEventAsyncCache<KeyValueRequestArgs<Uri>>
+    {
+        public IEventAsyncCache<KeyValueRequestArgs<Uri>> DAO { get; }
+        public IAsyncEventProcessor<IEnumerable<KeyValueRequestArgs<Uri>>> Processor { get; }
+        public TMDbResolver Resolver { get; }
+
+        public PersistentCache(IEventAsyncCache<KeyValueRequestArgs<Uri>> dao, TMDbResolver resolver)
+        {
+            DAO = dao;
+            Processor = new TMDbProcessor(new TMDbSQLProcessor(dao), resolver)
+            {
+                Flag = false
+            };
+            Resolver = resolver;
+        }
+
+        //public Task<bool> Read(IEnumerable<KeyValueRequestArgs<Uri>> args) => Processor.ProcessAsync(args);
+        public Task<bool> Read(IEnumerable<KeyValueRequestArgs<Uri>> args) => DAO.Read(args);
+        //public async Task<bool> Read(IEnumerable<KeyValueRequestArgs<Uri>> args) => (await Task.WhenAll(args.Select(Read))).All(x => x);
+        public Task<bool> Read(KeyValueRequestArgs<Uri> args)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<bool> Write(IEnumerable<KeyValueRequestArgs<Uri>> args) => DAO.Write(args.Where(ShouldWrite));
+
+        private bool ShouldWrite(KeyValueRequestArgs<Uri> arg)
+        {
+            if (arg.Request.Key is UniformItemIdentifier)
+            {
+                return false;
+            }
+
+            return true;
+        }
+    }
+
+    internal class ResourceDAO : IEventAsyncCache<KeyValueRequestArgs<Uri>>, IAsyncEventProcessor<IEnumerable<KeyValueRequestArgs<Uri>>>
     {
         public const SQLite.SQLiteOpenFlags Flags =
             // open the database in read/write mode
@@ -66,13 +103,13 @@ namespace Movies.Data.Local
             return await connection.InsertOrReplaceAsync(message);
         }
 
-        Task<bool> IAsyncEventProcessor<IEnumerable<ResourceRequestArgs<Uri>>>.ProcessAsync(IEnumerable<ResourceRequestArgs<Uri>> e) => ((IEventAsyncCache<ResourceRequestArgs<Uri>>)this).Read(e);
+        Task<bool> IAsyncEventProcessor<IEnumerable<KeyValueRequestArgs<Uri>>>.ProcessAsync(IEnumerable<KeyValueRequestArgs<Uri>> e) => ((IEventAsyncCache<KeyValueRequestArgs<Uri>>)this).Read(e);
 
-        async Task<bool> IEventAsyncCache<ResourceRequestArgs<Uri>>.Read(IEnumerable<ResourceRequestArgs<Uri>> args) => (await Task.WhenAll(args.Select(Read))).All(result => result);
+        async Task<bool> IEventAsyncCache<KeyValueRequestArgs<Uri>>.Read(IEnumerable<KeyValueRequestArgs<Uri>> args) => (await Task.WhenAll(args.Select(Read))).All(result => result);
 
-        async Task<bool> IEventAsyncCache<ResourceRequestArgs<Uri>>.Write(IEnumerable<ResourceRequestArgs<Uri>> args) => (await Task.WhenAll(args.Select(Write))).All(result => result);
+        async Task<bool> IEventAsyncCache<KeyValueRequestArgs<Uri>>.Write(IEnumerable<KeyValueRequestArgs<Uri>> args) => (await Task.WhenAll(args.Select(Write))).All(result => result);
 
-        private async Task<bool> Read(ResourceRequestArgs<Uri> arg)
+        private async Task<bool> Read(KeyValueRequestArgs<Uri> arg)
         {
             var message = await GetMessage(arg.Request.Key);
             if (message == null)
@@ -103,13 +140,13 @@ namespace Movies.Data.Local
             return arg.Handle(new RestResponse(representation, headers, null, arg.Request.Expected));
         }
 
-        private async Task<bool> Write(ResourceRequestArgs<Uri> arg)
+        private async Task<bool> Write(KeyValueRequestArgs<Uri> arg)
         {
             if (arg.Response == null)
             {
                 return false;
             }
-            if (!arg.Response.TryGetRepresentation<byte[]>(out var bytes))
+            if (!(arg.Response as ResourceResponse).TryGetRepresentation<byte[]>(out var bytes))
             {
                 return false;
             }
@@ -136,7 +173,7 @@ namespace Movies.Data.Local
             return await UpdateMessage(message) > 0;
         }
 
-        private bool ShouldWrite(ResourceRequestArgs<Uri> arg)
+        private bool ShouldWrite(KeyValueRequestArgs<Uri> arg)
         {
             if (arg.Request.Key is UniformItemIdentifier)
             {

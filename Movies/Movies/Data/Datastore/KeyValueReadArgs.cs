@@ -36,6 +36,11 @@ namespace Movies
 
         protected override bool Accept(KeyValueResponse response)
         {
+            if (response is ResourceResponse resourceResponse && resourceResponse.Count == 0)
+            {
+                return false;
+            }
+
             if (Request.Expected == null)
             {
                 return true;

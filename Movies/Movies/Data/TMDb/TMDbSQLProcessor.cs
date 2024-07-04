@@ -4,15 +4,15 @@ using System.Threading.Tasks;
 
 namespace Movies
 {
-    public class TMDbSQLProcessor : IAsyncEventProcessor<ResourceRequestArgs<Uri>>
+    public class TMDbSQLProcessor : IAsyncEventProcessor<KeyValueRequestArgs<Uri>>
     {
-        public IEventAsyncCache<ResourceRequestArgs<Uri>> DAO { get; }
+        public IEventAsyncCache<KeyValueRequestArgs<Uri>> DAO { get; }
 
-        public TMDbSQLProcessor(IEventAsyncCache<ResourceRequestArgs<Uri>> dao)
+        public TMDbSQLProcessor(IEventAsyncCache<KeyValueRequestArgs<Uri>> dao)
         {
             DAO = dao;
         }
 
-        public Task<bool> ProcessAsync(ResourceRequestArgs<Uri> e) => DAO.Read(e.AsEnumerable());
+        public Task<bool> ProcessAsync(KeyValueRequestArgs<Uri> e) => DAO.Read(e.AsEnumerable());
     }
 }
