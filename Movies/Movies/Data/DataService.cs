@@ -1,14 +1,8 @@
-﻿using System;
-using System.Collections;
+﻿using Movies.Models;
+using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Net.Http;
-using System.Reflection;
-using System.Threading;
 using System.Threading.Tasks;
-using FFImageLoading.Cache;
-using Movies.Data.Local;
-using Movies.Models;
 
 namespace Movies
 {
@@ -81,6 +75,7 @@ namespace Movies
 
         public PersistenceService(IEventAsyncCache<KeyValueRequestArgs<Uri>> processor)
         {
+            //var dao = new SqlResourceDAO(new SQLiteAsyncConnection(DatabasePath, Flags));
             //Processor = new UriBufferedCache(new ResourceDAO());
             Processor = new UriBufferedCache(processor);
         }

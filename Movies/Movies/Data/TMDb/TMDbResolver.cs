@@ -406,12 +406,19 @@ namespace Movies
 
                         try
                         {
-                            var byteRepresentation = new ObjectRepresentation<IEnumerable<byte>>(lazyJson.Bytes);
+                            var bytes1 = lazyJson.Bytes;
+                            if (parser is IParser<ArraySegment<byte>> parser1 && parser1.JsonParser is JsonPropertyParser jpp && (string.IsNullOrEmpty(annotation.Path) ? json : (json.TryGetValue(annotation.Path, out var temp) ? temp : null)) is JsonIndex index)
+                            {
+                                bytes1 = new PropertyBytes(index, jpp.Property).Bytes;
+                                var str = Encoding.UTF8.GetString(bytes1);
+                            }
+
+                            var byteRepresentation = new ObjectRepresentation<IEnumerable<byte>>(bytes1);
                             var state = new State(byteRepresentation);
 
                             if (converter != null)
                             {
-                                state.AddRepresentation(parser.Property.FullType, new LazilyConvertedRepresentation<IEnumerable<byte>, object>(byteRepresentation, converter));
+                                state.AddRepresentation(parser.Property.FullType, new LazilyConvertedRepresentation<IEnumerable<byte>, object>(new ObjectRepresentation<IEnumerable<byte>>(lazyJson.Bytes), converter));
                             }
                             //else if (success)
                             //{

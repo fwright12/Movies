@@ -12,6 +12,7 @@ namespace Movies
     public class UiiDictionaryDataStore : IEventAsyncCache<KeyValueRequestArgs<Uri>>, IAsyncDataStore<Uri, State>
     {
         public int Count => Datastore.Count;
+        public ICollection<Uri> Keys => Datastore.Keys;
 
         public DictionaryDataStore Datastore { get; } = new DictionaryDataStore();
 
@@ -37,6 +38,7 @@ namespace Movies
     public class DictionaryDataStore : IEventAsyncCache<KeyValueRequestArgs<Uri>>, IAsyncDataStore<Uri, State>
     {
         public int Count => Cache.Count;
+        public ICollection<Uri> Keys => Cache.Keys;
 
         private Dictionary<Uri, Task<State>> Cache { get; } = new Dictionary<Uri, Task<State>>();
 

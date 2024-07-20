@@ -8,12 +8,14 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
+using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
+using Xamarin.Essentials;
 using Xamarin.Forms;
 using Xamarin.Forms.Xaml;
 
@@ -811,6 +813,17 @@ namespace Movies
         }
 
         public static TimeSpan LogoCacheValidity = new TimeSpan(7, 0, 0, 0);
+
+        public const SQLite.SQLiteOpenFlags Flags =
+            // open the database in read/write mode
+            SQLite.SQLiteOpenFlags.ReadWrite |
+            // create the database if it doesn't exist
+            SQLite.SQLiteOpenFlags.Create |
+            // enable multi-threaded database access
+            SQLite.SQLiteOpenFlags.SharedCache;
+        private static string DatabasePath => Path.Combine(FileSystem.AppDataDirectory, DatabaseFilename);
+
+        private const string DatabaseFilename = "TodoSQLite.db3";
 
         public RatingTemplateCollectionViewModel RatingTemplateManager { get; } = new RatingTemplateCollectionViewModel();
 
