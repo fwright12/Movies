@@ -9,57 +9,18 @@ using System.Threading.Tasks;
 
 namespace Movies.Data.Local
 {
-    public class PersistentCache : IEventAsyncCache<KeyValueRequestArgs<Uri>>
+    public class LocalMovieCache : IEventAsyncCache<KeyValueRequestArgs<Uri>>
     {
-        public IEventAsyncCache<KeyValueRequestArgs<Uri>> DAO { get; }
-        public TMDbResolver Resolver { get; }
+        public IEventAsyncCache<KeyValueRequestArgs<Uri>> Cache { get; }
 
-        public PersistentCache(IEventAsyncCache<KeyValueRequestArgs<Uri>> dao, TMDbResolver resolver)
+        public LocalMovieCache(IEventAsyncCache<KeyValueRequestArgs<Uri>> cache)
         {
-            DAO = dao;
-            Resolver = resolver;
+            Cache = cache;
         }
 
-        //public Task<bool> Read(IEnumerable<KeyValueRequestArgs<Uri>> args) => Processor.ProcessAsync(args);
-        //public Task<bool> Read(IEnumerable<KeyValueRequestArgs<Uri>> args) => DAO.Read(args);
+        public Task<bool> Read(IEnumerable<KeyValueRequestArgs<Uri>> args) => Cache.Read(args);
 
-        public async Task<bool> Read(IEnumerable<KeyValueRequestArgs<Uri>> args) => (await Task.WhenAll(args.Select(Read))).All(x => x);
-
-        public async Task<bool> Read(KeyValueRequestArgs<Uri> arg)
-        {
-            var e = new KeyValueRequestArgs<Uri>(arg.Request.Key);
-            if (!await DAO.Read(e.AsEnumerable()))
-            {
-                return false;
-            }
-
-            var urn = GetUrnParts(arg.Request.Key);
-            if (e.Response is RestResponse restResponse && arg.Request.Key is UniformItemIdentifier uii && TryParseItemType(urn, out var itemType))
-            {
-                if (restResponse is HttpResponse httpResponse)
-                {
-                    await httpResponse.BindingDelay;
-                }
-
-                if (restResponse.Resource.Get() is State state && restResponse.TryGetRepresentation<IEnumerable<byte>>(out var bytes) && TryGetConverter(itemType, uii.Property, out var converter))
-                {
-                    var byteRepresentation = new ObjectRepresentation<IEnumerable<byte>>(bytes);
-                    state.AddRepresentation(uii.Property.FullType, new LazilyConvertedRepresentation<IEnumerable<byte>, object>(byteRepresentation, converter));
-                    //var converted = await converter.Convert(new System.Net.Http.ByteArrayContent(bytes as byte[] ?? bytes.ToArray()));
-                    //state.Add(converted.GetType(), converted);
-                }
-
-                var response = RestResponse.Create(arg.Request.Expected, restResponse.Resource, restResponse.ControlData, restResponse.Metadata);
-                if (response != null)
-                {
-                    return arg.Handle(response);
-                }
-            }
-
-            return arg.Handle(e.Response);
-        }
-
-        public Task<bool> Write(IEnumerable<KeyValueRequestArgs<Uri>> args) => DAO.Write(args.Where(ShouldWrite));
+        public Task<bool> Write(IEnumerable<KeyValueRequestArgs<Uri>> args) => Cache.Write(args.Where(ShouldWrite));
 
         private bool ShouldWrite(KeyValueRequestArgs<Uri> arg)
         {
@@ -77,68 +38,6 @@ namespace Movies.Data.Local
 
             return false;
         }
-
-        private bool TryGetConverter(ItemType itemType, Property property, out Func<IEnumerable<byte>, object> converter)
-        {
-            if (property == TVShow.LAST_AIR_DATE)
-            {
-                converter = source => JsonSerializer.Deserialize(source.ToArray(), property.FullType);
-                return true;
-            }
-
-            if (!Resolver.TryGetParser(itemType, property, out var parser))
-            {
-                converter = default;
-                return false;
-            }
-            else if (parser is ParserWrapper wrapper)
-            {
-                parser = wrapper.Parser;
-            }
-
-            converter = source => parser.GetPair(source is ArraySegment<byte> segment ? segment : new ArraySegment<byte>(source.ToArray())).Value;
-            return true;
-        }
-
-        private static string[] GetUrnParts(Uri uri)
-        {
-            var urn = uri.AbsolutePath;
-            return urn.Split(":");
-        }
-
-        private static bool TryParseItemInfo(Uri uri, out ItemType type, out int id, out string propertyName)
-        {
-            var parts = GetUrnParts(uri);
-
-            if (parts.Length > 2)
-            {
-                propertyName = parts[2];
-                return TryParseItemType(parts, out type) & int.TryParse(parts[1], out id);
-            }
-            else
-            {
-                type = default;
-                id = default;
-                propertyName = default;
-                return false;
-            }
-        }
-
-        private static bool TryParseItemType(string[] urnParts, out ItemType type)
-        {
-            var typeStr = urnParts[0].ToLower();
-
-            if (typeStr == "movie") type = ItemType.Movie;
-            else if (typeStr == "tvshow") type = ItemType.TVShow;
-            else if (typeStr == "person") type = ItemType.Person;
-            else
-            {
-                type = default;
-                return false;
-            }
-
-            return true;
-        }
     }
 
     public class SqlResourceDAO : IEventAsyncCache<KeyValueRequestArgs<Uri>>, IAsyncEventProcessor<IEnumerable<KeyValueRequestArgs<Uri>>>
@@ -150,10 +49,10 @@ namespace Movies.Data.Local
         private Task<SQLiteAsyncConnection> Connection { get; }
         private Task InitTask { get; }
 
-        public SqlResourceDAO(SQLiteAsyncConnection connection)
+        public SqlResourceDAO(SQLiteAsyncConnection connection, TMDbResolver resolver)
         {
             Connection = Connect(connection);
-            //Cache = new UriBufferedCache(this);
+            Resolver = resolver;
         }
 
         private async Task<SQLiteAsyncConnection> Connect(SQLiteAsyncConnection connection)
@@ -163,15 +62,17 @@ namespace Movies.Data.Local
             {
                 await connection.DropTableAsync<Message>();
             }
+#endif
+            await connection.CreateTableAsync<Message>();
 
+#if DEBUG
             Print.Log(await connection.Table<Message>().CountAsync() + " items in cache");
             foreach (var row in await connection.Table<Message>().Take(10).ToListAsync())
             {
                 Print.Log(row.Uri, row.Timestamp, row.ETag, row.ExpiresAt);
             }
 #endif
-            
-            await connection.CreateTableAsync<Message>();
+
             return connection;
         }
 
@@ -191,7 +92,7 @@ namespace Movies.Data.Local
 
         async Task<bool> IEventAsyncCache<KeyValueRequestArgs<Uri>>.Read(IEnumerable<KeyValueRequestArgs<Uri>> args) => (await Task.WhenAll(args.Select(Read))).All(result => result);
 
-        async Task<bool> IEventAsyncCache<KeyValueRequestArgs<Uri>>.Write(IEnumerable<KeyValueRequestArgs<Uri>> args) => (await Task.WhenAll(args.Where(ShouldWrite).Select(Write))).All(result => result);
+        async Task<bool> IEventAsyncCache<KeyValueRequestArgs<Uri>>.Write(IEnumerable<KeyValueRequestArgs<Uri>> args) => (await Task.WhenAll(args.Select(Write))).All(result => result);
 
         private async Task<bool> Read(KeyValueRequestArgs<Uri> arg)
         {
@@ -228,7 +129,7 @@ namespace Movies.Data.Local
                 state.AddRepresentation(uii.Property.FullType, new LazilyConvertedRepresentation<IEnumerable<byte>, object>(byteRepresentation, converter));
             }
 
-            return arg.Handle(new RestResponse(byteRepresentation, headers, null, arg.Request.Expected));
+            return arg.Handle(RestResponse.Create(arg.Request.Expected, state, headers, null));
         }
 
         private async Task<bool> Write(KeyValueRequestArgs<Uri> arg)
@@ -237,7 +138,7 @@ namespace Movies.Data.Local
             {
                 return false;
             }
-            if (!(arg.Response as ResourceResponse).TryGetRepresentation<byte[]>(out var bytes))
+            if (false == arg.Value is IEnumerable<byte> bytes && true != (arg.Response as ResourceResponse)?.TryGetRepresentation<IEnumerable<byte>>(out bytes))
             {
                 return false;
             }
@@ -245,12 +146,11 @@ namespace Movies.Data.Local
             var message = new Message
             {
                 Uri = arg.Request.Key,
-                Response = bytes,
+                Response = bytes.ToArray(),
             };
 
             if (arg.Response is RestResponse restResponse)
             {
-                var state = restResponse.Resource.Get() as State;
                 var headers = new System.Net.Http.HttpResponseMessage().Headers;
                 foreach (var kvp in restResponse.ControlData)
                 {
@@ -262,23 +162,6 @@ namespace Movies.Data.Local
             }
 
             return await UpdateMessage(message) > 0;
-        }
-
-        private bool ShouldWrite(KeyValueRequestArgs<Uri> arg)
-        {
-            if (arg.Request.Key is UniformItemIdentifier)
-            {
-                return true;
-            }
-
-            var url = arg.Request.Key.ToString();
-
-            if (Regex.IsMatch(url, "3/movie/\\d/external_ids.*"))
-            {
-                return true;
-            }
-
-            return false;
         }
 
         private bool TryGetConverter(ItemType itemType, Property property, out Func<IEnumerable<byte>, object> converter)

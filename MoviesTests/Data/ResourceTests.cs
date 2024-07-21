@@ -9,9 +9,6 @@ namespace MoviesTests.Data
     [TestClass]
     public class ResourceTests : Resources
     {
-        private const string MOVIE_APPENDED_URL = $"3/movie/0?language=en-US&{Constants.APPEND_TO_RESPONSE}=credits,external_ids,keywords,recommendations,release_dates,videos,watch/providers";
-        private const string TV_APPENDED_URL = $"3/tv/0?language=en-US&{Constants.APPEND_TO_RESPONSE}=aggregate_credits,content_ratings,external_ids,keywords,recommendations,videos,watch/providers";
-
         [TestInitialize]
         public void Reset()
         {
@@ -47,8 +44,8 @@ namespace MoviesTests.Data
             await AssertTVCachedAtAllLayers<DateTime?>(new UniformItemIdentifier(Constants.TVShow, TVShow.LAST_AIR_DATE), new DateTime(2013, 5, 16));
         }
 
-        private Task AssertMovieCachedAtAllLayers<T>(Uri uri, T expected) => AssertCachedAtAllLayers(uri, expected, MOVIE_APPENDED_URL, ResourceAssert.ExpectedMovieResourceCount);
-        private Task AssertTVCachedAtAllLayers<T>(Uri uri, T expected) => AssertCachedAtAllLayers(uri, expected, TV_APPENDED_URL, ResourceAssert.ExpectedTVResourceCount);
+        private Task AssertMovieCachedAtAllLayers<T>(Uri uri, T expected) => AssertCachedAtAllLayers(uri, expected, ResourceUtils.MOVIE_APPENDED_URL, ResourceAssert.ExpectedMovieResourceCount);
+        private Task AssertTVCachedAtAllLayers<T>(Uri uri, T expected) => AssertCachedAtAllLayers(uri, expected, ResourceUtils.TV_APPENDED_URL, ResourceAssert.ExpectedTVResourceCount);
         private async Task AssertCachedAtAllLayers<T>(Uri uri, T expected, string apiEndpoint, int expectedResourceCount)
         {
             var handlers = new HandlerChain();
@@ -102,7 +99,7 @@ namespace MoviesTests.Data
             var chain = handlers.Chain;
 
             var uri = new Uri("urn:Movie:0:Runtime", UriKind.RelativeOrAbsolute);
-            handlers.DiskCache.TryAdd(uri, new ResourceResponse<IEnumerable<byte>>(Encoding.UTF8.GetBytes("130")));
+            handlers.DiskCache.TryAdd(uri, new ResourceResponse<TimeSpan>(new TimeSpan(2, 10, 0)));
             Assert.AreEqual(1, handlers.DiskCache.Count);
 
             var request = new KeyValueRequestArgs<Uri, TimeSpan?>(new UniformItemIdentifier(Constants.Movie, Media.RUNTIME));
@@ -142,7 +139,7 @@ namespace MoviesTests.Data
             //DataService.Instance.ResourceCache.Clear();
             var handlers = new HandlerChain();
             DataService.Instance.Controller
-                .SetNext(handlers.LocalTMDbProcessor)
+                .SetNext(handlers.PersistenceService.Processor)
                 .SetNext(handlers.RemoteTMDbProcessor);
 
             var movie = await TMDB.WithExternalIdsAsync(Constants.Movie, 0);
@@ -305,7 +302,7 @@ namespace MoviesTests.Data
             var chains = new (ChainLink<EventArgsAsyncWrapper<IEnumerable<KeyValueRequestArgs<Uri>>>> Controller, IEnumerable<Property> Properties)[]
             {
                 (handlers.Chain, properties),
-                (AsyncCoRExtensions.Create(new EventCacheReadProcessor<KeyValueRequestArgs<Uri>>(handlers.LocalTMDbCache)), type == typeof(TVSeason) || type == typeof(TVEpisode) ? Enumerable.Empty<Property>() : properties)
+                (AsyncCoRExtensions.Create(new EventCacheReadProcessor<KeyValueRequestArgs<Uri>>(handlers.DiskCache)), type == typeof(TVSeason) || type == typeof(TVEpisode) ? Enumerable.Empty<Property>() : properties)
             };
 
             foreach (var chain in chains)

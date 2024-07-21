@@ -1,11 +1,53 @@
-﻿using System.Text;
+﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
+using System.Text;
 
 namespace MoviesTests.Data.TMDb
 {
     [TestClass]
+    public class MovieResourceTests : ResourceTests
+    {
+        public MovieResourceTests() : base(ResourceUtils.MOVIE_APPENDED_URL) { }
+
+        [TestMethod]
+        public async Task RetreiveRuntime()
+        {
+            var response = await AssertRestResponse(new UniformItemIdentifier(Constants.Movie, Media.RUNTIME));
+            AssertRepresentation(response, new TimeSpan(2, 10, 0));
+            AssertByteRepresentation(response, "130");
+        }
+    }
+
+    [TestClass]
+    public class TVShowResourceTests : ResourceTests
+    {
+        public TVShowResourceTests() : base(ResourceUtils.TV_APPENDED_URL) { }
+
+        [TestMethod]
+        public async Task RetreiveLastAirDate()
+        {
+            var response = await AssertRestResponse(new UniformItemIdentifier(Constants.TVShow, TVShow.LAST_AIR_DATE));
+            AssertRepresentation<DateTime?>(response, new DateTime(2013, 5, 16));
+            AssertByteRepresentation(response, "130");
+        }
+    }
+
     public class ResourceTests : Resources
     {
-        private const string MOVIE_APPENDED_URL = $"3/movie/0?language=en-US&{Constants.APPEND_TO_RESPONSE}=credits,external_ids,keywords,recommendations,release_dates,videos,watch/providers";
+        private readonly TMDbResolver Resolver;
+
+        protected TMDbHttpProcessor RemoteTMDbProcessor { get; }
+        protected MockHandler MockHttpHandler { get; }
+
+        protected string ExpectedEndpoint { get; }
+
+        public ResourceTests(string expectedEndpoint)
+        {
+            Resolver = new TMDbResolver(TMDB.ITEM_PROPERTIES);
+
+            var invoker = new HttpMessageInvoker(new BufferedHandler(new TMDbBufferedHandler(MockHttpHandler = new MockHandler())));
+            RemoteTMDbProcessor = new TMDbHttpProcessor(invoker, Resolver, TMDbApi.AutoAppend);
+            ExpectedEndpoint = expectedEndpoint;
+        }
 
         [TestInitialize]
         public void Reset()
@@ -30,8 +72,36 @@ namespace MoviesTests.Data.TMDb
             Assert.IsTrue(arg.IsHandled);
             Assert.AreEqual(new TimeSpan(2, 10, 0), arg.Value);
 
-            Assert.AreEqual(MOVIE_APPENDED_URL, handlers.WebHistory.Last());
+            Assert.AreEqual(ExpectedEndpoint, handlers.WebHistory.Last());
             Assert.AreEqual(1, handlers.WebHistory.Count);
+        }
+
+        protected async Task<RestResponse> AssertRestResponse(Uri uri)
+        {
+            var arg = new KeyValueRequestArgs<Uri, TimeSpan>(uri);
+            await RemoteTMDbProcessor.ProcessAsync(arg.AsEnumerable());
+
+            Assert.IsTrue(arg.IsHandled);
+
+            var restResponse = arg.Response as RestResponse;
+
+            Assert.IsNotNull(restResponse);
+            Assert.AreEqual(ExpectedEndpoint, WebHistory.Last());
+            Assert.AreEqual(1, WebHistory.Count);
+
+            return restResponse;
+        }
+
+        protected void AssertByteRepresentation(RestResponse response, string str)
+        {
+            Assert.IsTrue(response.TryGetRepresentation<IEnumerable<byte>>(out var bytes));
+            Assert.AreEqual(str, Encoding.UTF8.GetString(bytes.ToArray()));
+        }
+
+        protected void AssertRepresentation<T>(RestResponse response, T expected)
+        {
+            Assert.IsTrue(response.TryGetRepresentation<T>(out var value), $"Could not get representation of type {typeof(T)}");
+            Assert.AreEqual(expected, value);
         }
 
         [TestMethod]
@@ -53,26 +123,6 @@ namespace MoviesTests.Data.TMDb
             foreach (var kvp in values)
             {
                 Print.Log($"\t{kvp.Key}: {kvp.Value}");
-            }
-        }
-
-        public class HandlerChain
-        {
-            public readonly TMDbResolver Resolver;
-
-            public List<string> WebHistory => MockHttpHandler.LocalCallHistory;
-
-            public TMDbHttpProcessor RemoteTMDbProcessor { get; }
-            public MockHandler MockHttpHandler { get; }
-
-            public TMDbService TMDbService { get; }
-
-            public HandlerChain()
-            {
-                Resolver = new TMDbResolver(TMDB.ITEM_PROPERTIES);
-
-                var invoker = new HttpMessageInvoker(new BufferedHandler(new TMDbBufferedHandler(MockHttpHandler = new MockHandler())));
-                RemoteTMDbProcessor = new TMDbHttpProcessor(invoker, Resolver, TMDbApi.AutoAppend);
             }
         }
     }

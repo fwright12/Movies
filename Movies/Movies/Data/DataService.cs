@@ -1,4 +1,5 @@
-﻿using Movies.Models;
+﻿using Movies.Data.Local;
+using Movies.Models;
 using System;
 using System.Collections.Generic;
 using System.Net.Http;
@@ -77,7 +78,7 @@ namespace Movies
         {
             //var dao = new SqlResourceDAO(new SQLiteAsyncConnection(DatabasePath, Flags));
             //Processor = new UriBufferedCache(new ResourceDAO());
-            Processor = new UriBufferedCache(processor);
+            Processor = new UriBufferedCache(new LocalMovieCache(processor));
         }
     }
 

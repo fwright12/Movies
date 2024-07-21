@@ -1,9 +1,62 @@
 ﻿using Movies.Data.Local;
+using SQLite;
 
 namespace MoviesTests.Data
 {
     internal class ResourceUtils
     {
+        public const string MOVIE_APPENDED_URL = $"3/movie/0?language=en-US&{Constants.APPEND_TO_RESPONSE}=credits,external_ids,keywords,recommendations,release_dates,videos,watch/providers";
+        public const string TV_APPENDED_URL = $"3/tv/0?language=en-US&{Constants.APPEND_TO_RESPONSE}=aggregate_credits,content_ratings,external_ids,keywords,recommendations,videos,watch/providers";
+    }
+
+    public class dBConnection
+    {
+        public  PersistenceService PersistenceService { get; }
+        public SqlResourceDAO DAO { get; }
+        public SQLiteAsyncConnection SqlConnection { get; }
+        public string DatabasePath { get; }
+
+        public dBConnection(string filename)
+        {
+            DatabasePath = Path.Combine(Environment.CurrentDirectory, filename);
+            File.Delete(DatabasePath);
+
+            SqlConnection = new SQLiteAsyncConnection(DatabasePath);
+            DAO = new SqlResourceDAO(SqlConnection, TestsConfig.Resolver);
+            PersistenceService = new PersistenceService(DAO);
+        }
+
+        public async Task WaitSettledAsync()
+        {
+            // Wait until nothing has been written to the database in a while
+            var lastCount = -1;
+            for (int i = 0; ; i++)
+            {
+                try
+                {
+                    var count = (await SqlConnection.QueryScalarsAsync<int>("select count(*) from Message"))[0];
+                    if (count == lastCount)
+                    {
+                        break;
+                    }
+
+                    lastCount = count;
+                }
+                catch { }
+
+                if (i >= 10)
+                {
+                    throw new Exception("Timed out initializing database");
+                }
+                await Task.Delay(100);
+            }
+        }
+
+        public async Task CloseAsync()
+        {
+            await SqlConnection.CloseAsync();
+            File.Delete(DatabasePath);
+        }
     }
 
     public class HandlerChain
@@ -17,8 +70,6 @@ namespace MoviesTests.Data
         public UiiDictionaryDataStore InMemoryCache { get; }
         public DummyDatastore<Uri> DiskCache { get; }
 
-        public IEventAsyncCache<KeyValueRequestArgs<Uri>> LocalTMDbCache { get; }
-        public IAsyncCoRProcessor<IEnumerable<KeyValueRequestArgs<Uri>>> LocalTMDbProcessor { get; }
         public TMDbHttpProcessor RemoteTMDbProcessor { get; }
         public MockHandler MockHttpHandler { get; }
 
@@ -30,22 +81,18 @@ namespace MoviesTests.Data
         {
             Resolver = new TMDbResolver(TMDB.ITEM_PROPERTIES);
 
+            InMemoryCache = new UiiDictionaryDataStore();
+            InMemoryService = new InMemoryService(InMemoryCache);
+
             DiskCache = new DummyDatastore<Uri>
             {
                 ReadLatency = 50,
                 WriteLatency = 50,
             };
-            InMemoryCache = new UiiDictionaryDataStore();
-            InMemoryService = new InMemoryService(InMemoryCache);
+            PersistenceService = new PersistenceService(DiskCache);
 
-            LocalTMDbCache = new PersistentCache(DiskCache, Resolver);
             var invoker = new HttpMessageInvoker(new BufferedHandler(new TMDbBufferedHandler(MockHttpHandler = new MockHandler())));
             RemoteTMDbProcessor = new TMDbHttpProcessor(invoker, Resolver, TMDbApi.AutoAppend);
-
-            var databasePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "MyData.db");
-            //PersistenceService = new PersistenceService(new SqlResourceDAO(new SQLite.SQLiteAsyncConnection("")));
-            PersistenceService = new PersistenceService(LocalTMDbCache);
-            LocalTMDbProcessor = PersistenceService.Processor;
 
             Chain = new AsyncCacheAsideProcessor<KeyValueRequestArgs<Uri>>(InMemoryService.Cache).ToChainLink();
             Chain.SetNext(new AsyncCacheAsideProcessor<KeyValueRequestArgs<Uri>>(PersistenceService.Processor))

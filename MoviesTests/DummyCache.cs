@@ -30,6 +30,7 @@ namespace MoviesTests
             if (TryGetValue(e.Request.Key, out var resourceResponse))
             {
                 var response = resourceResponse as RestResponse ?? RestResponse.Create(e.Request.Expected, State.Create(resourceResponse.TryGetRepresentation<object>(out var value1) ? value1 : null));
+                //response = RestResponse.Create(e.Request.Expected, response.Resource, response.ControlData, response.Metadata);
                 return response == null ? false : e.Handle(response);
                 //return e.Handle(resourceResponse as RestResponse ?? new RestResponse(State.Create(resourceResponse.TryGetRepresentation<object>(out var value1) ? value1 : null), e.Request.Expected));
 

@@ -1,13 +1,36 @@
-﻿using Movies.Data.Local;
-using System;
-using System.Text;
-using System.Text.Json;
-
-namespace MoviesTests.Data.Local
+﻿namespace MoviesTests.Data.Local
 {
     [TestClass]
     public class ResourceTests : Resources
     {
+        private static readonly string DATABASE_FILENAME = "MovieResourceTests.db";
+
+        private static dBConnection Connection = new dBConnection(DATABASE_FILENAME);
+
+        [ClassInitialize]
+        public static async Task Init(TestContext context)
+        {
+            var chain = new AsyncCacheAsideProcessor<KeyValueRequestArgs<Uri>>(Connection.PersistenceService.Processor).ToChainLink();
+            chain.SetNext(new HandlerChain().RemoteTMDbProcessor);
+
+            // Seed database with cached data from dummy web service
+            var requests = new UniformItemIdentifier[]
+            {
+                new UniformItemIdentifier(Constants.Movie, Media.RUNTIME),
+                new UniformItemIdentifier(Constants.TVShow, Media.RUNTIME),
+            }.Select(uii => chain.Get(new KeyValueRequestArgs<Uri>(uii).AsEnumerable()));
+            await Task.WhenAll(requests);
+            //await chain.Get(requests);
+
+            await Connection.WaitSettledAsync();
+        }
+
+        [ClassCleanup]
+        public static async Task Cleanup()
+        {
+            await Connection.CloseAsync();
+        }
+
         [TestMethod]
         public async Task GetMovieProperty()
         {
@@ -28,7 +51,7 @@ namespace MoviesTests.Data.Local
             var handlers = new HandlerChain();
 
             var request = new KeyValueRequestArgs<Uri, T>(uii);
-            await handlers.LocalTMDbProcessor.ProcessAsync(request.AsEnumerable(), null);
+            await Connection.PersistenceService.Processor.ProcessAsync(request.AsEnumerable(), null);
             await CachedAsync(handlers.DiskCache);
 
             Assert.IsTrue(request.IsHandled);
@@ -38,53 +61,6 @@ namespace MoviesTests.Data.Local
         private static Task CachedAsync(DummyDatastore<Uri> diskCache)
         {
             return Task.Delay(Math.Max(diskCache.ReadLatency, diskCache.WriteLatency) * 2);
-        }
-
-        public class HandlerChain
-        {
-            public readonly TMDbResolver Resolver;
-
-            public DummyDatastore<Uri> DiskCache { get; }
-
-            public IEventAsyncCache<KeyValueRequestArgs<Uri>> LocalTMDbCache { get; }
-            public IAsyncCoRProcessor<IEnumerable<KeyValueRequestArgs<Uri>>> LocalTMDbProcessor { get; }
-            
-            public PersistenceService PersistenceService { get; }
-
-            public HandlerChain()
-            {
-                Resolver = new TMDbResolver(TMDB.ITEM_PROPERTIES);
-
-                DiskCache = new DummyDatastore<Uri>
-                {
-                    ReadLatency = 50,
-                    WriteLatency = 50,
-                };
-
-                LocalTMDbCache = new PersistentCache(DiskCache, Resolver);
-                PersistenceService = new PersistenceService(LocalTMDbCache);
-                LocalTMDbProcessor = PersistenceService.Processor;
-
-                InsertData(TestData);
-            }
-
-            private static IDictionary<string, object> TestData = new Dictionary<string, object>
-            {
-                ["urn:Movie:0:Runtime"] = 130,
-                ["urn:TVShow:0:Last Air Date"] = new DateTime(2013, 5, 16)
-            };
-
-            private void InsertData(IDictionary<string, object> data)
-            {
-                foreach (var kvp in data)
-                {
-                    int count = DiskCache.Count;
-                    var uri = new Uri(kvp.Key, UriKind.RelativeOrAbsolute);
-
-                    DiskCache.TryAdd(uri, new ResourceResponse<IEnumerable<byte>>(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(kvp.Value))));
-                    Assert.AreEqual(count + 1, DiskCache.Count);
-                }
-            }
         }
     }
 }

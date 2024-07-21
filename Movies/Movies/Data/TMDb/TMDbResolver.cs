@@ -413,7 +413,9 @@ namespace Movies
                                 var str = Encoding.UTF8.GetString(bytes1);
                             }
 
+                            bytes1 = TrimWhitespace(bytes1);
                             var byteRepresentation = new ObjectRepresentation<IEnumerable<byte>>(bytes1);
+                            var alkjsdflaskjd = Encoding.UTF8.GetString(bytes1.ToArray());
                             var state = new State(byteRepresentation);
 
                             if (converter != null)
@@ -444,6 +446,17 @@ namespace Movies
                 }
 
                 return result;
+            }
+
+            private static ArraySegment<byte> TrimWhitespace(ArraySegment<byte> bytes)
+            {
+                int offset = 0;
+                int count = bytes.Count;
+
+                for (; char.IsWhiteSpace((char)bytes[offset]); offset++) { }
+                for (; char.IsWhiteSpace((char)bytes[count - 1]); count--) { }
+
+                return new ArraySegment<byte>(bytes.Array, bytes.Offset + offset, count - offset);
             }
 
 #else

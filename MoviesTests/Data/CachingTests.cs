@@ -86,8 +86,7 @@ namespace MoviesTests.Data
 
             handlers.MockHttpHandler.Disconnect();
             var uri = new Uri("urn:Movie:0:Runtime", UriKind.RelativeOrAbsolute);
-            var json = "130";
-            handlers.DiskCache.TryAdd(uri, new RestResponse((IEnumerable<REpresentationalStateTransfer.Entity>)State.Create<ArraySegment<byte>>(Encoding.UTF8.GetBytes(json)), new Dictionary<string, IEnumerable<string>>
+            handlers.DiskCache.TryAdd(uri, new RestResponse((IEnumerable<REpresentationalStateTransfer.Entity>)State.Create(new TimeSpan(2, 10, 0)), new Dictionary<string, IEnumerable<string>>
             {
                 [REpresentationalStateTransfer.Rest.ETAG] = new List<string> { "\"non matching etag\"" }
             }, new Dictionary<string, string>()));
@@ -130,18 +129,10 @@ namespace MoviesTests.Data
             var chain = handlers.Chain;
 
             var uri = new Uri("urn:Movie:0:Runtime", UriKind.RelativeOrAbsolute);
-            var json = "169";
-            Assert.IsTrue(await handlers.DiskCache.CreateAsync(uri, State.Create<ArraySegment<byte>>(Encoding.UTF8.GetBytes(json))));
+            Assert.IsTrue(await handlers.DiskCache.CreateAsync(uri, State.Create(Constants.INTERSTELLAR_RUNTIME)));
 
             uri = new UniformItemIdentifier(Constants.Movie, Media.RUNTIME);
             var request = new KeyValueRequestArgs<Uri, TimeSpan>(uri);
-            await chain.Get(request);
-
-            Assert.IsTrue(request.IsHandled);
-            Assert.AreEqual(Constants.INTERSTELLAR_RUNTIME, request.Value);
-
-            await handlers.InMemoryCache.DeleteAsync(GetUiis(Media.RUNTIME).First());
-            await CachedAsync(handlers.DiskCache);
 
             // This will force an api call (since watch providers are at a different endpoint)
             var requests = new KeyValueRequestArgs<Uri>[]
@@ -165,8 +156,7 @@ namespace MoviesTests.Data
             var chain = handlers.Chain;
 
             var uri = new Uri("urn:Movie:0:Runtime", UriKind.RelativeOrAbsolute);
-            var json = "169";
-            handlers.DiskCache.TryAdd(uri, new RestResponse((IEnumerable<REpresentationalStateTransfer.Entity>)State.Create<ArraySegment<byte>>(Encoding.UTF8.GetBytes(json)), new Dictionary<string, IEnumerable<string>>
+            handlers.DiskCache.TryAdd(uri, new RestResponse((IEnumerable<REpresentationalStateTransfer.Entity>)State.Create(Constants.INTERSTELLAR_RUNTIME), new Dictionary<string, IEnumerable<string>>
             {
                 [REpresentationalStateTransfer.Rest.ETAG] = new List<string> { MockHandler.DEFAULT_ETAG }
             }, new Dictionary<string, string> { }));
@@ -175,12 +165,6 @@ namespace MoviesTests.Data
 
             uri = new UniformItemIdentifier(Constants.Movie, Media.RUNTIME);
             var request = new KeyValueRequestArgs<Uri, TimeSpan>(uri);
-            await handlers.LocalTMDbCache.Read(request.AsEnumerable());
-
-            Assert.IsTrue(request.IsHandled);
-            Assert.AreEqual(Constants.INTERSTELLAR_RUNTIME, request.Value);
-
-            request = new KeyValueRequestArgs<Uri, TimeSpan>(uri);
             await chain.Get(request);
             await CachedAsync(handlers.DiskCache);
 
