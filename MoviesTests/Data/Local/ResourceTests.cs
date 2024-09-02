@@ -25,6 +25,13 @@
             await Connection.WaitSettledAsync();
         }
 
+        [TestInitialize]
+        public void Reset()
+        {
+            WebHistory.Clear();
+            TMDB.CollectionCache.Clear();
+        }
+
         [ClassCleanup]
         public static async Task Cleanup()
         {
@@ -36,6 +43,23 @@
         {
             var value = await GetResource<TimeSpan?>(Constants.Movie, Media.RUNTIME);
             Assert.AreEqual(new TimeSpan(2, 10, 0), value);
+        }
+
+        [TestMethod]
+        public async Task RetrieveMovieParentCollection()
+        {
+            var value = await GetResource<Collection>(Constants.Movie, Movie.PARENT_COLLECTION);
+            Assert.AreEqual(new Collection().WithID(TMDB.IDKey, 1241), value);
+
+            Assert.AreEqual(1, WebHistory.Count);
+            Assert.AreEqual("3/collection/1241?language=en-US", WebHistory[0]);
+        }
+
+        [TestMethod]
+        public async Task GetStringProperty()
+        {
+            var value = await GetResource<string>(Constants.Movie, Media.TAGLINE);
+            Assert.AreEqual("It all ends.", value);
         }
 
         [TestMethod]

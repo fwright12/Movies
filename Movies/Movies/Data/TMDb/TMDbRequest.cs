@@ -37,14 +37,15 @@ namespace Movies
         public static implicit operator TMDbRequest(string url) => new TMDbRequest(url);
 
 
-        public string GetURL(params string[] parameters) => GetURL(TMDB.LANGUAGE.Iso_639, TMDB.REGION.Iso_3166, TMDB.ADULT, parameters);
-        public string GetURL(string language, string region, bool adult, params string[] otherParameters)
+        //public string GetURL(params string[] parameters) => GetURL(TMDB.LANGUAGE.Iso_639, TMDB.REGION.Iso_3166, TMDB.ADULT, parameters);
+        public string GetURL(params string[] parameters) => GetURL(null, null, null, parameters);
+        public string GetURL(string language, string region, bool? adult, params string[] otherParameters)
         {
             var parameters = new List<string>();
 
-            if (HasLanguageParameter) parameters.Add($"language={language}");
-            if (HasRegionParameter) parameters.Add($"region={region}");
-            if (HasAdultParameter) parameters.Add($"adult={adult}");
+            if (HasLanguageParameter && !string.IsNullOrEmpty(language)) parameters.Add($"language={language}");
+            if (HasRegionParameter && !string.IsNullOrEmpty(region)) parameters.Add($"region={region}");
+            if (HasAdultParameter && adult.HasValue) parameters.Add($"adult={adult}");
 
             parameters.AddRange(otherParameters.Where(p => !string.IsNullOrEmpty(p)));
 

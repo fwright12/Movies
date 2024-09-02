@@ -159,9 +159,10 @@ namespace Movies
             //var rawQuery = new Uri(url, UriKind.Relative).Query;
             var query = HttpUtility.ParseQueryString(rawQuery);
 
-            var language = query.GetAndRemove("language") ?? TMDB.LANGUAGE.Iso_639;
-            var region = query.GetAndRemove("region") ?? TMDB.REGION.Iso_3166;
+            var language = query.GetAndRemove("language");// ?? TMDB.LANGUAGE.Iso_639;
+            var region = query.GetAndRemove("region");// ?? TMDB.REGION.Iso_3166;
             var adult = (query.GetAndRemove("adult") ?? TMDB.ADULT.ToString().ToLower()) == "true";
+            adult = query.GetAndRemove("adult") == "true";
             var append = query.GetAndRemove(APPEND_TO_RESPONSE)?.Split(',') ?? new string[0];
 
             var basePath = uri.ToString().Split('?')[0];
@@ -328,12 +329,11 @@ namespace Movies
             public HttpConverter(Item item, IEnumerable<(Uri, string, List<Parser>, IEnumerable<object>)> annotations, bool parentCollectionWasRequested)
             {
                 Item = item;
-                Resources = annotations.SelectMany(temp => (Item == null ? Enumerable.Empty<Uri>() : temp.Item3.Select(parser => new UniformItemIdentifier(Item, parser.Property))).Prepend(temp.Item1)).ToArray();
+                Resources = annotations.SelectMany(temp => (Item == null ? Enumerable.Empty<Uri>() : temp.Item3.Select(parser => GetUii(Item, temp.Item1, parser))).Prepend(temp.Item1)).ToArray();
                 Annotations = annotations;
                 ParentCollectionWasRequested = parentCollectionWasRequested;
             }
 
-#if true
             public override async Task<IEnumerable<KeyValuePair<Uri, object>>> Convert(HttpContent content)
             {
                 var result = new Dictionary<Uri, object>();
@@ -410,12 +410,10 @@ namespace Movies
                             if (parser is IParser<ArraySegment<byte>> parser1 && parser1.JsonParser is JsonPropertyParser jpp && (string.IsNullOrEmpty(annotation.Path) ? json : (json.TryGetValue(annotation.Path, out var temp) ? temp : null)) is JsonIndex index)
                             {
                                 bytes1 = new PropertyBytes(index, jpp.Property).Bytes;
-                                var str = Encoding.UTF8.GetString(bytes1);
                             }
 
                             bytes1 = TrimWhitespace(bytes1);
                             var byteRepresentation = new ObjectRepresentation<IEnumerable<byte>>(bytes1);
-                            var alkjsdflaskjd = Encoding.UTF8.GetString(bytes1.ToArray());
                             var state = new State(byteRepresentation);
 
                             if (converter != null)
@@ -428,7 +426,7 @@ namespace Movies
                             //    state.Add(parser.Property.FullType, converted);
                             //}
 
-                            var uii = new UniformItemIdentifier(Item, parser.Property);
+                            var uii = GetUii(Item, annotation.Uri, parser);
                             inner.Add(uii, state);
                         }
                         catch { }
@@ -448,6 +446,12 @@ namespace Movies
                 return result;
             }
 
+            private static UniformItemIdentifier GetUii(Item item, Uri uri, Parser parser)
+            {
+                var query = uri.ToString().Split("?").ElementAtOrDefault(1);
+                return new UniformItemIdentifier(item, parser.Property, query);
+            }
+
             private static ArraySegment<byte> TrimWhitespace(ArraySegment<byte> bytes)
             {
                 int offset = 0;
@@ -458,95 +462,6 @@ namespace Movies
 
                 return new ArraySegment<byte>(bytes.Array, bytes.Offset + offset, count - offset);
             }
-
-#else
-            public override async Task<IEnumerable<KeyValuePair<Uri, object>>> Convert(HttpContent content)
-            {
-                var result = new Dictionary<Uri, object>();
-                var bytes = content.ReadAsByteArrayAsync();
-                var json = new JsonIndex(await bytes);
-
-                foreach (var annotation in Annotations)
-                {
-                    var lazyJson = string.IsNullOrEmpty(annotation.Path) ? new ExceptBytes(json, Annotations.Select(annotation => annotation.Path).Where(path => !string.IsNullOrEmpty(path))) : (LazyBytes)new PropertyBytes(json, annotation.Path);
-                    //JsonIndex index;
-
-                    //if (string.IsNullOrEmpty(annotation.Path))
-                    //{
-                    //    index = json;
-                    //}
-                    //else if (!json.TryGetValue(annotation.Path, out index))
-                    //{
-                    //    continue;
-                    //}
-
-                    var inner = new Dictionary<Uri, object>();
-                    var state1 = State.Create(lazyJson);
-                    state1.Add(inner);
-                    result.Add(annotation.Uri, state1);
-
-                    foreach (var parser in annotation.Parsers)
-                    {
-                        if (parser.Property == Movie.PARENT_COLLECTION && !ParentCollectionWasRequested)
-                        {
-                            continue;
-                        }
-
-                        bool success;
-                        object converted;
-
-                        try
-                        {
-                            if (parser.Property == TVShow.SEASONS)
-                            {
-                                success = true;
-                                converted = GetTVItems(await bytes, "seasons", (JsonNode json, out TVSeason season) => TMDB.TryParseTVSeason(json, (TVShow)Item, out season));
-                            }
-                            else if (parser.Property == TVSeason.EPISODES)
-                            {
-                                if (Item is TVSeason season)
-                                {
-                                    success = true;
-                                    converted = GetTVItems(await bytes, "episodes", (JsonNode json, out TVEpisode episode) => TMDB.TryParseTVEpisode(json, season, out episode));
-                                }
-                                else
-                                {
-                                    success = false;
-                                    converted = default;
-                                }
-                            }
-                            else
-                            {
-                                converted = parser.GetPair(lazyJson.Bytes).Value;
-                                success = true;
-                            }
-
-                            var uii = new UniformItemIdentifier(Item, parser.Property);
-                            var state = State.Create(lazyJson.Bytes);
-
-                            if (success)
-                            {
-                                //var state = converted == null ? State.Null(parser.Property.FullType) : new State(converted);
-                                state.Add(parser.Property.FullType, converted);
-                            }
-
-                            inner.Add(uii, state);
-                        }
-                        catch (Exception e)
-                        {
-                            System.Diagnostics.Debug.WriteLine(e);
-                        }
-                    }
-
-                    foreach (var kvp in inner)
-                    {
-                        result.Add(kvp.Key, kvp.Value);
-                    }
-                }
-
-                return result;
-            }
-#endif
         }
 
         public class TrojanTMDbUri : Uri
@@ -585,7 +500,12 @@ namespace Movies
         {
             if (Properties.TryGetValue(uii.Item.ItemType, out var properties) && properties.PropertyLookup.TryGetValue(uii.Property, out var request) && TMDB.TryGetParameters(uii.Item, out var args))
             {
-                url = string.Format(request.GetURL(), args.ToArray());
+                var language = uii.Language ?? TMDB.LANGUAGE;
+                var region = uii.Region ?? TMDB.REGION;
+                var adult = uii.IncludeAdult ?? false;
+
+                url = string.Format(request.GetURL(language.Iso_639, region.Iso_3166, adult), args.ToArray());
+                url = string.Format(request.GetURL(uii.Language?.Iso_639, uii.Region?.Iso_3166, uii.IncludeAdult), args.ToArray());
                 return true;
             }
             else

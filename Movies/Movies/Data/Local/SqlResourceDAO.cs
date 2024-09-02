@@ -3,6 +3,7 @@ using SQLite;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -123,10 +124,24 @@ namespace Movies.Data.Local
             }
 
             var state = new State(byteRepresentation);
-            var urn = GetUrnParts(arg.Request.Key);
-            if (arg.Request.Key is UniformItemIdentifier uii && TryParseItemType(urn, out var itemType) && TryGetConverter(itemType, uii.Property, out var converter))
+            if (UniformItemIdentifier.TryParse(arg.Request.Key, out var uii))
             {
-                state.AddRepresentation(uii.Property.FullType, new LazilyConvertedRepresentation<IEnumerable<byte>, object>(byteRepresentation, converter));
+                Func<IEnumerable<byte>, object> converter;
+
+                if (uii.Property == Movie.PARENT_COLLECTION && int.TryParse(Encoding.UTF8.GetString(message.Response), out var id))
+                {
+                    var collection = await TMDB.GetCollection(id);
+                    converter = source => collection;
+                }
+                else if (!TryGetConverter(uii.ItemType, uii.Property, out converter))
+                {
+                    converter = null;
+                }
+
+                if (converter != null)
+                {
+                    state.AddRepresentation(uii.Property.FullType, new LazilyConvertedRepresentation<IEnumerable<byte>, object>(byteRepresentation, converter));
+                }
             }
 
             return arg.Handle(RestResponse.Create(arg.Request.Expected, state, headers, null));
@@ -148,6 +163,11 @@ namespace Movies.Data.Local
                 Uri = arg.Request.Key,
                 Response = bytes.ToArray(),
             };
+
+            if ((arg.Request.Key as UniformItemIdentifier)?.Property == Movie.PARENT_COLLECTION && (TMDB.COLLECTION_PARSER as ParserWrapper)?.Parser.GetPair(message.Response).Value is int id)
+            {
+                message.Response = Encoding.UTF8.GetBytes(id.ToString());
+            }
 
             if (arg.Response is RestResponse restResponse)
             {
@@ -183,46 +203,6 @@ namespace Movies.Data.Local
             }
 
             converter = source => parser.GetPair(source is ArraySegment<byte> segment ? segment : new ArraySegment<byte>(source.ToArray())).Value;
-            return true;
-        }
-
-        private static string[] GetUrnParts(Uri uri)
-        {
-            var urn = uri.AbsolutePath;
-            return urn.Split(":");
-        }
-
-        private static bool TryParseItemInfo(Uri uri, out ItemType type, out int id, out string propertyName)
-        {
-            var parts = GetUrnParts(uri);
-
-            if (parts.Length > 2)
-            {
-                propertyName = parts[2];
-                return TryParseItemType(parts, out type) & int.TryParse(parts[1], out id);
-            }
-            else
-            {
-                type = default;
-                id = default;
-                propertyName = default;
-                return false;
-            }
-        }
-
-        private static bool TryParseItemType(string[] urnParts, out ItemType type)
-        {
-            var typeStr = urnParts[0].ToLower();
-
-            if (typeStr == "movie") type = ItemType.Movie;
-            else if (typeStr == "tvshow") type = ItemType.TVShow;
-            else if (typeStr == "person") type = ItemType.Person;
-            else
-            {
-                type = default;
-                return false;
-            }
-
             return true;
         }
 

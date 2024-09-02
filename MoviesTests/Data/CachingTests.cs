@@ -24,7 +24,7 @@ namespace MoviesTests.Data
             var handlers = new HandlerChain();
             var chain = handlers.Chain;
 
-            var uri = new Uri("urn:Movie:0:Runtime", UriKind.RelativeOrAbsolute);
+            var uri = ResourceUtils.RUNTIME_URI;
             var json = "169";
             handlers.DiskCache.TryAdd(uri, new RestResponse((IEnumerable<REpresentationalStateTransfer.Entity>)State.Create<ArraySegment<byte>>(Encoding.UTF8.GetBytes(json)), new Dictionary<string, IEnumerable<string>>
             {
@@ -85,7 +85,7 @@ namespace MoviesTests.Data
             var chain = handlers.Chain;
 
             handlers.MockHttpHandler.Disconnect();
-            var uri = new Uri("urn:Movie:0:Runtime", UriKind.RelativeOrAbsolute);
+            var uri = ResourceUtils.RUNTIME_URI;
             handlers.DiskCache.TryAdd(uri, new RestResponse((IEnumerable<REpresentationalStateTransfer.Entity>)State.Create(new TimeSpan(2, 10, 0)), new Dictionary<string, IEnumerable<string>>
             {
                 [REpresentationalStateTransfer.Rest.ETAG] = new List<string> { "\"non matching etag\"" }
@@ -128,7 +128,7 @@ namespace MoviesTests.Data
             var handlers = new HandlerChain();
             var chain = handlers.Chain;
 
-            var uri = new Uri("urn:Movie:0:Runtime", UriKind.RelativeOrAbsolute);
+            var uri = ResourceUtils.RUNTIME_URI;
             Assert.IsTrue(await handlers.DiskCache.CreateAsync(uri, State.Create(Constants.INTERSTELLAR_RUNTIME)));
 
             uri = new UniformItemIdentifier(Constants.Movie, Media.RUNTIME);
@@ -155,7 +155,7 @@ namespace MoviesTests.Data
             var handlers = new HandlerChain();
             var chain = handlers.Chain;
 
-            var uri = new Uri("urn:Movie:0:Runtime", UriKind.RelativeOrAbsolute);
+            var uri = ResourceUtils.RUNTIME_URI;
             handlers.DiskCache.TryAdd(uri, new RestResponse((IEnumerable<REpresentationalStateTransfer.Entity>)State.Create(Constants.INTERSTELLAR_RUNTIME), new Dictionary<string, IEnumerable<string>>
             {
                 [REpresentationalStateTransfer.Rest.ETAG] = new List<string> { MockHandler.DEFAULT_ETAG }

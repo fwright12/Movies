@@ -1,7 +1,9 @@
-﻿using Movies.Data.Local;
+﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Movies.Data.Local;
 using System;
 using System.Collections;
 using System.Diagnostics;
+using System.Globalization;
 using System.Text;
 
 namespace MoviesTests.Data
@@ -44,8 +46,8 @@ namespace MoviesTests.Data
             await AssertTVCachedAtAllLayers<DateTime?>(new UniformItemIdentifier(Constants.TVShow, TVShow.LAST_AIR_DATE), new DateTime(2013, 5, 16));
         }
 
-        private Task AssertMovieCachedAtAllLayers<T>(Uri uri, T expected) => AssertCachedAtAllLayers(uri, expected, ResourceUtils.MOVIE_APPENDED_URL, ResourceAssert.ExpectedMovieResourceCount);
-        private Task AssertTVCachedAtAllLayers<T>(Uri uri, T expected) => AssertCachedAtAllLayers(uri, expected, ResourceUtils.TV_APPENDED_URL, ResourceAssert.ExpectedTVResourceCount);
+        private Task AssertMovieCachedAtAllLayers<T>(Uri uri, T expected) => AssertCachedAtAllLayers(uri, expected, ResourceUtils.MOVIE_URL_APPENDED, ResourceAssert.ExpectedMovieResourceCount);
+        private Task AssertTVCachedAtAllLayers<T>(Uri uri, T expected) => AssertCachedAtAllLayers(uri, expected, ResourceUtils.TV_URL_APPENDED, ResourceAssert.ExpectedTVResourceCount);
         private async Task AssertCachedAtAllLayers<T>(Uri uri, T expected, string apiEndpoint, int expectedResourceCount)
         {
             var handlers = new HandlerChain();
@@ -70,6 +72,30 @@ namespace MoviesTests.Data
 
             Assert.IsTrue(arg.IsHandled);
             Assert.AreEqual(expected, arg.Value);
+        }
+
+        [TestMethod]
+        public async Task RetrieveLocalizedResource()
+        {
+            var handlers = new HandlerChain();
+            var chain = handlers.Chain;
+
+            var args = new KeyValueRequestArgs<Uri, string>(new UniformItemIdentifier(Constants.Movie, Media.TAGLINE, new Language("en-US")));
+            await chain.Get(args);
+            await CachedAsync(handlers.DiskCache);
+
+            Assert.IsTrue(args.IsHandled);
+            Assert.AreEqual("It all ends.", args.Value);
+
+            Assert.AreEqual(ResourceUtils.MOVIE_URL_APPENDED_USENGLISH, handlers.WebHistory.Last());
+            Assert.AreEqual(1, handlers.WebHistory.Count);
+            Assert.AreEqual(26, handlers.DiskCache.Count, string.Join(", ", handlers.DiskCache.Keys));
+            Assert.AreEqual(26, handlers.InMemoryCache.Count);
+
+            Assert.IsTrue(handlers.DiskCache.ContainsKey(new Uri("urn:Movie:0:Tagline?language=en-US")));
+            Assert.IsTrue(handlers.DiskCache.ContainsKey(new Uri("urn:Movie:0:Runtime?language=en-US")));
+            Assert.IsTrue(handlers.DiskCache.ContainsKey(new Uri("urn:Movie:0:Keywords")));
+            Assert.IsFalse(handlers.DiskCache.ContainsKey(new Uri("urn:Movie:0:Keywords?language=en-US")));
         }
 
         [TestMethod]
@@ -98,7 +124,7 @@ namespace MoviesTests.Data
             var handlers = new HandlerChain();
             var chain = handlers.Chain;
 
-            var uri = new Uri("urn:Movie:0:Runtime", UriKind.RelativeOrAbsolute);
+            var uri = ResourceUtils.RUNTIME_URI;
             handlers.DiskCache.TryAdd(uri, new ResourceResponse<TimeSpan>(new TimeSpan(2, 10, 0)));
             Assert.AreEqual(1, handlers.DiskCache.Count);
 
@@ -127,7 +153,7 @@ namespace MoviesTests.Data
             Assert.IsTrue(args.IsHandled);
             Assert.AreEqual(new TimeSpan(2, 10, 0), args.Value);
 
-            Assert.AreEqual($"3/movie/0?language=en-US&{Constants.APPEND_TO_RESPONSE}=credits,external_ids,keywords,recommendations,release_dates,videos,watch/providers", handlers.WebHistory.Last());
+            Assert.AreEqual(ResourceUtils.MOVIE_URL_APPENDED, handlers.WebHistory.Last());
             Assert.AreEqual(1, handlers.WebHistory.Count);
             Assert.AreEqual(26, handlers.DiskCache.Count, string.Join(", ", handlers.DiskCache.Keys));
             Assert.AreEqual(26, handlers.InMemoryCache.Count);
@@ -184,33 +210,7 @@ namespace MoviesTests.Data
             Assert.AreEqual(new Collection().WithID(TMDB.IDKey, 1241), request.Value);
 
             Assert.AreEqual(2, WebHistory.Count);
-            Assert.AreEqual($"3/movie/0?language=en-US&{Constants.APPEND_TO_RESPONSE}=credits,external_ids,keywords,recommendations,release_dates,videos,watch/providers", handlers.WebHistory[0]);
-            Assert.AreEqual("3/collection/1241?language=en-US", WebHistory[1]);
-        }
-
-        [TestMethod]
-        public async Task RetrieveMovieParentCollectionPartial()
-        {
-            var handlers = new HandlerChain();
-            var chain = handlers.Chain;
-
-            var request = new KeyValueRequestArgs<Uri, Collection>(new UniformItemIdentifier(Constants.Movie, Media.RUNTIME));
-            await chain.Get(request);
-
-            Assert.IsTrue(request.IsHandled);
-            Assert.AreEqual(1, WebHistory.Count);
-            Assert.AreEqual($"3/movie/0?language=en-US&{Constants.APPEND_TO_RESPONSE}=credits,external_ids,keywords,recommendations,release_dates,videos,watch/providers", handlers.WebHistory[0]);
-
-            await CachedAsync(handlers.DiskCache);
-
-            request = new KeyValueRequestArgs<Uri, Collection>(new UniformItemIdentifier(Constants.Movie, Movie.PARENT_COLLECTION));
-            await chain.Get(request);
-
-            Assert.IsTrue(request.IsHandled);
-            Assert.AreEqual(new Collection().WithID(TMDB.IDKey, 1241), request.Value);
-
-            Assert.AreEqual(2, WebHistory.Count);
-            Assert.AreEqual("3/collection/1241?language=en-US", WebHistory[1]);
+            Assert.AreEqual(ResourceUtils.MOVIE_URL_APPENDED, handlers.WebHistory[0]);
         }
 
         [TestMethod]
@@ -229,8 +229,8 @@ namespace MoviesTests.Data
 
             Assert.AreEqual(20, count);
             Assert.AreEqual(2, WebHistory.Count);
-            Assert.AreEqual($"3/movie/0?language=en-US&{Constants.APPEND_TO_RESPONSE}=recommendations,credits,external_ids,keywords,release_dates,videos,watch/providers", handlers.WebHistory[0]);
-            Assert.AreEqual($"3/movie/0/recommendations?language=en-US&page=2", WebHistory[1]);
+            Assert.AreEqual($"3/movie/0?{Constants.APPEND_TO_RESPONSE}=recommendations,credits,external_ids,keywords,release_dates,videos,watch/providers", handlers.WebHistory[0]);
+            Assert.AreEqual($"3/movie/0/recommendations?page=2", WebHistory[1]);
         }
 
         [TestMethod]

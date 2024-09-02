@@ -1,26 +1,33 @@
-﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
-using System.Text;
+﻿using System.Text;
 
 namespace MoviesTests.Data.TMDb
 {
     [TestClass]
     public class MovieResourceTests : ResourceTests
     {
-        public MovieResourceTests() : base(ResourceUtils.MOVIE_APPENDED_URL) { }
+        public MovieResourceTests() : base(ResourceUtils.MOVIE_URL_APPENDED) { }
 
         [TestMethod]
         public async Task RetreiveRuntime()
         {
-            var response = await AssertRestResponse(new UniformItemIdentifier(Constants.Movie, Media.RUNTIME));
+            var response = await AssertRestResponse(new UniformItemIdentifier(Constants.Movie, Media.RUNTIME, language: TMDB.LANGUAGE));
             AssertRepresentation(response, new TimeSpan(2, 10, 0));
             AssertByteRepresentation(response, "130");
+        }
+
+        [TestMethod]
+        public async Task RetreiveTagline()
+        {
+            var response = await AssertRestResponse(new UniformItemIdentifier(Constants.Movie, Media.TAGLINE, language: TMDB.LANGUAGE));
+            AssertRepresentation(response, "It all ends.");
+            AssertByteRepresentation(response, "\"It all ends.\"");
         }
     }
 
     [TestClass]
     public class TVShowResourceTests : ResourceTests
     {
-        public TVShowResourceTests() : base(ResourceUtils.TV_APPENDED_URL) { }
+        public TVShowResourceTests() : base(ResourceUtils.TV_URL_APPENDED) { }
 
         [TestMethod]
         public async Task RetreiveLastAirDate()
@@ -85,7 +92,7 @@ namespace MoviesTests.Data.TMDb
 
             var restResponse = arg.Response as RestResponse;
 
-            Assert.IsNotNull(restResponse);
+            Assert.IsNotNull(restResponse, $"Response {arg.Response?.GetType()} is not a rest response");
             Assert.AreEqual(ExpectedEndpoint, WebHistory.Last());
             Assert.AreEqual(1, WebHistory.Count);
 
