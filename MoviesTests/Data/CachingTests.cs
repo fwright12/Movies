@@ -19,6 +19,98 @@ namespace MoviesTests.Data
         }
 
         [TestMethod]
+        public async Task ResourceCachesAtAllLayers()
+        {
+            var uri = new UniformItemIdentifier(Constants.Movie, Media.RUNTIME);
+            var handlers = new HandlerChain();
+
+            var arg = new KeyValueRequestArgs<Uri, TimeSpan>(uri);
+            await handlers.Chain.Get(arg);
+            await CachedAsync(handlers.DiskCache);
+
+            Assert.IsTrue(arg.IsHandled);
+            ResourceAssert.Success(arg);
+
+            Assert.AreEqual(1, handlers.WebHistory.Count);
+            Assert.AreEqual(ResourceUtils.MOVIE_URL_APPENDED, handlers.WebHistory[0]);
+            Assert.AreEqual(26, handlers.DiskCache.Count, string.Join(", ", handlers.DiskCache.Keys));
+            Assert.AreEqual(26, handlers.MemoryCache.Count);
+
+            arg = new KeyValueRequestArgs<Uri, TimeSpan>(uri);
+            await handlers.PersistenceService.Processor.ProcessAsync(arg.AsEnumerable(), null);
+
+            Assert.IsTrue(arg.IsHandled);
+            ResourceAssert.Success(arg);
+
+            arg = new KeyValueRequestArgs<Uri, TimeSpan>(uri);
+            await handlers.InMemoryService.Cache.ProcessAsync(arg.AsEnumerable(), null);
+
+            Assert.IsTrue(arg.IsHandled);
+            ResourceAssert.Success(arg);
+        }
+
+        [TestMethod]
+        public async Task ResourcesCanBeRetrievedFromMemoryCache()
+        {
+            var handlers = new HandlerChain();
+            var chain = handlers.Chain;
+
+            await handlers.MemoryCache.CreateAsync(new UniformItemIdentifier(Constants.Movie, Media.TAGLINE), State.Create(Constants.TAGLINE));
+            await handlers.MemoryCache.CreateAsync(new UniformItemIdentifier(Constants.Movie, Media.ORIGINAL_LANGUAGE), State.Create(Constants.LANGUAGE));
+
+            // Retrieve an item in the in memory cache
+            var uii = new UniformItemIdentifier(Constants.Movie, Media.TAGLINE);
+            var response = await chain.TryGet<string>(uii);
+            Assert.IsTrue(response.IsHandled);
+            Assert.AreEqual(Constants.TAGLINE, response.Value);
+
+            Assert.AreEqual(0, handlers.MockHttpHandler.LocalCallHistory.Count);
+            Assert.AreEqual(0, handlers.DiskCache.Count);
+            Assert.AreEqual(2, handlers.MemoryCache.Count);
+        }
+
+        [TestMethod]
+        public async Task ResourcesCanBeRetrievedFromDiskCache()
+        {
+            var handlers = new HandlerChain();
+            var chain = handlers.Chain;
+
+            var uri = ResourceUtils.RUNTIME_URI;
+            handlers.DiskCache.TryAdd(uri, new ResourceResponse<TimeSpan>(new TimeSpan(2, 10, 0)));
+            Assert.AreEqual(1, handlers.DiskCache.Count);
+
+            var request = new KeyValueRequestArgs<Uri, TimeSpan?>(new UniformItemIdentifier(Constants.Movie, Media.RUNTIME));
+            await chain.Get(request);
+            await CachedAsync(handlers.DiskCache);
+
+            Assert.IsTrue(request.IsHandled);
+            Assert.AreEqual(new TimeSpan(2, 10, 0), request.Value);
+
+            Assert.AreEqual(0, handlers.WebHistory.Count);
+            Assert.AreEqual(1, handlers.DiskCache.Count);
+            Assert.AreEqual(1, handlers.MemoryCache.Count);
+        }
+
+        [TestMethod]
+        public async Task ResourcesCanBeRetrievedFromApi()
+        {
+            var handlers = new HandlerChain();
+            var chain = handlers.Chain;
+
+            var args = new KeyValueRequestArgs<Uri, TimeSpan>(new UniformItemIdentifier(Constants.Movie, Media.RUNTIME));
+            await chain.Get(args);
+            await CachedAsync(handlers.DiskCache);
+
+            Assert.IsTrue(args.IsHandled);
+            Assert.AreEqual(new TimeSpan(2, 10, 0), args.Value);
+
+            Assert.AreEqual(ResourceUtils.MOVIE_URL_APPENDED, handlers.WebHistory.Last());
+            Assert.AreEqual(1, handlers.WebHistory.Count);
+            Assert.AreEqual(26, handlers.DiskCache.Count, string.Join(", ", handlers.DiskCache.Keys));
+            Assert.AreEqual(26, handlers.MemoryCache.Count);
+        }
+
+        [TestMethod]
         public async Task EtagDoesNotMatch()
         {
             var handlers = new HandlerChain();
@@ -42,7 +134,7 @@ namespace MoviesTests.Data
             // Normally this would just handle from the cache, but since it has an etag we need to make the api call
             Assert.AreEqual(1, handlers.WebHistory.Count);
             ResourceAssert.DiskCacheCount(handlers.DiskCache, Constants.Movie);
-            ResourceAssert.InMemoryCacheCount(handlers.InMemoryCache, Constants.Movie);
+            ResourceAssert.InMemoryCacheCount(handlers.MemoryCache, Constants.Movie);
         }
 
         [TestMethod]
@@ -68,7 +160,7 @@ namespace MoviesTests.Data
 
             Assert.AreEqual(0, handlers.WebHistory.Count);
             Assert.AreEqual(0, handlers.DiskCache.Count);
-            Assert.AreEqual(0, handlers.InMemoryCache.Count);
+            Assert.AreEqual(0, handlers.MemoryCache.Count);
 
             handlers.MockHttpHandler.Reconnect();
 
@@ -234,7 +326,7 @@ namespace MoviesTests.Data
             {
                 handlers.WebHistory.Clear();
 
-                await handlers.InMemoryCache.DeleteAsync(new UniformItemIdentifier(Constants.Movie, property));
+                await handlers.MemoryCache.DeleteAsync(new UniformItemIdentifier(Constants.Movie, property));
                 await chain.Get(requests = getAllRequests());
                 await CachedAsync(handlers.DiskCache);
                 Assert.AreEqual(1, handlers.WebHistory.Count, property.ToString());

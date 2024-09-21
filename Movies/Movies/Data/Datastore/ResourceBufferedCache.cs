@@ -89,6 +89,11 @@ namespace Movies
 
         public override Task<bool> ProcessAsync(IEnumerable<KeyValueRequestArgs<Uri>> e, IAsyncEventProcessor<IEnumerable<KeyValueRequestArgs<Uri>>> next)
         {
+            if (next == null)
+            {
+                return base.ProcessAsync(e, next);
+            }
+
             var batchedProcessor = new BatchedEventProcessor<KeyValueRequestArgs<Uri>>(e, Processor);
             var batchedNext = new BatchedEventProcessor<KeyValueRequestArgs<Uri>>(e, next);
             var etagProcessor = new EtaggedUriAsyncCoRProcessor(batchedProcessor);

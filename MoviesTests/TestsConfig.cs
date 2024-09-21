@@ -31,6 +31,7 @@ namespace MoviesTests
             DebugConfig.AllowLiveRequests = false;
             DebugConfig.AllowTMDbRequests = false;
             DebugConfig.AllowTMDbImages = false;
+            DebugConfig.ClearLocalWebCache = false;
 
             DebugConfig.SimulatedDelay = 1000;
 #endif

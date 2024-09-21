@@ -68,20 +68,21 @@ namespace MoviesTests.Data
     {
         public static TMDbResolver Resolver => TestsConfig.Resolver;
 
-        public static InMemoryService CreateInMemory()
+        public static InMemoryService CreateInMemory(out UiiDictionaryDataStore memoryCache)
         {
-            var inMemoryCache = new UiiDictionaryDataStore();
-            return new InMemoryService(inMemoryCache);
+            memoryCache = new UiiDictionaryDataStore();
+            return new InMemoryService(memoryCache);
         }
 
-        public static PersistenceService CreatePersistence(string filename)
+        public static PersistenceService CreatePersistence(string filename, out dBConnection connection)
         {
-            return new dBConnection(filename).PersistenceService;
+            connection = new dBConnection(filename);
+            return connection.PersistenceService;
         }
 
-        public static PersistenceService CreateMockPersistence()
+        public static PersistenceService CreateMockPersistence(out DummyDatastore<Uri> diskCache)
         {
-            var diskCache = new DummyDatastore<Uri>
+            diskCache = new DummyDatastore<Uri>
             {
                 ReadLatency = 50,
                 WriteLatency = 50,
@@ -89,9 +90,9 @@ namespace MoviesTests.Data
             return new PersistenceService(diskCache);
         }
 
-        public static TMDbService CreateTMDb()
+        public static TMDbService CreateMockTMDb(out MockHandler mockHttpMessageHandler)
         {
-            var invoker = new HttpMessageInvoker(new BufferedHandler(new TMDbBufferedHandler(new MockHandler())));
+            var invoker = new HttpMessageInvoker(new BufferedHandler(new TMDbBufferedHandler(mockHttpMessageHandler = new MockHandler())));
             var processor = new TMDbHttpProcessor(invoker, Resolver, TMDbApi.AutoAppend);
             return new TMDbService(invoker, Resolver);
         }
@@ -105,7 +106,7 @@ namespace MoviesTests.Data
 
         public List<string> WebHistory => MockHttpHandler.LocalCallHistory;
 
-        public UiiDictionaryDataStore InMemoryCache { get; }
+        public UiiDictionaryDataStore MemoryCache { get; }
         public DummyDatastore<Uri> DiskCache { get; }
 
         public TMDbHttpProcessor RemoteTMDbProcessor { get; }
@@ -115,22 +116,59 @@ namespace MoviesTests.Data
         public PersistenceService PersistenceService { get; }
         public TMDbService TMDbService { get; }
 
-        public HandlerChain()
+        public HandlerChain(UiiDictionaryDataStore memoryCache = null!, IEventAsyncCache<KeyValueRequestArgs<Uri>> diskCache = null!, HttpMessageHandler tmdbHandler = null!)
         {
             Resolver = new TMDbResolver(TMDB.ITEM_PROPERTIES);
 
-            InMemoryCache = new UiiDictionaryDataStore();
-            InMemoryService = new InMemoryService(InMemoryCache);
-
-            DiskCache = new DummyDatastore<Uri>
+            InMemoryService = new InMemoryService(MemoryCache = memoryCache ?? new UiiDictionaryDataStore());
+            PersistenceService = new PersistenceService(diskCache ?? new DummyDatastore<Uri>
             {
                 ReadLatency = 50,
-                WriteLatency = 50,
-            };
+                WriteLatency = 50
+            });
+            TMDbService = new TMDbService(new HttpMessageInvoker(new BufferedHandler(new TMDbBufferedHandler(MockHttpHandler = new MockHandler()))), Resolver);
+
+            DiskCache = null!;
+            RemoteTMDbProcessor = (TMDbService.Processor as TMDbHttpProcessor)!;
+
+            Chain = new AsyncCacheAsideProcessor<KeyValueRequestArgs<Uri>>(InMemoryService.Cache).ToChainLink();
+            Chain.SetNext(new AsyncCacheAsideProcessor<KeyValueRequestArgs<Uri>>(PersistenceService.Processor))
+                .SetNext(TMDbService.Processor);
+        }
+
+        public HandlerChain() //: this(ServiceFactory.CreateInMemory(out var memoryCache), memoryCache, ServiceFactory.CreateMockPersistence(out _), ServiceFactory.CreateMockTMDb(out _))
+        {
+            Resolver = new TMDbResolver(TMDB.ITEM_PROPERTIES);
+
+            MemoryCache = new UiiDictionaryDataStore();
+            InMemoryService = new InMemoryService(MemoryCache);
+
+            DiskCache = new DummyDatastore<Uri>();
+            DiskCache.ReadLatency = 50;
+            DiskCache.WriteLatency = 50;
             PersistenceService = new PersistenceService(DiskCache);
 
             var invoker = new HttpMessageInvoker(new BufferedHandler(new TMDbBufferedHandler(MockHttpHandler = new MockHandler())));
             RemoteTMDbProcessor = new TMDbHttpProcessor(invoker, Resolver, TMDbApi.AutoAppend);
+
+            Chain = new AsyncCacheAsideProcessor<KeyValueRequestArgs<Uri>>(InMemoryService.Cache).ToChainLink();
+            Chain.SetNext(new AsyncCacheAsideProcessor<KeyValueRequestArgs<Uri>>(PersistenceService.Processor))
+                .SetNext(RemoteTMDbProcessor);
+        }
+
+        public HandlerChain(InMemoryService memoryService, PersistenceService persistenceService, TMDbService tmdbService) : this(null!, null!, null!, null!, memoryService, persistenceService, tmdbService) { }
+
+        private HandlerChain(UiiDictionaryDataStore memoryCache, DummyDatastore<Uri> diskCache, TMDbHttpProcessor remoteTMDbProcessor, MockHandler mockHttpHandler, InMemoryService inMemoryService, PersistenceService persistenceService, TMDbService tmdbService)
+        {
+            MemoryCache = memoryCache;
+            DiskCache = diskCache;
+            RemoteTMDbProcessor = remoteTMDbProcessor;
+            MockHttpHandler = mockHttpHandler;
+            InMemoryService = inMemoryService;
+            PersistenceService = persistenceService;
+            TMDbService = tmdbService;
+
+            Resolver = new TMDbResolver(TMDB.ITEM_PROPERTIES);
 
             Chain = new AsyncCacheAsideProcessor<KeyValueRequestArgs<Uri>>(InMemoryService.Cache).ToChainLink();
             Chain.SetNext(new AsyncCacheAsideProcessor<KeyValueRequestArgs<Uri>>(PersistenceService.Processor))

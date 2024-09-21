@@ -5,8 +5,10 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using static Xamarin.Essentials.AppleSignInAuthenticator;
 
 namespace Movies.Data.Local
 {
@@ -98,6 +100,7 @@ namespace Movies.Data.Local
         private async Task<bool> Read(KeyValueRequestArgs<Uri> arg)
         {
             var message = await GetMessage(arg.Request.Key);
+            var count = await (await Connection).Table<Message>().CountAsync();
             if (message == null)
             {
                 return false;
@@ -204,6 +207,63 @@ namespace Movies.Data.Local
 
             converter = source => parser.GetPair(source is ArraySegment<byte> segment ? segment : new ArraySegment<byte>(source.ToArray())).Value;
             return true;
+        }
+
+        private abstract class TMDbPagedJsonConverter<T> : JsonConverter<IAsyncEnumerable<T>>
+        {
+            public JsonConverter<T> CollectionItemJsonConverter { get; }
+            public PagedTMDbRequest Request { get; }
+
+            public TMDbPagedJsonConverter(JsonConverter<T> collectionItemJsonConverter)
+            {
+                CollectionItemJsonConverter = collectionItemJsonConverter;
+            }
+
+            public override IAsyncEnumerable<T> Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+            {
+                int? pages = null;
+                
+                while (reader.Read())
+                {
+                    if (reader.TokenType != JsonTokenType.PropertyName)
+                    {
+                        reader.Skip();
+                    }
+                    
+                    string propertyName = reader.GetString();
+
+                    if (propertyName == "results")
+                    {
+                        
+                    }
+                    else if (propertyName == "totalPages")
+                    {
+                        pages = reader.GetInt32();
+                    }
+                    else if (propertyName == "pageCount")
+                    {
+
+                    }
+                }
+
+                if (reader.TokenType != JsonTokenType.StartArray)
+                {
+                    throw new Exception("Reader must be positioned at the start of an array");
+                }
+
+                options = new JsonSerializerOptions(options);
+                options.Converters.Add(CollectionItemJsonConverter);
+
+                JsonSerializer.Deserialize<T>(ref reader, options);
+                var item = CollectionItemJsonConverter.Read(ref reader, typeof(T), options);
+
+                return null;
+            }
+
+            public override void Write(Utf8JsonWriter writer, IAsyncEnumerable<T> value, JsonSerializerOptions options)
+            {
+                throw new NotImplementedException();
+            }
         }
 
         private class Message

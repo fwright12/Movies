@@ -7,7 +7,7 @@ using System.Text;
 
 namespace MoviesTests.Data.TMDb
 {
-    [TestClass]
+    //[TestClass]
     public class OldResourceTests : Resources
     {
         [TestInitialize]

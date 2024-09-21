@@ -1,5 +1,4 @@
-﻿using Movies;
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 
 namespace MoviesTests
 {
@@ -8,6 +7,9 @@ namespace MoviesTests
     {
         public int ReadLatency { get; set; }
         public int WriteLatency { get; set; }
+
+        public int ReadCount { get; private set; }
+        public int WriteCount { get; private set; }
 
         public async Task<bool> Read(IEnumerable<KeyValueRequestArgs<TKey>> args) => (await Task.WhenAll(args.Select(ProcessAsync))).All(result => result);
 
@@ -20,21 +22,33 @@ namespace MoviesTests
             }
 
             await WriteDelay();
+            WriteCount++;
+
             return TryAdd(args.Request.Key, args.Response as ResourceResponse);
         }
 
         public async Task<bool> ProcessAsync(KeyValueRequestArgs<TKey> e)
         {
             await ReadDelay();
+            ReadCount++;
             
             if (TryGetValue(e.Request.Key, out var resourceResponse))
             {
-                var response = resourceResponse as RestResponse ?? RestResponse.Create(e.Request.Expected, State.Create(resourceResponse.TryGetRepresentation<object>(out var value1) ? value1 : null));
+                RestResponse response;
+                if (resourceResponse is RestResponse restResponse)
+                {
+                    response = RestResponse.Create(e.Request.Expected, restResponse.Resource, restResponse.ControlData, restResponse.Metadata);
+                }
+                else
+                {
+                    response = RestResponse.Create(e.Request.Expected, State.Create(resourceResponse.TryGetRepresentation<object>(out var value1) ? value1 : null));
+                }
+                //response = resourceResponse as RestResponse ?? RestResponse.Create(e.Request.Expected, State.Create(resourceResponse.TryGetRepresentation<object>(out var value2) ? value2 : null));
                 //response = RestResponse.Create(e.Request.Expected, response.Resource, response.ControlData, response.Metadata);
                 return response == null ? false : e.Handle(response);
                 //return e.Handle(resourceResponse as RestResponse ?? new RestResponse(State.Create(resourceResponse.TryGetRepresentation<object>(out var value1) ? value1 : null), e.Request.Expected));
 
-                var restResponse = resourceResponse as RestResponse;
+                var restResponse1 = resourceResponse as RestResponse;
 
                 if (restResponse == null)
                 {

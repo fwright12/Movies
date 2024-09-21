@@ -1,11 +1,26 @@
-﻿namespace MoviesTests.Data.Local
+﻿using Movies.Data.Local;
+using SQLite;
+
+namespace MoviesTests.Data.Local
 {
     [TestClass]
-    public class ResourceTests : Resources
+    public class ResourceTests
     {
-        private static readonly string DATABASE_FILENAME = "MovieResourceTests.db";
+        [TestMethod]
+        public void UpdateTimestampOnEtagMatch()
+        {
+            Assert.Inconclusive();
+        }
+    }
+
+    [TestClass]
+    public class MovieResourceTests : Data.MovieResourceTests
+    {
+        private static readonly string DATABASE_FILENAME = $"{typeof(ResourceTests).FullName}.db";
 
         private static dBConnection Connection = new dBConnection(DATABASE_FILENAME);
+
+        public MovieResourceTests() : base(new LocalProcessorFactory(Connection.SqlConnection)) { }
 
         [ClassInitialize]
         public static async Task Init(TestContext context)
@@ -25,66 +40,37 @@
             await Connection.WaitSettledAsync();
         }
 
-        [TestInitialize]
-        public void Reset()
-        {
-            WebHistory.Clear();
-            TMDB.CollectionCache.Clear();
-        }
-
         [ClassCleanup]
         public static async Task Cleanup()
         {
             await Connection.CloseAsync();
         }
+    }
 
-        [TestMethod]
-        public async Task GetMovieProperty()
+    internal class LocalProcessorFactory : IProcessorFactory<IEnumerable<KeyValueRequestArgs<Uri>>>
+    {
+        public SQLiteAsyncConnection Connnection { get; }
+
+        public LocalProcessorFactory(SQLiteAsyncConnection connnection)
         {
-            var value = await GetResource<TimeSpan?>(Constants.Movie, Media.RUNTIME);
-            Assert.AreEqual(new TimeSpan(2, 10, 0), value);
+            Connnection = connnection;
         }
 
-        [TestMethod]
-        public async Task RetrieveMovieParentCollection()
+        public IAsyncEventProcessor<IEnumerable<KeyValueRequestArgs<Uri>>> Create()
         {
-            var value = await GetResource<Collection>(Constants.Movie, Movie.PARENT_COLLECTION);
-            Assert.AreEqual(new Collection().WithID(TMDB.IDKey, 1241), value);
-
-            Assert.AreEqual(1, WebHistory.Count);
-            Assert.AreEqual("3/collection/1241?language=en-US", WebHistory[0]);
+            return new AsyncEventProcessor<IEnumerable<KeyValueRequestArgs<Uri>>>(new PersistenceService(new SqlResourceDAO(Connnection, TestsConfig.Resolver)).Processor);
         }
 
-        [TestMethod]
-        public async Task GetStringProperty()
+        private class AsyncEventProcessor<T> : IAsyncEventProcessor<T>
         {
-            var value = await GetResource<string>(Constants.Movie, Media.TAGLINE);
-            Assert.AreEqual("It all ends.", value);
-        }
+            public IAsyncCoRProcessor<T> Processor { get; }
 
-        [TestMethod]
-        public async Task GetTVProperty()
-        {
-            var value = await GetResource<DateTime?>(Constants.TVShow, TVShow.LAST_AIR_DATE);
-            Assert.AreEqual(new DateTime(2013, 5, 16), value);
-        }
+            public AsyncEventProcessor(IAsyncCoRProcessor<T> processor)
+            {
+                Processor = processor;
+            }
 
-        private Task<T> GetResource<T>(Item item, Property property) => GetResource<T>(new UniformItemIdentifier(item, property));
-        private async Task<T> GetResource<T>(UniformItemIdentifier uii)
-        {
-            var handlers = new HandlerChain();
-
-            var request = new KeyValueRequestArgs<Uri, T>(uii);
-            await Connection.PersistenceService.Processor.ProcessAsync(request.AsEnumerable(), null);
-            await CachedAsync(handlers.DiskCache);
-
-            Assert.IsTrue(request.IsHandled);
-            return request.Value;
-        }
-
-        private static Task CachedAsync(DummyDatastore<Uri> diskCache)
-        {
-            return Task.Delay(Math.Max(diskCache.ReadLatency, diskCache.WriteLatency) * 2);
+            public Task<bool> ProcessAsync(T e) => Processor.ProcessAsync(e, null);
         }
     }
 }
