@@ -1,20 +1,17 @@
 ﻿namespace MoviesTests.Data
 {
-    public class MovieResourceTests : ItemResourceTests
+    public class TVShowResourceTests : ItemResourceTests
     {
-        public MovieResourceTests(IProcessorFactory<IEnumerable<KeyValueRequestArgs<Uri>>> processorFactory) : base(processorFactory) { }
+        public TVShowResourceTests(IProcessorFactory<IEnumerable<KeyValueRequestArgs<Uri>>> processorFactory) : base(processorFactory) { }
 
         [TestMethod]
         public Task RetrieveBackdropPath() => RetrieveResource(Media.BACKDROP_PATH);
 
         [TestMethod]
-        public Task RetrieveBudget() => RetrieveResource(Movie.BUDGET);
-
-        [TestMethod]
         public Task RetrieveCast() => RetrieveResource(Media.CAST);
 
         [TestMethod]
-        public Task RetrieveContentRating() => RetrieveResource(Movie.CONTENT_RATING);
+        public Task RetrieveContentRating() => RetrieveResource(TVShow.CONTENT_RATING);
 
         [TestMethod]
         public Task RetrieveCrew() => RetrieveResource(Media.CREW);
@@ -23,7 +20,10 @@
         public Task RetrieveDescription() => RetrieveResource(Media.DESCRIPTION);
 
         [TestMethod]
-        public Task RetrieveGenres() => RetrieveResource(Movie.GENRES);
+        public Task RetrieveFirstAirDate() => RetrieveResource(TVShow.FIRST_AIR_DATE);
+
+        [TestMethod]
+        public Task RetrieveGenres() => RetrieveResource(TVShow.GENRES);
 
         [TestMethod]
         public Task RetrieveKeywords() => RetrieveResource(Media.KEYWORDS);
@@ -32,13 +32,16 @@
         public Task RetrieveLanguages() => RetrieveResource(Media.LANGUAGES);
 
         [TestMethod]
+        public Task RetrieveLastAirDate() => RetrieveResource(TVShow.LAST_AIR_DATE);
+
+        [TestMethod]
+        public Task RetrieveNetworks() => RetrieveResource(TVShow.NETWORKS);
+
+        [TestMethod]
         public Task RetrieveOriginalLanguage() => RetrieveResource(Media.ORIGINAL_LANGUAGE);
 
         [TestMethod]
         public Task RetrieveOriginalTitle() => RetrieveResource(Media.ORIGINAL_TITLE);
-
-        [TestMethod]
-        public Task RetrieveParentCollection() => RetrieveResource(Movie.PARENT_COLLECTION);
 
         [TestMethod]
         public Task RetrievePosterPath() => RetrieveResource(Media.POSTER_PATH);
@@ -56,13 +59,10 @@
         public Task RetrieveRecommended() => RetrieveResource(Media.RECOMMENDED);
 
         [TestMethod]
-        public Task RetrieveReleaseDate() => RetrieveResource(Movie.RELEASE_DATE);
-
-        [TestMethod]
-        public Task RetrieveRevenue() => RetrieveResource(Movie.REVENUE);
-
-        [TestMethod]
         public Task RetrieveRuntime() => RetrieveResource(Media.RUNTIME);
+
+        [TestMethod]
+        public Task RetrieveSeasons() => RetrieveResource(TVShow.SEASONS);
 
         [TestMethod]
         public Task RetrieveTagline() => RetrieveResource(Media.TAGLINE);
@@ -74,9 +74,9 @@
         public Task RetrieveTrailerPath() => RetrieveResource(Media.TRAILER_PATH);
 
         [TestMethod]
-        public Task RetrieveWatchProviders() => RetrieveResource(Movie.WATCH_PROVIDERS);
+        public Task RetrieveWatchProviders() => RetrieveResource(TVShow.WATCH_PROVIDERS);
 
-        private Task RetrieveResource<T>(Property<T> property) => RetrieveResource(Constants.Movie, property);
-        private Task RetrieveResource<T>(MultiProperty<T> property) => RetrieveResource(Constants.Movie, property);
+        private Task RetrieveResource<T>(Property<T> property) => RetrieveResource(Constants.TVShow, property);
+        private Task RetrieveResource<T>(MultiProperty<T> property) => RetrieveResource(Constants.TVShow, property);
     }
 }

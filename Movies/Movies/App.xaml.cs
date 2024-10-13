@@ -276,10 +276,10 @@ namespace Movies
             DataService.Register(new InMemoryService(DataService.Instance.ResourceCache));
             //DataService.Register(new PersistenceService(new ResourceDAO()));
             DataService.Register(new TMDbService(TMDB.WebClient, resolver));
-            
-            //DataService.Instance.Controller
-            //    .SetNext(new AsyncCacheAsideProcessor<KeyValueRequestArgs<Uri>>(new UriBufferedCache(tmdbLocalCache)))
-            //    .SetNext(tmdbHandlers);
+
+            DataService.Instance.Controller
+                .SetNext(new AsyncCacheAsideProcessor<KeyValueRequestArgs<Uri>>(new UriBufferedCache(tmdbLocalCache)))
+                .SetNext(tmdbHandlers);
 
 #if DEBUG
             MovieExplore = new List<object>

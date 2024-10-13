@@ -56,7 +56,7 @@ namespace MoviesTests.Data
             var chain = handlers.Chain;
 
             await handlers.MemoryCache.CreateAsync(new UniformItemIdentifier(Constants.Movie, Media.TAGLINE), State.Create(Constants.TAGLINE));
-            await handlers.MemoryCache.CreateAsync(new UniformItemIdentifier(Constants.Movie, Media.ORIGINAL_LANGUAGE), State.Create(Constants.LANGUAGE));
+            await handlers.MemoryCache.CreateAsync(new UniformItemIdentifier(Constants.Movie, Media.ORIGINAL_LANGUAGE), State.Create(Constants.US_ENGLISH_LANGUAGE));
 
             // Retrieve an item in the in memory cache
             var uii = new UniformItemIdentifier(Constants.Movie, Media.TAGLINE);
@@ -242,7 +242,7 @@ namespace MoviesTests.Data
         }
 
         [TestMethod]
-        public async Task EtagDoesMatch()
+        public async Task RespondWithCachedDataOnEtagMatch()
         {
             var handlers = new HandlerChain();
             var chain = handlers.Chain;

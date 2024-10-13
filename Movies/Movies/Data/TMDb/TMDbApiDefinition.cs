@@ -663,8 +663,11 @@ namespace Movies
             [API.TV_EPISODES.GET_DETAILS] = new ParserList
             {
                 ["air_date"] = Parser.Create(TVEpisode.AIR_DATE),
+                ["name"] = TITLE_PARSER,
+                ["runtime"] = new Parser<TimeSpan>(Media.RUNTIME, RUNTIME_PARSER),
                 ["still_path"] = Parser.Create(Media.POSTER_PATH, path => BuildImageURL(path.TryGetValue<string>(), STILL_SIZE)),
                 ["overview"] = Parser.Create(Media.DESCRIPTION),
+                [""] = Parser.Create(Media.RATING, TMDB.ParseRating),
             },
             [API.TV_EPISODES.GET_CREDITS] = new ParserList
             {

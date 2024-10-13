@@ -40,7 +40,7 @@ namespace MoviesTests.Data.TMDb
             var chain = handlers.Chain;
 
             await handlers.InMemoryCache.CreateAsync(new UniformItemIdentifier(Constants.Movie, Media.TAGLINE), State.Create(Constants.TAGLINE));
-            await handlers.InMemoryCache.CreateAsync(new UniformItemIdentifier(Constants.Movie, Media.ORIGINAL_LANGUAGE), State.Create(Constants.LANGUAGE));
+            await handlers.InMemoryCache.CreateAsync(new UniformItemIdentifier(Constants.Movie, Media.ORIGINAL_LANGUAGE), State.Create(Constants.US_ENGLISH_LANGUAGE));
 
             // Retrieve an item in the in memory cache
             var uii = new UniformItemIdentifier(Constants.Movie, Media.TAGLINE);

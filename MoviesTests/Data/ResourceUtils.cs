@@ -7,9 +7,9 @@ namespace MoviesTests.Data
     internal class ResourceUtils
     {
         public const string MOVIE_URL_APPENDED = $"3/movie/0?{Constants.APPEND_TO_RESPONSE}=credits,external_ids,keywords,recommendations,release_dates,videos,watch/providers";
-        public const string MOVIE_URL_APPENDED_USENGLISH = $"3/movie/0?language=en-US&{Constants.APPEND_TO_RESPONSE}=credits,external_ids,keywords,recommendations,release_dates,videos,watch/providers";
+        public const string MOVIE_URL_USENGLISH_APPENDED = $"3/movie/0?language=en-US&{Constants.APPEND_TO_RESPONSE}=credits,external_ids,keywords,recommendations,release_dates,videos,watch/providers";
         public const string TV_URL_APPENDED = $"3/tv/0?{Constants.APPEND_TO_RESPONSE}=aggregate_credits,content_ratings,external_ids,keywords,recommendations,videos,watch/providers";
-        public const string TV_URL_APPENDED_USENGLISH = $"3/tv/0?language=en-US&{Constants.APPEND_TO_RESPONSE}=aggregate_credits,content_ratings,external_ids,keywords,recommendations,videos,watch/providers";
+        public const string TV_URL_USENGLISH_APPENDED = $"3/tv/0?language=en-US&{Constants.APPEND_TO_RESPONSE}=aggregate_credits,content_ratings,external_ids,keywords,recommendations,videos,watch/providers";
 
         public static Uri RUNTIME_URI = new Uri("urn:Movie:0:Runtime", UriKind.RelativeOrAbsolute);
     }
@@ -39,7 +39,7 @@ namespace MoviesTests.Data
             {
                 try
                 {
-                    var count = (await SqlConnection.QueryScalarsAsync<int>("select count(*) from Message"))[0];
+                    var count = (await SqlConnection.QueryScalarsAsync<int>($"select count(*) from {SqlResourceDAO.RESOURCE_TABLE_NAME}"))[0];
                     if (count == lastCount)
                     {
                         break;

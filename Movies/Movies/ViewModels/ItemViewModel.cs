@@ -28,18 +28,7 @@ namespace Movies.ViewModels
         public virtual string PrimaryImagePath => null;
         public ICommand AddToListCommand { get; }
 
-        private static IAsyncEventProcessor<IEnumerable<KeyValueRequestArgs<Uri>>> DefaultController { get; }
-        private IAsyncEventProcessor<IEnumerable<KeyValueRequestArgs<Uri>>> Controller { get; }
-
-        static ItemViewModel()
-        {
-            //var inMemory = AsyncChainLink.Create(AsyncCacheAsideProcessor.Create(DataService.GetService<InMemoryService>().Cache));
-            //var local = AsyncCacheAsideProcessor.Create(DataService.GetService<PersistenceService>().Processor);
-            //var tmdb = DataService.GetService<TMDbService>().Processor;
-
-            //inMemory.SetNext(local).SetNext(tmdb);
-            //DefaultController = inMemory;
-        }
+        private ChainLink<EventArgsAsyncWrapper<IEnumerable<KeyValueRequestArgs<Uri>>>> Controller => DataService.Instance.Controller;
 
         protected Task BatchRequest => BatchRequestSource?.Task ?? Task.CompletedTask;
         private TaskCompletionSource<bool> BatchRequestSource;
@@ -49,7 +38,6 @@ namespace Movies.ViewModels
 #if true
         public ItemViewModel(Item item)
         {
-            Controller = DefaultController;
             Item = item;
 
             AddToListCommand = new Command<IEnumerable<object>>(async lists =>
@@ -67,7 +55,7 @@ namespace Movies.ViewModels
             var batch = Batched;
             Batched = new Dictionary<string, KeyValueRequestArgs<Uri>>();
 
-            await Controller.ProcessAsync(batch.Values);
+            await Controller.Get(batch.Values);
             BatchRequestSource?.SetResult(true);
             BatchRequestSource = null;
 

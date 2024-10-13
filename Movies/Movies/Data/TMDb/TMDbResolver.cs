@@ -6,6 +6,7 @@ using System.Collections.Specialized;
 using System.Linq;
 using System.Net.Http;
 using System.Text;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 using System.Web;
@@ -159,14 +160,15 @@ namespace Movies
             //var rawQuery = new Uri(url, UriKind.Relative).Query;
             var query = HttpUtility.ParseQueryString(rawQuery);
 
+            var append = query.GetAndRemove(APPEND_TO_RESPONSE)?.Split(',') ?? new string[0];
+            var queryString = query.ToString();
+
             var language = query.GetAndRemove("language");// ?? TMDB.LANGUAGE.Iso_639;
             var region = query.GetAndRemove("region");// ?? TMDB.REGION.Iso_3166;
             var adult = (query.GetAndRemove("adult") ?? TMDB.ADULT.ToString().ToLower()) == "true";
             adult = query.GetAndRemove("adult") == "true";
-            var append = query.GetAndRemove(APPEND_TO_RESPONSE)?.Split(',') ?? new string[0];
 
             var basePath = uri.ToString().Split('?')[0];
-            var queryString = query.ToString();
             var data = new Dictionary<TMDbRequest, (Uri Uri, string Path, List<Parser> Parsers, IEnumerable<object> Args)>();
             var partial = (uri as TrojanTMDbUri)?.RequestedProperties != null;
 
@@ -185,6 +187,7 @@ namespace Movies
                 if (Annotations.TryGetValue(deparameterizedUrl, out var annotation))
                 {
                     var childUrl = string.Format(annotation.Key.GetURL(language, region, adult, queryString), args.ToArray());
+                    childUrl = string.Format(annotation.Key.GetURL(queryString), args.ToArray());
                     fullUri = new Uri(childUrl, UriKind.Relative);
 
                     data.Add(annotation.Key, (fullUri, appended, partial ? new List<Parser>() : annotation.Value, args));
@@ -234,7 +237,7 @@ namespace Movies
             return false;
         }
 
-        private Parser ReplacePagedParsers(PagedTMDbRequest request, Parser parser, IEnumerable<object> args)
+        public static Parser ReplacePagedParsers(PagedTMDbRequest request, Parser parser, IEnumerable<object> args)
         {
             if (parser.Property is Property<IAsyncEnumerable<Item>> property == false)
             {
@@ -357,10 +360,22 @@ namespace Movies
                     var state1 = State.Create(lazyJson);
                     result.Add(annotation.Uri, state1);
 
+                    if (Item == null)
+                    {
+                        continue;
+                    }
+
                     var inner = new Dictionary<Uri, State>();
 
                     foreach (var parser in annotation.Parsers)
                     {
+                        var bytes1 = lazyJson.Bytes;
+                        if (parser is IParser<ArraySegment<byte>> parser1 && parser1.JsonParser is JsonPropertyParser jpp && (string.IsNullOrEmpty(annotation.Path) ? json : (json.TryGetValue(annotation.Path, out var temp) ? temp : null)) is JsonIndex index)
+                        {
+                            bytes1 = new PropertyBytes(index, jpp.Property).Bytes;
+                        }
+                        bytes1 = TrimWhitespace(bytes1);
+
                         Func<IEnumerable<byte>, object> converter;
 
                         if (parser.Property == TVShow.SEASONS)
@@ -402,34 +417,28 @@ namespace Movies
                         else
                         {
                             converter = source => parser.GetPair(source is ArraySegment<byte> segment ? segment : new ArraySegment<byte>(source.ToArray())).Value;
+
+                            if (parser.Property == TVShow.LAST_AIR_DATE)
+                            {
+                                var value = converter(lazyJson.Bytes);
+                                bytes1 = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(value));
+                            }
                         }
 
-                        try
+                        var byteRepresentation = new ObjectRepresentation<IEnumerable<byte>>(bytes1);
+                        var state = new State(byteRepresentation);
+                        if (converter != null)
                         {
-                            var bytes1 = lazyJson.Bytes;
-                            if (parser is IParser<ArraySegment<byte>> parser1 && parser1.JsonParser is JsonPropertyParser jpp && (string.IsNullOrEmpty(annotation.Path) ? json : (json.TryGetValue(annotation.Path, out var temp) ? temp : null)) is JsonIndex index)
-                            {
-                                bytes1 = new PropertyBytes(index, jpp.Property).Bytes;
-                            }
-
-                            bytes1 = TrimWhitespace(bytes1);
-                            var byteRepresentation = new ObjectRepresentation<IEnumerable<byte>>(bytes1);
-                            var state = new State(byteRepresentation);
-
-                            if (converter != null)
-                            {
-                                state.AddRepresentation(parser.Property.FullType, new LazilyConvertedRepresentation<IEnumerable<byte>, object>(new ObjectRepresentation<IEnumerable<byte>>(lazyJson.Bytes), converter));
-                            }
-                            //else if (success)
-                            //{
-                            //    //var state = converted == null ? State.Null(parser.Property.FullType) : new State(converted);
-                            //    state.Add(parser.Property.FullType, converted);
-                            //}
-
-                            var uii = GetUii(Item, annotation.Uri, parser);
-                            inner.Add(uii, state);
+                            state.AddRepresentation(parser.Property.FullType, new LazilyConvertedRepresentation<IEnumerable<byte>, object>(new ObjectRepresentation<IEnumerable<byte>>(lazyJson.Bytes), source => { try { return converter(source); } catch { return null; } }));
                         }
-                        catch { }
+                        //else if (success)
+                        //{
+                        //    //var state = converted == null ? State.Null(parser.Property.FullType) : new State(converted);
+                        //    state.Add(parser.Property.FullType, converted);
+                        //}
+
+                        var uii = GetUii(Item, annotation.Uri, parser);
+                        inner.Add(uii, state);
                     }
 
                     if (inner.Count > 0)
@@ -478,9 +487,9 @@ namespace Movies
             }
         }
 
-        private static IEnumerable<T> GetTVItems<T>(byte[] json, string property, AsyncEnumerable.TryParseFunc<JsonNode, T> parse) => TMDB.TryParseCollection(JsonNode.Parse(json), new JsonPropertyParser<IEnumerable<JsonNode>>(property), out var result, new JsonNodeParser<T>(parse)) ? result : null;
+        public static IEnumerable<T> GetTVItems<T>(byte[] json, string property, AsyncEnumerable.TryParseFunc<JsonNode, T> parse) => TMDB.TryParseCollection(JsonNode.Parse(json), new JsonPropertyParser<IEnumerable<JsonNode>>(property), out var result, new JsonNodeParser<T>(parse)) ? result : null;
 
-        private static async Task<IEnumerable<T>> GetTVItems<T>(Task<ArraySegment<byte>> json, string property, AsyncEnumerable.TryParseFunc<JsonNode, T> parse) => TMDB.TryParseCollection(JsonNode.Parse(await json), new JsonPropertyParser<IEnumerable<JsonNode>>(property), out var result, new JsonNodeParser<T>(parse)) ? result : null;
+        //private static async Task<IEnumerable<T>> GetTVItems<T>(Task<ArraySegment<byte>> json, string property, AsyncEnumerable.TryParseFunc<JsonNode, T> parse) => TMDB.TryParseCollection(JsonNode.Parse(await json), new JsonPropertyParser<IEnumerable<JsonNode>>(property), out var result, new JsonNodeParser<T>(parse)) ? result : null;
 
         public bool TryGetChangeKey(Property property, out string changeKey) => ChangeKeys.TryGetValue(property, out changeKey);
 
@@ -534,7 +543,13 @@ namespace Movies
         public bool TryGetRequest(UniformItemIdentifier uii, out TMDbRequest request)
         {
             request = null;
-            return Properties.TryGetValue(uii.Item.ItemType, out var properties) && properties.PropertyLookup.TryGetValue(uii.Property, out request);
+            return TryGetRequest(uii.Item.ItemType, uii.Property, out request);
+        }
+
+        public bool TryGetRequest(ItemType itemType, Property property, out TMDbRequest request)
+        {
+            request = null;
+            return Properties.TryGetValue(itemType, out var properties) && properties.PropertyLookup.TryGetValue(property, out request);
         }
 
         public string Resolve(TMDbRequest request, params object[] args) => string.Format(request.GetURL(), args);

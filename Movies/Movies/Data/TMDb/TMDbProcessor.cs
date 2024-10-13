@@ -18,7 +18,7 @@ namespace Movies
 
         protected override bool Handle(KeyValueRequestArgs<Uri> grouped, IEnumerable<KeyValueRequestArgs<Uri>> singles)
         {
-            if (!grouped.IsHandled || false == (grouped.Request.Key as TMDbResolver.TrojanTMDbUri)?.Converter is HttpResourceCollectionConverter resources)
+            if (false == (grouped.Request.Key as TMDbResolver.TrojanTMDbUri)?.Converter is HttpResourceCollectionConverter resources)
             {
                 return grouped.IsHandled;
             }
