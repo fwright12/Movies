@@ -225,7 +225,7 @@ namespace Movies
 
     public abstract class IParser<T> : Parser
     {
-        public IJsonParser<T> JsonParser { get; set; }
+        public IJsonParser<T> JsonParser { get; }
 
         public IParser(Property property, IJsonParser<T> jsonParser) : base(property)
         {
@@ -258,7 +258,7 @@ namespace Movies
 
     public class ParserWrapper : IParser<ArraySegment<byte>>
     {
-        public Parser Parser { get; set; }
+        public Parser Parser { get; }
 
         public ParserWrapper(Parser parser, IJsonParser<ArraySegment<byte>> jsonParser) : base(parser.Property, jsonParser)
         {

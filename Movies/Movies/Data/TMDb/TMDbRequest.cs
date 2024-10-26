@@ -16,6 +16,10 @@ namespace Movies
         //public static string DEFAULT_ISO_639_1 => DEFAULT_LANGUAGE;
         //public static string DEFAULT_ISO_3166_1 => DEFAULT_REGION;
 
+        public const string LANGUAGE_PARAMETER_KEY = "language";
+        public const string REGION_PARAMETER_KEY = "region";
+        public const string ADULT_PARAMETER_KEY = "adult";
+
         public HttpMethod Method { get; set; }
         public string Endpoint { get; set; }
         public int Version { get; set; } = 3;
@@ -43,9 +47,9 @@ namespace Movies
         {
             var parameters = new List<string>();
 
-            if (HasLanguageParameter && !string.IsNullOrEmpty(language)) parameters.Add($"language={language}");
-            if (HasRegionParameter && !string.IsNullOrEmpty(region)) parameters.Add($"region={region}");
-            if (HasAdultParameter && adult.HasValue) parameters.Add($"adult={adult}");
+            if (HasLanguageParameter && !string.IsNullOrEmpty(language)) parameters.Add($"{LANGUAGE_PARAMETER_KEY}={language}");
+            if (HasRegionParameter && !string.IsNullOrEmpty(region)) parameters.Add($"{REGION_PARAMETER_KEY}={region}");
+            //if (HasAdultParameter && adult.HasValue) parameters.Add($"{ADULT_PARAMETER_KEY}={adult}");
 
             parameters.AddRange(otherParameters.Where(p => !string.IsNullOrEmpty(p)));
 

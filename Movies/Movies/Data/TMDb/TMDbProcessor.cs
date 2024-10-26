@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Web;
 
 namespace Movies
 {
@@ -23,7 +24,7 @@ namespace Movies
                 return grouped.IsHandled;
             }
 
-            if (!(grouped.Response as ResourceResponse).TryGetRepresentation<IEnumerable<KeyValuePair<Uri, object>>>(out var collection))
+            if ((grouped.Response as ResourceResponse)?.TryGetRepresentation<IEnumerable<KeyValuePair<Uri, object>>>(out var collection) != true)
             {
                 collection = null;
             }
@@ -39,7 +40,9 @@ namespace Movies
                 {
                     response = request.Response ?? response;
                 }
-                else*/ if (true == collection?.TryGetValue(request.Request.Key, out var value))
+                else*/ 
+                if (true == collection?.TryGetValue(request.Request.Key, out var value))
+                //if (TryRoute(request.Request.Key, index, out var value))
                 {
                     if (value is IEnumerable<Entity> entities)
                     {
@@ -69,6 +72,46 @@ namespace Movies
             }
 
             return result;
+        }
+
+        private bool TryRoute(Uri uri, IReadOnlyDictionary<Uri, object> resourceCollection, out object resource)
+        {
+            if (resourceCollection == null)
+            {
+                resource = null;
+                return false;
+            }
+
+            var parts = uri.ToString().Split('?');
+            var path = parts[0];
+            var queryString = parts.ElementAtOrDefault(1);
+
+            if (queryString != null && Resolver.TryGetRequest(uri, out var request))
+            {
+                var query = HttpUtility.ParseQueryString(queryString);
+                if (!request.HasLanguageParameter)
+                {
+                    query.Remove(TMDbRequest.LANGUAGE_PARAMETER_KEY);
+                }
+                if (!request.HasRegionParameter)
+                {
+                    query.Remove(TMDbRequest.REGION_PARAMETER_KEY);
+                }
+                if (!request.HasAdultParameter)
+                {
+                    query.Remove(TMDbRequest.ADULT_PARAMETER_KEY);
+                }
+
+                queryString = query.ToString();
+                var uriString = path;
+                if (!string.IsNullOrEmpty(queryString))
+                {
+                    uriString += "?" + queryString;
+                }
+                uri = new Uri(uriString, UriKind.RelativeOrAbsolute);
+            }
+
+            return resourceCollection.TryGetValue(uri, out resource);
         }
 
         protected override IEnumerable<KeyValuePair<KeyValueRequestArgs<Uri>, IEnumerable<KeyValueRequestArgs<Uri>>>> GroupRequests(IEnumerable<KeyValueRequestArgs<Uri>> args)

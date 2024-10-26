@@ -6,6 +6,8 @@ namespace MoviesTests.Data
 {
     internal class ResourceAssert
     {
+        public static readonly Uri EXTERNAL_IDS_MOVIE_URI = new Uri(string.Format(API.MOVIES.GET_EXTERNAL_IDS.GetURL(), "0"), UriKind.Relative);
+
         private static readonly Uri BASE_TMDB_URI = new Uri("https://tmdb.com");
 
         public static void AreEquivalentTMDbUrl(string expected, string actual)
@@ -34,6 +36,7 @@ namespace MoviesTests.Data
                 Assert.AreEqual("Fiona Weir", actual.First().Person.Name);
             },
             [new UniformItemIdentifier(Constants.Movie, Media.DESCRIPTION)] = "Harry, Ron and Hermione continue their quest to vanquish the evil Voldemort once and for all. Just as things begin to look hopeless for the young wizards, Harry discovers a trio of magical objects that endow him with powers to rival Voldemort's formidable skills.",
+            [EXTERNAL_IDS_MOVIE_URI] = Encoding.UTF8.GetBytes(" {\r\n    \"imdb_id\": \"tt1201607\",\r\n    \"wikidata_id\": \"Q232009\",\r\n    \"facebook_id\": \"harrypottermovie\",\r\n    \"instagram_id\": \"harrypotterfilm\",\r\n    \"twitter_id\": \"HarryPotterFilm\"\r\n  }"),
             [new UniformItemIdentifier(Constants.Movie, Movie.GENRES)] = (IEnumerable<Genre> actual) =>
             {
                 Assert.AreEqual(2, actual.Count());
@@ -69,8 +72,8 @@ namespace MoviesTests.Data
             [new UniformItemIdentifier(Constants.Movie, Media.RECOMMENDED)] = (IAsyncEnumerable<Item> actual) =>
             {
                 var itr = actual.GetAsyncEnumerator();
-                Assert.IsTrue(itr.MoveNextAsync().Result);
-                Assert.AreEqual("Harry Potter and the Deathly Hallows: Part 1", itr.Current.Name);
+                var items = Enumerable.Range(0, 20).Select(_ => { Assert.IsTrue(itr.MoveNextAsync().Result); return itr.Current; }).ToArray();
+                IsExpectedMovieRecommended(items);
             },
             [new UniformItemIdentifier(Constants.Movie, Movie.RELEASE_DATE)] = new DateTime(2011, 7, 12),
             [new UniformItemIdentifier(Constants.Movie, Movie.REVENUE)] = 1341511219L,
@@ -126,8 +129,8 @@ namespace MoviesTests.Data
             [new UniformItemIdentifier(Constants.TVShow, Media.RECOMMENDED)] = (IAsyncEnumerable<Item> actual) =>
             {
                 var itr = actual.GetAsyncEnumerator();
-                Assert.IsTrue(itr.MoveNextAsync().Result);
-                Assert.AreEqual("Parks and Recreation", itr.Current.Name);
+                var items = Enumerable.Range(0, 21).Select(_ => { Assert.IsTrue(itr.MoveNextAsync().Result); return itr.Current; }).ToArray();
+                IsExpectedTVShowRecommended(items);
             },
             [new UniformItemIdentifier(Constants.TVShow, Media.RUNTIME)] = new TimeSpan(0, 22, 0),
             [new UniformItemIdentifier(Constants.TVShow, TVShow.SEASONS)] = (IEnumerable<TVSeason> actual) =>
@@ -213,7 +216,7 @@ namespace MoviesTests.Data
         {
             Assert.IsTrue(request.IsHandled, message, parameters);
 
-            if (EXPECTED_VALUES.TryGetValue(request.Request.Key, out var expected) || EXPECTED_VALUES.TryGetValue(new Uri(request.Request.Key.ToString().Replace("?language=en-US", ""), UriKind.RelativeOrAbsolute), out expected))
+            if (EXPECTED_VALUES.TryGetValue(request.Request.Key, out var expected) || EXPECTED_VALUES.TryGetValue(new Uri(request.Request.Key.ToString().Replace("?language=en-US", "").Replace("&region=US", ""), UriKind.RelativeOrAbsolute), out expected))
             {
                 if (expected is Delegate del && expected.GetType().GenericTypeArguments.Length == 1)
                 {
@@ -239,6 +242,18 @@ namespace MoviesTests.Data
             {
                 Assert.Inconclusive($"Expected value not known. " + message, parameters);
             }
+        }
+
+        public static void IsExpectedMovieRecommended(IEnumerable<Item> actual)
+        {
+            Assert.AreEqual(20, actual.Count());
+            Assert.AreEqual("Harry Potter and the Deathly Hallows: Part 1", actual.First().Name);
+        }
+
+        public static void IsExpectedTVShowRecommended(IEnumerable<Item> actual)
+        {
+            Assert.AreEqual(21, actual.Count());
+            Assert.AreEqual("Parks and Recreation", actual.First().Name);
         }
 
         protected void AssertByteRepresentation(RestResponse response, string str)

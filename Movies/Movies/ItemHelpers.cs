@@ -171,7 +171,12 @@ namespace Movies.Models
                                 return false;
                             }
 
-                            value = request.Value.Score;
+                            var score = request.Value.Score.Replace("%", "");
+                            var multiplier = score.Length != request.Value.Score.Length ? 0.1 : 1;
+                            if (!int.TryParse(score, out var scoreValue))
+                            {
+                                value = scoreValue * multiplier;
+                            }
                         }
                         else
                         {

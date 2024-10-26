@@ -1,4 +1,5 @@
-﻿using Movies.Models;
+﻿using Movies.Data.Local;
+using Movies.Models;
 using SQLite;
 using System;
 using System.Collections.Generic;
@@ -85,6 +86,7 @@ namespace Movies.Views
         public bool NeedsCleaning => DateTime.Now - LastCleaned <= App.DB_CLEANING_SCHEDULE == false;
 
         public ItemInfoCache ItemCache { get; }
+        public SqlResourceDAO ResourceDAO { get; }
         public string Name { get; } = "Local";
 
         private static readonly Table SyncLists = new Table(SyncListsCols.ID, SyncListsCols.SOURCE, SyncListsCols.SYNC_ID, SyncListsCols.SYNC_SOURCE)
@@ -110,7 +112,7 @@ namespace Movies.Views
         private ID<int>.Key IDKey;
         private DateTime? LastCleaned;
 
-        public Database(IAssignID<int> tmdb, ID<int>.Key idKey, DateTime? lastCleaned = null)
+        public Database(IAssignID<int> tmdb, ID<int>.Key idKey, TMDbResolver resolver, DateTime? lastCleaned = null)
         {
             IDSystem = tmdb;
             IDKey = idKey;
@@ -128,7 +130,8 @@ namespace Movies.Views
             UserInfo = CreateUserInfo(userInfo, NeedsCleaning);
             ItemInfo = CreateItemInfo(itemInfo, UserInfo, NeedsCleaning);
 
-            ItemCache = new ItemInfoCache(ItemInfo);
+            //ItemCache = new ItemInfoCache(ItemInfo);
+            ResourceDAO = new SqlResourceDAO(ItemInfo, resolver);
 
 #if DEBUG
             async Task Dummy()

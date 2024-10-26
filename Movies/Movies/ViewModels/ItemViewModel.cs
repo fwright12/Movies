@@ -74,16 +74,16 @@ namespace Movies.ViewModels
             {
                 if (this is PersonViewModel && Batched.Count == 0)
                 {
-                    Batched["credits"] = new KeyValueRequestArgs<Uri>(new UniformItemIdentifier(Item, Person.CREDITS), Person.CREDITS.FullType);
+                    Batched["credits"] = new KeyValueRequestArgs<Uri>(CreateUii(Item, Person.CREDITS), Person.CREDITS.FullType);
                 }
                 if (this is TVSeasonViewModel && Batched.Count == 0)
                 {
-                    Batched["episodes"] = new KeyValueRequestArgs<Uri>(new UniformItemIdentifier(Item, TVSeason.EPISODES), TVSeason.EPISODES.FullType);
-                    Batched[nameof(TVSeasonViewModel.Cast)] = new KeyValueRequestArgs<Uri>(new UniformItemIdentifier(Item, TVSeason.CAST), TVSeason.CAST.FullType);
-                    Batched[nameof(TVSeasonViewModel.Crew)] = new KeyValueRequestArgs<Uri>(new UniformItemIdentifier(Item, TVSeason.CREW), TVSeason.CREW.FullType);
+                    Batched["episodes"] = new KeyValueRequestArgs<Uri>(CreateUii(Item, TVSeason.EPISODES), TVSeason.EPISODES.FullType);
+                    Batched[nameof(TVSeasonViewModel.Cast)] = new KeyValueRequestArgs<Uri>(CreateUii(Item, TVSeason.CAST), TVSeason.CAST.FullType);
+                    Batched[nameof(TVSeasonViewModel.Crew)] = new KeyValueRequestArgs<Uri>(CreateUii(Item, TVSeason.CREW), TVSeason.CREW.FullType);
                 }
 
-                Batched[propertyName] = new KeyValueRequestArgs<Uri>(new UniformItemIdentifier(Item, property), property.FullType);
+                Batched[propertyName] = new KeyValueRequestArgs<Uri>(CreateUii(Item, property), property.FullType);
                 BatchRequestSource ??= new TaskCompletionSource<bool>();
                 DataService.Instance.BatchCommitted -= BatchEnded;
                 DataService.Instance.BatchCommitted += BatchEnded;
@@ -120,9 +120,11 @@ namespace Movies.ViewModels
         {
             //return DataService.Instance.ResourceCache.ReadAsync(new UniformItemIdentifier(Item, property)).Result.TryGetRepresentation<T>(out var temp) ? temp : default;
             //var request = new RestRequestArgs<T>();
-            var request = await Controller.TryGet<T>(new UniformItemIdentifier(Item, property));
+            var request = await Controller.TryGet<T>(CreateUii(Item, property));
             return request.IsHandled ? request.Value : default;
         }
+
+        private static UniformItemIdentifier CreateUii(Item item, Property property) => new UniformItemIdentifier(item, property);//, language: TMDB.LANGUAGE);
 
         protected bool TryRequestValue<T>(Property<T> property, out T value, [CallerMemberName] string propertyName = null) => TryGetValue(property, out value, propertyName);
         protected bool TryRequestValue<T>(MultiProperty<T> property, out IEnumerable<T> value, [CallerMemberName] string propertyName = null) => TryGetValue(property, out value, propertyName);

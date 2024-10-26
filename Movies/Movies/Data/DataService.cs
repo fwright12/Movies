@@ -113,7 +113,7 @@ namespace Movies
         private DataService()
         {
             ResourceCache = new UiiDictionaryDataStore();
-            //Controller = new AsyncCacheAsideProcessor<KeyValueRequestArgs<Uri>>(new ResourceBufferedCache<Uri>(ResourceCache)).ToChainLink();
+            Controller = new AsyncCacheAsideProcessor<KeyValueRequestArgs<Uri>>(new ResourceBufferedCache<Uri>(ResourceCache)).ToChainLink();
         }
 
         public static void Register<T>(T service)

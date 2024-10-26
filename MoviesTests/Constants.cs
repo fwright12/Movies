@@ -10,6 +10,7 @@
 
         public const string TAGLINE = "lakjflkasjdflkajsdklj";
         public static readonly Language US_ENGLISH_LANGUAGE = new Language("en-US");
+        public static readonly Region US_REGION = new Region("US");
         public static readonly TimeSpan INTERSTELLAR_RUNTIME = new TimeSpan(2, 49, 0);
         public static readonly TimeSpan HARRY_POTTER_RUNTIME = new TimeSpan(2, 10, 0);
 

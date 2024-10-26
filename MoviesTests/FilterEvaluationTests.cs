@@ -75,6 +75,7 @@
         private static readonly Keyword WIZARD_KEYWORD = new Keyword { Id = 177912, Name = "wizard" };
         private static readonly Person EVANNA_LYNCH = new Person("Evanna Lynch").WithID(TMDB.IDKey, 140367);
         private static readonly WatchProvider FUBO_TV = new WatchProvider { Id = 257 };
+        private static readonly WatchProvider MAX = new WatchProvider { Id = 1899 };
         private static readonly WatchProvider PEACOCK = new WatchProvider { Id = 386 };
         private static OperatorPredicate ADVENTURE_MOVIES => new OperatorPredicate
         {
@@ -206,7 +207,7 @@
             {
                 LHS = TVShow.WATCH_PROVIDERS,
                 Operator = Operators.Equal,
-                RHS = FUBO_TV
+                RHS = MAX
             };
             filter.Predicates[0] = hbo;
 
@@ -301,7 +302,7 @@
         [TestMethod]
         public async Task FilterTMDbScore()
         {
-            throw new NotImplementedException();
+            Assert.Inconclusive();
         }
 
         private Task<bool> Evaluate(Item item, FilterPredicate filter) => ItemHelpers.Evaluate(Chain, item, filter);

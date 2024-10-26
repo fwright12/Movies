@@ -31,10 +31,10 @@ namespace Movies.Data.Local
             {
                 return true;
             }
-
+            
             var url = arg.Request.Key.ToString();
 
-            if (Regex.IsMatch(url, "3/movie/\\d/external_ids.*"))
+            if (Regex.IsMatch(url, "3/(movie|tv)/\\d+/external_ids.*"))
             {
                 return true;
             }
@@ -52,14 +52,17 @@ namespace Movies.Data.Local
         private Task<SQLiteAsyncConnection> Connection { get; }
         private Task InitTask { get; }
 
-        public SqlResourceDAO(SQLiteAsyncConnection connection, TMDbResolver resolver)
+        public SqlResourceDAO(SQLiteAsyncConnection connection, TMDbResolver resolver) : this(Task.FromResult(connection), resolver) { }
+        public SqlResourceDAO(Task<SQLiteAsyncConnection> connection, TMDbResolver resolver)
         {
             Connection = Connect(connection);
             Resolver = resolver;
         }
 
-        private async Task<SQLiteAsyncConnection> Connect(SQLiteAsyncConnection connection)
+        private async Task<SQLiteAsyncConnection> Connect(Task<SQLiteAsyncConnection> connection1)
         {
+            var connection = await connection1;
+
 #if DEBUG
             if (DebugConfig.ClearLocalWebCache)
             {
@@ -67,13 +70,13 @@ namespace Movies.Data.Local
             }
 #endif
 
-            //_ = connection.ExecuteAsync($"drop table if exists WebResourceCache");
-            //_ = connection.ExecuteAsync($"drop table if exists WebResourceCache1");
+            _ = connection.ExecuteAsync($"drop table if exists WebResourceCache");
+            _ = connection.ExecuteAsync($"drop table if exists WebResourceCache1");
             await connection.CreateTableAsync<Message>();
 
 #if DEBUG
             Print.Log(await connection.Table<Message>().CountAsync() + " items in cache");
-            foreach (var row in await connection.Table<Message>().Take(10).ToListAsync())
+            foreach (var row in await connection.Table<Message>().Take(30).ToListAsync())
             {
                 Print.Log(row.Uri, row.Timestamp, row.ETag, row.ExpiresAt);
             }
@@ -82,10 +85,18 @@ namespace Movies.Data.Local
             return connection;
         }
 
+        public async Task<int> Expire(TimeSpan olderThan)
+        {
+            var connection = await Connection;
+            var cutoffDate = DateTime.Now - olderThan;
+            return await connection.Table<Message>().DeleteAsync(message => message.Timestamp < cutoffDate);
+        }
+
         public async Task<Message> GetMessage(Uri uri)
         {
             var connection = await Connection;
-            return await connection.Table<Message>().Where(message => message.Uri == uri).FirstOrDefaultAsync();
+            var uriString = uri.ToString();
+            return await connection.Table<Message>().Where(message => message.Uri == uriString).FirstOrDefaultAsync();
         }
 
         public async Task<int> InsertMessage(Message message)
@@ -187,7 +198,8 @@ namespace Movies.Data.Local
 
             var message = new Message
             {
-                Uri = arg.Request.Key,
+                Uri = arg.Request.Key.ToString(),
+                Timestamp = DateTime.Now,
                 Id = id,
                 Type = type
             };
@@ -359,27 +371,23 @@ namespace Movies.Data.Local
         public const string RESOURCE_TABLE_NAME = "Resources";
 
         [Table(RESOURCE_TABLE_NAME)]
-        public class Message
+        public class NotModifiedMessage
         {
             [PrimaryKey, NotNull, Unique]
-            public Uri Uri { get; set; }
-            public int Id { get; set; }
-            public ItemType Type { get; set; }
+            public string Uri { get; set; }
 
-            public byte[] Response { get; set; }
             public DateTime? Timestamp { get; set; }
-            public string ETag { get; set; }
             public DateTimeOffset? ExpiresAt { get; set; }
         }
 
         [Table(RESOURCE_TABLE_NAME)]
-        private class NotModifiedMessage
+        public class Message : NotModifiedMessage
         {
-            [PrimaryKey, NotNull, Unique]
-            public Uri Uri { get; set; }
+            public int Id { get; set; }
+            public ItemType Type { get; set; }
 
-            public DateTime? Timestamp { get; set; }
-            public DateTimeOffset? ExpiresAt { get; set; }
+            public byte[] Response { get; set; }
+            public string ETag { get; set; }
         }
     }
 }

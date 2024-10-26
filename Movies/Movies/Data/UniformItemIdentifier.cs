@@ -72,7 +72,7 @@ namespace Movies
 
         private static string[] GetUrnParts(Uri uri)
         {
-            var urn = uri.AbsolutePath;
+            var urn = uri.ToString();
             return urn.Split(":");
         }
 

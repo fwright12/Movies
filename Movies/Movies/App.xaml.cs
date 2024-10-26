@@ -8,14 +8,13 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
-using System.IO;
+using System.Diagnostics;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
-using Xamarin.Essentials;
 using Xamarin.Forms;
 using Xamarin.Forms.Xaml;
 
@@ -258,7 +257,9 @@ namespace Movies
             Session = new Session(Properties);
             Session.PropertyChanged += async (sender, e) => await SavePropertiesAsync();
 
-            LocalDatabase = new Database(tmdb, TMDB.IDKey, Session.DBLastCleaned);
+            var resolver = new TMDbResolver(TMDB.ITEM_PROPERTIES);
+
+            LocalDatabase = new Database(tmdb, TMDB.IDKey, resolver, Session.DBLastCleaned);
             if (LocalDatabase.NeedsCleaning)
             {
                 Session.DBLastCleaned = DateTime.Now;
@@ -269,13 +270,9 @@ namespace Movies
             //_ = tmdb.SetItemCache(LocalDatabase.ItemCache, Session.LastAccessed);
             Session.LastAccessed = DateTime.Now;
 
-            var resolver = new TMDbResolver(TMDB.ITEM_PROPERTIES);
             IAsyncEventProcessor<IEnumerable<KeyValueRequestArgs<Uri>>> tmdbHandlers = new TMDbHttpProcessor(TMDB.WebClient, resolver, TMDbApi.AutoAppend);
-            var tmdbLocalCache = new TMDbLocalCache(LocalDatabase.ItemCache, resolver);
-            
-            DataService.Register(new InMemoryService(DataService.Instance.ResourceCache));
-            //DataService.Register(new PersistenceService(new ResourceDAO()));
-            DataService.Register(new TMDbService(TMDB.WebClient, resolver));
+            IEventAsyncCache<KeyValueRequestArgs<Uri>>  tmdbLocalCache = new TMDbLocalCache(LocalDatabase.ItemCache, resolver);
+            tmdbLocalCache = new LocalMovieCache(LocalDatabase.ResourceDAO);
 
             DataService.Instance.Controller
                 .SetNext(new AsyncCacheAsideProcessor<KeyValueRequestArgs<Uri>>(new UriBufferedCache(tmdbLocalCache)))
@@ -606,7 +603,7 @@ namespace Movies
             {
                 return _Popular;
             }
-            
+
             _Popular = new CollectionViewModel(null, TMDB.Database.Instance, ItemType.Movie | ItemType.TVShow | ItemType.Person | ItemType.Collection, TMDB.Database.Instance)// | ItemType.Company)
             {
                 //Name = "Popular",
@@ -814,24 +811,13 @@ namespace Movies
 
         public static TimeSpan LogoCacheValidity = new TimeSpan(7, 0, 0, 0);
 
-        public const SQLite.SQLiteOpenFlags Flags =
-            // open the database in read/write mode
-            SQLite.SQLiteOpenFlags.ReadWrite |
-            // create the database if it doesn't exist
-            SQLite.SQLiteOpenFlags.Create |
-            // enable multi-threaded database access
-            SQLite.SQLiteOpenFlags.SharedCache;
-        private static string DatabasePath => Path.Combine(FileSystem.AppDataDirectory, DatabaseFilename);
-
-        private const string DatabaseFilename = "TodoSQLite.db3";
-
         public RatingTemplateCollectionViewModel RatingTemplateManager { get; } = new RatingTemplateCollectionViewModel();
 
         protected override void OnStart()
         {
 #if DEBUG
             if (!Properties.ContainsKey(RATING_TEMPLATES_KEY))
-            _ = SaveRatingsTemplates(MockData.RATING_TEMPLATES);
+                _ = SaveRatingsTemplates(MockData.RATING_TEMPLATES);
 #endif
 
             if (Properties.TryGetValue(RATING_TEMPLATES_KEY, out var templatesObj))

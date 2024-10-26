@@ -23,6 +23,9 @@
         public Task RetrieveDescription() => RetrieveResource(Media.DESCRIPTION);
 
         [TestMethod]
+        public Task RetrieveExternalIDs() => RetrieveResource<IEnumerable<byte>>(ResourceAssert.EXTERNAL_IDS_MOVIE_URI);
+
+        [TestMethod]
         public Task RetrieveGenres() => RetrieveResource(Movie.GENRES);
 
         [TestMethod]

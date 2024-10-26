@@ -16,10 +16,11 @@
 
         protected Task RetrieveResource<T>(Item item, MultiProperty<T> property) => RetrieveResource<IEnumerable<T>>(item, property);
         protected Task RetrieveResource<T>(Item item, Property<T> property) => RetrieveResource<T>(item, (Property)property);
-        private async Task RetrieveResource<T>(Item item, Property property)
+        private Task RetrieveResource<T>(Item item, Property property) => RetrieveResource<T>(new UniformItemIdentifier(item, property));
+        protected async Task RetrieveResource<T>(Uri uri)
         {
             var processor = ProcessorFactory.Create();
-            var request = new KeyValueRequestArgs<Uri, T>(new UniformItemIdentifier(item, property));
+            var request = new KeyValueRequestArgs<Uri, T>(uri);
             var requests = new[] { request };
 
             await processor.ProcessAsync(requests);

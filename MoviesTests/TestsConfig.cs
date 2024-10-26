@@ -1,4 +1,5 @@
-﻿using Movies.Data.Local;
+﻿using Movies;
+using Movies.Data.Local;
 
 namespace MoviesTests
 {
@@ -23,6 +24,14 @@ namespace MoviesTests
                 WriteLatency = 50,
             }, Resolver)));
             DataService.Register(new TMDbService(new HttpMessageInvoker(new BufferedHandler(new TMDbBufferedHandler(new MockHandler()))), Resolver));
+
+            DataService.Instance.Controller
+                .SetNext(new AsyncCacheAsideProcessor<KeyValueRequestArgs<Uri>>(new UriBufferedCache(new TMDbLocalCache(new DummyDatastore<Uri>
+                {
+                    ReadLatency = 50,
+                    WriteLatency = 50,
+                }, Resolver))))
+                .SetNext(new TMDbHttpProcessor(new HttpMessageInvoker(new BufferedHandler(new TMDbBufferedHandler(new MockHandler()))), Resolver, TMDbApi.AutoAppend));
 
 #if DEBUG
             DebugConfig.LogWebRequests = true;

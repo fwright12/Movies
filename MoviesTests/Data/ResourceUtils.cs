@@ -8,8 +8,10 @@ namespace MoviesTests.Data
     {
         public const string MOVIE_URL_APPENDED = $"3/movie/0?{Constants.APPEND_TO_RESPONSE}=credits,external_ids,keywords,recommendations,release_dates,videos,watch/providers";
         public const string MOVIE_URL_USENGLISH_APPENDED = $"3/movie/0?language=en-US&{Constants.APPEND_TO_RESPONSE}=credits,external_ids,keywords,recommendations,release_dates,videos,watch/providers";
+        public const string MOVIE_URL_USENGLISH_USREGION_APPENDED = $"3/movie/0?{TMDbRequest.LANGUAGE_PARAMETER_KEY}=en-US&{TMDbRequest.REGION_PARAMETER_KEY}=US&{Constants.APPEND_TO_RESPONSE}=credits,external_ids,keywords,recommendations,release_dates,videos,watch/providers";
         public const string TV_URL_APPENDED = $"3/tv/0?{Constants.APPEND_TO_RESPONSE}=aggregate_credits,content_ratings,external_ids,keywords,recommendations,videos,watch/providers";
         public const string TV_URL_USENGLISH_APPENDED = $"3/tv/0?language=en-US&{Constants.APPEND_TO_RESPONSE}=aggregate_credits,content_ratings,external_ids,keywords,recommendations,videos,watch/providers";
+        public const string TV_URL_USENGLISH_USREGION_APPENDED = $"3/tv/0?{TMDbRequest.LANGUAGE_PARAMETER_KEY}=en-US&{TMDbRequest.REGION_PARAMETER_KEY}=US&{Constants.APPEND_TO_RESPONSE}=aggregate_credits,content_ratings,external_ids,keywords,recommendations,videos,watch/providers";
 
         public static Uri RUNTIME_URI = new Uri("urn:Movie:0:Runtime", UriKind.RelativeOrAbsolute);
     }
@@ -60,7 +62,11 @@ namespace MoviesTests.Data
         public async Task CloseAsync()
         {
             await SqlConnection.CloseAsync();
-            File.Delete(DatabasePath);
+            try
+            {
+                File.Delete(DatabasePath);
+            }
+            catch { }
         }
     }
 
@@ -115,6 +121,25 @@ namespace MoviesTests.Data
         public InMemoryService InMemoryService { get; }
         public PersistenceService PersistenceService { get; }
         public TMDbService TMDbService { get; }
+
+        public static IEventProcessor<EventArgsAsyncWrapper<IEnumerable<KeyValueRequestArgs<Uri>>>> Create(out InMemoryService inMemoryService, out PersistenceService persistenceService, out TMDbService tmdbService, UiiDictionaryDataStore memoryCache = null!, IEventAsyncCache<KeyValueRequestArgs<Uri>> diskCache = null!, HttpMessageHandler tmdbHandler = null!)
+        {
+            var resolver = new TMDbResolver(TMDB.ITEM_PROPERTIES);
+
+            inMemoryService = new InMemoryService(memoryCache ?? new UiiDictionaryDataStore());
+            persistenceService = new PersistenceService(diskCache ?? new DummyDatastore<Uri>
+            {
+                ReadLatency = 50,
+                WriteLatency = 50
+            });
+            tmdbService = new TMDbService(new HttpMessageInvoker(new BufferedHandler(new TMDbBufferedHandler(new MockHandler()))), resolver);
+
+            var chain = new AsyncCacheAsideProcessor<KeyValueRequestArgs<Uri>>(inMemoryService.Cache).ToChainLink();
+            chain.SetNext(new AsyncCacheAsideProcessor<KeyValueRequestArgs<Uri>>(persistenceService.Processor))
+                .SetNext(tmdbService.Processor);
+
+            return chain;
+        }
 
         public HandlerChain(UiiDictionaryDataStore memoryCache = null!, IEventAsyncCache<KeyValueRequestArgs<Uri>> diskCache = null!, HttpMessageHandler tmdbHandler = null!)
         {
