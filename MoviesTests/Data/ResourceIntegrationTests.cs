@@ -1,6 +1,4 @@
-﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
-using Movies.Data.Local;
-using System.Collections.ObjectModel;
+﻿using Movies.Data.Local;
 using System.Diagnostics;
 using System.Text;
 
@@ -9,11 +7,12 @@ namespace MoviesTests.Data
     [TestClass]
     public class ResourceIntegrationTests : Resources
     {
-        public static readonly Uri EXTERNAL_IDS_MOVIE_URI = new Uri(string.Format(API.MOVIES.GET_EXTERNAL_IDS.GetURL($"{TMDbRequest.LANGUAGE_PARAMETER_KEY}=en-US"), "0"), UriKind.Relative);
+        public static readonly Uri EXTERNAL_IDS_MOVIE_URI = new Uri(string.Format(API.MOVIES.GET_EXTERNAL_IDS.GetURL(), "0"), UriKind.Relative);
+        //public static readonly Uri EXTERNAL_IDS_MOVIE_URI = new Uri(string.Format(API.MOVIES.GET_EXTERNAL_IDS.GetURL($"{TMDbRequest.LANGUAGE_PARAMETER_KEY}=en-US"), "0"), UriKind.Relative);
 
-        private const string MOVIE_PARENT_COLLECTION_ENDPOINT = "3/collection/1241";
-        private const string MOVIE_RECOMMENDED_PAGE_2_ENDPOINT = "3/movie/0/recommendations?page=2";
-        private const string TV_SHOW_RECOMMENDED_PAGE_2_ENDPOINT = "3/tv/0/recommendations?page=2";
+        private const string MOVIE_PARENT_COLLECTION_ENDPOINT = "3/collection/1241?language=en-US";
+        private const string MOVIE_RECOMMENDED_PAGE_2_ENDPOINT = "3/movie/0/recommendations?language=en-US&page=2";
+        private const string TV_SHOW_RECOMMENDED_PAGE_2_ENDPOINT = "3/tv/0/recommendations?language=en-US&page=2";
         private static readonly string DATABASE_FILENAME = $"{typeof(ResourceIntegrationTests).FullName}.db";
 
         private static dBConnection Connection = new dBConnection(DATABASE_FILENAME);
@@ -172,46 +171,76 @@ namespace MoviesTests.Data
         [TestMethod]
         public async Task RetrieveLocalizedResource()
         {
-            var handlers = new HandlerChain();
+            var dao = new SqlResourceDAO(Connection.SqlConnection, TestsConfig.Resolver);
+            var handlers = new HandlerChain(diskCache: dao);
             var chain = handlers.Chain;
+            var backup = TMDB.LANGUAGE;
+            TMDB.LANGUAGE = new Language("en-US");
 
-            var args = new KeyValueRequestArgs<Uri, string>(new UniformItemIdentifier(Constants.Movie, Media.TAGLINE, new Language("en-US")));
+            var args = new KeyValueRequestArgs<Uri, string>(new UniformItemIdentifier(Constants.Movie, Media.TAGLINE));
             await chain.Get(args);
-            await CachedAsync(handlers.DiskCache);
+            await Connection.WaitSettledAsync();
+            var messages = await Task.WhenAll(
+                dao.GetMessage("urn:Movie:0:Tagline?language=en-US"),
+                dao.GetMessage("urn:Movie:0:Runtime?language=en-US"),
+                dao.GetMessage("urn:Movie:0:Keywords"),
+                dao.GetMessage("urn:Movie:0:Keywords?language=en-US")
+                );
 
-            Assert.IsTrue(args.IsHandled);
-            Assert.AreEqual("It all ends.", args.Value);
+            ResourceAssert.Success(args);
 
             Assert.AreEqual(1, handlers.WebHistory.Count);
             ResourceAssert.AreEquivalentTMDbUrl(ResourceUtils.MOVIE_URL_USENGLISH_APPENDED, handlers.WebHistory[0]);
 
-            Assert.IsTrue(handlers.DiskCache.ContainsKey(new Uri("urn:Movie:0:Tagline?language=en-US")));
-            Assert.IsTrue(handlers.DiskCache.ContainsKey(new Uri("urn:Movie:0:Runtime?language=en-US")));
-            Assert.IsFalse(handlers.DiskCache.ContainsKey(new Uri("urn:Movie:0:Keywords")));
-            Assert.IsTrue(handlers.DiskCache.ContainsKey(new Uri("urn:Movie:0:Keywords?language=en-US")));
+            Assert.IsNotNull(messages[0]);
+            Assert.IsNotNull(messages[1]);
+            Assert.IsNotNull(messages[2]);
+            Assert.IsNull(messages[3]);
+
+            TMDB.LANGUAGE = backup;
         }
 
         [TestMethod]
         public async Task RetrieveSameResourceDifferentLocalizations()
         {
-            var handlers = new HandlerChain();
+            var dao = new SqlResourceDAO(Connection.SqlConnection, TestsConfig.Resolver);
+            var handlers = new HandlerChain(diskCache: dao);
             var chain = handlers.Chain;
-            var argsEn = new KeyValueRequestArgs<Uri, string>(new UniformItemIdentifier(Constants.Movie, Media.TAGLINE, new Language("en-US")));
-            var argsPt = new KeyValueRequestArgs<Uri, string>(new UniformItemIdentifier(Constants.Movie, Media.TAGLINE, new Language("pt-BR")));
+            var backup = TMDB.LANGUAGE;
+            var brazilianPortugueseLanguage = new Language("pt-BR");
 
-            await chain.Get(argsEn);
-            await chain.Get(argsPt);
-            await CachedAsync(handlers.DiskCache);
+            var args1 = new KeyValueRequestArgs<Uri, string>(new UniformItemIdentifier(Constants.Movie, Media.TAGLINE));
+            TMDB.LANGUAGE = new Language("en-US");
+            await chain.Get(args1);
 
-            Assert.IsTrue(argsEn.IsHandled);
-            Assert.IsTrue(argsPt.IsHandled);
+            handlers.MemoryCache.Clear();
+            var args2 = new KeyValueRequestArgs<Uri, string>(new UniformItemIdentifier(Constants.Movie, Media.TAGLINE));
+            TMDB.LANGUAGE = brazilianPortugueseLanguage;
+            await chain.Get(args2);
+
+            await Connection.WaitSettledAsync();
+            var messages = await Task.WhenAll(
+                dao.GetMessage("urn:Movie:0:Tagline?language=en-US"),
+                dao.GetMessage("urn:Movie:0:Tagline?language=pt-BR"),
+                dao.GetMessage("urn:Movie:0:Keywords"),
+                dao.GetMessage("urn:Movie:0:Keywords?language=en-US"),
+                dao.GetMessage("urn:Movie:0:Keywords?language=pt-BR")
+                );
+
+            Assert.IsTrue(args1.IsHandled);
+            Assert.IsTrue(args2.IsHandled);
 
             Assert.AreEqual(2, handlers.WebHistory.Count);
-            ResourceAssert.AreEquivalentTMDbUrl(ResourceUtils.MOVIE_URL_USENGLISH_APPENDED, handlers.WebHistory.Last());
-            ResourceAssert.AreEquivalentTMDbUrl($"3/movie/0?language=&{Constants.APPEND_TO_RESPONSE}=credits,external_ids,keywords,recommendations,release_dates,videos,watch/providers", handlers.WebHistory[1]);
+            ResourceAssert.AreEquivalentTMDbUrl(ResourceUtils.MOVIE_URL_USENGLISH_APPENDED, handlers.WebHistory[0]);
+            ResourceAssert.AreEquivalentTMDbUrl($"3/movie/0?{TMDbRequest.LANGUAGE_PARAMETER_KEY}={brazilianPortugueseLanguage.Iso_639}&{Constants.APPEND_TO_RESPONSE}=credits,external_ids,keywords,recommendations,release_dates,videos,watch/providers", handlers.WebHistory[1]);
 
-            Assert.IsTrue(handlers.DiskCache.ContainsKey(new Uri("urn:Movie:0:Tagline?language=en-US")));
-            Assert.IsTrue(handlers.DiskCache.ContainsKey(new Uri("urn:Movie:0:Tagline?language=pt-BR")));
+            Assert.IsNotNull(messages[0]);
+            Assert.IsNotNull(messages[1]);
+            Assert.IsNotNull(messages[2]);
+            Assert.IsNull(messages[3]);
+            Assert.IsNull(messages[4]);
+
+            TMDB.LANGUAGE = backup;
         }
 
         [TestMethod]
@@ -221,17 +250,18 @@ namespace MoviesTests.Data
             var handlers = new HandlerChain(diskCache: dao);
             var chain = handlers.Chain;
 
-            var uri = new UniformItemIdentifier(Constants.Movie, Media.RUNTIME);
+            var uii = new UniformItemIdentifier(Constants.Movie, Media.RUNTIME);
+            var uri = uii.ToString() + $"?{TMDbRequest.LANGUAGE_PARAMETER_KEY}={TMDB.LANGUAGE.Iso_639}";
             var message = new SqlResourceDAO.Message
             {
-                Uri = uri.ToString(),
+                Uri = uri,
                 Response = Encoding.UTF8.GetBytes("1"), // This value is different than what is expected from TMDb
                 ETag = MockHandler.DEFAULT_ETAG, // Etag should match
                 ExpiresAt = DateTimeOffset.Now.Subtract(new TimeSpan(1, 0, 0)) // Message is stale
             };
             await dao.InsertMessage(message);
 
-            var request = await chain.TryGet<TimeSpan>(uri);
+            var request = await chain.TryGet<TimeSpan>(uii);
             await Connection.WaitSettledAsync();
             var newMessage = await dao.GetMessage(uri);
 
@@ -254,17 +284,18 @@ namespace MoviesTests.Data
             var handlers = new HandlerChain(diskCache: dao);
             var chain = handlers.Chain;
 
-            var uri = new UniformItemIdentifier(Constants.Movie, Media.RUNTIME);
+            var uii = new UniformItemIdentifier(Constants.Movie, Media.RUNTIME);
+            var uri = uii.ToString() + $"?{TMDbRequest.LANGUAGE_PARAMETER_KEY}={TMDB.LANGUAGE.Iso_639}";
             var message = new SqlResourceDAO.Message
             {
-                Uri = uri.ToString(),
+                Uri = uri,
                 Response = Encoding.UTF8.GetBytes("1"), // This value is different than what is expected from TMDb
                 ETag = "\"non matching etag\"", // Etag should not match
                 ExpiresAt = DateTimeOffset.Now.Subtract(new TimeSpan(1, 0, 0)) // Message is stale
             };
             await dao.InsertMessage(message);
 
-            var request = await chain.TryGet<TimeSpan>(uri);
+            var request = await chain.TryGet<TimeSpan>(uii);
             await Connection.WaitSettledAsync();
             var newMessage = await dao.GetMessage(uri);
 
@@ -293,29 +324,23 @@ namespace MoviesTests.Data
             await Connection.WaitSettledAsync();
 
             var modified = await dao.Expire(DateTime.Now - between);
-            var message0 = await dao.GetMessage(new UniformItemIdentifier(Constants.Movie, Media.TITLE, language: Constants.US_ENGLISH_LANGUAGE));
-            var message1 = await dao.GetMessage(new UniformItemIdentifier(movie1, Media.TITLE, language: Constants.US_ENGLISH_LANGUAGE));
+            var message0 = await dao.GetMessage($"{new UniformItemIdentifier(Constants.Movie, Media.TITLE).ToString()}?{TMDbRequest.LANGUAGE_PARAMETER_KEY}={TMDB.LANGUAGE.Iso_639}");
+            var message1 = await dao.GetMessage($"{new UniformItemIdentifier(movie1, Media.TITLE).ToString()}?{TMDbRequest.LANGUAGE_PARAMETER_KEY}={TMDB.LANGUAGE.Iso_639}");
 
             Assert.IsTrue(modified > 0);
             Assert.IsNull(message0);
             Assert.IsNotNull(message1);
         }
 
-        //[TestMethod]
+        [TestMethod]
         public async Task GetExternalIds()
         {
-            //DataService.Instance.ResourceCache.Clear();
             var handlers = new HandlerChain();
-            DataService.Instance.Controller
-                .SetNext(handlers.PersistenceService.Processor)
-                .SetNext(handlers.RemoteTMDbProcessor);
 
             var movie = await TMDB.WithExternalIdsAsync(Constants.Movie, 0);
             await CachedAsync(handlers.DiskCache);
 
-            Assert.AreEqual(1, handlers.WebHistory.Count);
-            Assert.AreEqual(8, handlers.DiskCache.Count, string.Join(", ", handlers.DiskCache.Keys));
-            Assert.AreEqual(1, DataService.Instance.ResourceCache.Count);
+            Assert.AreEqual(1, WebHistory.Count);
 
             Assert.IsTrue(movie.TryGetID(IMDb.ID, out var imdbId));
             Assert.AreEqual("tt1201607", imdbId);
@@ -331,12 +356,6 @@ namespace MoviesTests.Data
 
             Assert.IsTrue(movie.TryGetID(Twitter.ID, out var twitterId));
             Assert.AreEqual("HarryPotterFilm", twitterId);
-
-            handlers.DiskCache.Clear();
-            await TMDB.WithExternalIdsAsync(Constants.Movie, 0);
-            await CachedAsync(handlers.DiskCache);
-
-            Assert.AreEqual(1, handlers.WebHistory.Count);
         }
 
         //[TestMethod]

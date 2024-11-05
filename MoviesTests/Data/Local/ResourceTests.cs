@@ -27,7 +27,11 @@ namespace MoviesTests.Data.Local
         public static async Task Init(TestContext context)
         {
             await ResourceTests.SeedDBAsync(new UniformItemIdentifier(Constants.TVShow, Media.TITLE));
-            await ResourceTests.SeedDBAsync(new UniformItemIdentifier(STILL_RUNNING_SHOW, TVShow.LAST_AIR_DATE), Encoding.UTF8.GetBytes("null"));
+            await ResourceTests.Connection.DAO.InsertMessage(new SqlResourceDAO.Message
+            {
+                Uri = new UniformItemIdentifier(STILL_RUNNING_SHOW, TVShow.LAST_AIR_DATE).ToString() + $"?{TMDbRequest.LANGUAGE_PARAMETER_KEY}={TMDB.LANGUAGE.Iso_639}",
+                Response = Encoding.UTF8.GetBytes("null")
+            });
         }
 
         [TestMethod]

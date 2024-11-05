@@ -15,14 +15,20 @@ namespace Movies
         public Region Region { get; }
         public bool? IncludeAdult { get; }
 
-        public UniformItemIdentifier(Item item, Property property, Language language = null, Region region = null, bool? includeAdult = null) : this(item, property, BuildQuery(language, region, includeAdult))
+        public UniformItemIdentifier(Item item, Property property, Language language = null, Region region = null, bool? includeAdult = null) : this(item.ItemType, item.TryGetID(TMDB.ID, out var id) ? id.ToString() : item.Name, property) //this(item, property, "")//, BuildQuery(language, region, includeAdult))
         {
+            Item = item;
+            Property = property;
+            ItemType = Item.ItemType;
+
             Language = language;
             Region = region;
             IncludeAdult = includeAdult;
         }
 
-        public UniformItemIdentifier(Item item, Property property, string query) : base(BuildUri(item, property, query))
+        public UniformItemIdentifier(ItemType type, string id, Property property) : base(BuildUri(type, id, property, "")) { }
+
+        private UniformItemIdentifier(Item item, Property property, string query) : base("")
         {
             Item = item;
             Property = property;
@@ -110,13 +116,13 @@ namespace Movies
             return true;
         }
 
-        private static string BuildUri(Item item, Property property, string query)
+        private static string BuildUri(ItemType itemType, string id, Property property, string query)
         {
             var parts = new object[]
             {
                 "urn",
-                item.ItemType,
-                item.TryGetID(TMDB.ID, out var id) ? id.ToString() : item.Name,
+                itemType,
+                id,
                 property.Name
             };
 

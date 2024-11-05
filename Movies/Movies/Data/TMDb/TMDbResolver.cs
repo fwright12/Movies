@@ -161,14 +161,13 @@ namespace Movies
             var query = HttpUtility.ParseQueryString(rawQuery);
 
             var append = query.GetAndRemove(APPEND_TO_RESPONSE)?.Split(',') ?? new string[0];
-            var queryString = query.ToString();
-
-            var language = query.GetAndRemove("language");// ?? TMDB.LANGUAGE.Iso_639;
-            var region = query.GetAndRemove("region");// ?? TMDB.REGION.Iso_3166;
+            var language = query.GetAndRemove("language") ?? TMDB.LANGUAGE.Iso_639;
+            var region = query.GetAndRemove("region") ?? TMDB.REGION.Iso_3166;
             var adult = (query.GetAndRemove("adult") ?? TMDB.ADULT.ToString().ToLower()) == "true";
             adult = query.GetAndRemove("adult") == "true";
 
             var basePath = uri.ToString().Split('?')[0];
+            var queryString = query.ToString();
             var data = new Dictionary<TMDbRequest, (Uri Uri, string Path, IEnumerable<Parser> Parsers, IEnumerable<object> Args)>();
 
             foreach (var appended in append.Prepend(string.Empty))
@@ -186,7 +185,7 @@ namespace Movies
                 if (Annotations.TryGetValue(deparameterizedUrl, out var annotation))
                 {
                     var childUrl = string.Format(annotation.Key.GetURL(language, region, adult, queryString), args.ToArray());
-                    childUrl = string.Format(annotation.Key.GetURL(queryString), args.ToArray());
+                    //childUrl = string.Format(annotation.Key.GetURL(queryString), args.ToArray());
                     fullUri = new Uri(childUrl, UriKind.Relative);
 
                     data.Add(annotation.Key, (fullUri, appended, annotation.Value, args));
@@ -435,8 +434,8 @@ namespace Movies
 
             private static UniformItemIdentifier GetUii(Item item, Uri uri, Parser parser)
             {
-                var query = uri.ToString().Split("?").ElementAtOrDefault(1);
-                return new UniformItemIdentifier(item, parser.Property, query);
+                //var query = uri.ToString().Split("?").ElementAtOrDefault(1);
+                return new UniformItemIdentifier(item, parser.Property);//, query);
             }
 
             private static ArraySegment<byte> TrimWhitespace(ArraySegment<byte> bytes)
@@ -491,7 +490,8 @@ namespace Movies
                 var adult = uii.IncludeAdult ?? false;
 
                 //url = string.Format(request.GetURL(language.Iso_639, region.Iso_3166, adult), args.ToArray());
-                url = string.Format(request.GetURL(uii.Language?.Iso_639, uii.Region?.Iso_3166, uii.IncludeAdult), args.ToArray());
+                //url = string.Format(request.GetURL(uii.Language?.Iso_639, uii.Region?.Iso_3166, uii.IncludeAdult), args.ToArray());
+                url = string.Format(request.GetURL(), args.ToArray());
                 return true;
             }
             else

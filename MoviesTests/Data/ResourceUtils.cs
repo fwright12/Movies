@@ -35,6 +35,8 @@ namespace MoviesTests.Data
 
         public async Task WaitSettledAsync()
         {
+            await Task.Delay(SqlResourceDAO.BATCH_INSERT_DELAY);
+
             // Wait until nothing has been written to the database in a while
             var lastCount = -1;
             for (int i = 0; ; i++)

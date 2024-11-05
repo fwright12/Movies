@@ -83,6 +83,7 @@ namespace Movies.Views
         private Task<SQLiteAsyncConnection> UserInfo;
         private Task<SQLiteAsyncConnection> ItemInfo;
 
+        public static readonly TimeSpan ResourceCacheMaxAge = new TimeSpan(30, 0, 0, 0);
         public bool NeedsCleaning => DateTime.Now - LastCleaned <= App.DB_CLEANING_SCHEDULE == false;
 
         public ItemInfoCache ItemCache { get; }
@@ -132,6 +133,7 @@ namespace Movies.Views
 
             //ItemCache = new ItemInfoCache(ItemInfo);
             ResourceDAO = new SqlResourceDAO(ItemInfo, resolver);
+            _ = ResourceDAO.Expire(ResourceCacheMaxAge);
 
 #if DEBUG
             async Task Dummy()

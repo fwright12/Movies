@@ -8,7 +8,9 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
+using static Movies.BatchHandler;
 
 namespace Movies.Data.Local
 {
@@ -29,9 +31,10 @@ namespace Movies.Data.Local
         {
             if (arg.Request.Key is UniformItemIdentifier)
             {
-                return true;
+                return false;
             }
-            
+
+            return true;
             var url = arg.Request.Key.ToString();
 
             if (Regex.IsMatch(url, "3/(movie|tv)/\\d+/external_ids.*"))
@@ -52,11 +55,18 @@ namespace Movies.Data.Local
         private Task<SQLiteAsyncConnection> Connection { get; }
         private Task InitTask { get; }
 
+        private SqlStatementQueue<Message> InsertMessageQueue { get; }
+        private SqlStatementQueue<object> UpdateMessageQueue { get; }
+        public const int BATCH_INSERT_DELAY = 1000;
+
         public SqlResourceDAO(SQLiteAsyncConnection connection, TMDbResolver resolver) : this(Task.FromResult(connection), resolver) { }
         public SqlResourceDAO(Task<SQLiteAsyncConnection> connection, TMDbResolver resolver)
         {
             Connection = Connect(connection);
             Resolver = resolver;
+
+            InsertMessageQueue = new SqlStatementQueue<Message>(this, InsertMessage, BATCH_INSERT_DELAY);
+            UpdateMessageQueue = new SqlStatementQueue<object>(this, UpdateMessage, BATCH_INSERT_DELAY);
         }
 
         private async Task<SQLiteAsyncConnection> Connect(Task<SQLiteAsyncConnection> connection1)
@@ -92,11 +102,10 @@ namespace Movies.Data.Local
             return await connection.Table<Message>().DeleteAsync(message => message.Timestamp < cutoffDate);
         }
 
-        public async Task<Message> GetMessage(Uri uri)
+        public async Task<Message> GetMessage(string uri)
         {
             var connection = await Connection;
-            var uriString = uri.ToString();
-            return await connection.Table<Message>().Where(message => message.Uri == uriString).FirstOrDefaultAsync();
+            return await connection.Table<Message>().Where(message => message.Uri == uri).FirstOrDefaultAsync();
         }
 
         public async Task<int> InsertMessage(Message message)
@@ -112,6 +121,84 @@ namespace Movies.Data.Local
             return await connection.UpdateAsync(message);
         }
 
+        private class SqlStatementQueue<T>
+        {
+            public SqlResourceDAO DAO { get; }
+            public Func<T, Task> SqlStatement { get; }
+            public int Delay { get; }
+
+            public SqlStatementQueue(SqlResourceDAO dao, Func<T, Task> sqlStatement, int delay)
+            {
+                DAO = dao;
+                SqlStatement = sqlStatement;
+                Delay = delay;
+            }
+
+            private Queue<T> Queue = new Queue<T>();
+
+            private Task Batch;
+            private CancellationTokenSource CancelBatch;
+
+            public void Add(T item)
+            {
+                CancellationToken token;
+
+                //lock (Queue)
+                {
+                    CancelBatch?.Cancel();
+                    CancelBatch = new CancellationTokenSource();
+                    token = CancelBatch.Token;
+
+                    Queue.Enqueue(item);
+                }
+
+                Flush(Delay, token);
+            }
+
+            private async void Flush(int delay, CancellationToken cancellationToken)
+            {
+                await Task.Delay(delay);
+
+                if (!cancellationToken.IsCancellationRequested)
+                {
+                    await Flush();
+                }
+            }
+
+            private async Task Flush()
+            {
+                Queue<T> queue;
+
+                lock (Queue)
+                {
+                    queue = Queue;
+                    Queue = new Queue<T>();
+                }
+
+#if DEBUG
+                var watch = System.Diagnostics.Stopwatch.StartNew();
+                Print.Log("flushing");
+                int count = 0;
+#endif
+
+                foreach (var item in queue)
+                {
+#if DEBUG
+                    if (++count % 100 == 0)
+                    {
+                        Print.Log($"flushed {count} items");
+                    }
+#endif
+                    await SqlStatement(item);
+                }
+
+#if DEBUG
+                watch.Stop();
+                Print.Log($"flushed {queue.Count} items in {watch.Elapsed}");
+#endif
+            }
+        }
+
         Task<bool> IAsyncEventProcessor<IEnumerable<KeyValueRequestArgs<Uri>>>.ProcessAsync(IEnumerable<KeyValueRequestArgs<Uri>> e) => ((IEventAsyncCache<KeyValueRequestArgs<Uri>>)this).Read(e);
 
         async Task<bool> IEventAsyncCache<KeyValueRequestArgs<Uri>>.Read(IEnumerable<KeyValueRequestArgs<Uri>> args)
@@ -124,7 +211,20 @@ namespace Movies.Data.Local
 
         private async Task<bool> Read(KeyValueRequestArgs<Uri> arg, Item item)
         {
-            var message = await GetMessage(arg.Request.Key);
+            var uri = arg.ToString();
+            var uii = UniformItemIdentifier.TryParse(arg.Request.Key, out var temp) ? temp : null;
+            if (uii != null && Resolver.TryGetRequest(uii, out var request))
+            {
+                var url = request.GetURL();
+                var query = url.Split('?').ElementAtOrDefault(1);
+
+                if (!string.IsNullOrEmpty(query))
+                {
+                    uri += "?" + query;
+                }
+            }
+
+            var message = await GetMessage(uri);
             if (message == null)
             {
                 return false;
@@ -151,7 +251,7 @@ namespace Movies.Data.Local
             }
 
             var state = new State(byteRepresentation);
-            if (UniformItemIdentifier.TryParse(arg.Request.Key, out var uii))
+            if (uii != null)
             {
                 Func<IEnumerable<byte>, object> converter;
 
@@ -174,45 +274,81 @@ namespace Movies.Data.Local
             return arg.Handle(RestResponse.Create(arg.Request.Expected, state, headers, null));
         }
 
-        private async Task<bool> Write(KeyValueRequestArgs<Uri> arg)
+        public async Task<bool> Write(KeyValueRequestArgs<Uri> arg)
         {
-            if (arg.Response == null)
+            if ((arg.Response as ResourceResponse)?.TryGetRepresentation<IEnumerable<KeyValuePair<Uri, State>>>(out var collection) == true)
+            {
+                foreach (var kvp in collection)
+                {
+                    byte[] response;
+
+                    if (kvp.Value.TryGetRepresentation(typeof(IEnumerable<byte>), out var bytesRepresentation) && bytesRepresentation.Value is IEnumerable<byte> bytes)
+                    {
+                        response = bytes.ToArray();
+
+                        if ((kvp.Key as UniformItemIdentifier)?.Property == Movie.PARENT_COLLECTION && (TMDB.COLLECTION_PARSER as ParserWrapper)?.Parser.GetPair(response).Value is int parentCollectionId)
+                        {
+                            response = Encoding.UTF8.GetBytes(parentCollectionId.ToString());
+                        }
+
+                        await Write(kvp.Key, response, arg);
+                    }
+                }
+            }
+            else if (arg.Value is IEnumerable<byte> bytes || true == (arg.Response as ResourceResponse)?.TryGetRepresentation<IEnumerable<byte>>(out bytes))
+            {
+                await Write(arg.Request.Key, bytes.ToArray(), arg);
+            }
+            else if (arg.Value == null && Resolver.TryGetAnnotations(arg.Request.Key, out var annotations))
+            {
+                var parts = arg.Request.Key.ToString().Split("?").FirstOrDefault().Split("/");
+                if (!TryParseItemType(parts[1], out var itemType))
+                {
+                    return false;
+                }
+
+                foreach (var parser in annotations.Value)
+                {
+                    await Write(new UniformItemIdentifier(itemType, parts[2], parser.Property), null, arg);
+                }
+            }
+            else
             {
                 return false;
             }
 
-            var url = arg.Request.Key.ToString().ToLower();
-            var path = url.Split('?').FirstOrDefault();
+            return true;
+        }
+
+        private async Task<bool> Write(Uri uri, byte[] response, KeyValueRequestArgs<Uri> arg)
+        {
+            var url = uri.ToString().ToLower();
+            var path = url.Split('?').ElementAtOrDefault(0);
             var parts = path.Split(':', '/');
-
-            ItemType type;
-            if (parts[1] == "movie") type = ItemType.Movie;
-            else if (parts[1] == "tv" || parts[1] == "tvshow") type = ItemType.TVShow;
-            //else if (parts[1] == "person") type = ItemType.Person;
-            else return false;
-
-            if (!int.TryParse(parts[2], out var id))
+            if (!TryParseItemType(parts[1], out var type) || !int.TryParse(parts[2], out var id))
             {
                 return false;
             }
 
+            var query = arg.Request.Key.ToString().Split('?').ElementAtOrDefault(1);
             var message = new Message
             {
-                Uri = arg.Request.Key.ToString(),
+                Uri = uri.ToString() + (string.IsNullOrEmpty(query) ? "" : ("?" + query)),
                 Timestamp = DateTime.Now,
+                Response = response,
                 Id = id,
                 Type = type
             };
 
-            if (arg.Value is IEnumerable<byte> bytes || true == (arg.Response as ResourceResponse)?.TryGetRepresentation<IEnumerable<byte>>(out bytes))
-            {
-                message.Response = bytes.ToArray();
+            //if (arg.Value is IEnumerable<byte> bytes || true == (arg.Response as ResourceResponse)?.TryGetRepresentation<IEnumerable<byte>>(out bytes))
+            //{
+            //    message.Response = bytes.ToArray();
 
-                if ((arg.Request.Key as UniformItemIdentifier)?.Property == Movie.PARENT_COLLECTION && (TMDB.COLLECTION_PARSER as ParserWrapper)?.Parser.GetPair(message.Response).Value is int parentCollectionId)
-                {
-                    message.Response = Encoding.UTF8.GetBytes(parentCollectionId.ToString());
-                }
-            }
+            //    if ((arg.Request.Key as UniformItemIdentifier)?.Property == Movie.PARENT_COLLECTION && (TMDB.COLLECTION_PARSER as ParserWrapper)?.Parser.GetPair(message.Response).Value is int parentCollectionId)
+            //    {
+            //        message.Response = Encoding.UTF8.GetBytes(parentCollectionId.ToString());
+            //    }
+            //}
 
             if (arg.Response is RestResponse restResponse)
             {
@@ -229,7 +365,7 @@ namespace Movies.Data.Local
             Task<int> modified;
             if (message.Response == null)
             {
-                modified = UpdateMessage(new NotModifiedMessage
+                UpdateMessageQueue.Add(new NotModifiedMessage
                 {
                     Uri = message.Uri,
                     Timestamp = message.Timestamp,
@@ -238,10 +374,11 @@ namespace Movies.Data.Local
             }
             else
             {
-                modified = InsertMessage(message);
+                InsertMessageQueue.Add(message);
             }
 
-            return await modified > 0;
+            return true;
+            //return await modified > 0;
         }
 
         private bool TryGetConverter(UniformItemIdentifier uii, Item item, out Func<IEnumerable<byte>, object> converter)
@@ -296,6 +433,20 @@ namespace Movies.Data.Local
         }
 
         public static IEnumerable<T> GetTVItems<T>(byte[] json, AsyncEnumerable.TryParseFunc<JsonNode, T> parse) => TMDB.ParseCollection(JsonNode.Parse(json).AsArray(), new JsonNodeParser<T>(parse));
+
+        private static bool TryParseItemType(string str, out ItemType itemType)
+        {
+            if (str == "movie") itemType = ItemType.Movie;
+            else if (str == "tv" || str == "tvshow") itemType = ItemType.TVShow;
+            //else if (parts[1] == "person") type = ItemType.Person;
+            else
+            {
+                itemType = default;
+                return false;
+            }
+
+            return true;
+        }
 
         private abstract class TMDbPagedJsonConverter<T> : JsonConverter<IAsyncEnumerable<T>>
         {

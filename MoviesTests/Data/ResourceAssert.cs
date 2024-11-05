@@ -16,7 +16,7 @@ namespace MoviesTests.Data
             var actualUri = new Uri(BASE_TMDB_URI, actual);
 
             Assert.AreEqual(expectedUri.AbsolutePath, actualUri.AbsolutePath);
-            CollectionAssert.AreEquivalent(HttpUtility.ParseQueryString(expectedUri.Query), HttpUtility.ParseQueryString(actualUri.Query), $"Expected: <{expectedUri.Query}>. Actual: <{actualUri.Query}>");
+            CollectionAssert.AreEquivalent(expectedUri.Query.Split('&'), actualUri.Query.Split('&'), $"Expected: <{expectedUri.Query}>. Actual: <{actualUri.Query}>");
         }
 
         private static readonly IReadOnlyDictionary<Uri, object> EXPECTED_VALUES = new Dictionary<Uri, object>
