@@ -72,15 +72,29 @@ namespace Movies.ViewModels
         {
             if (DataService.Instance.Batched)
             {
-                if (this is PersonViewModel && Batched.Count == 0)
+                if (Batched.Count == 0)
                 {
-                    Batched["credits"] = new KeyValueRequestArgs<Uri>(CreateUii(Item, Person.CREDITS), Person.CREDITS.FullType);
-                }
-                if (this is TVSeasonViewModel && Batched.Count == 0)
-                {
-                    Batched["episodes"] = new KeyValueRequestArgs<Uri>(CreateUii(Item, TVSeason.EPISODES), TVSeason.EPISODES.FullType);
-                    Batched[nameof(TVSeasonViewModel.Cast)] = new KeyValueRequestArgs<Uri>(CreateUii(Item, TVSeason.CAST), TVSeason.CAST.FullType);
-                    Batched[nameof(TVSeasonViewModel.Crew)] = new KeyValueRequestArgs<Uri>(CreateUii(Item, TVSeason.CREW), TVSeason.CREW.FullType);
+                    if (this is PersonViewModel)
+                    {
+                        Batched["credits"] = new KeyValueRequestArgs<Uri>(CreateUii(Item, Person.CREDITS), Person.CREDITS.FullType);
+                    }
+                    if (this is TVSeasonViewModel)
+                    {
+                        Batched["episodes"] = new KeyValueRequestArgs<Uri>(CreateUii(Item, TVSeason.EPISODES), TVSeason.EPISODES.FullType);
+                        Batched[nameof(TVSeasonViewModel.Cast)] = new KeyValueRequestArgs<Uri>(CreateUii(Item, TVSeason.CAST), TVSeason.CAST.FullType);
+                        Batched[nameof(TVSeasonViewModel.Crew)] = new KeyValueRequestArgs<Uri>(CreateUii(Item, TVSeason.CREW), TVSeason.CREW.FullType);
+                    }
+
+                    TMDbRequest idsRequest;
+                    if (this is MovieViewModel) idsRequest = API.MOVIES.GET_EXTERNAL_IDS;
+                    else if (this is TVShowViewModel) idsRequest = API.TV.GET_EXTERNAL_IDS;
+                    else idsRequest = null;
+
+                    if (idsRequest != null && Item?.TryGetID(TMDB.ID, out var id) == true)
+                    {
+                        var uri = new Uri(string.Format(idsRequest.GetURL(), id), UriKind.Relative);
+                        Batched["externalIDs"] = new KeyValueRequestArgs<Uri>(uri);
+                    }
                 }
 
                 Batched[propertyName] = new KeyValueRequestArgs<Uri>(CreateUii(Item, property), property.FullType);

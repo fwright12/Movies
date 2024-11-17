@@ -12,6 +12,7 @@ namespace MoviesTests.Data.Local
         [ClassInitialize]
         public static async Task Init(TestContext context)
         {
+            await ResourceTests.Connection.SqlConnection.ExecuteAsync($"drop table if exists {SqlResourceDAO.RESOURCE_TABLE_NAME}");
             await ResourceTests.SeedDBAsync(new UniformItemIdentifier(Constants.Movie, Media.TITLE));
         }
     }
@@ -26,6 +27,8 @@ namespace MoviesTests.Data.Local
         [ClassInitialize]
         public static async Task Init(TestContext context)
         {
+            await ResourceTests.Connection.SqlConnection.ExecuteAsync($"drop table if exists {SqlResourceDAO.RESOURCE_TABLE_NAME}");
+
             await ResourceTests.SeedDBAsync(new UniformItemIdentifier(Constants.TVShow, Media.TITLE));
             await ResourceTests.Connection.DAO.InsertMessage(new SqlResourceDAO.Message
             {

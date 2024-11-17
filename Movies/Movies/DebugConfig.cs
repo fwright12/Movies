@@ -6,7 +6,7 @@ namespace Movies
 {
     public class DebugConfig
     {
-        public static bool FilterPerformanceTest { get; set; } = true;
+        public static bool FilterPerformanceTest { get; set; } = false;
 
         public static bool LogWebRequests { get; set; } = true && !FilterPerformanceTest;
 
@@ -29,6 +29,11 @@ namespace Movies
 
         public static void Breakpoint()
         {
+            if (FilterPerformanceTest)
+            {
+                return;
+            }
+            
             ;
         }
     }

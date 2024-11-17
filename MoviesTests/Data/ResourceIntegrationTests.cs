@@ -1,4 +1,5 @@
 ﻿using Movies.Data.Local;
+using System;
 using System.Diagnostics;
 using System.Text;
 
@@ -14,18 +15,27 @@ namespace MoviesTests.Data
         private const string MOVIE_RECOMMENDED_PAGE_2_ENDPOINT = "3/movie/0/recommendations?language=en-US&page=2";
         private const string TV_SHOW_RECOMMENDED_PAGE_2_ENDPOINT = "3/tv/0/recommendations?language=en-US&page=2";
         private static readonly string DATABASE_FILENAME = $"{typeof(ResourceIntegrationTests).FullName}.db";
+        private static readonly Uri EXTERNAL_IDS_URI = new Uri(string.Format(API.MOVIES.GET_EXTERNAL_IDS.GetURL(), 0), UriKind.Relative);
 
         private static dBConnection Connection = new dBConnection(DATABASE_FILENAME);
+        private Language? BackupLanguage;
 
         [TestInitialize]
         public async Task Reset()
         {
             DebugConfig.SimulatedDelay = 100;
             //DiskCache.SimulatedDelay = 50;
+            BackupLanguage = TMDB.LANGUAGE;
 
             ClearCaches();
 
             await EmptyDb();
+        }
+
+        [TestCleanup]
+        public void Cleanup()
+        {
+            TMDB.LANGUAGE = BackupLanguage;
         }
 
         private void ClearCaches()
@@ -45,9 +55,10 @@ namespace MoviesTests.Data
         public async Task RetrieveUncachedMovieDetails()
         {
             var handlers = new HandlerChain();
-            var args = CreateMovieRequests(out var recommendedArg).ToArray();
-            
+            var args = CreateRequests(Constants.Movie, out var recommendedArg, ALL_MOVIE_PROPERTIES).Append(new KeyValueRequestArgs<Uri>(EXTERNAL_IDS_URI)).ToArray();
+
             await handlers.Chain.Get(args);
+            var idsArg = await handlers.Chain.TryGet<IEnumerable<byte>>(EXTERNAL_IDS_URI);
             var recommended = await TryReadAll(recommendedArg.Value);
 
             Assert.AreEqual(3, WebHistory.Count);
@@ -55,23 +66,19 @@ namespace MoviesTests.Data
             Assert.AreEqual(MOVIE_PARENT_COLLECTION_ENDPOINT, WebHistory[1]);
             Assert.AreEqual(MOVIE_RECOMMENDED_PAGE_2_ENDPOINT, WebHistory[2]);
 
-            foreach (var arg in args) ResourceAssert.Success(arg, $"URI: {arg.Request.Key}. ");
+            foreach (var arg in args.Append(idsArg)) ResourceAssert.Success(arg, $"URI: {arg.Request.Key}. ");
             ResourceAssert.IsExpectedMovieRecommended(recommended);
         }
 
         [TestMethod]
-        public async Task RetrieveLocallyCachedMovieDetails()
+        public async Task RetrieveFreshLocallyCachedMovieDetails()
         {
             var handlers = new HandlerChain(diskCache: new SqlResourceDAO(Connection.SqlConnection, TestsConfig.Resolver));
-            // Request data from API so it caches in db and memory, then clear memory to simulate app close
-            var args = CreateMovieRequests(out _).ToArray();
-            await handlers.Chain.Get(args);
-            await Connection.WaitSettledAsync();
-            ClearCaches();
-            handlers.MemoryCache.Clear();
-            args = CreateMovieRequests(out var recommendedArg).ToArray();
+            await SeedCaches(handlers, CreateRequests(Constants.Movie, out _, ALL_MOVIE_PROPERTIES), local: true);
+            var args = CreateRequests(Constants.Movie, out var recommendedArg, ALL_MOVIE_PROPERTIES).Append(new KeyValueRequestArgs<Uri>(EXTERNAL_IDS_URI)).ToArray();
 
             await handlers.Chain.Get(args);
+            var idsArg = await handlers.Chain.TryGet<IEnumerable<byte>>(EXTERNAL_IDS_URI);
             var recommended = await TryReadAll(recommendedArg.Value);
 
             // Parent collection details do not cache, and they are needed to construct the complete object, so they will have to be requested again
@@ -79,7 +86,29 @@ namespace MoviesTests.Data
             Assert.AreEqual(MOVIE_PARENT_COLLECTION_ENDPOINT, WebHistory[0]);
             Assert.AreEqual(MOVIE_RECOMMENDED_PAGE_2_ENDPOINT, WebHistory[1]);
 
-            foreach (var arg in args) ResourceAssert.Success(arg, $"URI: {arg.Request.Key}. ");
+            foreach (var arg in args.Append(idsArg)) ResourceAssert.Success(arg, $"URI: {arg.Request.Key}. ");
+            ResourceAssert.IsExpectedMovieRecommended(recommended);
+        }
+
+        [TestMethod]
+        public async Task RetrieveStaleLocallyCachedMovieDetails()
+        {
+            var handlers = new HandlerChain(diskCache: new SqlResourceDAO(Connection.SqlConnection, TestsConfig.Resolver));
+            await SeedCaches(handlers, CreateRequests(Constants.Movie, out _, ALL_MOVIE_PROPERTIES), local: true);
+            await ExpireResources();
+            var args = CreateRequests(Constants.Movie, out var recommendedArg, ALL_MOVIE_PROPERTIES).Append(new KeyValueRequestArgs<Uri>(EXTERNAL_IDS_URI)).ToArray();
+
+            await handlers.Chain.Get(args);
+            var idsArg = await handlers.Chain.TryGet<IEnumerable<byte>>(EXTERNAL_IDS_URI);
+            var recommended = await TryReadAll(recommendedArg.Value);
+
+            // Parent collection details do not cache, and they are needed to construct the complete object, so they will have to be requested again
+            Assert.AreEqual(3, WebHistory.Count);
+            Assert.AreEqual(MOVIE_PARENT_COLLECTION_ENDPOINT, WebHistory[0]);
+            ResourceAssert.AreEquivalentTMDbUrl(ResourceUtils.MOVIE_URL_USENGLISH_APPENDED, WebHistory[1]);
+            Assert.AreEqual(MOVIE_RECOMMENDED_PAGE_2_ENDPOINT, WebHistory[2]);
+
+            foreach (var arg in args.Append(idsArg)) ResourceAssert.Success(arg, $"URI: {arg.Request.Key}. ");
             ResourceAssert.IsExpectedMovieRecommended(recommended);
         }
 
@@ -87,22 +116,18 @@ namespace MoviesTests.Data
         public async Task RetrieveMemoryCachedMovieDetails()
         {
             var handlers = new HandlerChain(diskCache: new SqlResourceDAO(Connection.SqlConnection, TestsConfig.Resolver));
-            // Request data from API so it caches in db and memory, then clear db so requests are forced to be handled from memory
-            var args = CreateMovieRequests(out _).ToArray();
-            await handlers.Chain.Get(args);
-            await Connection.WaitSettledAsync();
-            ClearCaches();
-            await EmptyDb();
-            args = CreateMovieRequests(out var recommendedArg).ToArray();
+            await SeedCaches(handlers, CreateRequests(Constants.Movie, out _, ALL_MOVIE_PROPERTIES), memory: true);
+            var args = CreateRequests(Constants.Movie, out var recommendedArg, ALL_MOVIE_PROPERTIES).Append(new KeyValueRequestArgs<Uri>(EXTERNAL_IDS_URI)).ToArray();
 
             await handlers.Chain.Get(args);
+            var idsArg = await handlers.Chain.TryGet<IEnumerable<byte>>(EXTERNAL_IDS_URI);
             var recommended = await TryReadAll(recommendedArg.Value);
 
             // Parent collection details do not cache, and they are needed to construct the complete object, so they will have to be requested again
             Assert.AreEqual(1, WebHistory.Count);
             Assert.AreEqual(MOVIE_RECOMMENDED_PAGE_2_ENDPOINT, WebHistory[0]);
 
-            foreach (var arg in args) ResourceAssert.Success(arg, $"URI: {arg.Request.Key}. ");
+            foreach (var arg in args.Append(idsArg)) ResourceAssert.Success(arg, $"URI: {arg.Request.Key}. ");
             ResourceAssert.IsExpectedMovieRecommended(recommended);
         }
 
@@ -115,25 +140,20 @@ namespace MoviesTests.Data
             await handlers.Chain.Get(args);
             var recommended = await TryReadAll(recommendedArg.Value);
 
-            //Assert.AreEqual(2, WebHistory.Count);
-            //ResourceAssert.AreEquivalentTMDbUrl(ResourceUtils.TV_URL_USENGLISH_USREGION_APPENDED, WebHistory[0]);
-            //Assert.AreEqual(TV_SHOW_RECOMMENDED_PAGE_2_ENDPOINT, WebHistory[1]);
+            Assert.AreEqual(2, WebHistory.Count);
+            ResourceAssert.AreEquivalentTMDbUrl(ResourceUtils.TV_URL_USENGLISH_APPENDED, WebHistory[0]);
+            Assert.AreEqual(TV_SHOW_RECOMMENDED_PAGE_2_ENDPOINT, WebHistory[1]);
 
             foreach (var arg in args) ResourceAssert.Success(arg, $"URI: {arg.Request.Key}. ");
             ResourceAssert.IsExpectedTVShowRecommended(recommended);
         }
 
         [TestMethod]
-        public async Task RetrieveLocallyCachedTVShowDetails()
+        public async Task RetrieveFreshLocallyCachedTVShowDetails()
         {
             var handlers = new HandlerChain(diskCache: new SqlResourceDAO(Connection.SqlConnection, TestsConfig.Resolver));
-            // Request data from API so it caches in db and memory, then clear memory to simulate app close
-            var args = CreateRequests(Constants.TVShow, ALL_TVSHOW_PROPERTIES).ToArray();
-            await handlers.Chain.Get(args);
-            await Connection.WaitSettledAsync();
-            ClearCaches();
-            handlers.MemoryCache.Clear();
-            args = CreateRequests(Constants.TVShow, out var recommendedArg, ALL_TVSHOW_PROPERTIES).ToArray();
+            await SeedCaches(handlers, CreateRequests(Constants.TVShow, ALL_TVSHOW_PROPERTIES), local: true);
+            var args = CreateRequests(Constants.TVShow, out var recommendedArg, ALL_TVSHOW_PROPERTIES).ToArray();
 
             await handlers.Chain.Get(args);
             var recommended = await TryReadAll(recommendedArg.Value);
@@ -146,16 +166,30 @@ namespace MoviesTests.Data
         }
 
         [TestMethod]
+        public async Task RetrieveStaleLocallyCachedTVShowDetails()
+        {
+            var handlers = new HandlerChain(diskCache: new SqlResourceDAO(Connection.SqlConnection, TestsConfig.Resolver));
+            await SeedCaches(handlers, CreateRequests(Constants.TVShow, ALL_TVSHOW_PROPERTIES), local: true);
+            await ExpireResources();
+            var args = CreateRequests(Constants.TVShow, out var recommendedArg, ALL_TVSHOW_PROPERTIES).ToArray();
+
+            await handlers.Chain.Get(args);
+            var recommended = await TryReadAll(recommendedArg.Value);
+
+            Assert.AreEqual(2, WebHistory.Count);
+            ResourceAssert.AreEquivalentTMDbUrl(ResourceUtils.TV_URL_USENGLISH_APPENDED, WebHistory[0]);
+            Assert.AreEqual(TV_SHOW_RECOMMENDED_PAGE_2_ENDPOINT, WebHistory[1]);
+
+            foreach (var arg in args) ResourceAssert.Success(arg, $"URI: {arg.Request.Key}. ");
+            ResourceAssert.IsExpectedTVShowRecommended(recommended);
+        }
+
+        [TestMethod]
         public async Task RetrieveMemoryCachedTVShowDetails()
         {
             var handlers = new HandlerChain(diskCache: new SqlResourceDAO(Connection.SqlConnection, TestsConfig.Resolver));
-            // Request data from API so it caches in db and memory, then clear db so requests are forced to be handled from memory
-            var args = CreateRequests(Constants.TVShow, ALL_TVSHOW_PROPERTIES).ToArray();
-            await handlers.Chain.Get(args);
-            await Connection.WaitSettledAsync();
-            ClearCaches();
-            await EmptyDb();
-            args = CreateRequests(Constants.TVShow, out var recommendedArg, ALL_TVSHOW_PROPERTIES).ToArray();
+            await SeedCaches(handlers, CreateRequests(Constants.TVShow, ALL_TVSHOW_PROPERTIES), memory: true);
+            var args = CreateRequests(Constants.TVShow, out var recommendedArg, ALL_TVSHOW_PROPERTIES).ToArray();
 
             await handlers.Chain.Get(args);
             var recommended = await TryReadAll(recommendedArg.Value);
@@ -174,7 +208,6 @@ namespace MoviesTests.Data
             var dao = new SqlResourceDAO(Connection.SqlConnection, TestsConfig.Resolver);
             var handlers = new HandlerChain(diskCache: dao);
             var chain = handlers.Chain;
-            var backup = TMDB.LANGUAGE;
             TMDB.LANGUAGE = new Language("en-US");
 
             var args = new KeyValueRequestArgs<Uri, string>(new UniformItemIdentifier(Constants.Movie, Media.TAGLINE));
@@ -196,8 +229,6 @@ namespace MoviesTests.Data
             Assert.IsNotNull(messages[1]);
             Assert.IsNotNull(messages[2]);
             Assert.IsNull(messages[3]);
-
-            TMDB.LANGUAGE = backup;
         }
 
         [TestMethod]
@@ -206,19 +237,19 @@ namespace MoviesTests.Data
             var dao = new SqlResourceDAO(Connection.SqlConnection, TestsConfig.Resolver);
             var handlers = new HandlerChain(diskCache: dao);
             var chain = handlers.Chain;
-            var backup = TMDB.LANGUAGE;
             var brazilianPortugueseLanguage = new Language("pt-BR");
 
             var args1 = new KeyValueRequestArgs<Uri, string>(new UniformItemIdentifier(Constants.Movie, Media.TAGLINE));
             TMDB.LANGUAGE = new Language("en-US");
             await chain.Get(args1);
-
+            await Connection.WaitSettledAsync();
             handlers.MemoryCache.Clear();
+
             var args2 = new KeyValueRequestArgs<Uri, string>(new UniformItemIdentifier(Constants.Movie, Media.TAGLINE));
             TMDB.LANGUAGE = brazilianPortugueseLanguage;
             await chain.Get(args2);
-
             await Connection.WaitSettledAsync();
+
             var messages = await Task.WhenAll(
                 dao.GetMessage("urn:Movie:0:Tagline?language=en-US"),
                 dao.GetMessage("urn:Movie:0:Tagline?language=pt-BR"),
@@ -239,8 +270,6 @@ namespace MoviesTests.Data
             Assert.IsNotNull(messages[2]);
             Assert.IsNull(messages[3]);
             Assert.IsNull(messages[4]);
-
-            TMDB.LANGUAGE = backup;
         }
 
         [TestMethod]
@@ -255,8 +284,8 @@ namespace MoviesTests.Data
             var message = new SqlResourceDAO.Message
             {
                 Uri = uri,
-                Response = Encoding.UTF8.GetBytes("1"), // This value is different than what is expected from TMDb
-                ETag = MockHandler.DEFAULT_ETAG, // Etag should match
+                Response = Encoding.UTF8.GetBytes("1"), // This value is different than what is expected from the mock service
+                ETag = "W/" + MockHandler.DEFAULT_ETAG, // Etag should match
                 ExpiresAt = DateTimeOffset.Now.Subtract(new TimeSpan(1, 0, 0)) // Message is stale
             };
             await dao.InsertMessage(message);
@@ -272,8 +301,8 @@ namespace MoviesTests.Data
 
             // Etags should match, expiresAt should be updated to indicate resource was refreshed
             Assert.AreNotEqual(message.ExpiresAt, newMessage.ExpiresAt);
-            Assert.AreEqual(MockHandler.DEFAULT_ETAG, newMessage.ETag);
-            // Response should not be updated from message we inserted
+            Assert.AreEqual(message.ETag, newMessage.ETag);
+            // Response should not be changed from value we inserted
             Assert.AreEqual(Encoding.UTF8.GetString(message.Response), Encoding.UTF8.GetString(newMessage.Response));
         }
 
@@ -312,7 +341,7 @@ namespace MoviesTests.Data
         }
 
         [TestMethod]
-        public async Task ExpireResources()
+        public async Task ResourcesCanBeExpired()
         {
             var dao = new SqlResourceDAO(Connection.SqlConnection, TestsConfig.Resolver);
             var handlers = new HandlerChain(diskCache: dao);
@@ -403,11 +432,34 @@ namespace MoviesTests.Data
             await source.Task;
         }
 
+        private Task SeedCaches(HandlerChain handlers, bool memory, bool local, params KeyValueRequestArgs<Uri>[] args) => SeedCaches(handlers, args, memory, local);
+        private async Task SeedCaches(HandlerChain handlers, IEnumerable<KeyValueRequestArgs<Uri>> args, bool memory = false, bool local = false)
+        {
+            // Request data from API so it caches at each layer, then clear not requested layers
+            await handlers.Chain.Get(args);
+            await Connection.WaitSettledAsync();
+            ClearCaches();
+
+            if (!memory)
+            {
+                handlers.MemoryCache.Clear();
+            }
+
+            if (!local)
+            {
+                await EmptyDb();
+            }
+        }
+
+        // Make resources stale
+        private async Task ExpireResources()
+        {
+            await Connection.SqlConnection.ExecuteAsync($"update {SqlResourceDAO.RESOURCE_TABLE_NAME} set {nameof(SqlResourceDAO.Message.ExpiresAt)} = 0");
+        }
+
         private static readonly Property[] ALL_MOVIE_PROPERTIES = new Property[] { Media.BACKDROP_PATH, Movie.BUDGET, Media.CAST, Movie.CONTENT_RATING, Media.CREW, Media.DESCRIPTION, Movie.GENRES, Media.KEYWORDS, Media.LANGUAGES, Media.ORIGINAL_LANGUAGE, Media.ORIGINAL_TITLE, Movie.PARENT_COLLECTION, Media.POSTER_PATH, Media.PRODUCTION_COMPANIES, Media.PRODUCTION_COUNTRIES, Media.RATING, Media.RECOMMENDED, Movie.RELEASE_DATE, Movie.REVENUE, Media.RUNTIME, Media.TAGLINE, Media.TITLE, Media.TRAILER_PATH, Movie.WATCH_PROVIDERS };
 
         private static readonly Property[] ALL_TVSHOW_PROPERTIES = new Property[] { Media.BACKDROP_PATH, Media.CAST, TVShow.CONTENT_RATING, Media.CREW, Media.DESCRIPTION, TVShow.FIRST_AIR_DATE, TVShow.GENRES, Media.KEYWORDS, Media.LANGUAGES, TVShow.LAST_AIR_DATE, TVShow.NETWORKS, Media.ORIGINAL_LANGUAGE, Media.ORIGINAL_TITLE, Media.POSTER_PATH, Media.PRODUCTION_COMPANIES, Media.PRODUCTION_COUNTRIES, Media.RATING, Media.RECOMMENDED, Media.RUNTIME, Media.TAGLINE, Media.TITLE, Media.TRAILER_PATH, TVShow.WATCH_PROVIDERS };
-
-        private static IEnumerable<KeyValueRequestArgs<Uri>> CreateMovieRequests(out KeyValueRequestArgs<Uri, IAsyncEnumerable<Item>> recommendedArg) => CreateRequests(Constants.Movie, out recommendedArg, ALL_MOVIE_PROPERTIES).Append(new KeyValueRequestArgs<Uri>(EXTERNAL_IDS_MOVIE_URI));
 
         private static IEnumerable<KeyValueRequestArgs<Uri>> CreateRequests(Item item, out KeyValueRequestArgs<Uri, IAsyncEnumerable<Item>> recommendedArg, params Property[] properties)
         {

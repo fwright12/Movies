@@ -26,7 +26,7 @@ namespace MoviesTests.Data
         public dBConnection(string filename)
         {
             DatabasePath = Path.Combine(Environment.CurrentDirectory, filename);
-            File.Delete(DatabasePath);
+            //File.Delete(DatabasePath);
 
             SqlConnection = new SQLiteAsyncConnection(DatabasePath);
             DAO = new SqlResourceDAO(SqlConnection, TestsConfig.Resolver);
@@ -66,7 +66,7 @@ namespace MoviesTests.Data
             await SqlConnection.CloseAsync();
             try
             {
-                File.Delete(DatabasePath);
+                //File.Delete(DatabasePath);
             }
             catch { }
         }

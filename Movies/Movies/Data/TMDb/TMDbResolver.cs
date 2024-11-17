@@ -269,7 +269,7 @@ namespace Movies
                 Path = path;
             }
 
-            protected override ArraySegment<byte> GetBytes() => (Index.TryGetValue(Path, out var index) ? index : Index).Bytes;
+            protected override ArraySegment<byte> GetBytes() => Index.TryGetValue(Path, out var index) ? index.Bytes : new ArraySegment<byte>();
         }
 
         private class ExceptBytes : LazyBytes

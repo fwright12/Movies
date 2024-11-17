@@ -248,7 +248,7 @@ namespace MoviesTests.Data
             var uri = ResourceUtils.RUNTIME_URI;
             handlers.DiskCache.TryAdd(uri, new RestResponse((IEnumerable<REpresentationalStateTransfer.Entity>)State.Create(Constants.INTERSTELLAR_RUNTIME), new Dictionary<string, IEnumerable<string>>
             {
-                [REpresentationalStateTransfer.Rest.ETAG] = new List<string> { MockHandler.DEFAULT_ETAG }
+                [REpresentationalStateTransfer.Rest.ETAG] = new List<string> { "W/" + MockHandler.DEFAULT_ETAG }
             }, new Dictionary<string, string> { }));
 
             Assert.AreEqual(1, handlers.DiskCache.Count);

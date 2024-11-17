@@ -121,6 +121,52 @@ namespace Movies.Data.Local
             return await connection.UpdateAsync(message);
         }
 
+        private class DebouncedCompletionSource
+        {
+            public int Delay { get; }
+            public Task Task => Source.Task;
+
+            private TaskCompletionSource<bool> Source;
+            private CancellationTokenSource CancelSource;
+
+            public DebouncedCompletionSource(int delay)
+            {
+                Delay = delay;
+                Source = new TaskCompletionSource<bool>();
+                Reset();
+            }
+
+            public async void Reset()
+            {
+                CancellationToken token;
+
+                lock (Source)
+                {
+                    CancelSource?.Cancel();
+                    CancelSource = new CancellationTokenSource();
+                    token = CancelSource.Token;
+                }
+
+                await Task.Delay(Delay);
+
+                if (!token.IsCancellationRequested)
+                {
+                    Source.TrySetResult(true);
+                }
+            }
+
+            public bool TryReset()
+            {
+                if (Task.IsCompleted)
+                {
+                    return false;
+                }
+
+                Reset();
+                return true;
+            }
+        }
+
         private class SqlStatementQueue<T>
         {
             public SqlResourceDAO DAO { get; }
@@ -138,21 +184,27 @@ namespace Movies.Data.Local
 
             private Task Batch;
             private CancellationTokenSource CancelBatch;
+            private TaskCompletionSource<bool> FlushSource;
 
-            public void Add(T item)
+            public Task<bool> Add(T item)
             {
                 CancellationToken token;
+                Task<bool> flushTask;
 
-                //lock (Queue)
+                lock (Queue)
                 {
                     CancelBatch?.Cancel();
                     CancelBatch = new CancellationTokenSource();
                     token = CancelBatch.Token;
 
+                    FlushSource ??= new TaskCompletionSource<bool>();
+                    flushTask = FlushSource.Task;
+
                     Queue.Enqueue(item);
                 }
 
                 Flush(Delay, token);
+                return flushTask;
             }
 
             private async void Flush(int delay, CancellationToken cancellationToken)
@@ -168,16 +220,19 @@ namespace Movies.Data.Local
             private async Task Flush()
             {
                 Queue<T> queue;
+                TaskCompletionSource<bool> source;
 
                 lock (Queue)
                 {
                     queue = Queue;
                     Queue = new Queue<T>();
+                    source = FlushSource;
+                    FlushSource = null;
                 }
 
 #if DEBUG
                 var watch = System.Diagnostics.Stopwatch.StartNew();
-                Print.Log("flushing");
+                Print.Log($"flushing {queue.Count} items");
                 int count = 0;
 #endif
 
@@ -194,8 +249,10 @@ namespace Movies.Data.Local
 
 #if DEBUG
                 watch.Stop();
-                Print.Log($"flushed {queue.Count} items in {watch.Elapsed}");
+                Print.Log($"flushed in {watch.Elapsed}");
 #endif
+
+                source.SetResult(true);
             }
         }
 
@@ -276,30 +333,7 @@ namespace Movies.Data.Local
 
         public async Task<bool> Write(KeyValueRequestArgs<Uri> arg)
         {
-            if ((arg.Response as ResourceResponse)?.TryGetRepresentation<IEnumerable<KeyValuePair<Uri, State>>>(out var collection) == true)
-            {
-                foreach (var kvp in collection)
-                {
-                    byte[] response;
-
-                    if (kvp.Value.TryGetRepresentation(typeof(IEnumerable<byte>), out var bytesRepresentation) && bytesRepresentation.Value is IEnumerable<byte> bytes)
-                    {
-                        response = bytes.ToArray();
-
-                        if ((kvp.Key as UniformItemIdentifier)?.Property == Movie.PARENT_COLLECTION && (TMDB.COLLECTION_PARSER as ParserWrapper)?.Parser.GetPair(response).Value is int parentCollectionId)
-                        {
-                            response = Encoding.UTF8.GetBytes(parentCollectionId.ToString());
-                        }
-
-                        await Write(kvp.Key, response, arg);
-                    }
-                }
-            }
-            else if (arg.Value is IEnumerable<byte> bytes || true == (arg.Response as ResourceResponse)?.TryGetRepresentation<IEnumerable<byte>>(out bytes))
-            {
-                await Write(arg.Request.Key, bytes.ToArray(), arg);
-            }
-            else if (arg.Value == null && Resolver.TryGetAnnotations(arg.Request.Key, out var annotations))
+            if (Resolver.TryGetAnnotations(arg.Request.Key, out var annotations) && annotations.Value.Count > 0)
             {
                 var parts = arg.Request.Key.ToString().Split("?").FirstOrDefault().Split("/");
                 if (!TryParseItemType(parts[1], out var itemType))
@@ -307,10 +341,36 @@ namespace Movies.Data.Local
                     return false;
                 }
 
+                var collection = (arg.Response as ResourceResponse)?.TryGetRepresentation<IEnumerable<KeyValuePair<Uri, State>>>(out var temp) == true ? temp : null;
+                var results = new List<Task<bool>>();
+
                 foreach (var parser in annotations.Value)
                 {
-                    await Write(new UniformItemIdentifier(itemType, parts[2], parser.Property), null, arg);
+                    var uri = new UniformItemIdentifier(itemType, parts[2], parser.Property);
+                    byte[] response;
+
+                    if (collection?.TryGetValue(uri, out var state) == true && state.TryGetRepresentation(typeof(IEnumerable<byte>), out var bytesRepresentation) && bytesRepresentation.Value is IEnumerable<byte> bytes)
+                    {
+                        response = bytes.ToArray();
+
+                        if (parser.Property == Movie.PARENT_COLLECTION && (TMDB.COLLECTION_PARSER as ParserWrapper)?.Parser.GetPair(response).Value is int parentCollectionId)
+                        {
+                            response = Encoding.UTF8.GetBytes(parentCollectionId.ToString());
+                        }
+                    }
+                    else
+                    {
+                        response = null;
+                    }
+
+                    results.Add(Write(uri, response, arg));
                 }
+
+                return (await Task.WhenAll(results)).All(x => x);
+            }
+            else if (arg.Value is IEnumerable<byte> bytes || true == (arg.Response as ResourceResponse)?.TryGetRepresentation<IEnumerable<byte>>(out bytes))
+            {
+                await Write(arg.Request.Key, bytes.ToArray(), arg);
             }
             else
             {
@@ -365,20 +425,71 @@ namespace Movies.Data.Local
             Task<int> modified;
             if (message.Response == null)
             {
-                UpdateMessageQueue.Add(new NotModifiedMessage
+                modified = DebouncedBatchUpdateMessage(new NotModifiedMessage
                 {
                     Uri = message.Uri,
                     Timestamp = message.Timestamp,
                     ExpiresAt = message.ExpiresAt
                 });
+                modified = Task.FromResult(1);
             }
             else
             {
-                InsertMessageQueue.Add(message);
+                modified = DebouncedBatchInsertMessage(message);
+                //return InsertMessageQueue.Add(message);
             }
 
-            return true;
-            //return await modified > 0;
+            return await modified > 0;
+        }
+
+        private DebouncedCompletionSource InsertSource;
+        private object InsertLock = new object();
+        private DebouncedCompletionSource UpdateSource;
+        private object UpdateLock = new object();
+
+#if DEBUG
+        int DebouncedInsertCount = 0;
+        int DebouncedUpdateCount = 0;
+        const int WRITE_REPORT_RATE = 1000;
+#endif
+
+        private async Task<int> DebouncedBatchInsertMessage(Message message)
+        {
+            await GetDebouncedTask(ref InsertSource, InsertLock);
+            var result = await InsertMessage(message);
+#if DEBUG
+            if (++DebouncedInsertCount % WRITE_REPORT_RATE == 0)
+            {
+                Print.Log($"inserted {DebouncedInsertCount} items");
+            }
+#endif
+            return result;
+        }
+
+        private async Task<int> DebouncedBatchUpdateMessage(object message)
+        {
+            await GetDebouncedTask(ref UpdateSource, UpdateLock);
+            var result = await UpdateMessage(message);
+#if DEBUG
+            if (++DebouncedUpdateCount % WRITE_REPORT_RATE == 0)
+            {
+                Print.Log($"updated {DebouncedUpdateCount} items");
+            }
+#endif
+            return result;
+        }
+
+        private static Task GetDebouncedTask(ref DebouncedCompletionSource source, object lockObj)
+        {
+            lock (lockObj)
+            {
+                if (source?.TryReset() != true)
+                {
+                    source = new DebouncedCompletionSource(BATCH_INSERT_DELAY);
+                }
+
+                return source.Task;
+            }
         }
 
         private bool TryGetConverter(UniformItemIdentifier uii, Item item, out Func<IEnumerable<byte>, object> converter)
