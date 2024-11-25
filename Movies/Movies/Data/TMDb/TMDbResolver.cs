@@ -351,7 +351,7 @@ namespace Movies
                         {
                             bytes1 = new PropertyBytes(index, jpp.Property).Bytes;
                         }
-                        bytes1 = TrimWhitespace(bytes1);
+                        IEnumerable<byte> lazyBytes = TrimWhitespace(bytes1);
 
                         Func<IEnumerable<byte>, object> converter;
 
@@ -395,14 +395,17 @@ namespace Movies
                         {
                             converter = source => parser.GetPair(source is ArraySegment<byte> segment ? segment : new ArraySegment<byte>(source.ToArray())).Value;
 
-                            if (parser.Property == TVShow.LAST_AIR_DATE)
+                            if (parser.Property == Media.RATING)
                             {
-                                var value = converter(lazyJson.Bytes);
-                                bytes1 = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(value));
+                                lazyBytes = new ArraySegment<byte>(GetPartialJson(json, "id", "vote_average", "vote_count").ToArray());
+                            }
+                            else if (UseSerializedJson(parser.Property, Item))
+                            {
+                                lazyBytes = DefferedBytes(lazyJson.Bytes, converter);
                             }
                         }
 
-                        var byteRepresentation = new ObjectRepresentation<IEnumerable<byte>>(bytes1);
+                        var byteRepresentation = new ObjectRepresentation<IEnumerable<byte>>(lazyBytes);
                         var state = new State(byteRepresentation);
                         if (converter != null)
                         {
@@ -430,6 +433,43 @@ namespace Movies
                 }
 
                 return result;
+            }
+
+            private static IEnumerable<byte> DefferedBytes(IEnumerable<byte> bytes, Func<IEnumerable<byte>, object> converter)
+            {
+                var json = JsonSerializer.Serialize(converter(bytes));
+
+                foreach (var b in Encoding.UTF8.GetBytes(json))
+                {
+                    yield return b;
+                }
+            }
+
+            private static IEnumerable<byte> GetPartialJson(JsonIndex json, params string[] properties)
+            {
+                var parts = new List<IEnumerable<byte>>();
+
+                foreach (string property in properties)
+                {
+                    if (!json.TryGetValue(property, out var propertyIndex))
+                    {
+                        continue;
+                    }
+
+                    parts.Add(Encoding.UTF8.GetBytes($"\"{property}\":"));
+                    parts.Add(propertyIndex.Bytes);
+                }
+
+                var commaBytes = Encoding.UTF8.GetBytes(",");
+                for (int i = parts.Count - 2; i > 0; i -= 2)
+                {
+                    parts.Insert(i, commaBytes);
+                }
+
+                parts.Insert(0, Encoding.UTF8.GetBytes("{"));
+                parts.Add(Encoding.UTF8.GetBytes("}"));
+
+                return parts.SelectMany(part => part);
             }
 
             private static UniformItemIdentifier GetUii(Item item, Uri uri, Parser parser)
@@ -462,6 +502,8 @@ namespace Movies
                 ParentCollectionWasRequested = parentCollectionWasRequested;
             }
         }
+
+        public static bool UseSerializedJson(Property property, Item item) => property == Media.TRAILER_PATH || property == TVShow.LAST_AIR_DATE || (property == Media.RUNTIME && item is TVShow);
 
         public static IEnumerable<T> GetTVItems<T>(byte[] json, string property, AsyncEnumerable.TryParseFunc<JsonNode, T> parse) => TMDB.TryParseCollection(JsonNode.Parse(json), new JsonPropertyParser<IEnumerable<JsonNode>>(property), out var result, new JsonNodeParser<T>(parse)) ? result : null;
 

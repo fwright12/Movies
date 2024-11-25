@@ -1,5 +1,4 @@
 ﻿using Movies.Data.Local;
-using System;
 using System.Diagnostics;
 using System.Text;
 
@@ -290,9 +289,13 @@ namespace MoviesTests.Data
             };
             await dao.InsertMessage(message);
 
+
+
             var request = await chain.TryGet<TimeSpan>(uii);
             await Connection.WaitSettledAsync();
             var newMessage = await dao.GetMessage(uri);
+
+
 
             Assert.AreEqual(1, WebHistory.Count);
 
@@ -303,7 +306,7 @@ namespace MoviesTests.Data
             Assert.AreNotEqual(message.ExpiresAt, newMessage.ExpiresAt);
             Assert.AreEqual(message.ETag, newMessage.ETag);
             // Response should not be changed from value we inserted
-            Assert.AreEqual(Encoding.UTF8.GetString(message.Response), Encoding.UTF8.GetString(newMessage.Response));
+            Assert.AreEqual(Encoding.UTF8.GetString(message.Response.ToArray()), Encoding.UTF8.GetString(newMessage.Response.ToArray()));
         }
 
         [TestMethod]
@@ -324,9 +327,13 @@ namespace MoviesTests.Data
             };
             await dao.InsertMessage(message);
 
+
+
             var request = await chain.TryGet<TimeSpan>(uii);
             await Connection.WaitSettledAsync();
             var newMessage = await dao.GetMessage(uri);
+
+
 
             Assert.AreEqual(1, WebHistory.Count);
 
@@ -337,7 +344,7 @@ namespace MoviesTests.Data
             Assert.AreNotEqual(message.ExpiresAt, newMessage.ExpiresAt);
             Assert.AreEqual("W/" + MockHandler.DEFAULT_ETAG, newMessage.ETag);
             // Response should be updated with value from API
-            Assert.AreEqual("130", Encoding.UTF8.GetString(newMessage.Response));
+            Assert.AreEqual("130", Encoding.UTF8.GetString(newMessage.Response.ToArray()));
         }
 
         [TestMethod]

@@ -52,7 +52,12 @@ namespace MoviesTests.Data
                 Assert.AreEqual("Fiona Weir", actual.First().Person.Name);
             },
             [new UniformItemIdentifier(Constants.Movie, Media.DESCRIPTION)] = "Harry, Ron and Hermione continue their quest to vanquish the evil Voldemort once and for all. Just as things begin to look hopeless for the young wizards, Harry discovers a trio of magical objects that endow him with powers to rival Voldemort's formidable skills.",
-            [EXTERNAL_IDS_MOVIE_URI] = Encoding.UTF8.GetBytes(" {\r\n    \"imdb_id\": \"tt1201607\",\r\n    \"wikidata_id\": \"Q232009\",\r\n    \"facebook_id\": \"harrypottermovie\",\r\n    \"instagram_id\": \"harrypotterfilm\",\r\n    \"twitter_id\": \"HarryPotterFilm\"\r\n  }"),
+            [EXTERNAL_IDS_MOVIE_URI] = (IEnumerable<byte> bytes) =>
+            {
+                var expected = System.Text.Json.JsonSerializer.Serialize(System.Text.Json.JsonDocument.Parse(" {\r\n    \"imdb_id\": \"tt1201607\",\r\n    \"wikidata_id\": \"Q232009\",\r\n    \"facebook_id\": \"harrypottermovie\",\r\n    \"instagram_id\": \"harrypotterfilm\",\r\n    \"twitter_id\": \"HarryPotterFilm\"\r\n  }"));
+                var actual = System.Text.Json.JsonSerializer.Serialize(System.Text.Json.JsonDocument.Parse(bytes.ToArray()));
+                Assert.AreEqual(expected, actual);
+            },
             [new UniformItemIdentifier(Constants.Movie, Movie.GENRES)] = (IEnumerable<Genre> actual) =>
             {
                 Assert.AreEqual(2, actual.Count());

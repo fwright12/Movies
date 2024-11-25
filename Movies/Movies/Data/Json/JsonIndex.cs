@@ -137,6 +137,11 @@ namespace Movies
 
             public bool MoveNext()
             {
+                if (Consumed >= Bytes.Count)
+                {
+                    return false;
+                }
+
                 var start = Consumed;
                 if (Current.Value != null)
                 {

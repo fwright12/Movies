@@ -2,15 +2,14 @@
 using SQLite;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
-using System.Threading;
 using System.Threading.Tasks;
-using static Movies.BatchHandler;
 
 namespace Movies.Data.Local
 {
@@ -55,8 +54,6 @@ namespace Movies.Data.Local
         private Task<SQLiteAsyncConnection> Connection { get; }
         private Task InitTask { get; }
 
-        private SqlStatementQueue<Message> InsertMessageQueue { get; }
-        private SqlStatementQueue<object> UpdateMessageQueue { get; }
         public const int BATCH_INSERT_DELAY = 1000;
 
         public SqlResourceDAO(SQLiteAsyncConnection connection, TMDbResolver resolver) : this(Task.FromResult(connection), resolver) { }
@@ -64,9 +61,6 @@ namespace Movies.Data.Local
         {
             Connection = Connect(connection);
             Resolver = resolver;
-
-            InsertMessageQueue = new SqlStatementQueue<Message>(this, InsertMessage, BATCH_INSERT_DELAY);
-            UpdateMessageQueue = new SqlStatementQueue<object>(this, UpdateMessage, BATCH_INSERT_DELAY);
         }
 
         private async Task<SQLiteAsyncConnection> Connect(Task<SQLiteAsyncConnection> connection1)
@@ -88,7 +82,7 @@ namespace Movies.Data.Local
             Print.Log(await connection.Table<Message>().CountAsync() + " items in cache");
             foreach (var row in await connection.Table<Message>().Take(30).ToListAsync())
             {
-                Print.Log(row.Uri, row.Timestamp, row.ETag, row.ExpiresAt);
+                Print.Log(row.Uri, row.Timestamp, row.ETag, row.ExpiresAt);//, Encoding.UTF8.GetString(row.Response.Take(200).ToArray()));
             }
 #endif
 
@@ -119,141 +113,6 @@ namespace Movies.Data.Local
         {
             var connection = await Connection;
             return await connection.UpdateAsync(message);
-        }
-
-        private class DebouncedCompletionSource
-        {
-            public int Delay { get; }
-            public Task Task => Source.Task;
-
-            private TaskCompletionSource<bool> Source;
-            private CancellationTokenSource CancelSource;
-
-            public DebouncedCompletionSource(int delay)
-            {
-                Delay = delay;
-                Source = new TaskCompletionSource<bool>();
-                Reset();
-            }
-
-            public async void Reset()
-            {
-                CancellationToken token;
-
-                lock (Source)
-                {
-                    CancelSource?.Cancel();
-                    CancelSource = new CancellationTokenSource();
-                    token = CancelSource.Token;
-                }
-
-                await Task.Delay(Delay);
-
-                if (!token.IsCancellationRequested)
-                {
-                    Source.TrySetResult(true);
-                }
-            }
-
-            public bool TryReset()
-            {
-                if (Task.IsCompleted)
-                {
-                    return false;
-                }
-
-                Reset();
-                return true;
-            }
-        }
-
-        private class SqlStatementQueue<T>
-        {
-            public SqlResourceDAO DAO { get; }
-            public Func<T, Task> SqlStatement { get; }
-            public int Delay { get; }
-
-            public SqlStatementQueue(SqlResourceDAO dao, Func<T, Task> sqlStatement, int delay)
-            {
-                DAO = dao;
-                SqlStatement = sqlStatement;
-                Delay = delay;
-            }
-
-            private Queue<T> Queue = new Queue<T>();
-
-            private Task Batch;
-            private CancellationTokenSource CancelBatch;
-            private TaskCompletionSource<bool> FlushSource;
-
-            public Task<bool> Add(T item)
-            {
-                CancellationToken token;
-                Task<bool> flushTask;
-
-                lock (Queue)
-                {
-                    CancelBatch?.Cancel();
-                    CancelBatch = new CancellationTokenSource();
-                    token = CancelBatch.Token;
-
-                    FlushSource ??= new TaskCompletionSource<bool>();
-                    flushTask = FlushSource.Task;
-
-                    Queue.Enqueue(item);
-                }
-
-                Flush(Delay, token);
-                return flushTask;
-            }
-
-            private async void Flush(int delay, CancellationToken cancellationToken)
-            {
-                await Task.Delay(delay);
-
-                if (!cancellationToken.IsCancellationRequested)
-                {
-                    await Flush();
-                }
-            }
-
-            private async Task Flush()
-            {
-                Queue<T> queue;
-                TaskCompletionSource<bool> source;
-
-                lock (Queue)
-                {
-                    queue = Queue;
-                    Queue = new Queue<T>();
-                    source = FlushSource;
-                    FlushSource = null;
-                }
-
-#if DEBUG
-                var watch = System.Diagnostics.Stopwatch.StartNew();
-                Print.Log($"flushing {queue.Count} items");
-                int count = 0;
-#endif
-
-                foreach (var item in queue)
-                {
-#if DEBUG
-                    if (++count % 100 == 0)
-                    {
-                        Print.Log($"flushed {count} items");
-                    }
-#endif
-                    await SqlStatement(item);
-                }
-
-#if DEBUG
-                watch.Stop();
-                Print.Log($"flushed in {watch.Elapsed}");
-#endif
-
-                source.SetResult(true);
-            }
         }
 
         Task<bool> IAsyncEventProcessor<IEnumerable<KeyValueRequestArgs<Uri>>>.ProcessAsync(IEnumerable<KeyValueRequestArgs<Uri>> e) => ((IEventAsyncCache<KeyValueRequestArgs<Uri>>)this).Read(e);
@@ -287,7 +146,7 @@ namespace Movies.Data.Local
                 return false;
             }
 
-            var byteRepresentation = new ObjectRepresentation<byte[]>(message.Response);
+            var byteRepresentation = new ObjectRepresentation<IEnumerable<byte>>(message.Response);
             var headers = new System.Net.Http.HttpResponseMessage().Headers;
 
             if (message.ETag != null && System.Net.Http.Headers.EntityTagHeaderValue.TryParse(message.ETag, out var etag))
@@ -312,7 +171,7 @@ namespace Movies.Data.Local
             {
                 Func<IEnumerable<byte>, object> converter;
 
-                if (uii.Property == Movie.PARENT_COLLECTION && int.TryParse(Encoding.UTF8.GetString(message.Response), out var id))
+                if (uii.Property == Movie.PARENT_COLLECTION && int.TryParse(Encoding.UTF8.GetString(message.Response.ToArray()), out var id))
                 {
                     var collection = await TMDB.GetCollection(id);
                     converter = source => collection;
@@ -347,13 +206,13 @@ namespace Movies.Data.Local
                 foreach (var parser in annotations.Value)
                 {
                     var uri = new UniformItemIdentifier(itemType, parts[2], parser.Property);
-                    byte[] response;
+                    IEnumerable<byte> response;
 
                     if (collection?.TryGetValue(uri, out var state) == true && state.TryGetRepresentation(typeof(IEnumerable<byte>), out var bytesRepresentation) && bytesRepresentation.Value is IEnumerable<byte> bytes)
                     {
-                        response = bytes.ToArray();
+                        response = bytes;
 
-                        if (parser.Property == Movie.PARENT_COLLECTION && (TMDB.COLLECTION_PARSER as ParserWrapper)?.Parser.GetPair(response).Value is int parentCollectionId)
+                        if (parser.Property == Movie.PARENT_COLLECTION && (TMDB.COLLECTION_PARSER as ParserWrapper)?.Parser.GetPair(response.ToArray()).Value is int parentCollectionId)
                         {
                             response = Encoding.UTF8.GetBytes(parentCollectionId.ToString());
                         }
@@ -370,7 +229,7 @@ namespace Movies.Data.Local
             }
             else if (arg.Value is IEnumerable<byte> bytes || true == (arg.Response as ResourceResponse)?.TryGetRepresentation<IEnumerable<byte>>(out bytes))
             {
-                await Write(arg.Request.Key, bytes.ToArray(), arg);
+                await Write(arg.Request.Key, bytes, arg);
             }
             else
             {
@@ -380,7 +239,7 @@ namespace Movies.Data.Local
             return true;
         }
 
-        private async Task<bool> Write(Uri uri, byte[] response, KeyValueRequestArgs<Uri> arg)
+        private async Task<bool> Write(Uri uri, IEnumerable<byte> response, KeyValueRequestArgs<Uri> arg)
         {
             var url = uri.ToString().ToLower();
             var path = url.Split('?').ElementAtOrDefault(0);
@@ -395,7 +254,6 @@ namespace Movies.Data.Local
             {
                 Uri = uri.ToString() + (string.IsNullOrEmpty(query) ? "" : ("?" + query)),
                 Timestamp = DateTime.Now,
-                Response = response,
                 Id = id,
                 Type = type
             };
@@ -423,7 +281,7 @@ namespace Movies.Data.Local
             }
 
             Task<int> modified;
-            if (message.Response == null)
+            if (response == null)
             {
                 modified = DebouncedBatchUpdateMessage(new NotModifiedMessage
                 {
@@ -435,16 +293,16 @@ namespace Movies.Data.Local
             }
             else
             {
-                modified = DebouncedBatchInsertMessage(message);
+                modified = DebouncedBatchInsertMessage(message, response);
                 //return InsertMessageQueue.Add(message);
             }
 
             return await modified > 0;
         }
 
-        private DebouncedCompletionSource InsertSource;
+        private DebouncedTaskCompletionSource<bool> InsertSource;
         private object InsertLock = new object();
-        private DebouncedCompletionSource UpdateSource;
+        private DebouncedTaskCompletionSource<bool> UpdateSource;
         private object UpdateLock = new object();
 
 #if DEBUG
@@ -453,9 +311,11 @@ namespace Movies.Data.Local
         const int WRITE_REPORT_RATE = 1000;
 #endif
 
-        private async Task<int> DebouncedBatchInsertMessage(Message message)
+        private async Task<int> DebouncedBatchInsertMessage(Message message, IEnumerable<byte> response)
         {
             await GetDebouncedTask(ref InsertSource, InsertLock);
+
+            message.Response = MinifyJson(response);
             var result = await InsertMessage(message);
 #if DEBUG
             if (++DebouncedInsertCount % WRITE_REPORT_RATE == 0)
@@ -479,13 +339,13 @@ namespace Movies.Data.Local
             return result;
         }
 
-        private static Task GetDebouncedTask(ref DebouncedCompletionSource source, object lockObj)
+        private static Task GetDebouncedTask(ref DebouncedTaskCompletionSource<bool> source, object lockObj)
         {
             lock (lockObj)
             {
                 if (source?.TryReset() != true)
                 {
-                    source = new DebouncedCompletionSource(BATCH_INSERT_DELAY);
+                    source = new DebouncedTaskCompletionSource<bool>(BATCH_INSERT_DELAY);
                 }
 
                 return source.Task;
@@ -515,7 +375,7 @@ namespace Movies.Data.Local
                     return false;
                 }
             }
-            else if (property == TVShow.LAST_AIR_DATE)
+            else if (TMDbResolver.UseSerializedJson(property, item))
             {
                 converter = source => JsonSerializer.Deserialize(source.ToArray(), property.FullType);
                 return true;
@@ -557,6 +417,21 @@ namespace Movies.Data.Local
             }
 
             return true;
+        }
+
+        private static byte[] MinifyJson(IEnumerable<byte> bytes)
+        {
+            using var stream = new MemoryStream();
+            using var writer = new Utf8JsonWriter(stream, new JsonWriterOptions
+            {
+                Indented = false,
+                SkipValidation = true
+            });
+            
+            JsonDocument.Parse(bytes.ToArray()).WriteTo(writer);
+            writer.Flush();
+
+            return stream.ToArray();
         }
 
         private abstract class TMDbPagedJsonConverter<T> : JsonConverter<IAsyncEnumerable<T>>
