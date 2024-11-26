@@ -1,6 +1,7 @@
 ﻿#if DEBUG
 using System.Collections.Generic;
-using Xamarin.Forms;
+using Microsoft.Maui.Controls;
+using Microsoft.Maui;
 
 namespace Movies
 {

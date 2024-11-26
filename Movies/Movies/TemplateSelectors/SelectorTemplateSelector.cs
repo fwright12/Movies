@@ -3,7 +3,8 @@ using Movies.ViewModels;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Xamarin.Forms;
+using Microsoft.Maui.Controls;
+using Microsoft.Maui;
 
 namespace Movies.Templates
 {

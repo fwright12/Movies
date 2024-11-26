@@ -5,15 +5,19 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using UIKit;
-using Xamarin.Forms;
-using Xamarin.Forms.Platform.iOS;
+using Microsoft.Maui.Controls.Handlers.Compatibility;
+using Microsoft.Maui.Controls.Platform;
+using Microsoft.Maui.Controls;
+using Microsoft.Maui;
 
+// TODO Xamarin.Forms.ExportRendererAttribute is not longer supported. For more details see https://github.com/dotnet/maui/wiki/Using-Custom-Renderers-in-.NET-MAUI
 [assembly: ExportRenderer(typeof(AdView), typeof(Movies.iOS.AdRenderer))]
-[assembly: ExportRenderer(typeof(Xamarin.Forms.NativeAdView), typeof(Movies.iOS.NativeAdRenderer))]
+// TODO Xamarin.Forms.ExportRendererAttribute is not longer supported. For more details see https://github.com/dotnet/maui/wiki/Using-Custom-Renderers-in-.NET-MAUI
+[assembly: ExportRenderer(typeof(Microsoft.Maui.Controls.NativeAdView), typeof(Movies.iOS.NativeAdRenderer))]
 
 namespace Movies.iOS
 {
-    public class NativeAdRenderer : ViewRenderer<Xamarin.Forms.NativeAdView, Google.MobileAds.NativeAdView>
+    public class NativeAdRenderer : ViewRenderer<Microsoft.Maui.Controls.NativeAdView, Google.MobileAds.NativeAdView>
     {
         private void GetAd()
         {
@@ -48,7 +52,7 @@ namespace Movies.iOS
             return rootController.PresentedViewController;
         }
 
-        protected override void OnElementChanged(ElementChangedEventArgs<Xamarin.Forms.NativeAdView> e)
+        protected override void OnElementChanged(ElementChangedEventArgs<Microsoft.Maui.Controls.NativeAdView> e)
         {
             base.OnElementChanged(e);
 
@@ -60,7 +64,7 @@ namespace Movies.iOS
 
         private class Listener : UnifiedNativeAdLoaderDelegate
         {
-            public Xamarin.Forms.NativeAdView Element { get; set; }
+            public Microsoft.Maui.Controls.NativeAdView Element { get; set; }
 
             public override void DidFailToReceiveAd(AdLoader adLoader, NSError error)
             {

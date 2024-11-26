@@ -109,7 +109,8 @@ namespace Movies.Views
 #if DEBUG
             var info1 = new FileInfo(userInfoPath);
             var info2 = new FileInfo(itemInfoPath);
-            Print.Log(info1.Length, info2.Length, info1.FullName);
+            if (info1.Exists && info2.Exists)
+                Print.Log(info1.Length, info2.Length, info1.FullName);
 
             async Task test(SQLiteAsyncConnection conn)
             {

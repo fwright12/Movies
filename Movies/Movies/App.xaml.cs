@@ -15,8 +15,11 @@ using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
-using Xamarin.Forms;
-using Xamarin.Forms.Xaml;
+using Microsoft.Maui.Controls.Xaml;
+using Microsoft.Maui.Controls;
+using Microsoft.Maui;
+using Microsoft.Maui.ApplicationModel;
+using Microsoft.Maui.Controls.Compatibility;
 
 [assembly: ExportFont("Ionicons.ttf")]
 [assembly: XamlCompilation(XamlCompilationOptions.Compile)]
@@ -40,10 +43,6 @@ namespace Movies
         AllCompanies = Company | Network | WatchProvider,
         All = ~0,
     }
-
-    /* Changelog:
-     * 
-     */
 
     public static class JavaScriptEvaluationService
     {
@@ -133,7 +132,7 @@ namespace Movies
         private CollectionViewModel _Popular;
 
 #if DEBUG
-        public static Task Message(string message) => Xamarin.Forms.Application.Current.MainPage.DisplayAlert("Console", message, "OK");
+        public static Task Message(string message) => Microsoft.Maui.Controls.Application.Current.MainPage.DisplayAlert("Console", message, "OK");
 
         private static System.IO.StringWriter iOSConsole;
 
@@ -169,6 +168,7 @@ namespace Movies
         public App()
         {
 #if DEBUG
+            // TODO Xamarin.Forms.Device.RuntimePlatform is no longer supported. Use Microsoft.Maui.Devices.DeviceInfo.Platform instead. For more details see https://learn.microsoft.com/en-us/dotnet/maui/migration/forms-projects#device-changes
             if (Device.RuntimePlatform == Device.iOS)
             {
                 iOSConsole = new System.IO.StringWriter();
@@ -183,23 +183,20 @@ namespace Movies
 
             })
             {
-                if (!Properties.ContainsKey(kvp.Key))
+                if (!Preferences.Default.ContainsKey(kvp.Key))
                 {
-                    Properties[kvp.Key] = kvp.Value;
+                    Preferences.Default.Set(kvp.Key, kvp.Value);
                 }
             }
-
 
             //Properties.Remove(GetLoginCredentialsKey(ServiceName.TMDb));
             //Properties.Remove(GetLoginCredentialsKey(ServiceName.Trakt));
 
-            _ = SavePropertiesAsync();
-
             //UserAppTheme = OSAppTheme.Dark;
 #endif
 
-            Prefs = new UserPrefs(Properties);
-            Prefs.PropertyChanged += async (sender, e) => await SavePropertiesAsync();
+            Prefs = new UserPrefs(Preferences.Default);
+            //Prefs.PropertyChanged += async (sender, e) => await SavePropertiesAsync();
 
             TMDB.LANGUAGE = Prefs.Language;
             TMDB.REGION = Prefs.Region;
@@ -254,8 +251,8 @@ namespace Movies
             }
 #else
 
-            Session = new Session(Properties);
-            Session.PropertyChanged += async (sender, e) => await SavePropertiesAsync();
+            Session = new Session(new PreferencesDictionary(Preferences.Default));
+            //Session.PropertyChanged += async (sender, e) => await SavePropertiesAsync();
 
             var resolver = new TMDbResolver(TMDB.ITEM_PROPERTIES);
 
@@ -355,7 +352,7 @@ namespace Movies
             // Try to login in to accounts with stored credentials
             foreach (var account in Accounts.Reverse())
             {
-                if (TryGetProviderName(account.Account, out var name) && Properties.TryGetValue(GetLoginCredentialsKey(name), out var credentials))
+                if (TryGetProviderName(account.Account, out var name) && Preferences.Get(GetLoginCredentialsKey(name), null) is string credentials)
                 {
                     _ = account.Login(credentials);
                 }
@@ -695,7 +692,7 @@ namespace Movies
             if (GetFiltersKey(collection) is string key)
             {
                 Session.SaveFilters(key, predicates);
-                return SavePropertiesAsync();
+                //return SavePropertiesAsync();
             }
 
             return Task.CompletedTask;
@@ -718,10 +715,10 @@ namespace Movies
             {
                 var key = GetLoginCredentialsKey(name);
 
-                if (!Properties.TryGetValue(key, out var stored) || !Equals(stored, credentials))
+                if (false == Preferences.Default.Get<string>(key, null) is string stored || !Equals(stored, credentials))
                 {
-                    Properties[key] = credentials;
-                    await SavePropertiesAsync();
+                    Preferences.Default.Set(key, credentials);
+                    //await SavePropertiesAsync();
                 }
             }
         }
@@ -780,6 +777,7 @@ namespace Movies
             }
 
 #if DEBUG
+            // TODO Xamarin.Forms.Device.RuntimePlatform is no longer supported. Use Microsoft.Maui.Devices.DeviceInfo.Platform instead. For more details see https://learn.microsoft.com/en-us/dotnet/maui/migration/forms-projects#device-changes
             if (Device.RuntimePlatform == Device.iOS)
             {
                 return;
@@ -788,8 +786,8 @@ namespace Movies
 
             if (TryGetProviderName(account, out var name))
             {
-                Properties.Remove(GetLoginCredentialsKey(name));
-                await SavePropertiesAsync();
+                Preferences.Default.Remove(GetLoginCredentialsKey(name));
+                //await SavePropertiesAsync();
             }
         }
 
@@ -806,7 +804,7 @@ namespace Movies
         public static Task<bool> TryOpenUrlAsync(string url)
         {
             Paused = true;
-            return Xamarin.Essentials.Launcher.TryOpenAsync(url);
+            return Microsoft.Maui.ApplicationModel.Launcher.TryOpenAsync(url);
         }
 
         public static TimeSpan LogoCacheValidity = new TimeSpan(7, 0, 0, 0);
@@ -816,11 +814,11 @@ namespace Movies
         protected override void OnStart()
         {
 #if DEBUG
-            if (!Properties.ContainsKey(RATING_TEMPLATES_KEY))
+            if (!Preferences.Default.ContainsKey(RATING_TEMPLATES_KEY))
                 _ = SaveRatingsTemplates(MockData.RATING_TEMPLATES);
 #endif
 
-            if (Properties.TryGetValue(RATING_TEMPLATES_KEY, out var templatesObj))
+            if (Preferences.Default.Get<object>(RATING_TEMPLATES_KEY, null) is object templatesObj)
             {
                 var templates = JsonSerializer.Deserialize<IEnumerable<RatingTemplate>>(templatesObj.ToString());
 #if DEBUG
@@ -850,10 +848,11 @@ namespace Movies
 
         private static readonly string RATING_TEMPLATES_KEY = "ratings templates";
 
-        private static async Task SaveRatingsTemplates(IEnumerable<RatingTemplate> templates)
+        private static Task SaveRatingsTemplates(IEnumerable<RatingTemplate> templates)
         {
-            Application.Current.Properties[RATING_TEMPLATES_KEY] = JsonSerializer.Serialize(templates);
-            await Application.Current.SavePropertiesAsync();
+            Preferences.Default.Set(RATING_TEMPLATES_KEY, JsonSerializer.Serialize(templates));
+            return Task.CompletedTask;
+            //await Application.Current.SavePropertiesAsync();
         }
     }
 }

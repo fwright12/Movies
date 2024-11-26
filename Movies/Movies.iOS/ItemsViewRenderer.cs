@@ -3,14 +3,18 @@ using System;
 using System.ComponentModel;
 using System.Linq;
 using UIKit;
-using Xamarin.Forms;
-using Xamarin.Forms.Platform.iOS;
+using Microsoft.Maui.Controls.Handlers.Compatibility;
+using Microsoft.Maui.Controls.Platform;
+using Microsoft.Maui.Controls;
+using Microsoft.Maui;
 
 //[assembly: ExportRenderer(typeof(Page), typeof(Movies.iOS.NavigationPageRenderer))]
 //[assembly: ExportRenderer(typeof(ScrollView), typeof(Movies.iOS.ScrollViewRenderer))]
 //[assembly: ExportRenderer(typeof(PageRenderer), typeof(Movies.iOS.PageRenderer))]
 //[assembly: ExportRenderer(typeof(Shell), typeof(Movies.iOS.Test))]
+// TODO Xamarin.Forms.ExportRendererAttribute is not longer supported. For more details see https://github.com/dotnet/maui/wiki/Using-Custom-Renderers-in-.NET-MAUI
 [assembly: ExportRenderer(typeof(CollectionView), typeof(Movies.iOS.CollectionViewRenderer))]
+// TODO Xamarin.Forms.ExportRendererAttribute is not longer supported. For more details see https://github.com/dotnet/maui/wiki/Using-Custom-Renderers-in-.NET-MAUI
 [assembly: ExportRenderer(typeof(CarouselView), typeof(Movies.iOS.CarouselViewRenderer))]
 [assembly: ResolutionGroupName("Movies")]
 [assembly: ExportEffect(typeof(Movies.iOS.FixiOSCollectionViewScrollsToTopPlatformEffect), nameof(Movies.iOS.FixiOSCollectionViewScrollsToTopPlatformEffect))]

@@ -1,6 +1,8 @@
 ﻿using System.ComponentModel;
-using Xamarin.Forms;
-using Xamarin.Forms.Platform.iOS;
+using Microsoft.Maui.Controls.Handlers.Compatibility;
+using Microsoft.Maui.Controls.Platform;
+using Microsoft.Maui.Controls;
+using Microsoft.Maui;
 
 //[assembly: ExportRenderer(typeof(Label), typeof(Movies.iOS.LabelRenderer))]
 namespace Movies.iOS

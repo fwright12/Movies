@@ -10,7 +10,9 @@ using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using Xamarin.Forms;
+using Microsoft.Maui.Controls;
+using Microsoft.Maui;
+using Microsoft.Maui.Controls.Compatibility;
 
 namespace Movies.ViewModels
 {
@@ -325,7 +327,7 @@ namespace Movies.ViewModels
             PropertyChanged += ParentDidChange;
         }
 
-        private void ParentWillChange(object sender, Xamarin.Forms.PropertyChangingEventArgs e)
+        private void ParentWillChange(object sender, Microsoft.Maui.Controls.PropertyChangingEventArgs e)
         {
             if (e.PropertyName == nameof(Parent) && Parent != null)
             {

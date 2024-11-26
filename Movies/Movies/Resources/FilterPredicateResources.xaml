@@ -1,5 +1,5 @@
-﻿<?xml version="1.0" encoding="utf-8" ?>
-<ResourceDictionary xmlns="http://xamarin.com/schemas/2014/forms"
+<?xml version="1.0" encoding="utf-8" ?>
+<ResourceDictionary xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
                     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
                     xmlns:movies="clr-namespace:Movies"
                     xmlns:converters="clr-namespace:Movies.Converters"
@@ -7,8 +7,8 @@
                     xmlns:viewmodels="clr-namespace:Movies.ViewModels"
                     xmlns:models="clr-namespace:Movies.Models"
                     xmlns:sys="clr-namespace:System;assembly=mscorlib"
-                    xmlns:ext="clr-namespace:Xamarin.Forms.Extensions;assembly=Xamarin.Forms.Extensions"
-                    xmlns:forms="clr-namespace:Xamarin.Forms;assembly=Xamarin.Forms.Extensions"
+                    xmlns:ext="clr-namespace:Microsoft.Maui.Controls.Extensions;assembly=Maui.Extensions"
+                    xmlns:forms="clr-namespace:Microsoft.Maui.Controls;assembly=Maui.Extensions"
                     x:Class="Movies.FilterPredicateResources">
     <Style x:Key="DefaultComparisonStyle"
            TargetType="Label"

@@ -10,10 +10,13 @@ using Android.OS;
 using Android.Runtime;
 using Android.Views;
 using Android.Widget;
-using Xamarin.Forms;
-using Xamarin.Forms.Platform.Android;
 using Movies.Views;
+using Microsoft.Maui.Controls.Handlers.Compatibility;
+using Microsoft.Maui.Controls.Platform;
+using Microsoft.Maui.Controls;
+using Microsoft.Maui;
 
+#if false
 [assembly: ExportRenderer (typeof(CollectionView), typeof(Movies.Droid.CollectionViewRenderer))]
 [assembly: ExportRenderer (typeof(CarouselView), typeof(Movies.Droid.CarouselViewRenderer))]
 namespace Movies.Droid
@@ -69,3 +72,4 @@ namespace Movies.Droid
         }
     }
 }
+#endif

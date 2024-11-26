@@ -1,40 +1,39 @@
-﻿using Android.App;
+using Android.App;
 using Android.Content;
 using Android.Content.PM;
 using Android.OS;
-using Firebase;
-using Xamarin.Forms.Platform.Android.AppLinks;
+using Microsoft.Maui;
 
-namespace Movies.Droid
-{
-    [Activity(Theme = "@style/MainTheme", MainLauncher = true, ConfigurationChanges = ConfigChanges.ScreenSize | ConfigChanges.Orientation)]
-    [IntentFilter(new[] { Intent.ActionView },
+namespace Movies.Droid;
+
+[Activity(Theme = "@style/Maui.SplashTheme", MainLauncher = true, ConfigurationChanges = ConfigChanges.ScreenSize | ConfigChanges.Orientation | ConfigChanges.UiMode | ConfigChanges.ScreenLayout | ConfigChanges.SmallestScreenSize)]
+//[Activity(Theme = "@style/MainTheme", MainLauncher = true, ConfigurationChanges = ConfigChanges.ScreenSize | ConfigChanges.Orientation)]
+[IntentFilter(new[] { Intent.ActionView },
               Categories = new[] { Intent.CategoryBrowsable, Intent.CategoryDefault },
               DataScheme = App.OAUTH_SCHEME,
               DataHost = App.OAUTH_HOST,
               AutoVerify = true)]
-    public class MainActivity : global::Xamarin.Forms.Platform.Android.FormsAppCompatActivity
+public class MainActivity : MauiAppCompatActivity
+{
+    protected override void OnCreate(Bundle savedInstanceState)
     {
-        protected override void OnCreate(Bundle savedInstanceState)
-        {
-            TabLayoutResource = Resource.Layout.Tabbar;
-            ToolbarResource = Resource.Layout.Toolbar;
-            var app = Xamarin.Forms.Application.Current;
+        //TabLayoutResource = Resource.Layout.Tabbar;
+        //ToolbarResource = Resource.Layout.Toolbar;
+        //var app = Xamarin.Forms.Application.Current;
 
-            base.OnCreate(savedInstanceState);
+        base.OnCreate(savedInstanceState);
 
-            Android.Gms.Ads.MobileAds.Initialize(ApplicationContext);
+        //Android.Gms.Ads.MobileAds.Initialize(ApplicationContext);
 
-            global::Xamarin.Forms.Forms.Init(this, savedInstanceState);
+        //global::Xamarin.Forms.Forms.Init(this, savedInstanceState);
 
-            FFImageLoading.Forms.Platform.CachedImageRenderer.Init(true);
-            FFImageLoading.Forms.Platform.CachedImageRenderer.InitImageViewHandler();
+        //FFImageLoading.Forms.Platform.CachedImageRenderer.Init(true);
+        //FFImageLoading.Forms.Platform.CachedImageRenderer.InitImageViewHandler();
 
-            //Firebase.InitializeApp(this);
-            AndroidAppLinks.Init(this);
+        //Firebase.InitializeApp(this);
+        //AndroidAppLinks.Init(this);
 
-            JavaScriptEvaluationService.Register(new JavaScriptEvaluatorFactory(ApplicationContext));
-            LoadApplication(app as App ?? new App());
-        }
+        JavaScriptEvaluationService.Register(new JavaScriptEvaluatorFactory(ApplicationContext));
+        //LoadApplication(app as App ?? new App());
     }
 }

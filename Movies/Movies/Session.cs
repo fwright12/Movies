@@ -4,7 +4,7 @@ using System.Text.Json;
 
 namespace Movies
 {
-    public class Session : BindableDictionary<object>
+    public class Session : BindableDictionary<string>
     {
         public DateTime? LastAccessed
         {
@@ -14,8 +14,8 @@ namespace Movies
 
         public DateTime? DBLastCleaned
         {
-            get => GetValue(DB_LAST_CLEANED_KEY) as DateTime?;
-            set => SetValue(value, DB_LAST_CLEANED_KEY);
+            get => GetValue(DB_LAST_CLEANED_KEY) is string str ? JsonSerializer.Deserialize<DateTime>(str) : null;
+            set => SetValue(JsonSerializer.Serialize(value), DB_LAST_CLEANED_KEY);
         }
 
         public Dictionary<string, string> Filters
@@ -53,9 +53,9 @@ namespace Movies
         };
         private Dictionary<string, string> _Filters;
 
-        public Session() : this(new Dictionary<string, object>()) { }
+        public Session() : this(new Dictionary<string, string>()) { }
 
-        public Session(IDictionary<string, object> values) : base(values) { }
+        public Session(IDictionary<string, string> values) : base(values) { }
 
         public bool TryGetFilters(string key, out IEnumerable<OperatorPredicate> filters)
         {

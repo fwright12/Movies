@@ -8,7 +8,9 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using System.Web;
 using System.Windows.Input;
-using Xamarin.Forms;
+using Microsoft.Maui.Graphics;
+using Microsoft.Maui.Controls;
+using Microsoft.Maui;
 
 namespace Movies.ViewModels
 {
@@ -149,13 +151,13 @@ namespace Movies.ViewModels
     {
         public static readonly BoolToColorConverter SuccessFailureConverter = new BoolToColorConverter
         {
-            TrueColor = Color.Green,
-            FalseColor = Color.Red,
+            TrueColor = Colors.Green,
+            FalseColor = Colors.Red,
         };
 
         public Color TrueColor { get; set; }
         public Color FalseColor { get; set; }
-        public Color DefaultColor { get; set; } = Color.Default;
+        public Color DefaultColor { get; set; } = null;
 
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {

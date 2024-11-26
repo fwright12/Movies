@@ -1,5 +1,4 @@
-﻿using FFImageLoading.Cache;
-using Movies.Data.Local;
+﻿using Movies.Data.Local;
 using SQLite;
 
 namespace MoviesTests.Data

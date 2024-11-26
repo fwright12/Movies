@@ -1,8 +1,7 @@
-﻿<?xml version="1.0" encoding="UTF-8"?>
-<DataTemplate xmlns="http://xamarin.com/schemas/2014/forms"
+<?xml version="1.0" encoding="UTF-8"?>
+<DataTemplate xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
               xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-              xmlns:forms="clr-namespace:Xamarin.Forms;assembly=Xamarin.Forms.Extensions"
-              xmlns:ffil="clr-namespace:FFImageLoading.Forms;assembly=FFImageLoading.Forms"
+              xmlns:forms="clr-namespace:Microsoft.Maui.Controls;assembly=Maui.Extensions"
               xmlns:movies="clr-namespace:Movies"
               xmlns:converters="clr-namespace:Movies.Converters"
               xmlns:models="clr-namespace:Movies.Models"
@@ -77,8 +76,8 @@
                 <BindableLayout.ItemTemplate>
                     <DataTemplate x:DataType="models:Rating">
                         <StackLayout Orientation="Horizontal">
-                            <ffil:CachedImage Source="{Binding Company.LogoPath, Converter={Static converters:UriToImageSourceConverter.Instance}}"
-                                              WidthRequest="{Binding Height, Source={RelativeSource Self}}" />
+                            <Image Source="{Binding Company.LogoPath, Converter={Static converters:UriToImageSourceConverter.Instance}}"
+                                   WidthRequest="{Binding Height, Source={RelativeSource Self}}" />
 
                             <Label Text="{Binding Score}"
                                    VerticalOptions="Center" />
@@ -95,8 +94,8 @@
                              BindableLayout.ItemsSource="{Binding}">
                     <BindableLayout.ItemTemplate>
                         <DataTemplate x:DataType="models:WatchProvider">
-                            <ffil:CachedImage Source="{Binding Company.LogoPath}"
-                                              WidthRequest="{Binding Height, Source={RelativeSource Self}}" />
+                            <Image Source="{Binding Company.LogoPath}"
+                                   WidthRequest="{Binding Height, Source={RelativeSource Self}}" />
                         </DataTemplate>
                     </BindableLayout.ItemTemplate>
                 </StackLayout>

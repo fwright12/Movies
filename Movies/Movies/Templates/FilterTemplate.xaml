@@ -1,10 +1,11 @@
-﻿<?xml version="1.0" encoding="UTF-8"?>
-<DataTemplate xmlns="http://xamarin.com/schemas/2014/forms"
+<?xml version="1.0" encoding="UTF-8"?>
+<DataTemplate xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
               xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
               xmlns:movies="clr-namespace:Movies"
               xmlns:viewmodels="clr-namespace:Movies.ViewModels"
               xmlns:views="clr-namespace:Movies.Views"
-              xmlns:forms="clr-namespace:Xamarin.Forms;assembly=Xamarin.Forms.Extensions"
+              xmlns:forms="clr-namespace:Microsoft.Maui.Controls;assembly=Maui.Extensions"
+              xmlns:formsOld="clr-namespace:Microsoft.Maui.Controls.Compatibility;assembly=Maui.Extensions"
               x:Class="Movies.Views.FilterTemplate">
     <StackLayout Orientation="Vertical"
                  Spacing="0"
@@ -52,7 +53,7 @@
                                               HorizontalOptions="StartAndExpand" />
 
                             <Button Text="Done"
-                                    Command="{Binding NextSnapPointCommand, Source={RelativeSource AncestorType={x:Type forms:DrawerView}}}"
+                                    Command="{Binding NextSnapPointCommand, Source={RelativeSource AncestorType={x:Type formsOld:DrawerView}}}"
                                     HorizontalOptions="End" />
                         </StackLayout>
 
@@ -69,7 +70,7 @@
 
         <VisualStateManager.VisualStateGroups>
             <VisualStateGroup>
-                <VisualState Name="{Static forms:DrawerView+VisualStates.Closed}">
+                <VisualState Name="{Static formsOld:DrawerView+VisualStates.Closed}">
                     <VisualState.Setters>
                         <Setter TargetName="scroll"
                                 Property="ScrollView.Orientation"
@@ -103,7 +104,7 @@
                     </VisualState.Setters>
                 </VisualState>
 
-                <VisualState Name="{Static forms:DrawerView+VisualStates.Open}">
+                <VisualState Name="{Static formsOld:DrawerView+VisualStates.Open}">
                     <VisualState.Setters>
                         <Setter TargetName="scroll"
                                 Property="ScrollView.Orientation"

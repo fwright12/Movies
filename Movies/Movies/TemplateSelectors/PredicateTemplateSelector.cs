@@ -1,7 +1,8 @@
 ﻿using Movies.Models;
 using Movies.ViewModels;
 using System;
-using Xamarin.Forms;
+using Microsoft.Maui.Controls;
+using Microsoft.Maui;
 
 namespace Movies.Templates
 {

@@ -9,7 +9,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using Movies.Models;
-using Xamarin.Forms;
+using Microsoft.Maui.Controls;
+using Microsoft.Maui;
+using Microsoft.Maui.ApplicationModel;
 
 namespace Movies.ViewModels
 {

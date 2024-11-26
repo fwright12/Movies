@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-
-using Xamarin.Forms;
-using Xamarin.Forms.Xaml;
+using Microsoft.Maui.Controls.Xaml;
+using Microsoft.Maui.Controls;
+using Microsoft.Maui;
 
 namespace Movies.Views
 {
@@ -29,11 +29,11 @@ namespace Movies.Views
         {
             var content = (editing ?? contentView.GetIsEditing()) ? (edit ?? contentView.GetEdit()) : (display ?? contentView.GetDisplay());
 
-            contentView.ClearValue(Xamarin.Forms.Extensions.ContentView.ContentTemplateProperty);
+            contentView.ClearValue(Microsoft.Maui.Controls.Extensions.ContentView.ContentTemplateProperty);
             contentView.ClearValue(ContentView.ContentProperty);
             if (content is ElementTemplate template)
             {
-                Xamarin.Forms.Extensions.ContentView.SetContentTemplate(contentView, template);
+                Microsoft.Maui.Controls.Extensions.ContentView.SetContentTemplate(contentView, template);
             }
             else if (content is View view)
             {

@@ -13,22 +13,22 @@ namespace Movies
 {
     public class AppPropertiesCache : IJsonCache, IEnumerable<KeyValuePair<string, JsonResponse>>
     {
-        public Xamarin.Forms.Application Application { get; }
+        public Microsoft.Maui.Controls.Application Application { get; }
 
-        public AppPropertiesCache(Xamarin.Forms.Application application)
+        public AppPropertiesCache(Microsoft.Maui.Controls.Application application)
         {
             Application = application;
         }
 
         public async Task AddAsync(string url, JsonResponse response)
         {
-            Application.Properties[url] = JsonSerializer.Serialize(new
+            Preferences.Default.Set(url, JsonSerializer.Serialize(new
             {
                 Json = await response.Content.ReadAsStringAsync(),
                 Timestamp = response.Timestamp
-            });
+            }));
 
-            await Application.SavePropertiesAsync();
+            //await Application.SavePropertiesAsync();
         }
 
         public async Task Clear()
@@ -39,13 +39,13 @@ namespace Movies
             }
         }
 
-        public Task<bool> IsCached(string url) => Task.FromResult(Application.Properties.ContainsKey(url));
+        public Task<bool> IsCached(string url) => Task.FromResult(Preferences.Default.ContainsKey(url));
 
         public Task<JsonResponse> TryGetValueAsync(string url) => Task.FromResult(TryGetValue(url, out var response) ? response : null);
 
         public bool TryGetValue(string url, out JsonResponse response)
         {
-            if (Application.Properties.TryGetValue(url, out var value) && value is string cached)
+            if (Preferences.Default.Get<string>(url, null) is string cached)
             {
                 try
                 {
@@ -64,11 +64,11 @@ namespace Movies
             return false;
         }
 
-        public async Task<bool> Expire(string url)
+        public Task<bool> Expire(string url)
         {
-            bool success = Application.Properties.Remove(url);
-            await Application.SavePropertiesAsync();
-            return success;
+            Preferences.Default.Remove(url);
+            //await Application.SavePropertiesAsync();
+            return Task.FromResult(true);
         }
 
         public async IAsyncEnumerator<KeyValuePair<string, JsonResponse>> GetAsyncEnumerator(CancellationToken cancellationToken = default)
@@ -85,13 +85,14 @@ namespace Movies
 
         public IEnumerator<KeyValuePair<string, JsonResponse>> GetEnumerator()
         {
-            foreach (var kvp in Application.Properties)
-            {
-                if (kvp.Key is string url && Uri.TryCreate(url, UriKind.RelativeOrAbsolute, out _) && TryGetValue(url, out var response))
-                {
-                    yield return new KeyValuePair<string, JsonResponse>(url, response);
-                }
-            }
+            throw new NotImplementedException();
+            //foreach (var kvp in Application.Properties)
+            //{
+            //    if (kvp.Key is string url && Uri.TryCreate(url, UriKind.RelativeOrAbsolute, out _) && TryGetValue(url, out var response))
+            //    {
+            //        yield return new KeyValuePair<string, JsonResponse>(url, response);
+            //    }
+            //}
         }
 
         IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();

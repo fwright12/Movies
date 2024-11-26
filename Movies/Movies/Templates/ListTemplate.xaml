@@ -1,14 +1,15 @@
-﻿<?xml version="1.0" encoding="UTF-8"?>
-<ControlTemplate xmlns="http://xamarin.com/schemas/2014/forms"
+<?xml version="1.0" encoding="UTF-8"?>
+<ControlTemplate xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
                  xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
                  xmlns:movies="clr-namespace:Movies"
                  xmlns:viewmodels="clr-namespace:Movies.ViewModels"
                  xmlns:views="clr-namespace:Movies.Views"
-                 xmlns:ext="clr-namespace:Xamarin.Forms.Extensions;assembly=Xamarin.Forms.Extensions"
-                 xmlns:forms="clr-namespace:Xamarin.Forms;assembly=Xamarin.Forms.Extensions"
+                 xmlns:ext="clr-namespace:Microsoft.Maui.Controls.Extensions;assembly=Maui.Extensions"
+                 xmlns:forms="clr-namespace:Microsoft.Maui.Controls;assembly=Maui.Extensions"
+                 xmlns:formsOld="clr-namespace:Microsoft.Maui.Controls.Compatibility;assembly=Maui.Extensions"
                  xmlns:templates="clr-namespace:Movies.Templates"
                  x:Class="Movies.ListTemplate">
-    <forms:DrawerView x:Name="root"
+    <formsOld:DrawerView x:Name="root"
                       BackgroundColor="{Binding BackgroundColor, Source={RelativeSource AncestorType={x:Type Page}}}"
                       BindingContext="{TemplateBinding BindingContext}">
         <VisualElement.Resources>
@@ -50,18 +51,18 @@
             <views:ShowFiltersBehavior CollectionView="{x:Reference collectionView}" />
         </VisualElement.Behaviors>
 
-        <forms:DrawerView.DrawerTemplate>
+        <formsOld:DrawerView.DrawerTemplate>
             <views:FilterTemplate />
-        </forms:DrawerView.DrawerTemplate>
+        </formsOld:DrawerView.DrawerTemplate>
 
-        <forms:DrawerView.SnapPoints>
+        <formsOld:DrawerView.SnapPoints>
             <viewmodels:ItemTypeSnapPoint Alignment="End" />
 
-            <forms:SnapPoint Value="{Binding Height, Source={RelativeSource AncestorType={x:Type forms:DrawerView}}, Converter={Static forms:ArithmeticConverter.SUBTRACT}, ConverterParameter=25}" />
-        </forms:DrawerView.SnapPoints>
+            <formsOld:SnapPoint Value="{Binding Height, Source={RelativeSource AncestorType={x:Type formsOld:DrawerView}}, Converter={Static forms:ArithmeticConverter.SUBTRACT}, ConverterParameter=25}" />
+        </formsOld:DrawerView.SnapPoints>
 
         <!--<VisualElement.Triggers>
-            <DataTrigger TargetType="forms:DrawerView"
+            <DataTrigger TargetType="formsOld:DrawerView"
                          Binding="{Binding Editing, FallbackValue='False'}"
                          Value="False">
                 <Setter Property="Drawer"
@@ -71,7 +72,7 @@
                 </Setter>
             </DataTrigger>
 
-            <DataTrigger TargetType="forms:DrawerView"
+            <DataTrigger TargetType="formsOld:DrawerView"
                          Binding="{Binding Editing}"
                          Value="True">
                 <Setter Property="Drawer"
@@ -221,10 +222,10 @@
                     </VisualStateGroup>
                 </VisualStateManager.VisualStateGroups>
 
-                <forms:Ads.CollectionAds>
+                <!--<forms:Ads.CollectionAds>
                     <forms:AdInfo Frequency="10"
                                   Template="{StaticResource InlineBannerTemplate}" />
-                </forms:Ads.CollectionAds>
+                </forms:Ads.CollectionAds>-->
 
                 <CollectionView.Header>
                     <StackLayout Orientation="Vertical"
@@ -388,7 +389,7 @@
 
                                 <Button Text="{OnPlatform Android=&#xf38b;, iOS=&#xf31b;}"
                                         Command="{Binding OpenFiltersCommand, Source={Static Application.Current}}"
-                                        CommandParameter="{Binding Source={RelativeSource AncestorType={x:Type forms:DrawerView}}}"
+                                        CommandParameter="{Binding Source={RelativeSource AncestorType={x:Type formsOld:DrawerView}}}"
                                         IsVisible="{Binding Filters.Editors.Count, Converter={Static forms:ObjectToFalseConverter.Instance}, ConverterParameter={StaticResource zero}}" />
 
                                 <Button Command="{Binding ToggleListLayoutCommand}">
@@ -481,7 +482,7 @@
 
                 <CollectionView.EmptyView>
                     <Binding Path="DrawerContentView.IsVisibl"
-                             Source="{RelativeSource AncestorType={x:Type forms:DrawerView}}">
+                             Source="{RelativeSource AncestorType={x:Type formsOld:DrawerView}}">
                         <Binding.Converter>
                             <forms:BoolToObjectConverter TrueObject="Hmm... Nothing to show here. Maybe try a different search?"
                                                          FalseObject="No items" />
@@ -510,5 +511,5 @@
                         CommandParameter="{Binding SelectedItems, Source={x:Reference collectionView}}" />
             </StackLayout>
         </Grid>
-    </forms:DrawerView>
+    </formsOld:DrawerView>
 </ControlTemplate>

@@ -1,18 +1,23 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-
 	<PropertyGroup>
-		<TargetFramework>netstandard2.1</TargetFramework>
 		<Configurations>Debug;Release;Release Ad Hoc</Configurations>
 		<RunAnalyzersDuringBuild>True</RunAnalyzersDuringBuild>
 		<RunAnalyzersDuringLiveAnalysis>False</RunAnalyzersDuringLiveAnalysis>
+		<TargetFrameworks>net8.0-ios;net8.0;net8.0-android34.0</TargetFrameworks>
+		<TargetFrameworks Condition="$([MSBuild]::IsOSPlatform('windows'))">$(TargetFrameworks);net8.0-windows10.0.19041.0</TargetFrameworks>
+		<UseMaui>True</UseMaui>
+		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">21.0</SupportedOSPlatformVersion>
+		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">11.0</SupportedOSPlatformVersion>
+		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">13.1</SupportedOSPlatformVersion>
+		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.19041.0</SupportedOSPlatformVersion>
+		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'tizen'">6.5</SupportedOSPlatformVersion>
+		<OutputType>Library</OutputType>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<SingleProject>true</SingleProject>
 	</PropertyGroup>
-
 	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
-		<DebugType>portable</DebugType>
-		<DebugSymbols>true</DebugSymbols>
 		<DefineConstants>TRACE</DefineConstants>
 	</PropertyGroup>
-
 	<ItemGroup>
 		<None Remove="Logos\JustWatchAttribution.png" />
 		<None Remove="Logos\TMDbAttribution.png" />
@@ -20,7 +25,6 @@
 		<None Remove="Logos\TraktAttributionLight.png" />
 		<None Remove="Logos\TraktLogo.png" />
 	</ItemGroup>
-
 	<ItemGroup>
 		<EmbeddedResource Include="Ionicons.ttf" />
 		<EmbeddedResource Include="Logos\JustWatchAttribution.png" />
@@ -30,22 +34,16 @@
 		<EmbeddedResource Include="Logos\TraktAttributionLight.png" />
 		<EmbeddedResource Include="Logos\TraktLogo.png" />
 	</ItemGroup>
-
 	<ItemGroup>
-		<PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
 		<PackageReference Include="sqlite-net-pcl" Version="1.9.172" />
-		<PackageReference Include="System.Text.Json" Version="8.0.3" />
-		<PackageReference Include="Xamarin.Essentials" Version="1.8.1" />
-		<PackageReference Include="Xamarin.FFImageLoading" Version="2.4.11.982" />
-		<PackageReference Include="Xamarin.FFImageLoading.Forms" Version="2.4.11.982" />
-		<PackageReference Include="Xamarin.Forms" Version="5.0.0.2612" />
+		<PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
+		<PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiVersion)" />
+		<PackageReference Include="Microsoft.Maui.Controls.Compatibility" Version="$(MauiVersion)" />
 	</ItemGroup>
-
 	<ItemGroup>
+		<ProjectReference Include="..\..\..\..\Code\C#\Maui.Extensions\Maui.Extensions.csproj" />
 		<ProjectReference Include="..\..\..\..\Code\C#\System.Extensions\System.Extensions.csproj" />
-		<ProjectReference Include="..\..\..\..\Code\C#\Xamarin.Forms.Extensions\Xamarin.Forms.Extensions.csproj" />
 	</ItemGroup>
-
 	<ItemGroup>
 		<Compile Update="Resources\FilterPredicateResources.xaml.cs">
 			<SubType>Code</SubType>
@@ -61,7 +59,6 @@
 			<DependentUpon>EditView.xaml</DependentUpon>
 		</Compile>
 	</ItemGroup>
-
 	<ItemGroup>
 		<EmbeddedResource Update="Resources\Constants.xaml">
 			<Generator>MSBuild:UpdateDesignTimeXaml</Generator>
@@ -137,7 +134,7 @@
 			<Generator>MSBuild:UpdateDesignTimeXaml</Generator>
 		</EmbeddedResource>
 		<EmbeddedResource Update="Views\RatingsBuilderPage.xaml">
-		  <Generator>MSBuild:UpdateDesignTimeXaml</Generator>
+			<Generator>MSBuild:UpdateDesignTimeXaml</Generator>
 		</EmbeddedResource>
 		<EmbeddedResource Update="Views\ReviewsPage.xaml">
 			<Generator>MSBuild:UpdateDesignTimeXaml</Generator>

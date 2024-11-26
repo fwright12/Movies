@@ -3,7 +3,9 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text;
-using Xamarin.Forms;
+using Microsoft.Maui.Controls;
+using Microsoft.Maui;
+using Microsoft.Maui.Controls.Compatibility;
 
 namespace Movies.Views
 {
@@ -99,7 +101,7 @@ namespace Movies.Views
 
             var collectionView = (CollectionView)sender;
 
-            if (collectionView.Header is Layout layout)
+            if (collectionView.Header is Microsoft.Maui.Controls.Compatibility.Layout layout)
             {
                 layout.LayoutChanged += ListScrolled;
             }
@@ -172,7 +174,7 @@ namespace Movies.Views
                 if (verticalOffset > height)
                 {
 
-                    var view = collectionView.Parent as Layout;
+                    var view = collectionView.Parent as Microsoft.Maui.Controls.Compatibility.Layout;
                     //view.Padding = new Thickness(view.Padding.Left, view.Padding.Top, view.Padding.Right, drawerView.DrawerContentView.IsVisible ? drawerView.DrawerContentView.Height : 0);
                     //Print.Log(drawerView.DrawerContentView.IsVisible, drawerView.DrawerContentView.Height);
                     //drawerView.DrawerContentView.IsVisible = (e.VerticalOffset <= 0 && height == 0) || (e.VerticalDelta < 0 && e.VerticalOffset >= height);

@@ -8,7 +8,10 @@ using System.ComponentModel;
 using System.Globalization;
 using System.Linq;
 using System.Windows.Input;
-using Xamarin.Forms;
+using Microsoft.Maui.Controls.Compatibility;
+using Microsoft.Maui;
+using Microsoft.Maui.Graphics;
+using Microsoft.Maui.Layouts;
 
 namespace Movies.Views
 {
@@ -17,107 +20,7 @@ namespace Movies.Views
         public FixiOSCollectionViewScrollsToTopPlatformEffect() : base($"Movies.{nameof(FixiOSCollectionViewScrollsToTopPlatformEffect)}") { }
     }
 
-    public class BetterAbsoluteLayout : AbsoluteLayout
-    {
-        protected override SizeRequest OnSizeRequest(double widthConstraint, double heightConstraint)
-        {
-            var bestFitSize = new Size();
-            var minimum = new Size();
-            foreach (View child in Children)
-            {
-                SizeRequest desiredSize = ComputeBoundingRegionDesiredSize(child);
-
-                bestFitSize.Width = Math.Max(bestFitSize.Width, desiredSize.Request.Width);
-                bestFitSize.Height = Math.Max(bestFitSize.Height, desiredSize.Request.Height);
-                minimum.Width = Math.Max(minimum.Width, desiredSize.Minimum.Width);
-                minimum.Height = Math.Max(minimum.Height, desiredSize.Minimum.Height);
-            }
-
-            return new SizeRequest(bestFitSize, minimum);
-        }
-
-        static SizeRequest ComputeBoundingRegionDesiredSize(View view)
-        {
-            AbsoluteLayoutFlags absFlags = GetLayoutFlags(view);
-
-            if (absFlags == AbsoluteLayoutFlags.All)
-            {
-                return new SizeRequest();
-            }
-
-            Rectangle bounds = GetLayoutBounds(view);
-            bool widthIsProportional = (absFlags & AbsoluteLayoutFlags.WidthProportional) != 0;
-            bool heightIsProportional = (absFlags & AbsoluteLayoutFlags.HeightProportional) != 0;
-            bool xIsProportional = (absFlags & AbsoluteLayoutFlags.XProportional) != 0;
-            bool yIsProportional = (absFlags & AbsoluteLayoutFlags.YProportional) != 0;
-
-            var width = 0.0;
-            var height = 0.0;
-
-            // add in required x values
-            if (!xIsProportional)
-            {
-                width += bounds.X;
-            }
-
-            if (!yIsProportional)
-            {
-                height += bounds.Y;
-            }
-
-            var sizeRequest = new Lazy<SizeRequest>(() => view.Measure(double.PositiveInfinity, double.PositiveInfinity, MeasureFlags.IncludeMargins));
-            double minWidth = width;
-            double minHeight = height;
-
-            if (!widthIsProportional)
-            {
-                if (bounds.Width != AutoSize)
-                {
-                    // fixed size
-                    width += bounds.Width;
-                    minWidth += bounds.Width;
-                }
-                else
-                {
-                    // auto size
-                    width += sizeRequest.Value.Request.Width;
-                    minWidth += sizeRequest.Value.Minimum.Width;
-                }
-            }
-            else
-            {
-                // proportional size
-                //width += sizeRequest.Value.Request.Width / Math.Max(0.25, bounds.Width);
-                //minWidth += 0;
-            }
-
-            if (!heightIsProportional)
-            {
-                if (bounds.Height != AutoSize)
-                {
-                    // fixed size
-                    height += bounds.Height;
-                    minHeight += bounds.Height;
-                }
-                else
-                {
-                    // auto size
-                    height += sizeRequest.Value.Request.Height;
-                    minHeight += sizeRequest.Value.Minimum.Height;
-                }
-            }
-            else
-            {
-                // proportional size
-                //height += sizeRequest.Value.Request.Height / Math.Max(0.25, bounds.Height);
-                //minHeight += 0;
-            }
-
-            return new SizeRequest(new Size(width, height), new Size(minWidth, minHeight));
-        }
-    }
-
-    public class UniformStack : Grid
+    public class UniformStack : Microsoft.Maui.Controls.Compatibility.Grid
     {
         public static readonly BindableProperty ItemsLayoutProperty = BindableProperty.Create(nameof(ItemsLayout), typeof(IItemsLayout), typeof(UniformStack), LinearItemsLayout.Vertical, propertyChanging: (bindable, oldValue, newValue) => ((UniformStack)bindable).ItemsLayoutChanging((IItemsLayout)oldValue, (IItemsLayout)newValue), propertyChanged: (bindable, oldValue, newValue) => ((UniformStack)bindable).ItemsLayoutChanged((IItemsLayout)oldValue, (IItemsLayout)newValue));
 
@@ -300,8 +203,8 @@ namespace Movies.Views
             return collection;
         }
 
-        private BindableProperty GetLayoutProperty(IItemsLayout layout) => (layout as ItemsLayout)?.Orientation == ItemsLayoutOrientation.Horizontal ? Grid.ColumnDefinitionsProperty : Grid.RowDefinitionsProperty;
-        private BindableProperty GetPositionProperty(IItemsLayout layout) => (layout as ItemsLayout)?.Orientation == ItemsLayoutOrientation.Horizontal ? Grid.ColumnProperty : Grid.RowProperty;
+        private BindableProperty GetLayoutProperty(IItemsLayout layout) => (layout as ItemsLayout)?.Orientation == ItemsLayoutOrientation.Horizontal ? Microsoft.Maui.Controls.Compatibility.Grid.ColumnDefinitionsProperty : Microsoft.Maui.Controls.Compatibility.Grid.RowDefinitionsProperty;
+        private BindableProperty GetPositionProperty(IItemsLayout layout) => (layout as ItemsLayout)?.Orientation == ItemsLayoutOrientation.Horizontal ? Microsoft.Maui.Controls.Compatibility.Grid.ColumnProperty : Microsoft.Maui.Controls.Compatibility.Grid.RowProperty;
     }
 
     public static class Extensions
@@ -423,7 +326,7 @@ namespace Movies.Views
         public static View GetContent(this ScrollView bindable) => (View)bindable.GetValue(ContentProperty);
         public static void SetContent(this ScrollView bindable, object value) => bindable.SetValue(ContentProperty, value);
 
-        public static readonly BindableProperty ChildCountProperty = BindableProperty.CreateAttached("ChildCount", typeof(int), typeof(Layout), 0, coerceValue: (bindable, value) =>
+        public static readonly BindableProperty ChildCountProperty = BindableProperty.CreateAttached("ChildCount", typeof(int), typeof(Microsoft.Maui.Controls.Compatibility.Layout), 0, coerceValue: (bindable, value) =>
         {
             if (bindable is ContentView contentView)
             {
@@ -439,7 +342,7 @@ namespace Movies.Views
                 {
                     if (e.PropertyName == ContentView.ContentProperty.PropertyName)
                     {
-                        ((Layout)sender).SetChildCount(0);
+                        ((Microsoft.Maui.Controls.Compatibility.Layout)sender).SetChildCount(0);
                     }
                 };
             }
@@ -454,8 +357,8 @@ namespace Movies.Views
             return 0;
         });
 
-        public static int GetChildCount(this Layout bindable) => (int)bindable.GetValue(ChildCountProperty);
-        public static void SetChildCount(this Layout bindable, int value) => bindable.SetValue(ChildCountProperty, value);
+        public static int GetChildCount(this Microsoft.Maui.Controls.Compatibility.Layout bindable) => (int)bindable.GetValue(ChildCountProperty);
+        public static void SetChildCount(this Microsoft.Maui.Controls.Compatibility.Layout bindable, int value) => bindable.SetValue(ChildCountProperty, value);
 
         public static readonly BindableProperty StepProperty = BindableProperty.CreateAttached("Step", typeof(double), typeof(Slider), null, defaultValueCreator: bindable =>
         {
@@ -902,7 +805,7 @@ namespace Movies.Views
 
                 view.ClearValue(VisualElement.WidthRequestProperty);
                 view.ClearValue(VisualElement.HeightRequestProperty);
-                size = view.Measure(widthConstraint, heightConstraint).Request;
+                size = view.Measure(widthConstraint, heightConstraint);
 
                 //Print.Log(view.WidthRequest, view.HeightRequest, autoWidth, autoHeight, widthConstraint, heightConstraint, size);
             }
@@ -910,7 +813,7 @@ namespace Movies.Views
             view.WidthRequest = autoWidth ? size.Width : 0;
             view.HeightRequest = autoHeight ? size.Height : 0;
 
-            EventHandler<Xamarin.Forms.Internals.EventArg<VisualElement>> handler = null;
+            EventHandler<Microsoft.Maui.Controls.Internals.EventArg<VisualElement>> handler = null;
             handler = (sender, e) =>
             {
                 var view = (View)sender;
