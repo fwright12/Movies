@@ -26,7 +26,7 @@ namespace MoviesTests
         [TestMethod]
         public void FiltersTests()
         {
-            var storage = new Dictionary<string, object>();
+            var storage = new Dictionary<string, string>();
 
             var session = new Session(storage);
             var predicates = new List<OperatorPredicate>();

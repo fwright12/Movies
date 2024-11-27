@@ -1,0 +1,361 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:ios="clr-namespace:Microsoft.Maui.Controls.PlatformConfiguration.iOSSpecific;assembly=Microsoft.Maui.Controls"
+             xmlns:models="clr-namespace:Movies.Models"
+             xmlns:viewmodels="clr-namespace:Movies.ViewModels"
+             xmlns:views="clr-namespace:Movies.Views"
+             xmlns:ext="clr-namespace:Microsoft.Maui.Controls.Extensions;assembly=MauiExtensions"
+             x:Class="Movies.Views.RatingsBuilderPage"
+             BindingContext="{Binding RatingTemplateManager, Source={Static Application.Current}}"
+             views:Extensions.DisappearingCommand="{Binding SaveRatingTemplatesCommand, Source={Static Application.Current}}">
+    <Shell.TitleView>
+        <IndicatorView x:Name="indicatorView"
+                       IndicatorColor="{AppThemeBinding Light={StaticResource LightSecondaryBackground}, Dark={StaticResource DarkSecondaryBackground}}"
+                       SelectedIndicatorColor="{StaticResource Primary}" />
+    </Shell.TitleView>
+
+    <ContentPage.ToolbarItems>
+        <ToolbarItem IsDestructive="True"
+                     Command="{Binding RemoveCommand}"
+                     CommandParameter="{Binding CurrentItem, Source={x:Reference carouselView}}">
+            <ToolbarItem.IconImageSource>
+                <FontImageSource Glyph="{OnPlatform iOS=&#xf4c4;, Android=&#xf37f;}"
+                                 FontFamily="{StaticResource IoniconsFont}" />
+            </ToolbarItem.IconImageSource>
+        </ToolbarItem>
+
+        <ToolbarItem Command="{Binding AddCommand}">
+            <ToolbarItem.IconImageSource>
+                <FontImageSource Glyph="&#xf218;"
+                                 Size="Large"
+                                 FontFamily="{StaticResource IoniconsFont}" />
+            </ToolbarItem.IconImageSource>
+
+            <ToolbarItem.CommandParameter>
+                <Binding Path="Items.Count">
+                    <Binding.Converter>
+                        <viewmodels:NewObjectConverter x:TypeArguments="models:RatingTemplate" />
+                    </Binding.Converter>
+                </Binding>
+            </ToolbarItem.CommandParameter>
+        </ToolbarItem>
+    </ContentPage.ToolbarItems>
+
+    <VisualElement.Resources>
+        <Style x:Key="TestStatusLabelStyle"
+               TargetType="Label">
+            <Setter Property="TextColor">
+                <Binding>
+                    <Binding.Converter>
+                        <viewmodels:MultiConverter>
+                            <Static Member="viewmodels:IsNotExceptionConverter.Instance" />
+                            <viewmodels:BoolToColorConverter TrueColor="Green"
+                                                             FalseColor="Red"
+                                                             DefaultColor="DarkGray" />
+                        </viewmodels:MultiConverter>
+                    </Binding.Converter>
+                </Binding>
+            </Setter>
+        </Style>
+
+        <Style x:Key="TestStatusIconSpanStyle"
+               TargetType="Span">
+            <Setter Property="FontFamily"
+                    Value="{StaticResource IoniconsFont}" />
+            <Setter Property="Text">
+                <Binding>
+                    <Binding.Converter>
+                        <viewmodels:MultiConverter>
+                            <Static Member="viewmodels:IsNotExceptionConverter.Instance" />
+                            <viewmodels:BoolToObjectConverter TrueObject="&#xf120;"
+                                                              FalseObject="&#xf128;" />
+                        </viewmodels:MultiConverter>
+                    </Binding.Converter>
+                </Binding>
+            </Setter>
+        </Style>
+
+        <Style x:Key="TestStatusLabelSpanStyle"
+               TargetType="Span">
+            <Setter Property="FontAttributes"
+                    Value="Bold" />
+            <Setter Property="FontSize"
+                    Value="Body" />
+        </Style>
+
+        <Style x:Key="ModalPageDismissButton"
+               TargetType="Button">
+            <Setter Property="HorizontalOptions"
+                    Value="End" />
+            <Setter Property="FontSize"
+                    Value="Body" />
+            <Setter Property="FontAttributes"
+                    Value="Bold" />
+            <Setter Property="Command"
+                    Value="{Static views:PopPageCommand.Modal}" />
+        </Style>
+
+        <DataTemplate x:Key="UrlJsExplainerTemplate">
+            <ContentPage Title="URL JavaScript"
+                         Padding="{StaticResource PagePadding}"
+                         ios:Page.ModalPresentationStyle="Automatic">
+                <ScrollView Orientation="Vertical">
+                    <StackLayout Orientation="Vertical"
+                                 Spacing="20">
+                        <Button Style="{StaticResource ModalPageDismissButton}"
+                                Text="Done" />
+
+                        <Label Text="The JavaScript in this section determines the URL from which the score for a movie or show can be accessed. The environment that this JavaScript is executed in will have access to the following object with information about the movie or show, which can be used to construct the URL:" />
+
+                        <Label FontSize="Small"
+                               Margin="10,0,0,0">
+                            <Label.Text>
+                                item: {
+    type: 'movie' or 'tv'
+    title: string
+    year: number
+    id: {
+        tmdb: number
+        imdb: string
+        wikidata: string
+        facebook: string
+        instagram: string
+        twitter: string
+    }
+}
+                            </Label.Text>
+                        </Label>
+
+                        <Label Text="When executed in a REPL enivornment, the JavaScript entered here should evaluate to a single string containing the URL (the final statement should NOT contain the 'return' keyword)." />
+
+                        <Label Text="Alternatively, an array of strings representing multiple URLs can be returned. In this event, the JavaScript entered in the 'Score JavaScript' section will be executed against each URL, in order, until a valid value is successfully obtained." />
+                    </StackLayout>
+                </ScrollView>
+            </ContentPage>
+        </DataTemplate>
+
+        <DataTemplate x:Key="ScoreJsExplainerTemplate">
+            <ContentPage Title="Score JavaScript"
+                         Padding="{StaticResource PagePadding}"
+                         ios:Page.ModalPresentationStyle="Automatic">
+                <ScrollView Orientation="Vertical">
+                    <StackLayout Orientation="Vertical">
+                        <Button Style="{StaticResource ModalPageDismissButton}"
+                                Text="Done" />
+
+                        <Label Text="The result of evaluting this JavaScript in a REPL environment containing the target webpage should be a single string representing the value to be displayed as the score for a movie or show." />
+                    </StackLayout>
+                </ScrollView>
+            </ContentPage>
+        </DataTemplate>
+
+        <ContentPage x:Key="TestMovieSelectionPage"
+                     x:DataType="viewmodels:RatingTemplateCollectionViewModel"
+                     Padding="10"
+                     ios:Page.ModalPresentationStyle="Automatic">
+            <VisualElement.Resources>
+                <Style TargetType="Label">
+                    <Setter Property="FontSize"
+                            Value="Default" />
+                </Style>
+            </VisualElement.Resources>
+
+            <StackLayout Orientation="Vertical">
+                <Button Style="{StaticResource ModalPageDismissButton}"
+                        Text="Cancel" />
+
+                <SearchBar x:Name="testMediaSearchBar"
+                           Text="{Binding SelectedItem.Title, Source={x:Reference testMediaCollectionView}}"
+                           SearchCommand="{Binding SearchCommand}"
+                           SearchCommandParameter="{Binding Text, Source={RelativeSource Self}}"
+                           ios:SearchBar.SearchBarStyle="Minimal" />
+
+                <CollectionView x:Name="testMediaCollectionView"
+                                x:DataType="viewmodels:AsyncItemListViewModel"
+                                VerticalOptions="FillAndExpand"
+                                BindingContext="{Binding SearchResults, Source={RelativeSource AncestorType={x:Type viewmodels:RatingTemplateCollectionViewModel}}}"
+                                ItemsSource="{Binding Items}"
+                                SelectionChangedCommand="{Static views:PopPageCommand.Modal}"
+                                SelectionMode="Single"
+                                RemainingItemsThresholdReachedCommand="{Binding LoadMoreCommand}"
+                                RemainingItemsThreshold="2">
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate>
+                            <Label FontSize="Large"
+                                   Padding="10">
+                                <Label.Text>
+                                    <MultiBinding StringFormat="{}{0} ({1})">
+                                        <Binding Path="Title" />
+                                        <Binding Path="Year" />
+                                    </MultiBinding>
+                                </Label.Text>
+                            </Label>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+            </StackLayout>
+        </ContentPage>
+    </VisualElement.Resources>
+
+    <ScrollView Orientation="Vertical"
+                Padding="{StaticResource PagePadding}">
+        <StackLayout x:DataType="viewmodels:RatingTemplateCollectionViewModel">
+            <CarouselView x:Name="carouselView"
+                          ItemsSource="{Binding Items}"
+                          CurrentItem="{Binding SelectedItem}"
+                          IndicatorView="indicatorView"
+                          Loop="false">
+                <CarouselView.ItemTemplate>
+                    <DataTemplate x:DataType="models:RatingTemplate">
+                        <StackLayout Orientation="Vertical">
+                            <VisualElement.Resources>
+                                <Style TargetType="Entry">
+                                    <Setter Property="WidthRequest"
+                                            Value="0" />
+                                    <Setter Property="HorizontalOptions"
+                                            Value="FillAndExpand" />
+                                </Style>
+
+                                <Style TargetType="Editor">
+                                    <Setter Property="FontSize"
+                                            Value="Small" />
+                                    <Setter Property="HeightRequest"
+                                            Value="400" />
+                                    <Setter Property="BackgroundColor"
+                                            Value="{AppThemeBinding Light={StaticResource LightSecondaryBackground}, Dark={StaticResource DarkSecondaryBackground}}" />
+                                </Style>
+
+                                <Style x:Key="InfoButtonStyle"
+                                       TargetType="ImageButton">
+                                    <Setter Property="BackgroundColor"
+                                            Value="Transparent" />
+
+                                    <Setter Property="Source">
+                                        <FontImageSource Glyph="&#9432;"
+                                                         FontFamily="{StaticResource IoniconsFont}"
+                                                         Size="Large"
+                                                         Color="{StaticResource Primary}" />
+                                    </Setter>
+                                </Style>
+
+                                <Style x:Key="SpacerStyle"
+                                       TargetType="BoxView">
+                                    <Setter Property="BackgroundColor"
+                                            Value="Transparent" />
+                                    <Setter Property="FlexLayout.Basis"
+                                            Value="5" />
+                                </Style>
+                            </VisualElement.Resources>
+
+                            <StackLayout x:DataType="models:RatingTemplate">
+                                <FlexLayout Direction="Row"
+                                            AlignContent="Center">
+                                    <Label Text="Name:"
+                                           VerticalOptions="Center" />
+                                    <BoxView Style="{StaticResource SpacerStyle}" />
+                                    <Entry VerticalOptions="Center"
+                                           Text="{Binding Name, Mode=TwoWay}"
+                                           FlexLayout.Grow="1" />
+                                </FlexLayout>
+
+                                <FlexLayout Direction="Row"
+                                            AlignContent="Center">
+                                    <Label Text="Logo URL:"
+                                           VerticalOptions="Center" />
+                                    <BoxView Style="{StaticResource SpacerStyle}" />
+                                    <Entry VerticalOptions="Center"
+                                           Text="{Binding LogoURL, Mode=TwoWay}"
+                                           Placeholder="https://www.example.com/logo.png"
+                                           FlexLayout.Grow="1" />
+                                </FlexLayout>
+
+                                <FlexLayout Direction="Row"
+                                            AlignContent="Center">
+                                    <Label Text="URL JavaScript:" />
+                                    <BoxView Style="{StaticResource SpacerStyle}" />
+                                    <ImageButton Style="{StaticResource InfoButtonStyle}"
+                                                 Command="{views:PushPageCommand PageTemplate={StaticResource 
+                                        UrlJsExplainerTemplate}, Modal=True}" />
+                                </FlexLayout>
+                                <Editor Text="{Binding URLJavaScipt, Mode=TwoWay}">
+                                    <Editor.Placeholder>
+                                        title = item.title.replaceAll(' ', '_').toLowerCase();
+`https://www.website.com/movie/${title}`;
+                                    </Editor.Placeholder>
+                                </Editor>
+
+                                <FlexLayout Direction="Row"
+                                            AlignContent="Center">
+                                    <Label Text="Score Javascript:" />
+                                    <BoxView Style="{StaticResource SpacerStyle}" />
+                                    <ImageButton Style="{StaticResource InfoButtonStyle}"
+                                                 Command="{views:PushPageCommand PageTemplate={StaticResource ScoreJsExplainerTemplate}, Modal=True}" />
+                                </FlexLayout>
+                                <Editor Text="{Binding ScoreJavaScript, Mode=TwoWay}"
+                                        Placeholder="document.getElementById('score').textContent" />
+                            </StackLayout>
+                        </StackLayout>
+                    </DataTemplate>
+                </CarouselView.ItemTemplate>
+            </CarouselView>
+
+            <StackLayout Orientation="Vertical">
+                <FlexLayout Direction="Row"
+                            JustifyContent="Center">
+                    <SearchBar Text="{Binding Text, Source={x:Reference testMediaSearchBar}, Mode=TwoWay}"
+                               Placeholder="Test a movie or show"
+                               views:Extensions.FocusedCommandParameter="{Binding}"
+                               WidthRequest="0"
+                               FlexLayout.Grow="1">
+                        <views:Extensions.FocusedCommand>
+                            <viewmodels:MultiCommand>
+                                <views:PushPageCommand PageTemplate="{StaticResource TestMovieSelectionPage}"
+                                                       Modal="True" />
+                                <viewmodels:FocusCommand Target="{x:Reference testMediaSearchBar}" />
+                            </viewmodels:MultiCommand>
+                        </views:Extensions.FocusedCommand>
+                    </SearchBar>
+
+                    <!--<BoxView>
+                            <View.GestureRecognizers>
+                                <TapGestureRecognizer CommandParameter="{Binding}">
+                                    <TapGestureRecognizer.Command>
+                
+                                    </TapGestureRecognizer.Command>
+                                </TapGestureRecognizer>
+                            </View.GestureRecognizers>
+                        </BoxView>-->
+
+                    <Button Text="Test it!"
+                            Command="{Binding TestCommand}"
+                            CommandParameter="{Binding SelectedItem, Source={x:Reference testMediaCollectionView}}" />
+                </FlexLayout>
+
+                <Label BindingContext="{Binding UrlJavaScriptTestResult}"
+                       Style="{StaticResource TestStatusLabelStyle}">
+                    <Label.FormattedText>
+                        <FormattedString>
+                            <Span Style="{StaticResource TestStatusIconSpanStyle}" />
+                            <Span Text=" URL: "
+                                  Style="{StaticResource TestStatusLabelSpanStyle}" />
+                            <Span Text="{Binding UrlJavaScriptTestResult, Source={RelativeSource AncestorType={x:Type viewmodels:RatingTemplateCollectionViewModel}}}" />
+                        </FormattedString>
+                    </Label.FormattedText>
+                </Label>
+
+                <Label BindingContext="{Binding ScoreJavaScriptTestResult}"
+                       Style="{StaticResource TestStatusLabelStyle}">
+                    <Label.FormattedText>
+                        <FormattedString>
+                            <Span Style="{StaticResource TestStatusIconSpanStyle}" />
+                            <Span Text=" Score: "
+                                  Style="{StaticResource TestStatusLabelSpanStyle}" />
+                            <Span Text="{Binding ScoreJavaScriptTestResult, Source={RelativeSource AncestorType={x:Type viewmodels:RatingTemplateCollectionViewModel}}}" />
+                        </FormattedString>
+                    </Label.FormattedText>
+                </Label>
+            </StackLayout>
+        </StackLayout>
+    </ScrollView>
+</ContentPage>

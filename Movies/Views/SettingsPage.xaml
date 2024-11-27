@@ -1,0 +1,191 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:movies="clr-namespace:Movies"
+             xmlns:converters="clr-namespace:Movies.Converters"
+             xmlns:viewmodels="clr-namespace:Movies.ViewModels"
+             xmlns:ext="clr-namespace:Microsoft.Maui.Controls.Extensions;assembly=MauiExtensions"
+             xmlns:views="clr-namespace:Movies.Views"
+             x:Class="Movies.Views.SettingsPage"
+             Title="Settings">
+    <VisualElement.Resources>
+        <Style TargetType="Label">
+            <Setter Property="TextColor"
+                    Value="{AppThemeBinding Light={StaticResource LightPrimaryText}, Dark={StaticResource DarkPrimaryText}}" />
+        </Style>
+
+        <Style x:Key="ViewCellStyle"
+               TargetType="View">
+            <Setter Property="BindingContext"
+                    Value="{Binding}" />
+            <Setter Property="Margin"
+                    Value="{OnPlatform iOS='20, 0', Android='15, 0'}" />
+        </Style>
+
+        <Style x:Key="AccountStyle"
+               TargetType="ContentView"
+               BasedOn="{StaticResource ViewCellStyle}">
+            <Setter Property="ControlTemplate">
+                <ControlTemplate>
+                    <StackLayout BindingContext="{TemplateBinding BindingContext}"
+                                 x:DataType="viewmodels:AccountViewModel"
+                                 Orientation="Horizontal">
+                        <Image Source="{Binding Account.Company.LogoPath, Converter={Static converters:UriToImageSourceConverter.Instance}}"
+                               WidthRequest="{Binding Height, Source={RelativeSource Self}}"
+                               HeightRequest="0" />
+
+                        <ContentPresenter HorizontalOptions="FillAndExpand"
+                                          VerticalOptions="Center"
+                                          WidthRequest="0" />
+
+                        <Button>
+                            <VisualStateManager.VisualStateGroups>
+                                <VisualStateGroup>
+                                    <VisualState Name="LoggedIn">
+                                        <VisualState.StateTriggers>
+                                            <StateTrigger IsActive="{Binding IsLoggedIn}" />
+                                        </VisualState.StateTriggers>
+
+                                        <VisualState.Setters>
+                                            <Setter Property="Text"
+                                                    Value="Logout" />
+                                            <Setter Property="Command"
+                                                    Value="{Binding LogoutCommand}" />
+                                        </VisualState.Setters>
+                                    </VisualState>
+
+                                    <VisualState Name="LoggedOut">
+                                        <VisualState.StateTriggers>
+                                            <StateTrigger IsActive="True" />
+                                        </VisualState.StateTriggers>
+
+                                        <VisualState.Setters>
+                                            <Setter Property="Text"
+                                                    Value="Login" />
+                                            <Setter Property="Command"
+                                                    Value="{Binding LoginCommand}" />
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                </VisualStateGroup>
+                            </VisualStateManager.VisualStateGroups>
+                        </Button>
+                    </StackLayout>
+                </ControlTemplate>
+            </Setter>
+
+            <Style.Triggers>
+                <DataTrigger TargetType="ContentView"
+                             Binding="{Binding IsLoggedIn}"
+                             Value="True">
+                    <Setter Property="ext:ContentView.EmptyView">
+                        <DataTemplate>
+                            <Label LineBreakMode="HeadTruncation">
+                                <Label.FormattedText>
+                                    <FormattedString>
+                                        <Span Text="{Binding Account.Name, StringFormat='{0}:'}" />
+                                        <Span Text=" " />
+                                        <Span Text="{Binding Account.Username}" />
+                                    </FormattedString>
+                                </Label.FormattedText>
+                            </Label>
+                        </DataTemplate>
+                    </Setter>
+                </DataTrigger>
+
+                <DataTrigger TargetType="ContentView"
+                             Binding="{Binding IsLoggedIn}"
+                             Value="False">
+                    <Setter Property="ext:ContentView.EmptyView">
+                        <DataTemplate>
+                            <Label Text="{Binding Account.Name, StringFormat='{0}: Not signed in'}"
+                                   MaxLines="1" />
+                        </DataTemplate>
+                    </Setter>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+    </VisualElement.Resources>
+
+    <TableView Intent="Settings"
+               HasUnevenRows="True">
+        <TableRoot>
+            <TableSection Title="My Accounts"
+                          BindingContext="{Binding Source={Static Application.Current}}">
+                <ViewCell>
+                    <ContentView BindingContext="{Binding Accounts[0]}"
+                                 Style="{StaticResource AccountStyle}" />
+                </ViewCell>
+
+                <ViewCell>
+                    <ContentView BindingContext="{Binding Accounts[1]}"
+                                 Style="{StaticResource AccountStyle}" />
+                </ViewCell>
+            </TableSection>
+
+            <TableSection Title="Personalization">
+                <TextCell Text="Ratings Builder"
+                          TextColor="{AppThemeBinding Light={StaticResource LightPrimaryText}, Dark={StaticResource DarkPrimaryText}}"
+                          Command="{views:PushPageCommand PageTemplate={DataTemplate views:RatingsBuilderPage}}" />
+            </TableSection>
+
+            <TableSection Title="Localization"
+                          BindingContext="{Binding Prefs, Source={Static Application.Current}}"
+                          x:DataType="movies:UserPrefs">
+                <ViewCell>
+                    <FlexLayout Direction="Row"
+                                Style="{StaticResource ViewCellStyle}"
+                                Padding="0, 5">
+                        <Label Text="Language: " />
+
+                        <Picker ItemsSource="{Binding Languages}"
+                                ItemDisplayBinding="{Binding NativeName}"
+                                SelectedItem="{Binding Language}"
+                                FlexLayout.Grow="1" />
+                    </FlexLayout>
+                </ViewCell>
+
+                <ViewCell>
+                    <StackLayout Orientation="Vertical"
+                                 Padding="0, 5">
+                        <FlexLayout Direction="Row"
+                                    Style="{StaticResource ViewCellStyle}">
+                            <Label Text="Region: " />
+
+                            <Picker ItemsSource="{Binding Regions}"
+                                    SelectedItem="{Binding Region}"
+                                    FlexLayout.Grow="1" />
+                        </FlexLayout>
+
+                        <Label Text="Please restart the app for changes to take effect"
+                               TextColor="Red"
+                               FontSize="Small"
+                               HorizontalTextAlignment="Center"
+                               IsVisible="{Binding RestartRequired}"
+                               Style="{StaticResource ViewCellStyle}" />
+                    </StackLayout>
+                </ViewCell>
+            </TableSection>
+
+            <TableSection Title="Powered by">
+                <ViewCell>
+                    <StackLayout Orientation="Vertical"
+                                 Spacing="40"
+                                 Padding="20,0">
+                        <FlexLayout Direction="Column"
+                                    JustifyContent="Center">
+                            <Image Source="{Static movies:App.TMDbAttribution}"
+                                   HeightRequest="50" />
+
+                            <Label Text="This product uses the TMDB API but is not endorsed or certified by TMDB."
+                                   HorizontalTextAlignment="Center" />
+                        </FlexLayout>
+
+                        <Image Source="{AppThemeBinding Light={Static movies:App.TraktAttributionLight}, Dark={Static movies:App.TraktAttributionDark}}"
+                               HeightRequest="50"
+                               HorizontalOptions="Center" />
+                    </StackLayout>
+                </ViewCell>
+            </TableSection>
+        </TableRoot>
+    </TableView>
+</ContentPage>

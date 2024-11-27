@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:views="clr-namespace:Movies.Views"
+             xmlns:viewmodels="clr-namespace:Movies.ViewModels"
+             xmlns:movies="clr-namespace:Movies"
+             xmlns:templates="clr-namespace:Movies.Templates"
+             
+             xmlns:forms="clr-namespace:Microsoft.Maui.Controls;assembly=MauiExtensions"
+             x:Class="Movies.Views.TVShowInfoPage"
+             Style="{StaticResource InfoPageStyle}"
+             Title="{Binding CurrentItem.Name, Source={x:Reference carousel}}">
+    <StackLayout>
+        <views:Carousel x:Name="carousel"
+                      IndicatorView="indicator"
+                      ItemsSource="{Binding Items}"
+                      RemainingItemsThresholdReachedCommand="{Binding LoadMoreCommand}"
+                      RemainingItemsThreshold="0"
+                      PeekAreaInsets="-2"
+                      PositionChanged="Carousel_PositionChanged"
+                      CurrentItemChanged="Carousel_CurrentItemChanged"
+                      AbsoluteLayout.LayoutBounds="0.5,0.5,1,1"
+                      AbsoluteLayout.LayoutFlags="All">
+            <VisualElement.Behaviors>
+                
+            </VisualElement.Behaviors>
+            
+            <CarouselView.ItemsLayout>
+                <LinearItemsLayout Orientation="Horizontal"
+                                   SnapPointsType="MandatorySingle"
+                                   SnapPointsAlignment="Center"
+                                   ItemSpacing="4" />
+            </CarouselView.ItemsLayout>
+            
+            <CarouselView.ItemTemplate>
+                <forms:TypeTemplateSelector>
+                    <forms:TypeTemplateSelector.Templates>
+                        <forms:TypeDataTemplate Type="{x:Type viewmodels:TVShowViewModel}">
+                            <templates:FullMovieTemplate />
+                        </forms:TypeDataTemplate>
+
+                        <forms:TypeDataTemplate Type="{x:Type viewmodels:TVSeasonViewModel}">
+                            <views:FullCollectionTemplate />
+                        </forms:TypeDataTemplate>
+                    </forms:TypeTemplateSelector.Templates>
+                </forms:TypeTemplateSelector>
+            </CarouselView.ItemTemplate>
+        </views:Carousel>
+
+        <IndicatorView x:Name="indicator"
+                       IndicatorColor="#e4572e"
+                       SelectedIndicatorColor="{StaticResource Primary}" 
+                       HideSingle="True"
+                       MaximumVisible="10"
+                       Padding="0, 10"
+                       AbsoluteLayout.LayoutBounds="0.5,1,-1,-1"
+                       AbsoluteLayout.LayoutFlags="PositionProportional"/>
+
+        <!--<Label Text="Seasons"
+               FontSize="Title"
+               IsVisible="false"
+               Style="{StaticResource ValueDescriptorStyle}" />
+
+        <CollectionView ItemsSource="{Binding ItemsSource, Source={x:Reference carousel}}"
+                        ItemsLayout="HorizontalList"
+                        IsVisible="false"
+                        SelectionMode="Single"
+                        HeightRequest="50">
+            <CollectionView.ItemTemplate>
+                <DataTemplate>
+                    <Button Text="{Binding Number, FallbackValue='a'}"
+                            InputTransparent="True"
+                            WidthRequest="{Binding Height, Source={RelativeSource Self}}">
+                        <VisualStateManager.VisualStateGroups>
+                            <VisualStateGroup Name="CommonStates">
+                                <VisualState Name="{Static VisualStateManager+CommonStates.Normal}" />
+                                <VisualState Name="{Static VisualStateManager+CommonStates.Selected}">
+                                    <VisualState.Setters>
+                                        <Setter Property="BackgroundColor"
+                                                Value="Green" />
+                                    </VisualState.Setters>
+                                </VisualState>
+                            </VisualStateGroup>
+                        </VisualStateManager.VisualStateGroups>
+                    </Button>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>-->
+    </StackLayout>
+</ContentPage>
