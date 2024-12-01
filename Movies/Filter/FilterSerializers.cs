@@ -1,13 +1,8 @@
 ﻿using Movies.Models;
 using Movies.ViewModels;
-using System;
 using System.Collections;
-using System.Collections.Generic;
-using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace Movies
 {
@@ -85,7 +80,7 @@ namespace Movies
 
         public IEnumerator<KeyValuePair<string, JsonResponse>> GetEnumerator()
         {
-            throw new NotImplementedException();
+            yield break;
             //foreach (var kvp in Application.Properties)
             //{
             //    if (kvp.Key is string url && Uri.TryCreate(url, UriKind.RelativeOrAbsolute, out _) && TryGetValue(url, out var response))

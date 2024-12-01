@@ -482,9 +482,9 @@
                 </TemplatedView.ControlTemplate>
 
                 <VisualElement.Triggers>
-                    <EventTrigger Event="LayoutChanged">
+                    <!--<EventTrigger Event="LayoutChanged">
                         <movies:MoviePaddingTriggerAction />
-                    </EventTrigger>
+                    </EventTrigger>-->
 
                     <DataTrigger TargetType="VisualElement"
                                  Binding="{Binding Converter={Static forms:GetTypeConverter.Instance}}"

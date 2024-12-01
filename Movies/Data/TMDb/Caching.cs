@@ -69,54 +69,6 @@ namespace Movies
             }
         }
 
-        private async Task<ISet<string>> GetChangeKeys()
-        {
-            if (ResponseCache == null)
-            {
-                return new HashSet<string>();
-            }
-
-            await CleanCacheTask;
-
-            var url = API.CONFIGURATION.GET_API_CONFIGURATION.GetURL();
-            var cached = ResponseCache.TryGetValueAsync(url);
-            JsonDocument json = null;
-
-            if (cached != null)
-            {
-                var response = await cached;
-
-                if (DateTime.Now - response?.Timestamp <= PROPERTY_VALUES_CACHE_DURATION)
-                {
-                    json = JsonDocument.Parse(await response.Content.ReadAsByteArrayAsync());
-                }
-            }
-
-            if (json == null)
-            {
-                var response = await WebClient.TryGetAsync(url);
-
-                if (response?.IsSuccessStatusCode == true)
-                {
-                    var content = await response.Content.ReadAsStringAsync();
-                    await ResponseCache.AddAsync(url, new JsonResponse(content));
-                    json = JsonDocument.Parse(content);
-                }
-            }
-
-            var changeKeys = new HashSet<string>();
-
-            if (json?.RootElement.TryGetProperty("change_keys", out var keysJson) == true && keysJson.ValueKind == JsonValueKind.Array)
-            {
-                foreach (var key in keysJson.EnumerateArray().Select(element => element.GetString()))
-                {
-                    changeKeys.Add(key);
-                }
-            }
-
-            return changeKeys;
-        }
-
         private async Task InitValues()
         {
             await CleanCacheTask;

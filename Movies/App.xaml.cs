@@ -264,8 +264,22 @@ namespace Movies
                 .SetNext(tmdbHandlers);
 
 #if DEBUG
+            async IAsyncEnumerable<Item> test(IAsyncEnumerable<Item> items)
+            {
+                var itr = items.GetAsyncEnumerator();
+                await itr.MoveNextAsync();
+                yield return itr.Current;
+                
+                yield return new Person("Person Person");
+
+                while (await itr.MoveNextAsync())
+                {
+                    yield return itr.Current;
+                }
+            }
             MovieExplore = new List<object>
             {
+                //new CollectionViewModel("Trending Movies", test(tmdb.GetTrendingMoviesAsync())),
                 new CollectionViewModel("Trending Movies", tmdb.GetTrendingMoviesAsync()),
                 new CollectionViewModel("Trending TV", tmdb.GetTrendingTVShowsAsync()),
                 new CollectionViewModel("Trending People", tmdb.GetTrendingPeopleAsync()),

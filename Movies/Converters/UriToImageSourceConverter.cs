@@ -11,6 +11,7 @@ namespace Movies.Converters
 
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
+            if (value == null) return null;
             Uri uri;
 
             try

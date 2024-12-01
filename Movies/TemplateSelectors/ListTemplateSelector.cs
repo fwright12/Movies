@@ -28,7 +28,7 @@ namespace Movies
         protected override void OnBindingContextChanged()
         {
             base.OnBindingContextChanged();
-            Content = ContentTemplate.SelectTemplate(BindingContext, this).CreateContent() as View;
+            Content = ContentTemplate?.SelectTemplate(BindingContext, this).CreateContent() as View;
         }
 
         protected override SizeRequest OnMeasure(double widthConstraint, double heightConstraint)

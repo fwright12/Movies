@@ -345,8 +345,7 @@
                 <DataTemplate>
                     <views:ImageView AltText="{Binding Value.RHS.Company.Name}"
                                      WidthRequest="50"
-                                     Padding="0, 5"
-                                     CornerRadius="0">
+                                     Padding="0, 5">
                         <VisualStateManager.VisualStateGroups>
                             <VisualStateGroup>
                                 <VisualState Name="Normal">

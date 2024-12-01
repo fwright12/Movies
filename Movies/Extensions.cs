@@ -438,11 +438,69 @@ namespace Movies.Views
         public static object GetBatch(this BindableObject bindable) => bindable.GetValue(BatchProperty);
         public static void SetBatch(this BindableObject bindable, object value) => bindable.SetValue(BatchProperty, value);
 
-        public static readonly BindableProperty AspectRequestProperty = BindableProperty.CreateAttached("AspectRequest", typeof(double), typeof(VisualElement), null, defaultValueCreator: bindable =>
+        public static readonly BindableProperty AspectRequestProperty = BindableProperty.CreateAttached("AspectRequest", typeof(double), typeof(VisualElement), null, propertyChanged: (bindable, oldValue, newValue) =>
+        {
+            return;
+            var visualElement = (VisualElement)bindable;
+            var aspect = (double)newValue;
+
+            visualElement.RemoveBinding(VisualElement.WidthRequestProperty);
+            visualElement.RemoveBinding(VisualElement.HeightRequestProperty);
+
+            var source = new RelativeBindingSource(RelativeBindingSourceMode.Self);
+            visualElement.SetBinding(VisualElement.WidthRequestProperty, new Binding
+            {
+                Path = VisualElement.HeightProperty.PropertyName,
+                Source = source,
+                Converter = new ConverterFunc((value, _, _, _) =>
+                {
+                    Print.Log("height is " + value);
+                    if ((double)value <= 0)
+                    {
+                        return -1;
+                        //return value;
+                    }
+
+                    return ((double)value) / aspect;
+                }, null)
+            });
+            visualElement.SetBinding(VisualElement.HeightRequestProperty, new Binding
+            {
+                Path = VisualElement.WidthProperty.PropertyName,
+                Source = source,
+                Converter = new ConverterFunc((value, _, _, _) =>
+            {
+                Print.Log("width is " + value);
+                if ((double)value <= 0)
+                {
+                    return -1;
+                    //return value;
+                }
+
+                return ((double)value) * aspect;
+            }, null)
+            });
+        }, defaultValueCreator: bindable =>
         {
             ((VisualElement)bindable).SizeChanged += AdjustAspect;
             return null;
         });
+
+        private class ConverterFunc : IValueConverter
+        {
+            public Func<object?, Type, object?, CultureInfo, object?> ConvertFunc { get; }
+            public Func<object?, Type, object?, CultureInfo, object?> ConvertBackFunc { get; }
+
+            public ConverterFunc(Func<object?, Type, object?, CultureInfo, object?> convertFunc, Func<object?, Type, object?, CultureInfo, object?> convertBackFunc)
+            {
+                ConvertFunc = convertFunc;
+                ConvertBackFunc = convertBackFunc;
+            }
+
+            public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture) => ConvertFunc?.Invoke(value, targetType, parameter, culture);
+
+            public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => ConvertBackFunc?.Invoke(value, targetType, parameter, culture);
+        }
 
         private static void AdjustAspect(object sender, EventArgs e)
         {

@@ -156,10 +156,10 @@
                     <DataTrigger TargetType="CollectionView"
                                  Binding="{Binding ItemsLayout.Orientation, Source={RelativeSource Self}}"
                                  Value="{Static ItemsLayoutOrientation.Horizontal}">
-                        <Setter Property="Margin"
+                        <!--<Setter Property="Margin"
                                 Value="-10, 0" />
                         <Setter Property="views:Extensions.Padding"
-                                Value="10, 0" />
+                                Value="10, 0" />-->
                     </DataTrigger>
                 </Style.Triggers>
             </Style>
@@ -199,8 +199,7 @@
 
             <Style x:Key="DefaultSectionViewStyle"
                    TargetType="views:SectionView"
-                   ApplyToDerivedTypes="True"
-                   BasedOn="{StaticResource FrameStyle}">
+                   ApplyToDerivedTypes="True">
                 <Setter Property="ControlTemplate">
                     <ControlTemplate>
                         <StackLayout Orientation="Vertical">
@@ -233,8 +232,8 @@
                    BasedOn="{StaticResource DefaultSectionViewStyle}">
                 <Setter Property="BackgroundColor"
                         Value="LightGray" />
-                <Setter Property="CornerRadius"
-                        Value="10" />
+                <!--<Setter Property="CornerRadius"
+                        Value="10" />-->
                 <Setter Property="Padding"
                         Value="10" />
                 <!--<Setter Property="views:SectionView.Footer">
@@ -267,27 +266,27 @@
             </Style>
 
             <Style x:Key="ImageStyle"
-                   TargetType="views:ImageView"
-                   BasedOn="{StaticResource FrameStyle}">
-                <Style.Setters>
-                    <Setter Property="ControlTemplate">
-                        <ControlTemplate x:DataType="views:ImageView">
-                            <Grid>
-                                <Frame BorderColor="{AppThemeBinding Light={StaticResource LightPrimaryText}, Dark={StaticResource DarkPrimaryText}}"
-                                       CornerRadius="{Binding CornerRadius, Source={RelativeSource AncestorType={x:Type Frame}}}"
-                                       WidthRequest="0"
-                                       HeightRequest="0">
-                                    <Label Text="{TemplateBinding AltText}"
-                                           Padding="10"
-                                           VerticalOptions="Center"
-                                           HorizontalTextAlignment="Center" />
-                                </Frame>
+                   TargetType="views:ImageView">
+                <Setter Property="ControlTemplate">
+                    <ControlTemplate x:DataType="views:ImageView">
+                        <Border Stroke="{AppThemeBinding Light={StaticResource LightPrimaryText}, Dark={StaticResource DarkPrimaryText}}">
+                            <Border.StrokeShape>
+                                <RoundRectangle CornerRadius="{TemplateBinding CornerRadius}" />
+                            </Border.StrokeShape>
+
+                            <AbsoluteLayout>
+                                <Label Text="{TemplateBinding AltText}"
+                                       HorizontalTextAlignment="Center"
+                                       VerticalTextAlignment="Center"
+                                       Padding="10"
+                                       AbsoluteLayout.LayoutBounds="0.5,0.5,1,1"
+                                       AbsoluteLayout.LayoutFlags="All" />
 
                                 <ContentPresenter />
-                            </Grid>
-                        </ControlTemplate>
-                    </Setter>
-                </Style.Setters>
+                            </AbsoluteLayout>
+                        </Border>
+                    </ControlTemplate>
+                </Setter>
             </Style>
 
             <Style TargetType="views:ImageView"
@@ -304,7 +303,9 @@
 
             <DataTemplate x:Key="CompressedMovieTemplate"
                           x:DataType="viewmodels:MediaViewModel">
-                <views:ImageView AltText="{Binding Title}"
+                <views:ImageView Source="{Binding Title}"
+                                 Aspect="AspectFill"
+                                 AltText="{Binding Title}"
                                  Style="{StaticResource PosterStyle}">
                     <View.GestureRecognizers>
                         <TapGestureRecognizer CommandParameter="{Binding}">
@@ -313,9 +314,6 @@
                             </TapGestureRecognizer.Command>
                         </TapGestureRecognizer>
                     </View.GestureRecognizers>
-
-                    <Image Source="{Binding PosterPath}"
-                           Aspect="AspectFill" />
                 </views:ImageView>
             </DataTemplate>
 
@@ -389,18 +387,15 @@
             </Style>
 
             <Style x:Key="PersonImageStyle"
-                   TargetType="views:ImageView"
-                   BasedOn="{StaticResource RoundedFrameStyle}">
+                   TargetType="views:ImageView">
                 <Setter Property="AltText"
                         Value="{Binding Name, Converter={Static movies:InitialsConverter.Instance}}" />
-                <Setter Property="ext:ContentView.ItemSource"
-                        Value="{Binding}" />
-                <Setter Property="ext:ContentView.ContentTemplate">
-                    <DataTemplate>
-                        <Image Source="{Binding ProfilePath}"
-                               Aspect="AspectFill" />
-                    </DataTemplate>
-                </Setter>
+                <Setter Property="Source"
+                        Value="{Binding ProfilePath}" />
+                <Setter Property="Aspect"
+                        Value="AspectFill" />
+                <Setter Property="CornerRadius"
+                        Value="{Binding Height, Source={RelativeSource Self}}" />
             </Style>
 
             <DataTemplate x:Key="CompressedPersonTemplate"
@@ -439,7 +434,6 @@
 
                     <views:ImageView Style="{StaticResource PersonImageStyle}"
                                      AspectRequest="1" />
-                    <!--HeightRequest="{Binding Parent.Width, Source={RelativeSource AncestorType={x:Type views:LabeledContentView}}}"-->
                 </views:LabeledContentView>
             </DataTemplate>
 
@@ -526,26 +520,28 @@
                         </DataTemplate>
                     </views:SectionView.Header>
 
-                    <AbsoluteLayout BindingContext="{Binding Source}"
-                                    x:DataType="{x:Null}"
-                                    CompressedLayout.IsHeadless="True">
+                    <AbsoluteLayout BindingContext="{Binding Source, Source={Static forms:Constants.AncestorBindingContext}}"
+                                    x:DataType="viewmodels:AsyncListViewModel(x:Object)"
+                                    CompressedLayout.IsHeadless="True"
+                                    HeightRequest="250">
                         <CollectionView ItemsSource="{Binding Items}"
                                         RemainingItemsThresholdReachedCommand="{Binding LoadMoreCommand}"
                                         RemainingItemsThreshold="4"
                                         AbsoluteLayout.LayoutBounds="0.5,0.5,1,1"
-                                        AbsoluteLayout.LayoutFlags="All"
-                                        HeightRequest="250">
+                                        AbsoluteLayout.LayoutFlags="All">
                             <CollectionView.ItemsLayout>
-                                <LinearItemsLayout Orientation="Horizontal" />
+                                <LinearItemsLayout Orientation="Horizontal"
+                                                   ItemSpacing="10" />
                             </CollectionView.ItemsLayout>
 
-                            <ItemsView.ItemTemplate>
+                            <CollectionView.ItemTemplate>
                                 <DataTemplate>
-                                    <movies:AspectContentView Ratio="1.5"
-                                                              Padding="2.5, 0"
-                                                              ContentTemplate="{StaticResource CompressedListSelector}" />
+                                    <ContentView CompressedLayout.IsHeadless="True"
+                                                 ext:ContentView.ItemSource="{Binding}"
+                                                 ext:ContentView.ContentTemplate="{StaticResource CompressedListSelector}"
+                                                 WidthRequest="{Binding Height, Source={RelativeSource Self}, Converter={Static forms:ArithmeticConverter.DIVIDE}, ConverterParameter=1.5}" />
                                 </DataTemplate>
-                            </ItemsView.ItemTemplate>
+                            </CollectionView.ItemTemplate>
 
                             <ItemsView.EmptyView>
                                 <Binding Path="Loading">

@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:ios="clr-namespace:Microsoft.Maui.Controls.PlatformConfiguration.iOSSpecific;assembly=Microsoft.Maui.Controls"
+             xmlns:forms="clr-namespace:Microsoft.Maui.Controls;assembly=MauiExtensions"
+             xmlns:movies="clr-namespace:Movies"
+             xmlns:views="clr-namespace:Movies.Views"
+             xmlns:viewmodels="clr-namespace:Movies.ViewModels"
+             xmlns:models="clr-namespace:Movies.Models"
+             xmlns:templates="clr-namespace:Movies.Templates"
+             x:Class="Movies.Views.ExplorePage">
+    <!--<Shell.TitleView>
+        <ContentView Padding="{OnPlatform Android='50,0,0,0', iOS='50,0,0,0'}">
+            <forms:AdView Style="{StaticResource BannerAdStyle}"
+                          AdUnitID="{Static movies:App.TopBannerAdUnitID}" />
+        </ContentView>
+    </Shell.TitleView>-->
+
+    <Page.ToolbarItems>
+        <ToolbarItem Text="Settings">
+            <ToolbarItem.Command>
+                <views:PushPageCommand PageTemplate="{DataTemplate views:SettingsPage}" />
+            </ToolbarItem.Command>
+        </ToolbarItem>
+    </Page.ToolbarItems>
+
+    <CollectionView ItemsSource="{Binding}"
+                    ItemTemplate="{StaticResource CondensedListTemplate}"
+                    Margin="10, 0"
+                    ItemsUpdatingScrollMode="KeepScrollOffset"
+                    Header="test"
+                    Footer="test">
+        <!--<CollectionView.HeaderTemplate>
+            <DataTemplate>
+                <ContentView>
+                    <forms:AdView Style="{StaticResource BannerAdStyle}"
+                                  AdUnitID="{Static movies:App.TopBannerAdUnitID}" />
+                </ContentView>
+            </DataTemplate>
+        </CollectionView.HeaderTemplate>
+
+        <CollectionView.FooterTemplate>
+            <DataTemplate>
+                <ContentView>
+                    <forms:AdView Style="{StaticResource BannerAdStyle}"
+                                  AdUnitID="{Static movies:App.BottomBannerAdUnitID}" />
+                </ContentView>
+            </DataTemplate>
+        </CollectionView.FooterTemplate>
+
+        <forms:Ads.CollectionAds>
+            <forms:AdInfo Frequency="3"
+                          Template="{StaticResource InlineBannerTemplate}" />
+        </forms:Ads.CollectionAds>-->
+    </CollectionView>
+</ContentPage>

@@ -1,18 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.Globalization;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Microsoft.Maui.Controls.Xaml;
-using Microsoft.Maui.Controls;
-using Microsoft.Maui;
-
-namespace Movies.Views
+﻿namespace Movies.Views
 {
     [XamlCompilation(XamlCompilationOptions.Compile)]
-    public partial class SectionView : Frame
+    public partial class SectionView : ContentView
     {
         public static readonly BindableProperty TitleProperty = BindableProperty.Create(nameof(Title), typeof(string), typeof(SectionView));
 

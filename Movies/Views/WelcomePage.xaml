@@ -13,8 +13,8 @@
                         Value="{StaticResource PagePadding}" />
                 <Setter Property="Padding"
                         Value="{Binding CornerRadius, Source={RelativeSource Self}}" />
-                <Setter Property="BorderColor"
-                        Value="{StaticResource Primary}" />
+                <!--<Setter Property="BorderColor"
+                        Value="{StaticResource Primary}" />-->
             </Style>
         </VisualElement.Resources>
         
