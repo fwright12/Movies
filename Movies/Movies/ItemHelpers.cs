@@ -108,7 +108,7 @@ namespace Movies.Models
         public static Task<bool> Evaluate(Item item, FilterPredicate filter) => Evaluate(DataService.Instance.Controller, item, filter);
 
 #if true
-        public static async Task<bool> Evaluate(ChainLink<EventArgsAsyncWrapper<IEnumerable<ResourceRequestArgs<Uri>>>> controller, Item item, FilterPredicate filter)
+        public static async Task<bool> Evaluate(ChainLink<EventArgsAsyncWrapper<IEnumerable<KeyValueRequestArgs<Uri>>>> controller, Item item, FilterPredicate filter)
         {
             var predicates = DefferedPredicates(item, filter, DataService.Instance.ResourceCache, PersistentCache).GetAsyncEnumerator();
 
@@ -144,9 +144,9 @@ namespace Movies.Models
 
                         if (property == Movies.ViewModels.CollectionViewModel.People)
                         {
-                            var requests = new List<RestRequestArgs<IEnumerable<Credit>>>{
-                                new RestRequestArgs<IEnumerable<Credit>>(new UniformItemIdentifier(item, Media.CAST)),
-                                new RestRequestArgs<IEnumerable<Credit>>(new UniformItemIdentifier(item, Media.CREW))
+                            var requests = new List<KeyValueRequestArgs<Uri, IEnumerable<Credit>>>{
+                                new KeyValueRequestArgs<Uri, IEnumerable<Credit>>(new UniformItemIdentifier(item, Media.CAST)),
+                                new KeyValueRequestArgs<Uri, IEnumerable<Credit>>(new UniformItemIdentifier(item, Media.CREW))
                             };
                             await controller.Get(requests);
 
@@ -163,7 +163,7 @@ namespace Movies.Models
                         }
                         else if (property == TMDB.SCORE)
                         {
-                            var request = new RestRequestArgs<Rating>(new UniformItemIdentifier(item, Media.RATING));
+                            var request = new KeyValueRequestArgs<Uri, Rating>(new UniformItemIdentifier(item, Media.RATING));
                             await controller.Get(request);
 
                             if (!request.IsHandled)
@@ -171,11 +171,16 @@ namespace Movies.Models
                                 return false;
                             }
 
-                            value = request.Value.Score;
+                            var score = request.Value.Score.Replace("%", "");
+                            var multiplier = score.Length != request.Value.Score.Length ? 0.1 : 1;
+                            if (!int.TryParse(score, out var scoreValue))
+                            {
+                                value = scoreValue * multiplier;
+                            }
                         }
                         else
                         {
-                            var request = new RestRequestArgs(new UniformItemIdentifier(item, property), property.FullType);
+                            var request = new KeyValueRequestArgs<Uri>(new UniformItemIdentifier(item, property), property.FullType);
                             await controller.Get(request);
 
                             if (!request.IsHandled)// || !request.Response.TryGetRepresentation(property.FullType, out value))

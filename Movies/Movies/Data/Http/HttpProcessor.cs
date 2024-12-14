@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 
 namespace Movies
 {
-    public class HttpProcessor : IAsyncEventProcessor<ResourceRequestArgs<Uri>>
+    public class HttpProcessor : IAsyncEventProcessor<KeyValueRequestArgs<Uri>>
     {
         public HttpMessageInvoker Invoker { get; }
 
@@ -13,7 +13,7 @@ namespace Movies
             Invoker = invoker;
         }
 
-        public async Task<bool> ProcessAsync(ResourceRequestArgs<Uri> e)
+        public async Task<bool> ProcessAsync(KeyValueRequestArgs<Uri> e)
         {
             var response = await Invoker.SendAsync(ToMessage(e.Request), default);
             return e.Handle(new HttpResponse(response));

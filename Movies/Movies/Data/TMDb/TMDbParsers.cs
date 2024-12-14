@@ -747,6 +747,11 @@ namespace Movies
                 {
                     if (ItemParser.TryGetValue(page, out var items))
                     {
+                        if (items == null)
+                        {
+                            break;
+                        }
+
                         await foreach (var item in items)
                         {
                             yield return item;

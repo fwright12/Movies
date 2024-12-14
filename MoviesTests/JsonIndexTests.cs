@@ -1,6 +1,6 @@
 ﻿using System.Text;
 
-namespace MoviesTests.Data
+namespace MoviesTests
 {
     [TestClass]
     public class JsonIndexTests

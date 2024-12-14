@@ -1,13 +1,9 @@
-﻿using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net.Http;
-using System.Reflection;
-using System.Threading;
-using System.Threading.Tasks;
-using FFImageLoading.Cache;
+﻿using Movies.Data.Local;
 using Movies.Models;
+using System;
+using System.Collections.Generic;
+using System.Net.Http;
+using System.Threading.Tasks;
 
 namespace Movies
 {
@@ -64,11 +60,43 @@ namespace Movies
         }
     }
 
+    public class InMemoryService
+    {
+        public ResourceBufferedCache<Uri> Cache { get; }
+
+        public InMemoryService(UiiDictionaryDataStore datastore)
+        {
+            Cache = new ResourceBufferedCache<Uri>(datastore);
+        }
+    }
+
+    public class PersistenceService
+    {
+        public UriBufferedCache Processor { get; }
+
+        public PersistenceService(IEventAsyncCache<KeyValueRequestArgs<Uri>> processor)
+        {
+            //var dao = new SqlResourceDAO(new SQLiteAsyncConnection(DatabasePath, Flags));
+            //Processor = new UriBufferedCache(new ResourceDAO());
+            Processor = new UriBufferedCache(new LocalMovieCache(processor));
+        }
+    }
+
+    public class TMDbService
+    {
+        public IAsyncEventProcessor<IEnumerable<KeyValueRequestArgs<Uri>>> Processor { get; }
+
+        public TMDbService(HttpMessageInvoker invoker, TMDbResolver resolver)
+        {
+            Processor = new TMDbHttpProcessor(invoker, resolver, TMDbApi.AutoAppend);
+        }
+    }
+
     public partial class DataService
     {
         public static readonly DataService Instance = new DataService();
 
-        public ChainLink<EventArgsAsyncWrapper<IEnumerable<ResourceRequestArgs<Uri>>>> Controller { get; }
+        public ChainLink<EventArgsAsyncWrapper<IEnumerable<KeyValueRequestArgs<Uri>>>> Controller { get; }
         public UiiDictionaryDataStore ResourceCache { get; }
         public const int BATCH_TIMEOUT = 5000;
 
@@ -80,10 +108,22 @@ namespace Movies
 
         public bool Batched { get; private set; }
 
+        private static Dictionary<Type, object> Services = new Dictionary<Type, object>();
+
         private DataService()
         {
             ResourceCache = new UiiDictionaryDataStore();
-            Controller = new AsyncCacheAsideProcessor<ResourceRequestArgs<Uri>>(new ResourceBufferedCache<Uri>(ResourceCache)).ToChainLink();
+            Controller = new AsyncCacheAsideProcessor<KeyValueRequestArgs<Uri>>(new ResourceBufferedCache<Uri>(ResourceCache)).ToChainLink();
+        }
+
+        public static void Register<T>(T service)
+        {
+            Services[typeof(T)] = service;
+        }
+
+        public static T GetService<T>()
+        {
+            return Services.TryGetValue(typeof(T), out var service) && service is T ? (T)service : default;
         }
 
         public void BatchBegin()

@@ -6,10 +6,10 @@ using System.Threading.Tasks;
 
 namespace Movies
 {
-    public class TMDbLocalCache : IEventAsyncCache<ResourceRequestArgs<Uri>>
+    public class TMDbLocalCache : IEventAsyncCache<KeyValueRequestArgs<Uri>>
     {
-        public IEventAsyncCache<ResourceRequestArgs<Uri>> DAO { get; }
-        public IAsyncEventProcessor<IEnumerable<ResourceRequestArgs<Uri>>> Processor { get; }
+        public IEventAsyncCache<KeyValueRequestArgs<Uri>> DAO { get; }
+        public IAsyncEventProcessor<IEnumerable<KeyValueRequestArgs<Uri>>> Processor { get; }
         public TMDbResolver Resolver { get; }
 
         public IAsyncCollection<string> ChangeKeys { get; set; }
@@ -24,7 +24,7 @@ namespace Movies
 
         private const ItemType CACHEABLE_TYPES = ItemType.Movie | ItemType.TVShow | ItemType.Person;
 
-        public TMDbLocalCache(IEventAsyncCache<ResourceRequestArgs<Uri>> dao, TMDbResolver resolver)
+        public TMDbLocalCache(IEventAsyncCache<KeyValueRequestArgs<Uri>> dao, TMDbResolver resolver)
         {
             DAO = dao;
             Processor = new TMDbProcessor(new TMDbSQLProcessor(dao), resolver)
@@ -34,11 +34,11 @@ namespace Movies
             Resolver = resolver;
         }
 
-        public Task<bool> Read(IEnumerable<ResourceRequestArgs<Uri>> args) => Processor.ProcessAsync(args);
+        public Task<bool> Read(IEnumerable<KeyValueRequestArgs<Uri>> args) => Processor.ProcessAsync(args);
 
-        public Task<bool> Write(IEnumerable<ResourceRequestArgs<Uri>> args) => DAO.Write(args.Where(ShouldWrite));
+        public Task<bool> Write(IEnumerable<KeyValueRequestArgs<Uri>> args) => DAO.Write(args.Where(ShouldWrite));
 
-        private bool ShouldWrite(ResourceRequestArgs<Uri> arg)
+        private bool ShouldWrite(KeyValueRequestArgs<Uri> arg)
         {
             if (arg.Request.Key is UniformItemIdentifier)
             {

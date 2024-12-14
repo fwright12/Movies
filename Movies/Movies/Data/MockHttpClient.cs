@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -43,6 +44,7 @@ namespace Movies
         public static List<string> CallHistory = new List<string>();
         public List<string> LocalCallHistory = new List<string>();
         public bool Connected { get; private set; } = true;
+        public int? SimulatedDelay { get; set; } = null;
 
         public bool Reconnect() => Connected = true;
         public bool Disconnect() => Connected = false;
@@ -130,14 +132,14 @@ namespace Movies
 
             HttpResponseMessage response = null;
 
-            if (request.Headers.TryGetValues(REpresentationalStateTransfer.Rest.IF_NONE_MATCH, out var etags) && !etags.Skip(1).Any() && etags.FirstOrDefault() == DEFAULT_ETAG)
+            if (request.Headers.TryGetValues(REpresentationalStateTransfer.Rest.IF_NONE_MATCH, out var etags) && etags.FirstOrDefault() is string etag && EntityTagHeaderValue.Parse(etag).Equals(new EntityTagHeaderValue(DEFAULT_ETAG, true)))
             {
                 response = new HttpResponseMessage(HttpStatusCode.NotModified)
                 {
                     Headers =
                     {
                         ETag = new System.Net.Http.Headers.EntityTagHeaderValue(DEFAULT_ETAG, true),
-                        Date = DateTimeOffset.UtcNow - TimeSpan.FromMinutes(5),
+                        Date = DateTimeOffset.UtcNow,
                         Age = TimeSpan.FromSeconds(100),
                         CacheControl = System.Net.Http.Headers.CacheControlHeaderValue.Parse("public, max-age=6390")
                     }
@@ -197,9 +199,13 @@ namespace Movies
 
                 isLive = true;
             }
-            else if (DebugConfig.SimulatedDelay > 0)
+            else
             {
-                await Task.Delay(DebugConfig.SimulatedDelay);
+                var delay = SimulatedDelay ?? DebugConfig.SimulatedDelay;
+                if (delay > 0)
+                {
+                    await Task.Delay(delay);
+                }
             }
 
             if (DebugConfig.LogWebRequests)

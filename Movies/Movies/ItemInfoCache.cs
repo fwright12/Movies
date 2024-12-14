@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 
 namespace Movies
 {
-    public class ItemInfoCache : IJsonCache, IEventAsyncCache<ResourceRequestArgs<Uri>>, IAsyncDataStore<Uri, State>, IAsyncEnumerable<KeyValuePair<string, JsonResponse>>
+    public class ItemInfoCache : IJsonCache, IEventAsyncCache<KeyValueRequestArgs<Uri>>, IAsyncDataStore<Uri, State>, IAsyncEnumerable<KeyValuePair<string, JsonResponse>>
     {
         public static readonly Table.Column ID = new Table.Column("id", "integer");
         public static readonly Table.Column TYPE = new Table.Column("type", "integer");
@@ -299,11 +299,11 @@ namespace Movies
             }
         }
 
-        public async Task<bool> Read(IEnumerable<ResourceRequestArgs<Uri>> args) => (await Task.WhenAll(args.Select(Read))).All(result => result);
+        public async Task<bool> Read(IEnumerable<KeyValueRequestArgs<Uri>> args) => (await Task.WhenAll(args.Select(Read))).All(result => result);
 
-        public async Task<bool> Write(IEnumerable<ResourceRequestArgs<Uri>> args) => (await Task.WhenAll(args.Select(Write))).All(result => result);
+        public async Task<bool> Write(IEnumerable<KeyValueRequestArgs<Uri>> args) => (await Task.WhenAll(args.Select(Write))).All(result => result);
 
-        private async Task<bool> Read(ResourceRequestArgs<Uri> arg)
+        private async Task<bool> Read(KeyValueRequestArgs<Uri> arg)
         {
             var url = arg.Request.Key.ToString();
             var response = await TryGetValueAsync(url);
@@ -336,7 +336,7 @@ namespace Movies
             return arg.Handle(new RestResponse(representation, headers, null, arg.Request.Expected));
         }
 
-        private async Task<bool> Write(ResourceRequestArgs<Uri> arg)
+        private async Task<bool> Write(KeyValueRequestArgs<Uri> arg)
         {
             if (arg.Response == null)
             {

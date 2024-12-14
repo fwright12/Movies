@@ -9,7 +9,8 @@
         private static readonly string INSTAGRAM_ID = "instagram_id";
         private static readonly string TWITTER_ID = "twitter_id";
 
-        private static readonly Movie DUMMY_MOVIE = Constants.Movie
+        private static readonly Movie DUMMY_MOVIE = new Movie("test")
+            .WithID(TMDB.IDKey, 0)
             .WithID(IMDb.IDKey, IMBD_ID)
             .WithID(Wikidata.IDKey, WIKIDATA_ID)
             .WithID(Facebook.IDKey, FACEBOOK_ID)

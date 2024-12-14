@@ -4,26 +4,27 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Web;
 
 namespace Movies
 {
-    public class TMDbProcessor : AsyncGroupEventProcessor<ResourceRequestArgs<Uri>, ResourceRequestArgs<Uri>>
+    public class TMDbProcessor : AsyncGroupEventProcessor<KeyValueRequestArgs<Uri>, KeyValueRequestArgs<Uri>>
     {
         public TMDbResolver Resolver { get; }
 
-        public TMDbProcessor(IAsyncEventProcessor<ResourceRequestArgs<Uri>> processor, TMDbResolver resolver) : base(new TrojanProcessor(processor, resolver))
+        public TMDbProcessor(IAsyncEventProcessor<KeyValueRequestArgs<Uri>> processor, TMDbResolver resolver) : base(new TrojanProcessor(processor, resolver))
         {
             Resolver = resolver;
         }
 
-        protected override bool Handle(ResourceRequestArgs<Uri> grouped, IEnumerable<ResourceRequestArgs<Uri>> singles)
+        protected override bool Handle(KeyValueRequestArgs<Uri> grouped, IEnumerable<KeyValueRequestArgs<Uri>> singles)
         {
-            if (!grouped.IsHandled || false == (grouped.Request.Key as TMDbResolver.TrojanTMDbUri)?.Converter is HttpResourceCollectionConverter resources)
+            if (false == (grouped.Request.Key as TMDbResolver.TrojanTMDbUri)?.Converter is HttpResourceCollectionConverter resources)
             {
                 return grouped.IsHandled;
             }
 
-            if (!grouped.Response.TryGetRepresentation<IEnumerable<KeyValuePair<Uri, object>>>(out var collection))
+            if ((grouped.Response as ResourceResponse)?.TryGetRepresentation<IEnumerable<KeyValuePair<Uri, object>>>(out var collection) != true)
             {
                 collection = null;
             }
@@ -39,7 +40,9 @@ namespace Movies
                 {
                     response = request.Response ?? response;
                 }
-                else*/ if (true == collection?.TryGetValue(request.Request.Key, out var value))
+                else*/ 
+                if (true == collection?.TryGetValue(request.Request.Key, out var value))
+                //if (TryRoute(request.Request.Key, index, out var value))
                 {
                     if (value is IEnumerable<Entity> entities)
                     {
@@ -71,7 +74,47 @@ namespace Movies
             return result;
         }
 
-        protected override IEnumerable<KeyValuePair<ResourceRequestArgs<Uri>, IEnumerable<ResourceRequestArgs<Uri>>>> GroupRequests(IEnumerable<ResourceRequestArgs<Uri>> args)
+        private bool TryRoute(Uri uri, IReadOnlyDictionary<Uri, object> resourceCollection, out object resource)
+        {
+            if (resourceCollection == null)
+            {
+                resource = null;
+                return false;
+            }
+
+            var parts = uri.ToString().Split('?');
+            var path = parts[0];
+            var queryString = parts.ElementAtOrDefault(1);
+
+            if (queryString != null && Resolver.TryGetRequest(uri, out var request))
+            {
+                var query = HttpUtility.ParseQueryString(queryString);
+                if (!request.HasLanguageParameter)
+                {
+                    query.Remove(TMDbRequest.LANGUAGE_PARAMETER_KEY);
+                }
+                if (!request.HasRegionParameter)
+                {
+                    query.Remove(TMDbRequest.REGION_PARAMETER_KEY);
+                }
+                if (!request.HasAdultParameter)
+                {
+                    query.Remove(TMDbRequest.ADULT_PARAMETER_KEY);
+                }
+
+                queryString = query.ToString();
+                var uriString = path;
+                if (!string.IsNullOrEmpty(queryString))
+                {
+                    uriString += "?" + queryString;
+                }
+                uri = new Uri(uriString, UriKind.RelativeOrAbsolute);
+            }
+
+            return resourceCollection.TryGetValue(uri, out resource);
+        }
+
+        protected override IEnumerable<KeyValuePair<KeyValueRequestArgs<Uri>, IEnumerable<KeyValueRequestArgs<Uri>>>> GroupRequests(IEnumerable<KeyValueRequestArgs<Uri>> args)
         {
             var item = args.Select(arg => arg.Request.Key).OfType<UniformItemIdentifier>().Select(uii => uii.Item).FirstOrDefault(item => item != null);
 
@@ -80,9 +123,9 @@ namespace Movies
                 var url = kvp.Key;
                 var requests = kvp.Value.ToArray();
                 var uri = GetUri(item, url, requests);
-                IEnumerable<ResourceRequestArgs<Uri>> grouped = requests;
+                IEnumerable<KeyValueRequestArgs<Uri>> grouped = requests;
 
-                if (uri.Converter is HttpResourceCollectionConverter converter && args is BulkEventArgs<ResourceRequestArgs<Uri>> batch)
+                if (uri.Converter is HttpResourceCollectionConverter converter && args is BulkEventArgs<KeyValueRequestArgs<Uri>> batch)
                 {
                     var index = requests.ToDictionary(req => req.Request.Key, req => req);
 
@@ -90,7 +133,7 @@ namespace Movies
                     {
                         if (!index.ContainsKey(resource))
                         {
-                            var request = new ResourceRequestArgs<Uri>(resource);//, (resource as UniformItemIdentifier)?.Property.FullType);
+                            var request = new KeyValueRequestArgs<Uri>(resource);//, (resource as UniformItemIdentifier)?.Property.FullType);
 
                             index.Add(resource, request);
                             //batch.Add(request);
@@ -100,23 +143,23 @@ namespace Movies
                     grouped = index.Values;
                 }
 
-                var groupRequest = new RestRequestArgs(uri);
+                var groupRequest = new RestRequestEventArgs(uri);
                 if (TryGetSingleIfNoneMatch(requests, out var etag))
                 {
-                    groupRequest.Request.ControlData[REpresentationalStateTransfer.Rest.IF_NONE_MATCH] = new List<string> { etag };
+                    groupRequest.ControlData[REpresentationalStateTransfer.Rest.IF_NONE_MATCH] = new List<string> { etag };
                 }
 
-                yield return new KeyValuePair<ResourceRequestArgs<Uri>, IEnumerable<ResourceRequestArgs<Uri>>>(groupRequest, grouped);
+                yield return new KeyValuePair<KeyValueRequestArgs<Uri>, IEnumerable<KeyValueRequestArgs<Uri>>>(new KeyValueRequestArgs<Uri>(groupRequest), grouped);
             }
         }
 
-        private static bool TryGetSingleIfNoneMatch(IEnumerable<ResourceRequestArgs<Uri>> requests, out string etag)
+        private static bool TryGetSingleIfNoneMatch(IEnumerable<KeyValueRequestArgs<Uri>> requests, out string etag)
         {
             etag = null;
 
             foreach (var request in requests)
             {
-                if (request is RestRequestArgs restRequest && restRequest.Request.ControlData.TryGetValue(REpresentationalStateTransfer.Rest.IF_NONE_MATCH, out var etags))
+                if (request.Request is RestRequestEventArgs restRequest && restRequest.ControlData.TryGetValue(REpresentationalStateTransfer.Rest.IF_NONE_MATCH, out var etags))
                 {
                     var itr = etags.GetEnumerator();
 
@@ -137,12 +180,12 @@ namespace Movies
             return true;
         }
 
-        protected virtual IEnumerable<KeyValuePair<string, IEnumerable<ResourceRequestArgs<Uri>>>> GroupUrls(IEnumerable<ResourceRequestArgs<Uri>> args) => args
+        protected virtual IEnumerable<KeyValuePair<string, IEnumerable<KeyValueRequestArgs<Uri>>>> GroupUrls(IEnumerable<KeyValueRequestArgs<Uri>> args) => args
             .Where(arg => !arg.IsHandled)
-            .Select(arg => new KeyValuePair<string, IEnumerable<ResourceRequestArgs<Uri>>>(Resolver.ResolveUrl(arg.Request.Key), arg.AsEnumerable()))
-            .GroupBy(kvp => kvp.Key, (key, group) => new KeyValuePair<string, IEnumerable<ResourceRequestArgs<Uri>>>(key, group.SelectMany(pair => pair.Value)));
+            .Select(arg => new KeyValuePair<string, IEnumerable<KeyValueRequestArgs<Uri>>>(Resolver.ResolveUrl(arg.Request.Key), arg.AsEnumerable()))
+            .GroupBy(kvp => kvp.Key, (key, group) => new KeyValuePair<string, IEnumerable<KeyValueRequestArgs<Uri>>>(key, group.SelectMany(pair => pair.Value)));
 
-        private TMDbResolver.TrojanTMDbUri GetUri(Item item, string url, ResourceRequestArgs<Uri>[] requests)
+        private TMDbResolver.TrojanTMDbUri GetUri(Item item, string url, KeyValueRequestArgs<Uri>[] requests)
         {
             var properties = requests
                     .Select(arg => arg.Request.Key)
@@ -163,18 +206,18 @@ namespace Movies
             return uri;
         }
 
-        private class TrojanProcessor : IAsyncEventProcessor<ResourceRequestArgs<Uri>>
+        private class TrojanProcessor : IAsyncEventProcessor<KeyValueRequestArgs<Uri>>
         {
-            public IAsyncEventProcessor<ResourceRequestArgs<Uri>> Processor { get; }
+            public IAsyncEventProcessor<KeyValueRequestArgs<Uri>> Processor { get; }
             public TMDbResolver Resolver { get; }
 
-            public TrojanProcessor(IAsyncEventProcessor<ResourceRequestArgs<Uri>> processor, TMDbResolver resolver)
+            public TrojanProcessor(IAsyncEventProcessor<KeyValueRequestArgs<Uri>> processor, TMDbResolver resolver)
             {
                 Processor = processor;
                 Resolver = resolver;
             }
 
-            public async Task<bool> ProcessAsync(ResourceRequestArgs<Uri> e)
+            public async Task<bool> ProcessAsync(KeyValueRequestArgs<Uri> e)
             {
                 var response = await Processor.ProcessAsync(e);
 

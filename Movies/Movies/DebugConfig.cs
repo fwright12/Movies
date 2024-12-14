@@ -22,13 +22,18 @@ namespace Movies
         public static bool AllowTMDbRequests { get; set; } = false || AllowLiveRequests;
         public static bool AllowTMDbImages { get; set; } = false;
 
-        public static bool ClearLocalWebCache { get; set; } = true || FilterPerformanceTest;
+        public static bool ClearLocalWebCache { get; set; } = false || FilterPerformanceTest;
         public static bool SimulateStaleCache { get; set; } = false;
 
         public static int SimulatedDelay { get; set; } = 0;
 
         public static void Breakpoint()
         {
+            if (FilterPerformanceTest)
+            {
+                return;
+            }
+            
             ;
         }
     }

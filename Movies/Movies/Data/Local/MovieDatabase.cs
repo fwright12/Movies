@@ -1,4 +1,5 @@
-﻿using Movies.Models;
+﻿using Movies.Data.Local;
+using Movies.Models;
 using SQLite;
 using System;
 using System.Collections.Generic;
@@ -9,28 +10,6 @@ using Test = Movies;
 
 namespace Movies.Views
 {
-    public abstract class SQLiteDatabase
-    {
-        public Task<SQLiteAsyncConnection> Connection { get; }
-
-        public SQLiteDatabase(SQLiteAsyncConnection connection)
-        {
-            Connection = Init(connection);
-        }
-
-        protected abstract Task<SQLiteAsyncConnection> Init(SQLiteAsyncConnection connection);
-    }
-
-    public class UserInfoDatabase : SQLiteDatabase
-    {
-        public UserInfoDatabase(SQLiteAsyncConnection connection) : base(connection) { }
-
-        protected override Task<SQLiteAsyncConnection> Init(SQLiteAsyncConnection connection)
-        {
-            throw new NotImplementedException();
-        }
-    }
-
     public partial class Database : IListProvider, IAssignID<int>
     {
         private static class SyncListsCols
@@ -82,9 +61,11 @@ namespace Movies.Views
         private Task<SQLiteAsyncConnection> UserInfo;
         private Task<SQLiteAsyncConnection> ItemInfo;
 
+        public static readonly TimeSpan ResourceCacheMaxAge = new TimeSpan(30, 0, 0, 0);
         public bool NeedsCleaning => DateTime.Now - LastCleaned <= App.DB_CLEANING_SCHEDULE == false;
 
         public ItemInfoCache ItemCache { get; }
+        public SqlResourceDAO ResourceDAO { get; }
         public string Name { get; } = "Local";
 
         private static readonly Table SyncLists = new Table(SyncListsCols.ID, SyncListsCols.SOURCE, SyncListsCols.SYNC_ID, SyncListsCols.SYNC_SOURCE)
@@ -110,7 +91,7 @@ namespace Movies.Views
         private ID<int>.Key IDKey;
         private DateTime? LastCleaned;
 
-        public Database(IAssignID<int> tmdb, ID<int>.Key idKey, DateTime? lastCleaned = null)
+        public Database(IAssignID<int> tmdb, ID<int>.Key idKey, TMDbResolver resolver, DateTime? lastCleaned = null)
         {
             IDSystem = tmdb;
             IDKey = idKey;
@@ -125,10 +106,58 @@ namespace Movies.Views
             //File.Delete(path);
             var itemInfo = new SQLiteAsyncConnection(itemInfoPath, SQLiteOpenFlags.ReadWrite | SQLiteOpenFlags.Create | SQLiteOpenFlags.SharedCache);
 
+#if DEBUG
+            var info1 = new FileInfo(userInfoPath);
+            var info2 = new FileInfo(itemInfoPath);
+            Print.Log(info1.Length, info2.Length, info1.FullName);
+
+            async Task test(SQLiteAsyncConnection conn)
+            {
+                try
+                {
+                    //var info = new FileInfo(path);
+                    //var bytes = File.ReadAllBytes(itemInfoPath);
+                    //var text = System.Text.Encoding.UTF8.GetString(bytes);
+                    //Print.Log(info1.Length, info2.Length, bytes.Length, text.Length, info1.FullName);
+                    //Print.Log("\n\n\n");
+                    //Print.Log(text.Substring(100, 200));
+                    //Print.Log("\n\n\n");
+                    var tables = await conn.QueryScalarsAsync<string>("SELECT name FROM sqlite_schema WHERE type = 'table' AND name NOT LIKE 'sqlite_%';");
+                    var counts = await Task.WhenAll(tables.Select(async name =>
+                    {
+                        try
+                        {
+                            return await conn.QueryScalarsAsync<int>($"select count(*) from {name}");
+                        }
+                        catch (Exception e1)
+                        {
+                            Print.Log("failed " + name, e1.Message);
+                            return new List<int> { -1 };
+                        }
+                    }));
+                    Print.Log("\n");
+                    foreach (var value in tables.Zip(counts, (table, count) => (table, count.FirstOrDefault())))
+                    {
+                        Print.Log(value.table, value.Item2);
+                    }
+                    ;
+                }
+                catch (Exception e)
+                {
+                    Print.Log(e);
+                    ;
+                }
+            }
+            _ = test(userInfo);
+            _ = test(itemInfo);
+#endif
+
             UserInfo = CreateUserInfo(userInfo, NeedsCleaning);
             ItemInfo = CreateItemInfo(itemInfo, UserInfo, NeedsCleaning);
 
-            ItemCache = new ItemInfoCache(ItemInfo);
+            //ItemCache = new ItemInfoCache(ItemInfo);
+            ResourceDAO = new SqlResourceDAO(ItemInfo, resolver);
+            _ = ResourceDAO.Expire(ResourceCacheMaxAge);
 
 #if DEBUG
             async Task Dummy()
@@ -265,6 +294,8 @@ namespace Movies.Views
             //await UserInfo.ExecuteAsync("drop table if exists " + SyncLists.Name);
 
             await itemInfo.ExecuteAsync("drop table if exists JsonCache");
+            await itemInfo.ExecuteAsync("drop table if exists temp");
+            await itemInfo.ExecuteAsync("drop table if exists stillValidCachedJson");
             //await SQL.ExecuteAsync("drop table if exists MovieInfo");
             //await SQL.ExecuteAsync("drop table if exists TVShows");
             //await SQL.ExecuteAsync("drop table if exists People");
@@ -284,9 +315,10 @@ namespace Movies.Views
                     //Print.Log(string.Join(',', await ItemInfo.QueryAsync<ValueTuple<string>>($"select {LocalList.ItemsCols.ITEM_ID} from items.{LocalList.ItemsTable} where {LocalList.ItemsCols.ITEM_TYPE} = ?", kvp.Key)));
                     //Print.Log($"delete from {kvp.Value} where {kvp.Value.Columns[0]} not in (select {LocalList.ItemsCols.ITEM_ID} from items.{LocalList.ItemsTable} where {LocalList.ItemsCols.ITEM_TYPE} = ?)");
                     var id = kvp.Value.Columns[0];
+                    var type = LocalList.DatabaseItemTypeToAppItemType(kvp.Key);
                     var userLists = $"(select {LocalList.ItemsCols.ITEM_ID} from items.{LocalList.ItemsTable} where {LocalList.ItemsCols.ITEM_TYPE} = ?)";
                     cleaning.Add(itemInfo.ExecuteAsync($"delete from {kvp.Value} where {id} not in {userLists}", kvp.Key));
-                    cleaning.Add(itemInfo.ExecuteAsync($"delete from {SQLJsonCache.TABLE_NAME} where {ItemInfoCache.TYPE} = ? and {ItemInfoCache.ID} not in {userLists}", kvp.Key, kvp.Key));
+                    cleaning.Add(itemInfo.ExecuteAsync($"delete from {SqlResourceDAO.RESOURCE_TABLE_NAME} where {nameof(SqlResourceDAO.Message.Type)} = ? and {nameof(SqlResourceDAO.Message.Id)} not in {userLists}", kvp.Key, kvp.Key));
                 }
 
                 var rows = await Task.WhenAll(cleaning);
@@ -300,120 +332,7 @@ namespace Movies.Views
             return itemInfo;
         }
 
-        private async Task Setup()
-        {
-            //await test.ExecuteAsync("drop table if exists " + MyLists.Name);
-            //await test.ExecuteAsync("drop table if exists " + LocalLists.Name);
-            //await UserInfo.ExecuteAsync("drop table if exists " + LocalList.ItemsTable.Name);
-            //await UserInfo.ExecuteAsync("drop table if exists " + LocalList.DetailsTable.Name);
-            //await UserInfo.ExecuteAsync("drop table if exists " + SyncLists.Name);
-
-            var userInfo = await UserInfo;
-            var itemInfo = await ItemInfo;
-
-            await userInfo.ExecuteAsync("drop table if exists Movies");
-            await itemInfo.ExecuteAsync("drop table if exists JsonCache");
-            //await SQL.ExecuteAsync("drop table if exists MovieInfo");
-            //await SQL.ExecuteAsync("drop table if exists TVShows");
-            //await SQL.ExecuteAsync("drop table if exists People");
-            //await SQL.ExecuteAsync("drop table if exists Collections");
-
-            var itemsCols = await userInfo.GetTableInfoAsync(LocalList.ItemsTable.Name);
-            if (itemsCols.Count > 0 && !itemsCols.Select(col => col.Name).Contains(LocalList.ItemsCols.DATE_ADDED.Name))
-            {
-                await userInfo.CreateTable(new Table(LocalList.ItemsTable.Columns) { Name = "temp" });
-                await userInfo.ExecuteAsync(string.Format("insert into temp select {0}, null as {1} from {2}", string.Join(',', LocalList.ItemsTable.Columns.Take(3)), LocalList.ItemsCols.DATE_ADDED, LocalList.ItemsTable));
-
-                await userInfo.ExecuteAsync("drop table " + LocalList.ItemsTable.Name);
-                await userInfo.ExecuteAsync("alter table temp rename to " + LocalList.ItemsTable.Name);
-            }
-
-            await Task.WhenAll(new Table[]
-            {
-                SyncLists,
-                LocalList.DetailsTable,
-                LocalList.ItemsTable,
-            }.Select(table => userInfo.CreateTable(table)));
-
-            await Task.WhenAll(ItemTables.Values.Select(table => itemInfo.CreateTable(table)));
-
-            //await Task.WhenAll(SQL.CreateTable(SyncLists), SQL.CreateTable(LocalList.DetailsTable), SQL.CreateTable(LocalList.ItemsTable));//, SQL.CreateTable(Movies));
-            if ((await userInfo.QueryScalarsAsync<int>(string.Format("select count(*) from {0}", LocalList.DetailsTable))).First() == 0)
-            {
-                await userInfo.ExecuteAsync(string.Format("insert into {0} ({1}) values (?), (?), (?)", LocalList.DetailsTable, LocalList.DetailsCols.ID), 0, 1, 2);
-                //await SQL.ExecuteAsync(string.Format("insert into {0} values (?), (?), (?)", SyncLists, 0, 1, 2);
-            }
-
-#if DEBUG
-            Print.Log("stored movies");
-            foreach (var row in await itemInfo.QueryAsync<(int, string, int)>("select * from " + Movies.Name + " limit 10"))
-            {
-                Print.Log(row);
-            }
-
-            Print.Log("stored collections");
-            foreach (var row in await itemInfo.QueryAsync<(int, string, int?, string, string)>("select * from " + Collections.Name + " limit 10"))
-            {
-                Print.Log(row);
-            }
-
-            Print.Log("synced lists");
-            foreach (var row in await userInfo.QueryAsync<(string, string, string, string)>("select * from " + SyncLists.Name))
-            {
-                Print.Log(row);
-            }
-
-            Print.Log("local lists", (await userInfo.QueryScalarsAsync<int>(string.Format("select count(*) from {0}", LocalList.DetailsTable))).FirstOrDefault());
-            foreach (var row in await userInfo.QueryAsync<(string, string, string, string, string, string, string)>("select * from " + LocalList.DetailsTable.Name))
-            {
-                Print.Log(DateTime.TryParse(row.Item7, out var date) ? date.ToLocalTime().ToString() : "", row);
-            }
-
-            //Print.Log(DateTime.Parse((await UserInfo.QueryScalarsAsync<string>("SELECT CURRENT_TIMESTAMP")).FirstOrDefault()));
-            Print.Log("items in lists", (await userInfo.QueryScalarsAsync<int>(string.Format("select count(*) from {0}", LocalList.ItemsTable))).FirstOrDefault());
-            foreach (var row in await userInfo.QueryAsync<(int?, int?, int?, string)>("select * from " + LocalList.ItemsTable.Name + " limit 10"))
-            {
-                Print.Log(row);
-            }
-
-            var history = await GetHistory();
-            //await UserInfo.ExecuteAsync($"delete from {LocalList.ItemsTable} where {LocalList.ItemsCols.LIST_ID} = ?", history.ID);
-            //return;
-            if (history.Count > 0)
-            {
-                Print.Log("not adding");
-                return;
-            }
-            var temp = await userInfo.ExecuteAsync($"delete from {LocalList.ItemsTable} where {LocalList.ItemsCols.LIST_ID} = ?", history.ID);
-
-            var data = MyMovies.Split("\r\n").ToList<string>();
-            var movies = new List<Movie>();
-            foreach (var line in data)
-            {
-                var info = line.Split(',');
-
-                if (info.Length != 3 || !int.TryParse(info[1], out var year) || !int.TryParse(info[2], out var id))
-                {
-                    continue;
-                }
-
-                movies.Add(new Movie(info[0], year).WithID(TMDB.IDKey, id));
-            }
-
-            await history.AddAsync(movies);
-            Print.Log("done");
-#endif
-        }
-
         private static string GetFilePath(string dbName) => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), dbName);
-
-        private class Query<T> { public T Value { get; set; } }
-
-        public async Task<List<(string, string)>> GetMyLists()
-        {
-            var userInfo = await UserInfo;
-            return await userInfo.QueryAsync<(string, string)>(string.Format("select {0} from {1}", SQLiteExtensions.SelectFrom(SyncListsCols.ID.Name, SyncListsCols.SOURCE.Name), SyncLists.Name));
-        }
 
         public async Task<List<(string Name, string ID)>> GetSyncsWithAsync(string source, string id)
         {

@@ -1,27 +1,13 @@
-﻿using FFImageLoading.Helpers.Exif;
-using REpresentationalStateTransfer;
+﻿using REpresentationalStateTransfer;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http.Headers;
-using System.Text.Json;
 using System.Threading.Tasks;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace Movies
 {
-    public class BufferedProcessor<TArgs> : IAsyncEventProcessor<IEnumerable<TArgs>>
-    {
-        public IAsyncEventProcessor<IEnumerable<TArgs>> Processor { get; }
-        private IEventAsyncCache<TArgs> ReadOnlyCache { get; }
-
-        public BufferedProcessor(IAsyncEventProcessor<IEnumerable<TArgs>> processor)
-        {
-            //ReadOnlyCache = new ResourceBufferedCache<TArgs>(new ReadOnlyEventCache<ResourceRequestArgs<TArgs>>(processor));
-        }
-
-        public Task<bool> ProcessAsync(IEnumerable<TArgs> e) => ReadOnlyCache.Read(e);
-    }
-
     public class ReadOnlyEventCache<TArgs> : IEventAsyncCache<TArgs>
     {
         public IAsyncEventProcessor<IEnumerable<TArgs>> Processor { get; }
@@ -36,14 +22,14 @@ namespace Movies
         public Task<bool> Write(IEnumerable<TArgs> args) => Task.FromResult(false);
     }
 
-    public class ResourceBufferedCache<TKey> : BufferedCache<ResourceRequestArgs<TKey>>
+    public class ResourceBufferedCache1<TKey> : BufferedCache<KeyValueRequestArgs<TKey>>
         where TKey : Uri
     {
-        public ResourceBufferedCache(IEventAsyncCache<ResourceRequestArgs<TKey>> cache) : base(cache) { }
+        public ResourceBufferedCache1(IEventAsyncCache<KeyValueRequestArgs<TKey>> cache) : base(cache) { }
 
-        public override object GetKey(ResourceRequestArgs<TKey> e) => e.Request.Key;
+        public override object GetKey(KeyValueRequestArgs<TKey> e) => e.Request.Key;
 
-        public override void Process(ResourceRequestArgs<TKey> e, ResourceRequestArgs<TKey> buffered)
+        public override void Process(KeyValueRequestArgs<TKey> e, KeyValueRequestArgs<TKey> buffered)
         {
             if (buffered.Response is RestResponse restResponse)
             {
@@ -61,94 +47,81 @@ namespace Movies
         }
     }
 
-    public class UriBufferedCache : ResourceBufferedCache<Uri>
+    public class ResourceBufferedCache<TKey> : IAsyncCoRProcessor<IEnumerable<KeyValueRequestArgs<TKey>>>, IWriteBackProcessor<KeyValueRequestArgs<TKey>>, IAsyncCacheAsideProcessor<KeyValueRequestArgs<TKey>> // : BufferedCache<KeyValueRequestArgs<TKey>>
+        where TKey : Uri
     {
-        private IAsyncEventProcessor<IEnumerable<ResourceRequestArgs<Uri>>> Processor { get; }
+        protected ResourceBufferedCache1<TKey> Cache { get; }
 
-        public UriBufferedCache(IEventAsyncCache<ResourceRequestArgs<Uri>> cache) : base(cache)
+        public ResourceBufferedCache(IEventAsyncCache<KeyValueRequestArgs<TKey>> cache)
         {
-            Processor = new EventCacheReadProcessor<ResourceRequestArgs<Uri>>(this);
+            Cache = new ResourceBufferedCache1<TKey>(cache);
         }
 
-        public override Task<bool> ProcessAsync(IEnumerable<ResourceRequestArgs<Uri>> e, IAsyncEventProcessor<IEnumerable<ResourceRequestArgs<Uri>>> next)
+        public virtual async Task<bool> ProcessAsync(IEnumerable<KeyValueRequestArgs<TKey>> e, IAsyncEventProcessor<IEnumerable<KeyValueRequestArgs<TKey>>> next)
         {
-            var batchedProcessor = new BatchedEventProcessor<ResourceRequestArgs<Uri>>(e, Processor);
-            var batchedNext = new BatchedEventProcessor<ResourceRequestArgs<Uri>>(e, next);
+            if (await Cache.Read(e))
+            {
+                return true;
+            }
+            else if (next == null)
+            {
+                return false;
+            }
+            else
+            {
+                return await next.ProcessAsync(e);
+            }
+        }
+
+        public void Write(IEnumerable<KeyValueRequestArgs<TKey>> args, Task task) => Cache.Write(args, task);
+
+        public void Process(KeyValueRequestArgs<TKey> args, KeyValueRequestArgs<TKey> buffered) => Cache.Process(args, buffered);
+    }
+
+    public class UriBufferedCache : ResourceBufferedCache<Uri>
+    {
+        private IAsyncEventProcessor<IEnumerable<KeyValueRequestArgs<Uri>>> Processor { get; }
+
+        public UriBufferedCache(IEventAsyncCache<KeyValueRequestArgs<Uri>> cache) : base(cache)
+        {
+            Processor = new EventCacheReadProcessor<KeyValueRequestArgs<Uri>>(Cache);
+        }
+
+        public override Task<bool> ProcessAsync(IEnumerable<KeyValueRequestArgs<Uri>> e, IAsyncEventProcessor<IEnumerable<KeyValueRequestArgs<Uri>>> next)
+        {
+            if (next == null)
+            {
+                return base.ProcessAsync(e, next);
+            }
+
+            var batchedProcessor = new BatchedEventProcessor<KeyValueRequestArgs<Uri>>(e, Processor);
+            var batchedNext = new BatchedEventProcessor<KeyValueRequestArgs<Uri>>(e, next);
             var etagProcessor = new EtaggedUriAsyncCoRProcessor(batchedProcessor);
 
             return etagProcessor.ProcessAllAsync(e, batchedProcessor, batchedNext);
         }
     }
 
-    public class EventCacheReadProcessor<T> : IAsyncEventProcessor<IEnumerable<T>>
-    {
-        public IEventAsyncCache<T> Cache { get; }
-
-        public EventCacheReadProcessor(IEventAsyncCache<T> cache)
-        {
-            Cache = cache;
-        }
-
-        public Task<bool> ProcessAsync(IEnumerable<T> e) => Cache.Read(e);
-    }
-
-    public static class BatchedProcessorExtensions
-    {
-        public static Task<bool> ProcessAllAsync<T>(this IAsyncCoRProcessor<T> processor, IEnumerable<T> e, BatchedEventProcessor<T> batchedProcessor, params BatchedEventProcessor<T>[] batchedProcessors)
-        {
-            BatchedEventProcessor<T> last;
-
-            if (batchedProcessors.Length == 0)
-            {
-                last = batchedProcessor;
-            }
-            else
-            {
-                last = batchedProcessors[batchedProcessors.Length - 1];
-
-                batchedProcessor.SetNext(batchedProcessors[0]);
-                for (int i = 0; i < batchedProcessors.Length - 1; i++)
-                {
-                    batchedProcessors[i].SetNext(batchedProcessors[i + 1]);
-                }
-            }
-
-            return last.SetNext(e.ToArray().Select(arg => processor.ProcessAsync(arg, last)));
-        }
-
-        private class CoRProcessorFunc<U> : IAsyncCoRProcessor<U>
-        {
-            public Func<U, IAsyncEventProcessor<U>, Task<bool>> Func { get; }
-
-            public CoRProcessorFunc(Func<U, IAsyncEventProcessor<U>, Task<bool>> func)
-            {
-                Func = func;
-            }
-
-            public Task<bool> ProcessAsync(U e, IAsyncEventProcessor<U> next) => Func(e, next);
-        }
-    }
-
-    public abstract class EtaggedAsyncCoRProcessor<T> : IAsyncCoRProcessor<ResourceRequestArgs<T>>
+    public abstract class EtaggedAsyncCoRProcessor<T> : IAsyncCoRProcessor<KeyValueRequestArgs<T>>
         where T : Uri
     {
-        public IAsyncEventProcessor<ResourceRequestArgs<T>> Processor { get; }
+        public IAsyncEventProcessor<KeyValueRequestArgs<T>> Processor { get; }
 
-        protected EtaggedAsyncCoRProcessor(IAsyncEventProcessor<ResourceRequestArgs<T>> processor)
+        protected EtaggedAsyncCoRProcessor(IAsyncEventProcessor<KeyValueRequestArgs<T>> processor)
         {
             Processor = processor;
         }
 
-        public async Task<bool> ProcessAsync(ResourceRequestArgs<T> e, IAsyncEventProcessor<ResourceRequestArgs<T>> next)
+        public async Task<bool> ProcessAsync(KeyValueRequestArgs<T> e, IAsyncEventProcessor<KeyValueRequestArgs<T>> next)
         {
             if (next == null)
             {
                 return await Processor.ProcessAsync(e);
             }
 
-            var e1 = new ResourceRequestArgs<T>(e.Request);
+            var e1 = new KeyValueRequestArgs<T>(e.Request);
             var result = await Processor.ProcessAsync(e1);
-            ResourceRequestArgs<T> eNext;
+            KeyValueRequestArgs<T> eNext;
 
             if (e1.IsHandled)
             {
@@ -197,7 +170,7 @@ namespace Movies
             return result;
         }
 
-        protected abstract ResourceRequestArgs<T> GetEtaggedRequest(ResourceRequestArgs<T> original, string etag);
+        protected abstract KeyValueRequestArgs<T> GetEtaggedRequest(KeyValueRequestArgs<T> original, string etag);
 
         private static bool isFresh(HttpResponseHeaders headers)
         {
@@ -208,14 +181,91 @@ namespace Movies
 
     public class EtaggedUriAsyncCoRProcessor : EtaggedAsyncCoRProcessor<Uri>
     {
-        public EtaggedUriAsyncCoRProcessor(IAsyncEventProcessor<ResourceRequestArgs<Uri>> processor) : base(processor) { }
+        public EtaggedUriAsyncCoRProcessor(IAsyncEventProcessor<KeyValueRequestArgs<Uri>> processor) : base(processor) { }
 
-        protected override ResourceRequestArgs<Uri> GetEtaggedRequest(ResourceRequestArgs<Uri> original, string etag)
+        protected override KeyValueRequestArgs<Uri> GetEtaggedRequest(KeyValueRequestArgs<Uri> original, string etag)
         {
-            return new RestRequestArgs(original.Request.Key, null, new Dictionary<string, IEnumerable<string>>
+            var controlData = new Dictionary<string, IEnumerable<string>>
             {
                 [REpresentationalStateTransfer.Rest.IF_NONE_MATCH] = new List<string> { etag }
-            }, original.Request.Expected);
+            };
+            return new KeyValueRequestArgs<Uri>(new RestRequestEventArgs(original.Request.Key, null, controlData, original.Request.Expected ?? (true == controlData?.TryGetValue(Rest.CONTENT_TYPE, out _) ? typeof(string) : null)));
+        }
+    }
+
+    public static class BatchedProcessorExtensions
+    {
+        public static Task<bool> ProcessAllAsync<T>(this IAsyncCoRProcessor<T> processor, IEnumerable<T> e, BatchedEventProcessor<T> batchedProcessor, params BatchedEventProcessor<T>[] batchedProcessors)
+        {
+            BatchedEventProcessor<T> last;
+
+            if (batchedProcessors.Length == 0)
+            {
+                last = batchedProcessor;
+            }
+            else
+            {
+                last = batchedProcessors[batchedProcessors.Length - 1];
+
+                batchedProcessor.SetNext(batchedProcessors[0]);
+                for (int i = 0; i < batchedProcessors.Length - 1; i++)
+                {
+                    batchedProcessors[i].SetNext(batchedProcessors[i + 1]);
+                }
+            }
+
+            return last.SetNext(e.ToArray().Select(arg => processor.ProcessAsync(arg, last)));
+        }
+
+        public static Task<bool> ProcessPartialAsync<TArgs>(this IAsyncEventProcessor<IEnumerable<TArgs>> processor, IEnumerable<TArgs> e) => (e is BulkEventArgs<TArgs> bulkArgs ? new EventProcessor<TArgs>(processor, bulkArgs) : processor).ProcessAsync(e);
+
+        public static Task<bool> ProcessPartialAsync<TArgs>(this IAsyncCoRProcessor<IEnumerable<TArgs>> processor, IEnumerable<TArgs> e, IAsyncEventProcessor<IEnumerable<TArgs>> next) => processor.ProcessAsync(e, e is BulkEventArgs<TArgs> bulkArgs ? new EventProcessor<TArgs>(next, bulkArgs) : next);
+
+        private class EventProcessor<TArgs> : IAsyncEventProcessor<IEnumerable<TArgs>>
+        {
+            public IAsyncEventProcessor<IEnumerable<TArgs>> Processor { get; }
+            public BulkEventArgs<TArgs> Original { get; }
+
+            public EventProcessor(IAsyncEventProcessor<IEnumerable<TArgs>> processor, BulkEventArgs<TArgs> original)
+            {
+                Processor = processor;
+                Original = original;
+            }
+
+            public async Task<bool> ProcessAsync(IEnumerable<TArgs> e)
+            {
+                Task<bool> response;
+
+                try
+                {
+                    try
+                    {
+                        response = Processor.ProcessAsync(e);
+                    }
+                    finally
+                    {
+                        Original.Add(e);
+                    }
+
+                    return await response;
+                }
+                finally
+                {
+                    Original.Add(e);
+                }
+            }
+        }
+
+        private class CoRProcessorFunc<U> : IAsyncCoRProcessor<U>
+        {
+            public Func<U, IAsyncEventProcessor<U>, Task<bool>> Func { get; }
+
+            public CoRProcessorFunc(Func<U, IAsyncEventProcessor<U>, Task<bool>> func)
+            {
+                Func = func;
+            }
+
+            public Task<bool> ProcessAsync(U e, IAsyncEventProcessor<U> next) => Func(e, next);
         }
     }
 
@@ -320,5 +370,65 @@ namespace Movies
 
             return result;
         }
+    }
+
+    public class PartialProcessor1<TArgs> : IAsyncCoRProcessor<IEnumerable<TArgs>>
+    {
+        public IAsyncCoRProcessor<IEnumerable<TArgs>> Processor { get; }
+
+        public PartialProcessor1(IAsyncCoRProcessor<IEnumerable<TArgs>> processor)
+        {
+            Processor = processor;
+        }
+
+        public Task<bool> ProcessAsync(IEnumerable<TArgs> e, IAsyncEventProcessor<IEnumerable<TArgs>> next) => Processor.ProcessPartialAsync(e, next);
+    }
+
+    public class PartialProcessor<TArgs> : IAsyncEventProcessor<IEnumerable<TArgs>>
+        where TArgs : EventArgsRequest
+    {
+        public IAsyncEventProcessor<IEnumerable<TArgs>> First { get; }
+        public IAsyncEventProcessor<IEnumerable<TArgs>> Second { get; }
+
+        public async Task<bool> ProcessAsync(IEnumerable<TArgs> e)
+        {
+            if (await First.ProcessAsync(e))
+            {
+                return true;
+            }
+
+            var nextArgs = new BulkEventArgs<TArgs>(e.Where(arg => !arg.IsHandled));
+            Task<bool> response;
+
+            try
+            {
+                try
+                {
+                    response = Second.ProcessAsync(nextArgs);
+                }
+                finally
+                {
+                    (e as BulkEventArgs<TArgs>)?.Add(nextArgs);
+                }
+
+                return await response;
+            }
+            finally
+            {
+                (e as BulkEventArgs<TArgs>)?.Add(nextArgs);
+            }
+        }
+    }
+
+    public class EventCacheReadProcessor<T> : IAsyncEventProcessor<IEnumerable<T>>
+    {
+        public IEventAsyncCache<T> Cache { get; }
+
+        public EventCacheReadProcessor(IEventAsyncCache<T> cache)
+        {
+            Cache = cache;
+        }
+
+        public Task<bool> ProcessAsync(IEnumerable<T> e) => Cache.Read(e);
     }
 }

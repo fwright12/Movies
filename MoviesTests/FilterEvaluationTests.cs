@@ -25,7 +25,7 @@
             { API.MOVIES.GET_KEYWORDS.GetURL(), EmptyJSON }
         };
 
-        private ChainLink<EventArgsAsyncWrapper<IEnumerable<ResourceRequestArgs<Uri>>>> Chain;
+        private ChainLink<EventArgsAsyncWrapper<IEnumerable<KeyValueRequestArgs<Uri>>>> Chain;
 
         public FilterEvaluationTests()
         {
@@ -34,7 +34,7 @@
             var invoker = new HttpMessageInvoker(new BufferedHandler(new TMDbBufferedHandler(new MockHandler())));
             var RemoteTMDbHandlers = new TMDbHttpProcessor(invoker, resolver, TMDbApi.AutoAppend);
 
-            Chain = AsyncCoRExtensions.Create<IEnumerable<ResourceRequestArgs<Uri>>>(RemoteTMDbHandlers);
+            Chain = AsyncCoRExtensions.Create<IEnumerable<KeyValueRequestArgs<Uri>>>(RemoteTMDbHandlers);
             DebugConfig.SimulatedDelay = 0;
 
             InMemoryCache = new UiiDictionaryDataStore();
@@ -75,6 +75,7 @@
         private static readonly Keyword WIZARD_KEYWORD = new Keyword { Id = 177912, Name = "wizard" };
         private static readonly Person EVANNA_LYNCH = new Person("Evanna Lynch").WithID(TMDB.IDKey, 140367);
         private static readonly WatchProvider FUBO_TV = new WatchProvider { Id = 257 };
+        private static readonly WatchProvider MAX = new WatchProvider { Id = 1899 };
         private static readonly WatchProvider PEACOCK = new WatchProvider { Id = 386 };
         private static OperatorPredicate ADVENTURE_MOVIES => new OperatorPredicate
         {
@@ -206,7 +207,7 @@
             {
                 LHS = TVShow.WATCH_PROVIDERS,
                 Operator = Operators.Equal,
-                RHS = FUBO_TV
+                RHS = MAX
             };
             filter.Predicates[0] = hbo;
 
@@ -296,6 +297,12 @@
             Assert.IsFalse(await Evaluate(Movie, predicate));
             predicate.RHS = EVANNA_LYNCH;
             Assert.IsTrue(await Evaluate(Movie, predicate));
+        }
+
+        [TestMethod]
+        public async Task FilterTMDbScore()
+        {
+            Assert.Inconclusive();
         }
 
         private Task<bool> Evaluate(Item item, FilterPredicate filter) => ItemHelpers.Evaluate(Chain, item, filter);

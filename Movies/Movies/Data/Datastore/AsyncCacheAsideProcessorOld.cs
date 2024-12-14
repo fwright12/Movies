@@ -306,7 +306,7 @@ namespace Movies
         {
             try
             {
-                var response = await Cache.ProcessAsync(eCache, next);
+                var response = await ((IAsyncCoRProcessor<IEnumerable<TArgs>>)Cache).ProcessAsync(eCache, next);
                 cacheSource.TrySetResult(Task.FromResult(response));
             }
             catch (Exception e)

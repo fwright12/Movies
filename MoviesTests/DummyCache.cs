@@ -1,18 +1,20 @@
-﻿using Movies;
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 
 namespace MoviesTests
 {
-    public class DummyDatastore<TKey> : ConcurrentDictionary<TKey, ResourceResponse>, IAsyncEventProcessor<ResourceRequestArgs<TKey>>, IEventAsyncCache<ResourceRequestArgs<TKey>>
+    public class DummyDatastore<TKey> : ConcurrentDictionary<TKey, ResourceResponse>, IAsyncEventProcessor<KeyValueRequestArgs<TKey>>, IEventAsyncCache<KeyValueRequestArgs<TKey>>
         where TKey : Uri
     {
         public int ReadLatency { get; set; }
         public int WriteLatency { get; set; }
 
-        public async Task<bool> Read(IEnumerable<ResourceRequestArgs<TKey>> args) => (await Task.WhenAll(args.Select(ProcessAsync))).All(result => result);
+        public int ReadCount { get; private set; }
+        public int WriteCount { get; private set; }
 
-        public async Task<bool> Write(IEnumerable<ResourceRequestArgs<TKey>> args) => (await Task.WhenAll(args.Select(Write))).All(result => result);
-        public async Task<bool> Write(ResourceRequestArgs<TKey> args)
+        public async Task<bool> Read(IEnumerable<KeyValueRequestArgs<TKey>> args) => (await Task.WhenAll(args.Select(ProcessAsync))).All(result => result);
+
+        public async Task<bool> Write(IEnumerable<KeyValueRequestArgs<TKey>> args) => (await Task.WhenAll(args.Select(Write))).All(result => result);
+        public async Task<bool> Write(KeyValueRequestArgs<TKey> args)
         {
             if (!args.IsHandled)// && (args.Response as HttpResponse)?.StatusCode != System.Net.HttpStatusCode.NotModified)
             {
@@ -20,20 +22,33 @@ namespace MoviesTests
             }
 
             await WriteDelay();
-            return TryAdd(args.Request.Key, args.Response);
+            WriteCount++;
+
+            return TryAdd(args.Request.Key, args.Response as ResourceResponse);
         }
 
-        public async Task<bool> ProcessAsync(ResourceRequestArgs<TKey> e)
+        public async Task<bool> ProcessAsync(KeyValueRequestArgs<TKey> e)
         {
             await ReadDelay();
+            ReadCount++;
             
             if (TryGetValue(e.Request.Key, out var resourceResponse))
             {
-                var response = resourceResponse as RestResponse ?? RestResponse.Create(e.Request.Expected, State.Create(resourceResponse.TryGetRepresentation<object>(out var value1) ? value1 : null));
+                RestResponse response;
+                if (resourceResponse is RestResponse restResponse)
+                {
+                    response = RestResponse.Create(e.Request.Expected, restResponse.Resource, restResponse.ControlData, restResponse.Metadata);
+                }
+                else
+                {
+                    response = RestResponse.Create(e.Request.Expected, State.Create(resourceResponse.TryGetRepresentation<object>(out var value1) ? value1 : null));
+                }
+                //response = resourceResponse as RestResponse ?? RestResponse.Create(e.Request.Expected, State.Create(resourceResponse.TryGetRepresentation<object>(out var value2) ? value2 : null));
+                //response = RestResponse.Create(e.Request.Expected, response.Resource, response.ControlData, response.Metadata);
                 return response == null ? false : e.Handle(response);
                 //return e.Handle(resourceResponse as RestResponse ?? new RestResponse(State.Create(resourceResponse.TryGetRepresentation<object>(out var value1) ? value1 : null), e.Request.Expected));
 
-                var restResponse = resourceResponse as RestResponse;
+                var restResponse1 = resourceResponse as RestResponse;
 
                 if (restResponse == null)
                 {

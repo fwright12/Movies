@@ -1,4 +1,5 @@
 ﻿using Movies.Data;
+using Movies.Data.Local;
 using Movies.Models;
 using Movies.ViewModels;
 using Movies.Views;
@@ -7,6 +8,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
+using System.Diagnostics;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -255,7 +257,9 @@ namespace Movies
             Session = new Session(Properties);
             Session.PropertyChanged += async (sender, e) => await SavePropertiesAsync();
 
-            LocalDatabase = new Database(tmdb, TMDB.IDKey, Session.DBLastCleaned);
+            var resolver = new TMDbResolver(TMDB.ITEM_PROPERTIES);
+
+            LocalDatabase = new Database(tmdb, TMDB.IDKey, resolver, Session.DBLastCleaned);
             if (LocalDatabase.NeedsCleaning)
             {
                 Session.DBLastCleaned = DateTime.Now;
@@ -266,12 +270,12 @@ namespace Movies
             //_ = tmdb.SetItemCache(LocalDatabase.ItemCache, Session.LastAccessed);
             Session.LastAccessed = DateTime.Now;
 
-            var resolver = new TMDbResolver(TMDB.ITEM_PROPERTIES);
-            IAsyncEventProcessor<IEnumerable<ResourceRequestArgs<Uri>>> tmdbHandlers = new TMDbHttpProcessor(TMDB.WebClient, resolver, TMDbApi.AutoAppend);
-            var tmdbLocalCache = new TMDbLocalCache(LocalDatabase.ItemCache, resolver);
+            IAsyncEventProcessor<IEnumerable<KeyValueRequestArgs<Uri>>> tmdbHandlers = new TMDbHttpProcessor(TMDB.WebClient, resolver, TMDbApi.AutoAppend);
+            IEventAsyncCache<KeyValueRequestArgs<Uri>>  tmdbLocalCache = new TMDbLocalCache(LocalDatabase.ItemCache, resolver);
+            tmdbLocalCache = new LocalMovieCache(LocalDatabase.ResourceDAO);
 
             DataService.Instance.Controller
-                .SetNext(new AsyncCacheAsideProcessor<ResourceRequestArgs<Uri>>(new UriBufferedCache(tmdbLocalCache)))
+                .SetNext(new AsyncCacheAsideProcessor<KeyValueRequestArgs<Uri>>(new UriBufferedCache(tmdbLocalCache)))
                 .SetNext(tmdbHandlers);
 
 #if DEBUG
@@ -599,7 +603,7 @@ namespace Movies
             {
                 return _Popular;
             }
-            
+
             _Popular = new CollectionViewModel(null, TMDB.Database.Instance, ItemType.Movie | ItemType.TVShow | ItemType.Person | ItemType.Collection, TMDB.Database.Instance)// | ItemType.Company)
             {
                 //Name = "Popular",
@@ -813,7 +817,7 @@ namespace Movies
         {
 #if DEBUG
             if (!Properties.ContainsKey(RATING_TEMPLATES_KEY))
-            _ = SaveRatingsTemplates(MockData.RATING_TEMPLATES);
+                _ = SaveRatingsTemplates(MockData.RATING_TEMPLATES);
 #endif
 
             if (Properties.TryGetValue(RATING_TEMPLATES_KEY, out var templatesObj))
