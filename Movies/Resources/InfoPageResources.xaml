@@ -10,7 +10,6 @@
                     xmlns:generic="clr-namespace:System.Collections.Generic;assembly=netstandard"
                     xmlns:ext="clr-namespace:Microsoft.Maui.Controls.Extensions;assembly=MauiExtensions"
                     xmlns:forms="clr-namespace:Microsoft.Maui.Controls;assembly=MauiExtensions"
-                    xmlns:ffil="clr-namespace:FFImageLoading.Forms;assembly=FFImageLoading.Forms"
                     x:Class="Movies.Views.InfoPageResources">
     <DataTemplate x:Key="DefaultTemplate">
         <Label Text="{Binding}"

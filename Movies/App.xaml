@@ -175,6 +175,13 @@
                         Value="10" />
             </Style>
 
+            <Style x:Key="RoundedBorderStyle"
+                   TargetType="Border">
+                <Setter Property="StrokeShape">
+                    <RoundRectangle CornerRadius="{Binding Height, Source={RelativeSource Self}}" />
+                </Setter>
+            </Style>
+
             <Style x:Key="RoundedFrameStyle"
                    TargetType="Frame"
                    BasedOn="{StaticResource FrameStyle}">
@@ -522,26 +529,27 @@
 
                     <AbsoluteLayout BindingContext="{Binding Source, Source={Static forms:Constants.AncestorBindingContext}}"
                                     x:DataType="viewmodels:AsyncListViewModel(x:Object)"
-                                    CompressedLayout.IsHeadless="True"
-                                    HeightRequest="250">
+                                    CompressedLayout.IsHeadless="True">
                         <CollectionView ItemsSource="{Binding Items}"
+                                        ItemTemplate="{StaticResource CompressedListSelector}"
                                         RemainingItemsThresholdReachedCommand="{Binding LoadMoreCommand}"
                                         RemainingItemsThreshold="4"
                                         AbsoluteLayout.LayoutBounds="0.5,0.5,1,1"
                                         AbsoluteLayout.LayoutFlags="All">
                             <CollectionView.ItemsLayout>
                                 <LinearItemsLayout Orientation="Horizontal"
+                                                   ext:ItemsLayout.ItemSize="0.667*"
                                                    ItemSpacing="10" />
                             </CollectionView.ItemsLayout>
 
-                            <CollectionView.ItemTemplate>
+                            <!--<CollectionView.ItemTemplate>
                                 <DataTemplate>
                                     <ContentView CompressedLayout.IsHeadless="True"
                                                  ext:ContentView.ItemSource="{Binding}"
                                                  ext:ContentView.ContentTemplate="{StaticResource CompressedListSelector}"
                                                  WidthRequest="{Binding Height, Source={RelativeSource Self}, Converter={Static forms:ArithmeticConverter.DIVIDE}, ConverterParameter=1.5}" />
                                 </DataTemplate>
-                            </CollectionView.ItemTemplate>
+                            </CollectionView.ItemTemplate>-->
 
                             <ItemsView.EmptyView>
                                 <Binding Path="Loading">

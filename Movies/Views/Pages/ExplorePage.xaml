@@ -2,7 +2,8 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:ios="clr-namespace:Microsoft.Maui.Controls.PlatformConfiguration.iOSSpecific;assembly=Microsoft.Maui.Controls"
-             xmlns:forms="clr-namespace:Microsoft.Maui.Controls;assembly=MauiExtensions"
+             xmlns:maui="clr-namespace:Microsoft.Maui.Controls;assembly=MauiExtensions"
+             xmlns:ext="clr-namespace:Microsoft.Maui.Controls.Extensions;assembly=MauiExtensions"
              xmlns:movies="clr-namespace:Movies"
              xmlns:views="clr-namespace:Movies.Views"
              xmlns:viewmodels="clr-namespace:Movies.ViewModels"
@@ -11,7 +12,7 @@
              x:Class="Movies.Views.ExplorePage">
     <!--<Shell.TitleView>
         <ContentView Padding="{OnPlatform Android='50,0,0,0', iOS='50,0,0,0'}">
-            <forms:AdView Style="{StaticResource BannerAdStyle}"
+            <maui:AdView Style="{StaticResource BannerAdStyle}"
                           AdUnitID="{Static movies:App.TopBannerAdUnitID}" />
         </ContentView>
     </Shell.TitleView>-->
@@ -26,15 +27,19 @@
 
     <CollectionView ItemsSource="{Binding}"
                     ItemTemplate="{StaticResource CondensedListTemplate}"
-                    Margin="10, 0"
                     ItemsUpdatingScrollMode="KeepScrollOffset"
                     Header="test"
                     Footer="test">
-        <!--<CollectionView.HeaderTemplate>
+        <CollectionView.ItemsLayout>
+            <LinearItemsLayout Orientation="Vertical"
+                               ext:ItemsLayout.ItemSize="250" />
+        </CollectionView.ItemsLayout>
+
+        <CollectionView.HeaderTemplate>
             <DataTemplate>
                 <ContentView>
-                    <forms:AdView Style="{StaticResource BannerAdStyle}"
-                                  AdUnitID="{Static movies:App.TopBannerAdUnitID}" />
+                    <maui:AdView Style="{StaticResource BannerAdStyle}"
+                                 AdUnitID="{Static movies:App.TopBannerAdUnitID}" />
                 </ContentView>
             </DataTemplate>
         </CollectionView.HeaderTemplate>
@@ -42,15 +47,15 @@
         <CollectionView.FooterTemplate>
             <DataTemplate>
                 <ContentView>
-                    <forms:AdView Style="{StaticResource BannerAdStyle}"
-                                  AdUnitID="{Static movies:App.BottomBannerAdUnitID}" />
+                    <maui:AdView Style="{StaticResource BannerAdStyle}"
+                                 AdUnitID="{Static movies:App.BottomBannerAdUnitID}" />
                 </ContentView>
             </DataTemplate>
         </CollectionView.FooterTemplate>
 
-        <forms:Ads.CollectionAds>
-            <forms:AdInfo Frequency="3"
-                          Template="{StaticResource InlineBannerTemplate}" />
-        </forms:Ads.CollectionAds>-->
+        <maui:Ads.CollectionAds>
+            <maui:AdInfo Frequency="3"
+                         Template="{StaticResource InlineBannerTemplate}" />
+        </maui:Ads.CollectionAds>
     </CollectionView>
 </ContentPage>

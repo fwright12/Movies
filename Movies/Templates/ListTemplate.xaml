@@ -93,9 +93,9 @@
                             RemainingItemsThreshold="4"
                             VerticalScrollBarVisibility="Default"
                             Grid.Row="0">
-                <VisualElement.Effects>
+                <!--<VisualElement.Effects>
                     <views:FixiOSCollectionViewScrollsToTopPlatformEffect />
-                </VisualElement.Effects>
+                </VisualElement.Effects>-->
 
                 <VisualElement.Resources>
                     <ResourceDictionary>

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <DataTemplate xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
               xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-              xmlns:forms="clr-namespace:Microsoft.Maui.Controls;assembly=MauiExtensions"
+              xmlns:maui="clr-namespace:Microsoft.Maui.Controls;assembly=MauiExtensions"
               xmlns:ext="clr-namespace:Microsoft.Maui.Controls.Extensions;assembly=MauiExtensions"
               xmlns:views="clr-namespace:Movies.Views"
               xmlns:viewmodels="clr-namespace:Movies.ViewModels"
@@ -9,26 +9,43 @@
               x:Class="Movies.Templates.FullMovieTemplate"
               x:DataType="viewmodels:MediaViewModel">
     <AbsoluteLayout Style="{StaticResource BatchStyle}">
-        <Image Source="{Binding PosterPath, Converter={Static views:ImageSizeConverter.Instance}}"
-               Aspect="AspectFill"
-               AbsoluteLayout.LayoutBounds="0.5,0,1,-1"
-               AbsoluteLayout.LayoutFlags="PositionProportional,WidthProportional" />
+        <views:ImageView x:Name="backgroundImage"
+                         Source="{Binding PosterPath, Converter={Static views:ImageSizeConverter.Instance}}"
+                         Aspect="AspectFill"
+                         AltText="{Binding Title}"
+                         AbsoluteLayout.LayoutBounds="0.5,0,1,-1"
+                         AbsoluteLayout.LayoutFlags="PositionProportional,WidthProportional">
+            <TemplatedView.ControlTemplate>
+                <ControlTemplate x:DataType="views:ImageView">
+                    <AbsoluteLayout>
+                        <Label Text="{TemplateBinding AltText}"
+                               HorizontalTextAlignment="Center"
+                               VerticalTextAlignment="Center"
+                               Padding="10"
+                               AbsoluteLayout.LayoutBounds="0.5,0.5,1,1"
+                               AbsoluteLayout.LayoutFlags="All" />
+
+                        <ContentPresenter />
+                    </AbsoluteLayout>
+                </ControlTemplate>
+            </TemplatedView.ControlTemplate>
+        </views:ImageView>
 
         <ScrollView Orientation="Vertical"
                     AbsoluteLayout.LayoutBounds="0,0,1,1"
                     AbsoluteLayout.LayoutFlags="All">
-            <Frame CornerRadius="10"
-                   Padding="{StaticResource PagePadding}"
-                   BackgroundColor="{Binding BackgroundColor, Source={RelativeSource AncestorType={x:Type Page}}}">
-                <StackLayout Orientation="Vertical"
-                             Spacing="25">
-                    <View.Margin>
-                        <MultiBinding Converter="{Static forms:ThicknessConverter.Instance}"
+            <Border StrokeShape="RoundRectangle 10"
+                    Margin="{Binding Height, Source={x:Reference backgroundImage}, Converter={Static maui:ThicknessConverter.Instance}, ConverterParameter={maui:ThicknessValues Value=Top}}"
+                    Padding="{StaticResource PagePadding}"
+                    BackgroundColor="{Binding BackgroundColor, Source={RelativeSource AncestorType={x:Type Page}}}">
+                <VerticalStackLayout Spacing="25">
+                    <!--<View.Margin>
+                        <MultiBinding Converter="{Static maui:ThicknessConverter.Instance}"
                                       ConverterParameter="bottom">
                             <Binding Path="IndicatorView.Height"
                                      Source="{RelativeSource AncestorType={x:Type CarouselView}}" />
                         </MultiBinding>
-                    </View.Margin>
+                    </View.Margin>-->
 
                     <VisualElement.Resources>
                         <ResourceDictionary>
@@ -36,17 +53,14 @@
                                 <views:InfoPageResources />
                             </ResourceDictionary.MergedDictionaries>
 
-                            <Style TargetType="forms:AdView">
+                            <Style TargetType="maui:AdView">
                                 <Setter Property="IsVisible"
-                                        Value="{Binding IsVideoPlaying, Source={RelativeSource AncestorType={x:Type viewmodels:MediaViewModel}}, Converter={Static forms:NegateBoolConverter.Instance}}" />
+                                        Value="{Binding IsVideoPlaying, Source={RelativeSource AncestorType={x:Type viewmodels:MediaViewModel}}, Converter={Static maui:NegateBoolConverter.Instance}}" />
                             </Style>
                         </ResourceDictionary>
                     </VisualElement.Resources>
 
-                    <Label Text="{Binding Title}"
-                           Style="{StaticResource TitleStyle}" />
-
-                    <ContentView ControlTemplate="{StaticResource BasicInfoTemplate}">
+                    <!--<ContentView ControlTemplate="{StaticResource BasicInfoTemplate}">
                         <StackLayout Orientation="Vertical">
                             <views:LabeledLabel x:DataType="viewmodels:MovieViewModel"
                                                 Label="Released"
@@ -83,7 +97,7 @@
                                                     Value="{Binding Genres, Converter={StaticResource ListToString}, TargetNullValue={Static x:String.Empty}}" />
                             </ScrollView>
                         </StackLayout>
-                    </ContentView>
+                    </ContentView>-->
 
                     <ContentView x:DataType="viewmodels:TVShowViewModel"
                                  ext:ContentView.ItemSource="{Binding Seasons}"
@@ -94,7 +108,7 @@
                                        ext:ContentView.ItemSource="{Binding AllRatings, TargetNullValue={StaticResource EmptyRatings}}"
                                        Style="{StaticResource InfoSectionStyle}" />
 
-                    <forms:AdView Style="{StaticResource InlineBannerAdStyle}"
+                    <maui:AdView Style="{StaticResource InlineBannerAdStyle}"
                                   AdUnitID="{Static movies:App.InlineBannerAdUnitID1}" />
 
                     <views:SectionView Title="Summary"
@@ -106,12 +120,11 @@
                                        Style="{StaticResource InfoSectionStyle}">
                         <views:SectionView.Header>
                             <DataTemplate>
-                                <Frame BackgroundColor="{AppThemeBinding Light={StaticResource LightSecondaryBackground}, Dark={StaticResource DarkSecondaryBackground}}"
+                                <Border BackgroundColor="{AppThemeBinding Light={StaticResource LightSecondaryBackground}, Dark={StaticResource DarkSecondaryBackground}}"
                                        HorizontalOptions="Start"
-                                       Style="{StaticResource RoundedFrameStyle}"
+                                       Style="{StaticResource RoundedBorderStyle}"
                                        Padding="10, 5">
-                                    <Grid ColumnDefinitions="Auto, *"
-                                          ColumnSpacing="0">
+                                    <Grid ColumnDefinitions="Auto, *">
                                         <Label Text="Powered by "
                                                FontSize="Small"
                                                VerticalOptions="Center"
@@ -121,12 +134,12 @@
                                                Source="{Static movies:App.JustWatchAttribution}"
                                                Grid.Column="1" />
                                     </Grid>
-                                </Frame>
+                                </Border>
                             </DataTemplate>
                         </views:SectionView.Header>
                     </views:SectionView>
 
-                    <views:SectionView Title="People"
+                    <!--<views:SectionView Title="People"
                                        Style="{StaticResource InfoSectionStyle}">
                         <StackLayout Orientation="Vertical">
                             <views:SectionView Title="Cast"
@@ -137,9 +150,9 @@
                                                ext:ContentView.ItemSource="{Binding Crew, TargetNullValue={StaticResource EmptyCredits}}"
                                                Style="{StaticResource InfoSubsectionStyle}" />
                         </StackLayout>
-                    </views:SectionView>
+                    </views:SectionView>-->
 
-                    <forms:AdView Style="{StaticResource InlineBannerAdStyle}"
+                    <maui:AdView Style="{StaticResource InlineBannerAdStyle}"
                                   AdUnitID="{Static movies:App.InlineBannerAdUnitID2}" />
 
                     <views:SectionView Title="Production"
@@ -187,10 +200,10 @@
                     <views:LabeledLabel Label="Keywords"
                                         Value="{Binding Keywords, Converter={StaticResource ListToString}}" />
 
-                    <forms:AdView Style="{StaticResource BannerAdStyle}"
-                                  AdUnitID="{Static movies:App.BottomBannerAdUnitID}" />
-                </StackLayout>
-            </Frame>
+                    <maui:AdView Style="{StaticResource BannerAdStyle}"
+                                 AdUnitID="{Static movies:App.BottomBannerAdUnitID}" />
+                </VerticalStackLayout>
+            </Border>
         </ScrollView>
     </AbsoluteLayout>
 </DataTemplate>
