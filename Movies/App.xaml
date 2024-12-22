@@ -18,18 +18,8 @@
                 <ResourceDictionary Source="Resources/Styles/LightTheme.xaml" />
                 <ResourceDictionary Source="Resources/Styles/DarkTheme.xaml" />
                 <ResourceDictionary Source="Resources/Styles/Controls.xaml" />
+                <ResourceDictionary Source="Resources/Templates/Templates.xaml" />
             </ResourceDictionary.MergedDictionaries>
-
-            <DataTemplate x:Key="InlineBannerTemplate">
-                <ContentView IsVisible="false">
-                    <forms:AdView Style="{StaticResource InlineBannerAdStyle}"
-                                  AdUnitID="{Static movies:App.ListInlineBannerAdUnitID}"
-                                  AdSize="MediumRectangle"
-                                  VerticalOptions="Center"
-                                  WidthRequest="-1"
-                                  HeightRequest="-1" />
-                </ContentView>
-            </DataTemplate>
 
             <Style x:Key="ContentPresenterFix"
                    TargetType="ContentPresenter">
@@ -39,83 +29,6 @@
                         Value="{Binding Content.BindingContext, Mode=OneWayToSource, Source={RelativeSource Self}}" />
             </Style>
 
-            <DataTemplate x:Key="CompressedMovieTemplate"
-                          x:DataType="viewmodels:MediaViewModel">
-                <views:ImageView Source="{Binding Title}"
-                                 Aspect="AspectFill"
-                                 AltText="{Binding Title}"
-                                 Style="{StaticResource PosterStyle}">
-                    <View.GestureRecognizers>
-                        <TapGestureRecognizer CommandParameter="{Binding}">
-                            <TapGestureRecognizer.Command>
-                                <views:PushPageCommand PageTemplate="{StaticResource OpenPageSelector}" />
-                            </TapGestureRecognizer.Command>
-                        </TapGestureRecognizer>
-                    </View.GestureRecognizers>
-                </views:ImageView>
-            </DataTemplate>
-
-            <DataTemplate x:Key="CompressedTVShowTemplate">
-                <Grid RowDefinitions="*, Auto">
-                    <views:ImageView AltText="{Binding Title}"
-                                     Style="{StaticResource PosterStyle}"
-                                     Grid.Row="0">
-                        <Image Source="{Binding PosterPath}"
-                               Aspect="AspectFill" />
-                    </views:ImageView>
-
-                    <Frame Padding="10, 0"
-                           HorizontalOptions="Center"
-                           BackgroundColor="{AppThemeBinding Light={StaticResource LightSecondaryBackground}, Dark={StaticResource DarkSecondaryBackground}}"
-                           Style="{StaticResource RoundedFrameStyle}"
-                           Grid.Row="1">
-                        <Label Text="{Binding Item.Items.Count, StringFormat='{0} Seasons'}"
-                               FontSize="Caption"
-                               HorizontalTextAlignment="Center"
-                               LineBreakMode="TailTruncation" />
-                    </Frame>
-                </Grid>
-            </DataTemplate>
-
-            <DataTemplate x:Key="CompressedEpisodeTemplate"
-                          x:DataType="viewmodels:TVEpisodeViewModel">
-                <Grid>
-                    <View.GestureRecognizers>
-                        <TapGestureRecognizer CommandParameter="{Binding}">
-                            <TapGestureRecognizer.Command>
-                                <views:PushPageCommand PageTemplate="{StaticResource MediaPageTemplate}" />
-                            </TapGestureRecognizer.Command>
-                        </TapGestureRecognizer>
-                    </View.GestureRecognizers>
-
-                    <views:ImageView AltText="{Binding Title}"
-                                     AspectRequest="1.5"
-                                     Style="{StaticResource PosterStyle}">
-                        <Image Source="{Binding PosterPath}"
-                               Aspect="AspectFill" />
-                    </views:ImageView>
-
-                    <Label Text="{Binding Title}"
-                           TextColor="White"
-                           FontSize="Title"
-                           HorizontalTextAlignment="End"
-                           VerticalOptions="End"
-                           HorizontalOptions="End"
-                           Padding="10">
-                        <VisualElement.BackgroundColor>
-                            <Color>
-                                <x:Arguments>
-                                    <x:Single>0</x:Single>
-                                    <x:Single>0</x:Single>
-                                    <x:Single>0</x:Single>
-                                    <x:Single>0.2</x:Single>
-                                </x:Arguments>
-                            </Color>
-                        </VisualElement.BackgroundColor>
-                    </Label>
-                </Grid>
-            </DataTemplate>
-
             <Style x:Key="BatchStyle"
                    TargetType="BindableObject">
                 <Style.Setters>
@@ -123,63 +36,6 @@
                             Value="{Binding BindingContext, Source={RelativeSource Self}}" />
                 </Style.Setters>
             </Style>
-
-            <DataTemplate x:Key="CompressedPersonTemplate"
-                          x:DataType="viewmodels:PersonViewModel">
-                <views:LabeledContentView Label="{Binding Name}"
-                                          VerticalOptions="Start">
-                    <TemplatedView.ControlTemplate>
-                        <ControlTemplate>
-                            <FlexLayout Direction="Column">
-                                <ContentPresenter x:Name="Content" />
-
-                                <Label x:Name="Label"
-                                       Text="{TemplateBinding Label}"
-                                       LineBreakMode="TailTruncation"
-                                       HorizontalTextAlignment="Center"
-                                       VerticalTextAlignment="Center"
-                                       FlexLayout.Shrink="0" />
-                            </FlexLayout>
-                        </ControlTemplate>
-                    </TemplatedView.ControlTemplate>
-
-                    <VisualElement.Resources>
-                        <Style TargetType="Label">
-                            <Setter Property="MaxLines"
-                                    Value="2" />
-                        </Style>
-                    </VisualElement.Resources>
-
-                    <View.GestureRecognizers>
-                        <TapGestureRecognizer CommandParameter="{Binding}">
-                            <TapGestureRecognizer.Command>
-                                <views:PushPageCommand PageTemplate="{DataTemplate views:PersonInfoPage}" />
-                            </TapGestureRecognizer.Command>
-                        </TapGestureRecognizer>
-                    </View.GestureRecognizers>
-
-                    <views:ImageView Style="{StaticResource PersonImageStyle}"
-                                     AspectRequest="1" />
-                </views:LabeledContentView>
-            </DataTemplate>
-
-            <DataTemplate x:Key="CompressedCollectionTemplate"
-                          x:DataType="viewmodels:CollectionViewModel">
-                <views:ImageView AltText="{Binding Name}"
-                                 Style="{StaticResource PosterStyle}">
-                    <View.GestureRecognizers>
-                        <TapGestureRecognizer CommandParameter="{Binding}">
-                            <TapGestureRecognizer.Command>
-                                <views:PushPageCommand PageTemplate="{StaticResource ListPageTemplate}" />
-                            </TapGestureRecognizer.Command>
-                        </TapGestureRecognizer>
-                    </View.GestureRecognizers>
-
-                    <Image x:DataType="{x:Null}"
-                           Source="{Binding Item.PosterPath}"
-                           Aspect="AspectFill" />
-                </views:ImageView>
-            </DataTemplate>
 
             <!--<Style x:Key="UniformGridStyle1"
                    TargetType="CollectionView">
@@ -198,29 +54,6 @@
                                           ContentTemplate="{StaticResource CompressedListSelector}" />
             </DataTemplate>-->
 
-            <DataTemplate x:Key="ListPageTemplate"
-                          x:DataType="viewmodels:ListViewModel">
-                <ContentPage Title="{Binding Name}">
-                    <Page.ToolbarItems>
-                        <ToolbarItem Command="{Binding ToggleEditCommand}"
-                                     CommandParameter="{Binding}">
-                            <ToolbarItem.Text>
-                                <Binding Path="Editing">
-                                    <Binding.Converter>
-                                        <forms:BoolToObjectConverter TrueObject="Done"
-                                                                     FalseObject="Edit" />
-                                    </Binding.Converter>
-                                </Binding>
-                            </ToolbarItem.Text>
-                        </ToolbarItem>
-                    </Page.ToolbarItems>
-
-                    <ext:ContentPage.ContentTemplate>
-                        <views:FullCollectionTemplate />
-                    </ext:ContentPage.ContentTemplate>
-                </ContentPage>
-            </DataTemplate>
-
             <Style x:Key="CreateListStyle"
                    TargetType="Button">
                 <Setter Property="Command"
@@ -228,138 +61,6 @@
                 <Setter Property="CommandParameter"
                         Value="{StaticResource ListPageTemplate}" />
             </Style>
-
-            <DataTemplate x:Key="CondensedListTemplate"
-                          x:DataType="viewmodels:CollectionViewModel">
-                <views:SectionView Title="{Binding Name}">
-                    <views:SectionView.Header>
-                        <DataTemplate>
-                            <StackLayout Orientation="Horizontal">
-                                <Button Text="See all"
-                                        HorizontalOptions="EndAndExpand"
-                                        CommandParameter="{Binding}">
-                                    <Button.Command>
-                                        <views:PushPageCommand PageTemplate="{StaticResource ListPageTemplate}" />
-                                    </Button.Command>
-                                </Button>
-                            </StackLayout>
-                        </DataTemplate>
-                    </views:SectionView.Header>
-
-                    <AbsoluteLayout BindingContext="{Binding Source, Source={Static forms:Constants.AncestorBindingContext}}"
-                                    x:DataType="viewmodels:AsyncListViewModel(x:Object)"
-                                    CompressedLayout.IsHeadless="True">
-                        <CollectionView ItemsSource="{Binding Items}"
-                                        ItemTemplate="{StaticResource CompressedListSelector}"
-                                        RemainingItemsThresholdReachedCommand="{Binding LoadMoreCommand}"
-                                        RemainingItemsThreshold="4"
-                                        AbsoluteLayout.LayoutBounds="0.5,0.5,1,1"
-                                        AbsoluteLayout.LayoutFlags="All">
-                            <CollectionView.ItemsLayout>
-                                <LinearItemsLayout Orientation="Horizontal"
-                                                   ext:ItemsLayout.ItemSize="0.667*"
-                                                   ItemSpacing="10" />
-                            </CollectionView.ItemsLayout>
-
-                            <!--<CollectionView.ItemTemplate>
-                                <DataTemplate>
-                                    <ContentView CompressedLayout.IsHeadless="True"
-                                                 ext:ContentView.ItemSource="{Binding}"
-                                                 ext:ContentView.ContentTemplate="{StaticResource CompressedListSelector}"
-                                                 WidthRequest="{Binding Height, Source={RelativeSource Self}, Converter={Static forms:ArithmeticConverter.DIVIDE}, ConverterParameter=1.5}" />
-                                </DataTemplate>
-                            </CollectionView.ItemTemplate>-->
-
-                            <ItemsView.EmptyView>
-                                <Binding Path="Loading">
-                                    <Binding.Converter>
-                                        <forms:BoolToObjectConverter TrueObject=""
-                                                                     FalseObject="No items!" />
-                                    </Binding.Converter>
-                                </Binding>
-                            </ItemsView.EmptyView>
-                        </CollectionView>
-
-                        <ActivityIndicator IsRunning="{Binding Loading}"
-                                           AbsoluteLayout.LayoutBounds="0.5,0.5,-1,-1"
-                                           AbsoluteLayout.LayoutFlags="PositionProportional" />
-
-                        <RefreshView IsVisible="False"
-                                     Style="{StaticResource AsyncListViewModelRefreshStyle}" />
-                    </AbsoluteLayout>
-                </views:SectionView>
-            </DataTemplate>
-            
-            <ControlTemplate x:Key="EditListTemplate">
-                <FlexLayout Direction="{OnPlatform iOS=RowReverse, Android=Row}"
-                            InputTransparent="True">
-                    <ContentPresenter FlexLayout.Grow="1" />
-
-                    <CheckBox IsChecked="{TemplateBinding Selected, Mode=TwoWay}"
-                              FlexLayout.Shrink="0" />
-                </FlexLayout>
-            </ControlTemplate>
-
-            <DataTemplate x:Key="MediaPageTemplate">
-                <ContentPage Style="{StaticResource InfoPageStyle}">
-                    <ext:ContentPage.ContentTemplate>
-                        <templates:FullMovieTemplate />
-                    </ext:ContentPage.ContentTemplate>
-                </ContentPage>
-            </DataTemplate>
-
-            <forms:TypeTemplateSelector x:Key="OpenPageSelector">
-                <forms:TypeTemplateSelector.Templates>
-                    <forms:TypeDataTemplate Type="{x:Type viewmodels:MovieViewModel}"
-                                            Template="{StaticResource MediaPageTemplate}" />
-                    <forms:TypeDataTemplate Type="{x:Type viewmodels:TVShowViewModel}"
-                                            Template="{DataTemplate views:TVShowInfoPage}" />
-                    <forms:TypeDataTemplate Type="{x:Type viewmodels:PersonViewModel}"
-                                            Template="{DataTemplate views:PersonInfoPage}" />
-                    <forms:TypeDataTemplate Type="{x:Type viewmodels:TVEpisodeViewModel}"
-                                            Template="{StaticResource MediaPageTemplate}" />
-                    <forms:TypeDataTemplate Type="{x:Type viewmodels:CollectionViewModel}"
-                                            Template="{StaticResource ListPageTemplate}" />
-                </forms:TypeTemplateSelector.Templates>
-            </forms:TypeTemplateSelector>
-
-            <forms:TypeTemplateSelector x:Key="CompressedListSelector">
-                <forms:TypeTemplateSelector.Templates>
-                    <forms:TypeDataTemplate Type="{x:Type viewmodels:MovieViewModel}"
-                                            Template="{StaticResource CompressedMovieTemplate}" />
-                    <forms:TypeDataTemplate Type="{x:Type viewmodels:TVShowViewModel}"
-                                            Template="{StaticResource CompressedMovieTemplate}" />
-                    <forms:TypeDataTemplate Type="{x:Type viewmodels:TVEpisodeViewModel}"
-                                            Template="{StaticResource CompressedEpisodeTemplate}" />
-                    <forms:TypeDataTemplate Type="{x:Type viewmodels:PersonViewModel}"
-                                            Template="{StaticResource CompressedPersonTemplate}" />
-                    <forms:TypeDataTemplate Type="{x:Type viewmodels:TVSeasonViewModel}">
-                        <forms:TypeDataTemplate.Template>
-                            <DataTemplate x:DataType="viewmodels:TVSeasonViewModel">
-                                <views:LabeledContentView Label="{Binding Number, StringFormat='Season {0}'}">
-                                    <View.GestureRecognizers>
-                                        <TapGestureRecognizer CommandParameter="{Binding}">
-                                            <TapGestureRecognizer.Command>
-                                                <views:PushPageCommand PageTemplate="{StaticResource ListPageTemplate}" />
-                                            </TapGestureRecognizer.Command>
-                                        </TapGestureRecognizer>
-                                    </View.GestureRecognizers>
-
-                                    <views:ImageView AltText="{Binding Name}"
-                                                     HorizontalOptions="Center"
-                                                     Style="{StaticResource PosterStyle}">
-                                        <Image x:DataType="{x:Null}"
-                                               Source="{Binding Item.PosterPath}"
-                                               Aspect="AspectFill" />
-                                    </views:ImageView>
-                                </views:LabeledContentView>
-                            </DataTemplate>
-                        </forms:TypeDataTemplate.Template>
-                    </forms:TypeDataTemplate>
-                    <forms:TypeDataTemplate Type="{x:Type viewmodels:CollectionViewModel}"
-                                            Template="{StaticResource CompressedCollectionTemplate}" />
-                </forms:TypeTemplateSelector.Templates>
-            </forms:TypeTemplateSelector>
         </ResourceDictionary>
     </Application.Resources>
 </Application>
