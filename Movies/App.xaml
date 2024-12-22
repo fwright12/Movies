@@ -317,7 +317,7 @@
                     <View.GestureRecognizers>
                         <TapGestureRecognizer CommandParameter="{Binding}">
                             <TapGestureRecognizer.Command>
-                                <views:PushPageCommand PageTemplate="{StaticResource MediaPageTemplate}" />
+                                <views:PushPageCommand PageTemplate="{StaticResource OpenPageSelector}" />
                             </TapGestureRecognizer.Command>
                         </TapGestureRecognizer>
                     </View.GestureRecognizers>
@@ -462,7 +462,7 @@
                 </views:ImageView>
             </DataTemplate>
 
-            <Style x:Key="UniformGridStyle1"
+            <!--<Style x:Key="UniformGridStyle1"
                    TargetType="CollectionView">
                 <Setter Property="ItemTemplate">
                     <DataTemplate>
@@ -477,7 +477,7 @@
             <DataTemplate x:Key="UniformGridTemplate1">
                 <movies:AspectContentView Ratio="1.5"
                                           ContentTemplate="{StaticResource CompressedListSelector}" />
-            </DataTemplate>
+            </DataTemplate>-->
 
             <DataTemplate x:Key="ListPageTemplate"
                           x:DataType="viewmodels:ListViewModel">
@@ -508,6 +508,47 @@
                         Value="{Binding CreateListCommand, Source={Static Application.Current}}" />
                 <Setter Property="CommandParameter"
                         Value="{StaticResource ListPageTemplate}" />
+            </Style>
+
+            <Style x:Key="InfoPageStyle"
+                   TargetType="ContentPage">
+                <Setter Property="Title"
+                        Value="{Binding Name}" />
+                <!--<Setter Property="ios:NavigationPage.PrefersLargeTitles"
+            Value="True" />
+    <Setter Property="ios:Page.LargeTitleDisplay"
+            Value="Always" />-->
+                <Setter Property="VisualStateManager.VisualStateGroups">
+                    <VisualStateGroupList>
+                        <VisualStateGroup Name="MediaPageStates">
+                            <VisualState Name="Poster">
+                                <VisualState.Setters>
+                                    <Setter Property="Shell.NavBarIsVisible"
+                                            Value="False" />
+                                </VisualState.Setters>
+                            </VisualState>
+
+                            <VisualState Name="Details">
+                                <VisualState.Setters>
+                                    <Setter Property="Shell.NavBarIsVisible"
+                                            Value="True" />
+                                </VisualState.Setters>
+                            </VisualState>
+                        </VisualStateGroup>
+                    </VisualStateGroupList>
+                </Setter>
+                <Setter Property="ext:VisualStateManager.VisualState"
+                        Value="Poster" />
+            </Style>
+
+            <Style TargetType="VisualElement"
+                   Class="ShowsNavBarOnScroll"
+                   ApplyToDerivedTypes="True">
+                <Style.Triggers>
+                    <EventTrigger Event="Scrolled">
+                        <viewmodels:MediaPageTriggerAction />
+                    </EventTrigger>
+                </Style.Triggers>
             </Style>
 
             <DataTemplate x:Key="CondensedListTemplate"
@@ -571,15 +612,6 @@
                 </views:SectionView>
             </DataTemplate>
 
-            <Style x:Key="InfoPageStyle"
-                   TargetType="ContentPage">
-                <Setter Property="Title"
-                        Value="{Binding Name}" />
-                <Setter Property="ios:NavigationPage.PrefersLargeTitles"
-                        Value="True" />
-                <Setter Property="ios:Page.LargeTitleDisplay"
-                        Value="Always" />
-            </Style>
 
             <Style x:Key="CustomListsStyle"
                    TargetType="CollectionView">
@@ -670,7 +702,7 @@
                     <forms:TypeDataTemplate Type="{x:Type viewmodels:MovieViewModel}"
                                             Template="{StaticResource MediaPageTemplate}" />
                     <forms:TypeDataTemplate Type="{x:Type viewmodels:TVShowViewModel}"
-                                            Template="{StaticResource MediaPageTemplate}" />
+                                            Template="{DataTemplate views:TVShowInfoPage}" />
                     <forms:TypeDataTemplate Type="{x:Type viewmodels:PersonViewModel}"
                                             Template="{DataTemplate views:PersonInfoPage}" />
                     <forms:TypeDataTemplate Type="{x:Type viewmodels:TVEpisodeViewModel}"

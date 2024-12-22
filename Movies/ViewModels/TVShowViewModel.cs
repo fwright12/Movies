@@ -1,7 +1,10 @@
-﻿using Movies.Models;
+﻿using Microsoft.Maui.Controls.Compatibility;
+using Movies.Models;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
+using System.Windows.Input;
 
 namespace Movies.ViewModels
 {
@@ -22,7 +25,7 @@ namespace Movies.ViewModels
             {
                 yield break;
             }*/
-            
+
             await foreach (Item item in show)
             {
                 if (item is TVSeason season)
@@ -33,8 +36,36 @@ namespace Movies.ViewModels
         }
     }
 
+    public class MediaPageTriggerAction : TriggerAction<ScrollView>
+    {
+        protected override void Invoke(ScrollView sender)
+        {
+            var page = sender.Parent<Page>();
+            if (page == null)
+            {
+                return;
+            }
+
+            var navBarHeight = 100;
+            VisualStateManager.GoToState(page, sender.ScrollY > sender.Content.Margin.Top - navBarHeight ? "Details" : "Poster");
+        }
+    }
+
     public class TVShowViewModel : MediaViewModel
     {
+        public IEnumerable<ItemViewModel> Items
+        {
+            get
+            {
+                if (_Items == null)
+                {
+                    _Items = new ObservableCollection<ItemViewModel> { this };
+                    AddSeasonsAsync();
+                }
+
+                return _Items;
+            }
+        }
         public CollectionViewModel Seasons => _Seasons ??= (RequestValue(TVShow.SEASONS) is IEnumerable<TVSeason> items ? new CollectionViewModel("Seasons", items.ToAsyncEnumerable()) : null);
 
         public DateTime? FirstAirDate => TryRequestValue(TVShow.FIRST_AIR_DATE, out var first) ? first : (DateTime?)null;
@@ -46,8 +77,17 @@ namespace Movies.ViewModels
         protected override MultiProperty<WatchProvider> WatchProvidersProperty => TVShow.WATCH_PROVIDERS;
 
         private CollectionViewModel _Seasons;
+        private ObservableCollection<ItemViewModel> _Items;
 
         public TVShowViewModel(TVShow show) : base(show) { }
+
+        private async void AddSeasonsAsync()
+        {
+            return;
+            await Task.Delay(5000);
+            for (int i = 0; i < 5; i++)
+                _Items.Add(new TVSeasonViewModel(new TVSeason((TVShow)Item, i)));
+        }
     }
 
     public class TVSeasonViewModel : CollectionViewModel
@@ -73,7 +113,7 @@ namespace Movies.ViewModels
         {
             await DataService.Instance.Batch;
             var request = await DataService.Instance.Controller.TryGet<IEnumerable<Item>>(new UniformItemIdentifier(season, TVSeason.EPISODES));
-            
+
             if (!request.IsHandled)
             {
                 yield break;

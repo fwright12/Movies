@@ -12,8 +12,9 @@
         <views:ImageView x:Name="backgroundImage"
                          Source="{Binding PosterPath, Converter={Static views:ImageSizeConverter.Instance}}"
                          Aspect="AspectFill"
+                         BackgroundColor="DarkGray"
                          AltText="{Binding Title}"
-                         AbsoluteLayout.LayoutBounds="0.5,0,1,-1"
+                         AbsoluteLayout.LayoutBounds="0.5,0,1,300"
                          AbsoluteLayout.LayoutFlags="PositionProportional,WidthProportional">
             <TemplatedView.ControlTemplate>
                 <ControlTemplate x:DataType="views:ImageView">
@@ -33,11 +34,20 @@
 
         <ScrollView Orientation="Vertical"
                     AbsoluteLayout.LayoutBounds="0,0,1,1"
-                    AbsoluteLayout.LayoutFlags="All">
+                    AbsoluteLayout.LayoutFlags="All"
+                    StyleClass="ShowsNavBarOnScroll">
             <Border StrokeShape="RoundRectangle 10"
-                    Margin="{Binding Height, Source={x:Reference backgroundImage}, Converter={Static maui:ThicknessConverter.Instance}, ConverterParameter={maui:ThicknessValues Value=Top}}"
                     Padding="{StaticResource PagePadding}"
                     BackgroundColor="{Binding BackgroundColor, Source={RelativeSource AncestorType={x:Type Page}}}">
+                <ext:Margin.Top>
+                    <MultiBinding Converter="{Static maui:ArithmeticMultiConverter.SUBTRACT}">
+                        <Binding Path="Height"
+                                 Source="{x:Reference backgroundImage}" />
+                        <Binding Path="StrokeShape.CornerRadius.TopLeft"
+                                 Source="{RelativeSource Self}" />
+                    </MultiBinding>
+                </ext:Margin.Top>
+                
                 <VerticalStackLayout Spacing="25">
                     <!--<View.Margin>
                         <MultiBinding Converter="{Static maui:ThicknessConverter.Instance}"
@@ -60,7 +70,7 @@
                         </ResourceDictionary>
                     </VisualElement.Resources>
 
-                    <!--<ContentView ControlTemplate="{StaticResource BasicInfoTemplate}">
+                    <ContentView ControlTemplate="{StaticResource BasicInfoTemplate}">
                         <StackLayout Orientation="Vertical">
                             <views:LabeledLabel x:DataType="viewmodels:MovieViewModel"
                                                 Label="Released"
@@ -97,19 +107,19 @@
                                                     Value="{Binding Genres, Converter={StaticResource ListToString}, TargetNullValue={Static x:String.Empty}}" />
                             </ScrollView>
                         </StackLayout>
-                    </ContentView>-->
+                    </ContentView>
 
-                    <ContentView x:DataType="viewmodels:TVShowViewModel"
+                    <!--<ContentView x:DataType="viewmodels:TVShowViewModel"
                                  ext:ContentView.ItemSource="{Binding Seasons}"
                                  HeightRequest="200"
-                                 Style="{StaticResource InfoSectionStyle}" />
+                                 Style="{StaticResource InfoSectionStyle}" />-->
 
                     <views:SectionView Title="Ratings"
                                        ext:ContentView.ItemSource="{Binding AllRatings, TargetNullValue={StaticResource EmptyRatings}}"
                                        Style="{StaticResource InfoSectionStyle}" />
 
                     <maui:AdView Style="{StaticResource InlineBannerAdStyle}"
-                                  AdUnitID="{Static movies:App.InlineBannerAdUnitID1}" />
+                                 AdUnitID="{Static movies:App.InlineBannerAdUnitID1}" />
 
                     <views:SectionView Title="Summary"
                                        ext:ContentView.ItemSource="{Binding Description, TargetNullValue='No description provided'}"
@@ -121,9 +131,9 @@
                         <views:SectionView.Header>
                             <DataTemplate>
                                 <Border BackgroundColor="{AppThemeBinding Light={StaticResource LightSecondaryBackground}, Dark={StaticResource DarkSecondaryBackground}}"
-                                       HorizontalOptions="Start"
-                                       Style="{StaticResource RoundedBorderStyle}"
-                                       Padding="10, 5">
+                                        HorizontalOptions="Start"
+                                        Style="{StaticResource RoundedBorderStyle}"
+                                        Padding="10, 5">
                                     <Grid ColumnDefinitions="Auto, *">
                                         <Label Text="Powered by "
                                                FontSize="Small"
@@ -153,7 +163,7 @@
                     </views:SectionView>-->
 
                     <maui:AdView Style="{StaticResource InlineBannerAdStyle}"
-                                  AdUnitID="{Static movies:App.InlineBannerAdUnitID2}" />
+                                 AdUnitID="{Static movies:App.InlineBannerAdUnitID2}" />
 
                     <views:SectionView Title="Production"
                                        Style="{StaticResource InfoSectionStyle}">

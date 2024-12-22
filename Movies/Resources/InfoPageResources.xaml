@@ -519,15 +519,19 @@
                         AlignItems="Start"
                         JustifyContent="Center"
                         Wrap="Wrap">
-                <views:MaxContentView MaxWidth="177.778"
+                <!--<views:MaxContentView MaxWidth="177.778"
                                       MaxHeight="200"
                                       IsVisible="{Binding Content.IsVisible, Source={RelativeSource Self}}">
-                    <views:ImageView ext:ContentView.ItemSource="{Binding PrimaryImagePath}"
-                                     ext:ContentView.ContentTemplate="{StaticResource MediaTemplateSelector}"
-                                     Style="{StaticResource OptionalContentViewStyle}"
-                                     AltText="Content not available"
-                                     Margin="0,0,10,10" />
-                </views:MaxContentView>
+                </views:MaxContentView>-->
+
+                <views:ImageView ext:ContentView.ItemSource="{Binding PrimaryImagePath}"
+                                 ext:ContentView.ContentTemplate="{StaticResource MediaTemplateSelector}"
+                                 MaximumWidthRequest="177.78"
+                                 MaximumHeightRequest="200"
+                                 IsVisible="{Binding Content.IsVisible, Source={RelativeSource Self}}"
+                                 Style="{StaticResource OptionalContentViewStyle}"
+                                 AltText="Content not available"
+                                 Margin="0,0,10,10" />
 
                 <ContentPresenter FlexLayout.Grow="1" />
             </FlexLayout>

@@ -5,33 +5,33 @@
              xmlns:viewmodels="clr-namespace:Movies.ViewModels"
              xmlns:movies="clr-namespace:Movies"
              xmlns:templates="clr-namespace:Movies.Templates"
-             
              xmlns:forms="clr-namespace:Microsoft.Maui.Controls;assembly=MauiExtensions"
              x:Class="Movies.Views.TVShowInfoPage"
              Style="{StaticResource InfoPageStyle}"
              Title="{Binding CurrentItem.Name, Source={x:Reference carousel}}">
-    <StackLayout>
-        <views:Carousel x:Name="carousel"
-                      IndicatorView="indicator"
+    <ContentPage.ToolbarItems>
+        <ToolbarItem Text="test"
+                     CommandParameter="{Binding Seasons}">
+            <MenuItem.Command>
+                <views:PushPageCommand PageTemplate="{StaticResource ListPageTemplate}" />
+            </MenuItem.Command>
+        </ToolbarItem>
+    </ContentPage.ToolbarItems>
+
+    <AbsoluteLayout>
+        <CarouselView IndicatorView="indicator"
                       ItemsSource="{Binding Items}"
-                      RemainingItemsThresholdReachedCommand="{Binding LoadMoreCommand}"
                       RemainingItemsThreshold="0"
-                      PeekAreaInsets="-2"
-                      PositionChanged="Carousel_PositionChanged"
-                      CurrentItemChanged="Carousel_CurrentItemChanged"
+                      Margin="-10, 0"
                       AbsoluteLayout.LayoutBounds="0.5,0.5,1,1"
                       AbsoluteLayout.LayoutFlags="All">
-            <VisualElement.Behaviors>
-                
-            </VisualElement.Behaviors>
-            
             <CarouselView.ItemsLayout>
                 <LinearItemsLayout Orientation="Horizontal"
+                                   ItemSpacing="20"
                                    SnapPointsType="MandatorySingle"
-                                   SnapPointsAlignment="Center"
-                                   ItemSpacing="4" />
+                                   SnapPointsAlignment="Center" />
             </CarouselView.ItemsLayout>
-            
+
             <CarouselView.ItemTemplate>
                 <forms:TypeTemplateSelector>
                     <forms:TypeTemplateSelector.Templates>
@@ -45,16 +45,25 @@
                     </forms:TypeTemplateSelector.Templates>
                 </forms:TypeTemplateSelector>
             </CarouselView.ItemTemplate>
-        </views:Carousel>
+
+            <!--<CarouselView.ItemTemplate>
+                <forms:TypeTemplateSelector>
+                    <forms:TypeTemplateSelector.Templates>
+                        <forms:TypeDataTemplate Type="{x:Type viewmodels:TVShowViewModel}"
+                                                Template="{DataTemplate templates:FullMovieTemplate}" />
+
+                        <forms:TypeDataTemplate Type="{x:Type viewmodels:TVSeasonViewModel}"
+                                                Template="{DataTemplate views:FullCollectionTemplate}" />
+                    </forms:TypeTemplateSelector.Templates>
+                </forms:TypeTemplateSelector>
+            </CarouselView.ItemTemplate>-->
+        </CarouselView>
 
         <IndicatorView x:Name="indicator"
-                       IndicatorColor="#e4572e"
-                       SelectedIndicatorColor="{StaticResource Primary}" 
                        HideSingle="True"
                        MaximumVisible="10"
-                       Padding="0, 10"
                        AbsoluteLayout.LayoutBounds="0.5,1,-1,-1"
-                       AbsoluteLayout.LayoutFlags="PositionProportional"/>
+                       AbsoluteLayout.LayoutFlags="PositionProportional" />
 
         <!--<Label Text="Seasons"
                FontSize="Title"
@@ -86,5 +95,5 @@
                 </DataTemplate>
             </CollectionView.ItemTemplate>
         </CollectionView>-->
-    </StackLayout>
+    </AbsoluteLayout>
 </ContentPage>

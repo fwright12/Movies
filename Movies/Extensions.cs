@@ -1218,7 +1218,7 @@ namespace Movies.Views
 
         public virtual async void Execute(object parameter)
         {
-            object content = (PageTemplate as ElementTemplate)?.CreateContent() ?? PageTemplate;
+            object content = ((PageTemplate as DataTemplateSelector)?.SelectTemplate(parameter, null) ?? (PageTemplate as ElementTemplate))?.CreateContent() ?? PageTemplate;
             Page page = content as Page ?? new ContentPage { Content = (View)content };
 
             if (parameter != null)
