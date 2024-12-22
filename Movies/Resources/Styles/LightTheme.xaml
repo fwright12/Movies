@@ -1,0 +1,10 @@
+﻿<?xml version="1.0" encoding="UTF-8" ?>
+<?xaml-comp compile="true" ?>
+<ResourceDictionary xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml">
+    <Color x:Key="LightPrimaryBackground">MintCream</Color>
+    <!--Light Gray with elevated green channel-->
+    <Color x:Key="LightSecondaryBackground">#D3E9D3</Color>
+    <Color x:Key="LightPrimaryText">Black</Color>
+    <Color x:Key="LightSecondaryText">Gray</Color>
+</ResourceDictionary>

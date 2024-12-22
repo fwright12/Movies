@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ResourceDictionary xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+                    x:Class="Movies.Constants"
+                    xmlns:maui="clr-namespace:Microsoft.Maui.Controls;assembly=MauiExtensions"
+                    xmlns:movies="clr-namespace:Movies">
+    <x:String x:Key="IoniconsFont">Ionicons</x:String>
+
+    <!--Global Styles-->
+    <x:Double x:Key="PagePadding">10</x:Double>
+    <x:Double x:Key="PosterRatio">0.6667</x:Double>
+    <NamedSize x:Key="BodyFontSize">Small</NamedSize>
+
+    <maui:FalseIfNullConverter x:Key="FalseIfNull" />
+    <maui:StringConcatConverter x:Key="ListToString"
+                                Separator=", " />
+    <maui:EmbeddedVideoConverter x:Key="EmbedVideo" />
+</ResourceDictionary>
