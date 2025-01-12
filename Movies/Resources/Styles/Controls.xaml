@@ -23,31 +23,39 @@
                 Value="Center" />
     </Style>
 
-    <Style TargetType="Border">
+    <!--<Style TargetType="Border">
         <Setter Property="Stroke"
                 Value="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray500}}" />
         <Setter Property="StrokeShape"
                 Value="Rectangle" />
         <Setter Property="StrokeThickness"
                 Value="1" />
-    </Style>
+    </Style>-->
 
     <Style TargetType="Border"
-           x:Key="RoundedBorderStyle">
+           x:Key="BorderStyle">
+        <Setter Property="BackgroundColor"
+                Value="Transparent" />
+        <Setter Property="Padding"
+                Value="0" />
+    </Style>
+    
+    <Style TargetType="Border"
+           Class="MaxRounded">
         <Setter Property="StrokeShape">
-            <RoundRectangle CornerRadius="{Binding Height, Source={RelativeSource Self}}" />
+            <RoundRectangle CornerRadius="{Binding Height, Source={RelativeSource AncestorType={x:Type Border}}}" />
         </Setter>
     </Style>
 
-    <Style TargetType="BoxView">
+    <!--<Style TargetType="BoxView">
         <Setter Property="BackgroundColor"
                 Value="{AppThemeBinding Light={StaticResource Gray950}, Dark={StaticResource Gray200}}" />
-    </Style>
+    </Style>-->
 
     <Style TargetType="Button"
            ApplyToDerivedTypes="True">
         <Setter Property="TextColor"
-                Value="{StaticResource Primary}" />
+                Value="{OnPlatform Default={StaticResource Primary}, Android={AppThemeBinding Light={StaticResource White}, Dark={StaticResource PrimaryDarkText}}}" />
         <!--<Setter Property="BackgroundColor"
         Value="{OnPlatform Android={AppThemeBinding Light={StaticResource LightSecondaryBackground}, Dark={StaticResource DarkSecondaryBackground}}, iOS={Static Color.Default}}" />-->
         <!--<Setter Property="TextColor"
@@ -212,11 +220,6 @@
         </Setter>
     </Style>
 
-    <Style TargetType="FlexLayout">
-        <Setter Property="AlignItems"
-                Value="Center" />
-    </Style>
-
     <Style TargetType="Frame"
            x:Key="FrameStyle">
         <Setter Property="BackgroundColor"
@@ -229,13 +232,13 @@
                 Value="0" />
     </Style>
 
-    <Style TargetType="Image"
+    <!--<Style TargetType="Image"
            ApplyToDerivedTypes="True">
         <Setter Property="MinimumWidthRequest"
                 Value="40" />
         <Setter Property="MinimumHeightRequest"
                 Value="40" />
-    </Style>
+    </Style>-->
 
     <Style TargetType="ImageButton">
         <Setter Property="Opacity"
@@ -300,6 +303,8 @@
                 Value="AspectFill" />
         <Setter Property="CornerRadius"
                 Value="{Binding Height, Source={RelativeSource Self}}" />
+        <Setter Property="AspectRequest"
+                Value="1" />
     </Style>
 
     <Style TargetType="IndicatorView">
@@ -754,12 +759,16 @@
         </Style.Triggers>
     </Style>
 
+    <!-- ================================== LAYOUTS ================================== -->
+
     <!-- ================================== PAGES ================================== -->
 
     <Style TargetType="ContentPage"
            x:Key="InfoPageStyle">
         <Setter Property="Title"
                 Value="{Binding Name}" />
+        <Setter Property="Padding"
+                Value="0" />
         <!--<Setter Property="ios:NavigationPage.PrefersLargeTitles"
             Value="True" />
     <Setter Property="ios:Page.LargeTitleDisplay"
@@ -787,19 +796,19 @@
                 Value="Poster" />
     </Style>
 
-    <Style TargetType="NavigationPage">
+    <!--<Style TargetType="NavigationPage">
         <Setter Property="BarBackgroundColor"
                 Value="{AppThemeBinding Light={StaticResource White}, Dark={StaticResource OffBlack}}" />
         <Setter Property="BarTextColor"
                 Value="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource White}}" />
         <Setter Property="IconColor"
                 Value="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource White}}" />
-    </Style>
+    </Style>-->
 
     <Style TargetType="Page"
            ApplyToDerivedTypes="True">
         <Setter Property="Padding"
-                Value="0" />
+                Value="{StaticResource PagePadding}" />
         <Setter Property="BackgroundColor"
                 Value="{AppThemeBinding Light={StaticResource LightPrimaryBackground}, Dark={StaticResource DarkPrimaryBackground}}" />
         <!--<Setter Property="BackgroundColor"
@@ -830,7 +839,7 @@
                 Value="{AppThemeBinding Light={StaticResource Gray900}, Dark={StaticResource Gray200}}" />
     </Style>
 
-    <Style TargetType="TabbedPage">
+    <!--<Style TargetType="TabbedPage">
         <Setter Property="BarBackgroundColor"
                 Value="{AppThemeBinding Light={StaticResource White}, Dark={StaticResource Gray950}}" />
         <Setter Property="BarTextColor"
@@ -839,9 +848,7 @@
                 Value="{AppThemeBinding Light={StaticResource Gray200}, Dark={StaticResource Gray950}}" />
         <Setter Property="SelectedTabColor"
                 Value="{AppThemeBinding Light={StaticResource Gray950}, Dark={StaticResource Gray200}}" />
-    </Style>
-
-    <!-- ================================== LAYOUTS ================================== -->
+    </Style>-->
 
     <!-- ================================== BASED ON (LEVEL 1) ================================== -->
 
@@ -885,15 +892,16 @@
                 Value="8" />
     </Style>
 
-    <Style TargetType="Frame"
-           BasedOn="{StaticResource FrameStyle}"
+    <Style TargetType="Border"
            x:Key="CardStyle">
         <Setter Property="BackgroundColor"
                 Value="{AppThemeBinding Light={StaticResource LightSecondaryBackground}, Dark={StaticResource DarkSecondaryBackground}}" />
-        <Setter Property="CornerRadius"
-                Value="10" />
+        <Setter Property="StrokeShape"
+                Value="RoundRectangle 10" />
         <Setter Property="Padding"
                 Value="10" />
+        <Setter Property="StrokeThickness"
+                Value="0" />
     </Style>
 
     <Style TargetType="Frame"

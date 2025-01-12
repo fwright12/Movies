@@ -269,7 +269,7 @@ namespace Movies
                 var itr = items.GetAsyncEnumerator();
                 await itr.MoveNextAsync();
                 yield return itr.Current;
-                
+                yield break;
                 yield return new Person("Person Person");
 
                 while (await itr.MoveNextAsync())
@@ -279,7 +279,7 @@ namespace Movies
             }
             MovieExplore = new List<object>
             {
-                //new CollectionViewModel("Trending Movies", test(tmdb.GetTrendingMoviesAsync())),
+                //new CollectionViewModel("Trending Movies", test(tmdb.GetTrendingPeopleAsync())),
                 new CollectionViewModel("Trending Movies", tmdb.GetTrendingMoviesAsync()),
                 new CollectionViewModel("Trending TV", tmdb.GetTrendingTVShowsAsync()),
                 new CollectionViewModel("Trending People", tmdb.GetTrendingPeopleAsync()),

@@ -1,10 +1,6 @@
 ﻿using Microsoft.Maui.Controls.Compatibility;
 using Movies.Models;
-using System;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Linq;
-using System.Windows.Input;
 
 namespace Movies.ViewModels
 {

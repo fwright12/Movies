@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:maui="clr-namespace:Microsoft.Maui.Controls;assembly=MauiExtensions"
+             xmlns:movies="clr-namespace:Movies"
+             xmlns:strings="clr-namespace:Movies.Resources.Strings"
+             xmlns:templates="clr-namespace:Movies.Templates"
+             xmlns:views="clr-namespace:Movies.Views"
+             x:Class="Movies.Views.ListsPage"
+             Title="My Lists">
+    <StackLayout Orientation="Vertical"
+                 Spacing="0">
+        <CollectionView views:CollectionViewExt.IsEditing="False"
+                        Style="{StaticResource CustomListsStyle}">
+            <CollectionView.ItemTemplate>
+                <views:EditDataTemplateSelector SwipeTemplate="{StaticResource SwipeTemplate}"
+                                                EditTemplate="{StaticResource EditListTemplate}">
+                    <views:EditDataTemplateSelector.Main>
+                        <templates:DetailedCollectionTemplate />
+                    </views:EditDataTemplateSelector.Main>
+                </views:EditDataTemplateSelector>
+            </CollectionView.ItemTemplate>
+
+            <View.Margin>
+                <MultiBinding Converter="{Static maui:ThicknessConverter.Instance}"
+                              ConverterParameter="horizontal">
+                    <Binding Source="{StaticResource PagePadding}" />
+                </MultiBinding>
+            </View.Margin>
+
+            <CollectionView.Header>
+                <StackLayout Orientation="Vertical">
+                    <maui:AdView Style="{StaticResource BannerAdStyle}"
+                                 AdUnitID="{Static movies:App.TopBannerAdUnitID}" />
+
+                    <StackLayout Orientation="Vertical"
+                                 BindableLayout.ItemTemplate="{StaticResource CondensedListTemplate}">
+                        <BindableLayout.ItemsSource>
+                            <MultiBinding>
+                                <MultiBinding.Converter>
+                                    <maui:ObservableConverter />
+                                </MultiBinding.Converter>
+
+                                <Binding Path="Watchlist" />
+                                <Binding Path="Favorites" />
+                                <Binding Path="History" />
+                            </MultiBinding>
+                        </BindableLayout.ItemsSource>
+                    </StackLayout>
+
+                    <views:SectionView Title="Custom Lists">
+                        <StackLayout Orientation="Horizontal"
+                                     BindingContext="{Binding SelectionMode, Source={RelativeSource AncestorType={x:Type CollectionView}}, Converter={Static views:SelectionModeToBoolConverter.Instance}}">
+                            <Button Command="{Static views:CollectionViewExt.ToggleSelectionModeCommand}"
+                                    CommandParameter="{Binding Source={RelativeSource AncestorType={x:Type CollectionView}}}">
+                                <Button.Text>
+                                    <Binding>
+                                        <Binding.Converter>
+                                            <maui:BoolToObjectConverter TrueObject="Done"
+                                                                        FalseObject="Edit" />
+                                        </Binding.Converter>
+                                    </Binding>
+                                </Button.Text>
+                            </Button>
+
+                            <Button Text="+"
+                                    FontSize="Title"
+                                    IsVisible="{Binding Converter={Static maui:NegateBoolConverter.Instance}}"
+                                    HorizontalOptions="EndAndExpand"
+                                    Style="{StaticResource CreateListStyle}" />
+                        </StackLayout>
+                    </views:SectionView>
+                </StackLayout>
+            </CollectionView.Header>
+
+            <CollectionView.Footer>
+                <ContentView>
+                    <maui:AdView Style="{StaticResource BannerAdStyle}"
+                                 AdUnitID="{Static movies:App.BottomBannerAdUnitID}" />
+                </ContentView>
+            </CollectionView.Footer>
+        </CollectionView>
+
+        <StackLayout Orientation="Horizontal"
+                     BindingContext="{Binding Parent.Children[0], Source={RelativeSource Self}}"
+                     StyleClass="SecondaryBackground"
+                     IsVisible="{Binding SelectionMode, Converter={Static views:SelectionModeToBoolConverter.Instance}}"
+                     Padding="10, 5">
+            <!--<Button CommandParameter="{Binding}">
+    <VisualStateManager.VisualStateGroups>
+        <VisualStateGroup>
+            <VisualState Name="Select all">
+                <VisualState.Setters>
+                    <Setter Property="Text"
+                            Value="Select all" />
+                    <Setter Property="Command"
+                            Value="{Static views:CollectionViewExt.SelectAllCommand}" />
+                </VisualState.Setters>
+            </VisualState>
+
+            <VisualState Name="Deselect all">
+                <VisualState.Setters>
+                    <Setter Property="Text"
+                            Value="Deselect all" />
+                    <Setter Property="Command"
+                            Value="{Static views:CollectionViewExt.DeselectAllCommand}" />
+                </VisualState.Setters>
+            </VisualState>
+        </VisualStateGroup>
+    </VisualStateManager.VisualStateGroups>
+</Button>-->
+
+            <Button Text="Delete"
+                    HorizontalOptions="EndAndExpand"
+                    Command="{Static views:CollectionViewExt.DeleteSelectedCommand}"
+                    CommandParameter="{Binding}" />
+        </StackLayout>
+    </StackLayout>
+</ContentPage>

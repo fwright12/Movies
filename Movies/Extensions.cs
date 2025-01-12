@@ -1,17 +1,77 @@
-﻿using Movies.ViewModels;
-using System;
+﻿using Microsoft.Maui.Controls.Compatibility;
+using Microsoft.Maui.Controls.Shapes;
 using System.Collections;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Globalization;
-using System.Linq;
 using System.Windows.Input;
-using Microsoft.Maui.Controls.Compatibility;
-using Microsoft.Maui;
-using Microsoft.Maui.Graphics;
-using Microsoft.Maui.Layouts;
+
+namespace Movies
+{
+    public static class Scroll
+    {
+        public static readonly BindableProperty IsEdgeToEdgeHorizontalProperty = BindableProperty.CreateAttached(nameof(GetIsEdgeToEdgeHorizontal).Substring(3), typeof(bool), typeof(View), false, propertyChanged: (bindable, oldValue, newValue) =>
+        {
+            var view = (View)bindable;
+
+            if (Equals(newValue, true))
+            {
+                view.SizeChanged += UpdateMargin;
+                //view.SetBinding<Thickness, Page>(View.MarginProperty, new RelativeBindingSource(RelativeBindingSourceMode.FindAncestor, typeof(Page)), ".", page => HorizontalDistanceToEdge(view, page));
+            }
+            else if (Equals(oldValue, true))
+            {
+                //view.RemoveBinding(View.MarginProperty);
+            }
+        });
+
+        private static void UpdateMargin(object? sender, EventArgs e) => UpdateMargin((View)sender!);
+
+        private static void UpdateMargin(View view)
+        {
+            view.Margin = HorizontalDistanceToEdge(view);
+        }
+
+        public static bool GetIsEdgeToEdgeHorizontal(this View view) => (bool)view.GetValue(IsEdgeToEdgeHorizontalProperty);
+        public static void SetIsEdgeToEdgeHorizontal(this View view, bool value) => view.SetValue(IsEdgeToEdgeHorizontalProperty, value);
+
+        private static Thickness HorizontalDistanceToEdge(Element element)
+        {
+            double? left = 0;
+            double? right = 0;
+
+            for (element = element.Parent; element != null; element = element.Parent)
+            {
+                if (false == element is VisualElement visualElement)
+                {
+                    continue;
+                }
+
+                if (visualElement.Bounds.X != 0)
+                {
+                    //left = null;
+                }
+                //if (view.Bounds.X + view.Bounds.Width != view.ParentView().Width)
+                //{
+                //    right = null;
+                //}
+
+                left += visualElement.Bounds.X;
+                //right += view.Bounds.X 
+            }
+
+            if (left.HasValue && right.HasValue)
+            {
+                return new Thickness(-left.Value, 0, -right.Value, 0);
+            }
+            else
+            {
+                return Thickness.Zero;
+            }
+        }
+    }
+}
 
 namespace Movies.Views
 {

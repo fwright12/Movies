@@ -6,6 +6,7 @@
               xmlns:views="clr-namespace:Movies.Views"
               xmlns:viewmodels="clr-namespace:Movies.ViewModels"
               xmlns:movies="clr-namespace:Movies"
+              xmlns:strings="clr-namespace:Movies.Resources.Strings"
               x:Class="Movies.Templates.FullMovieTemplate"
               x:DataType="viewmodels:MediaViewModel">
     <AbsoluteLayout Style="{StaticResource BatchStyle}">
@@ -47,7 +48,7 @@
                                  Source="{RelativeSource Self}" />
                     </MultiBinding>
                 </ext:Margin.Top>
-                
+
                 <VerticalStackLayout Spacing="25">
                     <!--<View.Margin>
                         <MultiBinding Converter="{Static maui:ThicknessConverter.Instance}"
@@ -71,13 +72,13 @@
                     </VisualElement.Resources>
 
                     <ContentView ControlTemplate="{StaticResource BasicInfoTemplate}">
-                        <StackLayout Orientation="Vertical">
+                        <VerticalStackLayout>
                             <views:LabeledLabel x:DataType="viewmodels:MovieViewModel"
-                                                Label="Released"
+                                                Label="{Static strings:AppResources.ReleaseLabel}"
                                                 Value="{Binding Year, StringFormat='{0:MMM d, yyyy}', TargetNullValue={Static x:String.Empty}}" />
 
                             <views:LabeledLabel x:DataType="viewmodels:TVShowViewModel"
-                                                Label="Years Active">
+                                                Label="{Static strings:AppResources.YearsActiveLabel}">
                                 <VisualElement.Triggers>
                                     <DataTrigger TargetType="VisualElement"
                                                  Binding="{Binding Value, Source={RelativeSource Self}}"
@@ -96,17 +97,18 @@
                                 </MultiBinding>
                             </views:LabeledLabel>
 
-                            <views:LabeledLabel Label="Runtime"
+                            <views:LabeledLabel Label="{Static strings:AppResources.RuntimeLabel}"
                                                 Value="{Binding Runtime, Converter={Static movies:HrMinConverter.Instance}, TargetNullValue={Static x:String.Empty}}" />
 
-                            <views:LabeledLabel Label="Certification"
+                            <views:LabeledLabel Label="{Static strings:AppResources.CertificationLabel}"
                                                 Value="{Binding ContentRating, TargetNullValue={Static x:String.Empty}}" />
 
-                            <ScrollView Style="{StaticResource AutoWidth}">
-                                <views:LabeledLabel Label="Genres"
-                                                    Value="{Binding Genres, Converter={StaticResource ListToString}, TargetNullValue={Static x:String.Empty}}" />
-                            </ScrollView>
-                        </StackLayout>
+                            <!--<ScrollView Style="{StaticResource AutoWidth}">-->
+                            <views:LabeledLabel Label="{Static strings:AppResources.GenresLabel}"
+                                                Value="{Binding Genres, Converter={StaticResource ListToString}, TargetNullValue={Static x:String.Empty}}"
+                                                HorizontalOptions="Fill" />
+                            <!--</ScrollView>-->
+                        </VerticalStackLayout>
                     </ContentView>
 
                     <!--<ContentView x:DataType="viewmodels:TVShowViewModel"
@@ -114,28 +116,29 @@
                                  HeightRequest="200"
                                  Style="{StaticResource InfoSectionStyle}" />-->
 
-                    <views:SectionView Title="Ratings"
+                    <views:SectionView Title="{Static strings:AppResources.RatingsHeader}"
                                        ext:ContentView.ItemSource="{Binding AllRatings, TargetNullValue={StaticResource EmptyRatings}}"
                                        Style="{StaticResource InfoSectionStyle}" />
 
                     <maui:AdView Style="{StaticResource InlineBannerAdStyle}"
                                  AdUnitID="{Static movies:App.InlineBannerAdUnitID1}" />
 
-                    <views:SectionView Title="Summary"
+                    <views:SectionView Title="{Static strings:AppResources.SummaryHeader}"
                                        ext:ContentView.ItemSource="{Binding Description, TargetNullValue='No description provided'}"
                                        Style="{StaticResource InfoSectionStyle}" />
 
-                    <views:SectionView Title="Where to Watch"
+                    <views:SectionView Title="{Static strings:AppResources.WhereToWatchHeader}"
                                        ext:ContentView.ItemSource="{Binding WatchProviders, TargetNullValue={StaticResource EmptyWatchProviders}}"
                                        Style="{StaticResource InfoSectionStyle}">
                         <views:SectionView.Header>
                             <DataTemplate>
                                 <Border BackgroundColor="{AppThemeBinding Light={StaticResource LightSecondaryBackground}, Dark={StaticResource DarkSecondaryBackground}}"
+                                        StyleClass="MaxRounded"
                                         HorizontalOptions="Start"
-                                        Style="{StaticResource RoundedBorderStyle}"
                                         Padding="10, 5">
+
                                     <Grid ColumnDefinitions="Auto, *">
-                                        <Label Text="Powered by "
+                                        <Label Text="{Static strings:AppResources.PoweredByLabel}"
                                                FontSize="Small"
                                                VerticalOptions="Center"
                                                x:Name="poweredBy" />
@@ -149,14 +152,14 @@
                         </views:SectionView.Header>
                     </views:SectionView>
 
-                    <!--<views:SectionView Title="People"
+                    <!--<views:SectionView Title="{Static strings:AppResources.PeopleHeader}"
                                        Style="{StaticResource InfoSectionStyle}">
                         <StackLayout Orientation="Vertical">
-                            <views:SectionView Title="Cast"
+                            <views:SectionView Title="{Static strings:AppResources.CastSubheader}"
                                                ext:ContentView.ItemSource="{Binding Cast, TargetNullValue={StaticResource EmptyCredits}}"
                                                Style="{StaticResource InfoSubsectionStyle}" />
 
-                            <views:SectionView Title="Crew"
+                            <views:SectionView Title="{Static strings:AppResources.CrewSubheader}"
                                                ext:ContentView.ItemSource="{Binding Crew, TargetNullValue={StaticResource EmptyCredits}}"
                                                Style="{StaticResource InfoSubsectionStyle}" />
                         </StackLayout>
@@ -165,35 +168,36 @@
                     <maui:AdView Style="{StaticResource InlineBannerAdStyle}"
                                  AdUnitID="{Static movies:App.InlineBannerAdUnitID2}" />
 
-                    <views:SectionView Title="Production"
+                    <views:SectionView Title="{Static strings:AppResources.ProductionHeader}"
                                        Style="{StaticResource InfoSectionStyle}">
                         <StackLayout Orientation="Vertical">
-                            <views:SectionView Title="Companies"
+                            <views:SectionView Title="{Static strings:AppResources.CompaniesSubheader}"
                                                ext:ContentView.ItemSource="{Binding ProductionCompanies, TargetNullValue={StaticResource EmptyCompanies}}"
-                                               Style="{StaticResource InfoSubsectionStyle}" />
+                                               Style="{StaticResource InfoSubsectionStyle}"
+                                               HeightRequest="125" />
 
-                            <views:SectionView Title="Networks"
+                            <views:SectionView Title="{Static strings:AppResources.NetworksSubheader}"
                                                x:DataType="viewmodels:TVShowViewModel"
                                                ext:ContentView.ItemSource="{Binding Networks, TargetNullValue={StaticResource EmptyCompanies}}"
                                                Style="{StaticResource InfoSubsectionStyle}" />
 
                             <views:LabeledLabel x:DataType="viewmodels:MovieViewModel"
-                                                Label="Budget"
+                                                Label="{Static strings:AppResources.BudgetLabel}"
                                                 Value="{Binding Budget, StringFormat='{0:C}'}" />
 
                             <views:LabeledLabel x:DataType="viewmodels:MovieViewModel"
-                                                Label="Revenue"
+                                                Label="{Static strings:AppResources.RevenueLabel}"
                                                 Value="{Binding Revenue, StringFormat='{0:C}'}" />
                         </StackLayout>
                     </views:SectionView>
 
-                    <views:SectionView Title="Additional Info"
+                    <views:SectionView Title="{Static strings:AppResources.AddtionalInfoHeader}"
                                        Style="{StaticResource InfoSectionStyle}">
                         <StackLayout Orientation="Vertical">
-                            <views:LabeledLabel Label="Original Title"
+                            <views:LabeledLabel Label="{Static strings:AppResources.OriginalTitleLabel}"
                                                 Value="{Binding OriginalTitle, TargetNullValue={Static x:String.Empty}}" />
 
-                            <views:LabeledLabel Label="Original Language"
+                            <views:LabeledLabel Label="{Static strings:AppResources.OriginalLanguageLabel}"
                                                 Value="{Binding OriginalLanguage, TargetNullValue={Static x:String.Empty}}" />
                         </StackLayout>
                     </views:SectionView>
@@ -207,7 +211,7 @@
                                  HeightRequest="200"
                                  Style="{StaticResource InfoSectionStyle}" />
 
-                    <views:LabeledLabel Label="Keywords"
+                    <views:LabeledLabel Label="{Static strings:AppResources.KeywordsLabel}"
                                         Value="{Binding Keywords, Converter={StaticResource ListToString}}" />
 
                     <maui:AdView Style="{StaticResource BannerAdStyle}"
