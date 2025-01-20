@@ -2,14 +2,15 @@
 <?xaml-comp compile="true" ?>
 <ResourceDictionary xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
                     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+                    xmlns:ext="clr-namespace:Microsoft.Maui.Controls.Extensions;assembly=MauiExtensions"
                     xmlns:ios="clr-namespace:Microsoft.Maui.Controls.PlatformConfiguration.iOSSpecific;assembly=Microsoft.Maui.Controls"
                     xmlns:maui="clr-namespace:Microsoft.Maui.Controls;assembly=MauiExtensions"
-                    xmlns:ext="clr-namespace:Microsoft.Maui.Controls.Extensions;assembly=MauiExtensions"
-                    xmlns:views="clr-namespace:Movies.Views"
-                    xmlns:viewmodels="clr-namespace:Movies.ViewModels"
                     xmlns:models="clr-namespace:Movies.Models"
                     xmlns:movies="clr-namespace:Movies"
-                    xmlns:templates="clr-namespace:Movies.Templates">
+                    xmlns:strings="clr-namespace:Movies.Resources.Strings"
+                    xmlns:templates="clr-namespace:Movies.Templates"
+                    xmlns:views="clr-namespace:Movies.Views"
+                    xmlns:viewmodels="clr-namespace:Movies.ViewModels">
     <!-- ================================== VIEWS ================================== -->
 
     <Style TargetType="ActivityIndicator">
@@ -39,7 +40,7 @@
         <Setter Property="Padding"
                 Value="0" />
     </Style>
-    
+
     <Style TargetType="Border"
            Class="MaxRounded">
         <Setter Property="StrokeShape">
@@ -114,6 +115,40 @@
                 </VisualStateGroup>
             </VisualStateGroupList>
         </Setter>
+    </Style>
+
+    <DataTemplate x:Key="LoadingTemplate"
+                  x:DataType="viewmodels:AsyncListViewModel(x:Object)">
+        <Grid>
+            <ActivityIndicator IsRunning="{Binding FallbackValue=False}"
+                               IsVisible="{Binding FallbackValue=False}"
+                               HorizontalOptions="Center"
+                               VerticalOptions="Center" />
+        </Grid>
+    </DataTemplate>
+
+    <ext:BooleanTemplateSelector x:Key="LoadingTemplateSelector"
+                                 TrueTemplate="{StaticResource LoadingTemplate}">
+        <ext:BooleanTemplateSelector.FalseTemplate>
+            <DataTemplate>
+                <Label Text="{Static strings:AppResources.EmptyItemListText}"
+                       HorizontalOptions="Center"
+                       VerticalOptions="Center" />
+            </DataTemplate>
+        </ext:BooleanTemplateSelector.FalseTemplate>
+    </ext:BooleanTemplateSelector>
+
+    <Style TargetType="CollectionView"
+           x:Key="AsyncListViewModelCollectionViewStyle"
+           x:DataType="viewmodels:AsyncListViewModel(x:Object)">
+        <Setter Property="EmptyView"
+                Value="{Binding Loading}" />
+        <Setter Property="EmptyViewTemplate"
+                Value="{StaticResource LoadingTemplateSelector}" />
+        <Setter Property="Footer"
+                Value="{Binding Loading}" />
+        <Setter Property="FooterTemplate"
+                Value="{StaticResource LoadingTemplate}" />
     </Style>
 
     <Style TargetType="CollectionView"
@@ -501,7 +536,7 @@
         <Setter Property="VerticalScrollBarVisibility"
                 Value="Never" />
     </Style>
-    
+
     <Style TargetType="ScrollView"
            x:Key="AutoWidth">
         <Setter Property="Orientation"
@@ -872,14 +907,14 @@
     <Style TargetType="CollectionView"
            BasedOn="{StaticResource ItemsViewStyle}">
         <Style.Triggers>
-            <DataTrigger TargetType="CollectionView"
+            <!--<DataTrigger TargetType="CollectionView"
                          Binding="{Binding ItemsLayout.Orientation, Source={RelativeSource Self}}"
                          Value="{Static ItemsLayoutOrientation.Horizontal}">
-                <!--<Setter Property="Margin"
-                Value="-10, 0" />
-            <Setter Property="views:Extensions.Padding"
-                Value="10, 0" />-->
-            </DataTrigger>
+                <Setter Property="Margin"
+                        Value="-10, 0" />
+                <Setter Property="views:Extensions.Padding"
+                        Value="10, 0" />
+            </DataTrigger>-->
         </Style.Triggers>
     </Style>
 
@@ -924,6 +959,8 @@
                 Value="10" />
         <Setter Property="AspectRequest"
                 Value="{StaticResource PosterRatio}" />
+        <Setter Property="Aspect"
+                Value="AspectFill" />
     </Style>
 
     <Style TargetType="ItemsView"

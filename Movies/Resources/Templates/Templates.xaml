@@ -1,13 +1,14 @@
 ﻿<?xml version="1.0" encoding="utf-8" ?>
 <ResourceDictionary xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
                     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-                    xmlns:maui="clr-namespace:Microsoft.Maui.Controls;assembly=MauiExtensions"
                     xmlns:ext="clr-namespace:Microsoft.Maui.Controls.Extensions;assembly=MauiExtensions"
-                    xmlns:views="clr-namespace:Movies.Views"
-                    xmlns:viewmodels="clr-namespace:Movies.ViewModels"
+                    xmlns:maui="clr-namespace:Microsoft.Maui.Controls;assembly=MauiExtensions"
                     xmlns:models="clr-namespace:Movies.Models"
                     xmlns:movies="clr-namespace:Movies"
-                    xmlns:templates="clr-namespace:Movies.Templates">
+                    xmlns:strings="clr-namespace:Movies.Resources.Strings"
+                    xmlns:templates="clr-namespace:Movies.Templates"
+                    xmlns:views="clr-namespace:Movies.Views"
+                    xmlns:viewmodels="clr-namespace:Movies.ViewModels">
     <!-- ================================== TEMPLATES ================================== -->
 
     <DataTemplate x:Key="CompressedCollectionTemplate"
@@ -69,8 +70,7 @@
 
     <DataTemplate x:Key="CompressedMovieTemplate"
                   x:DataType="viewmodels:MediaViewModel">
-        <views:ImageView Source="{Binding Title}"
-                         Aspect="AspectFill"
+        <views:ImageView Source="{Binding PosterPath}"
                          AltText="{Binding Title}"
                          Style="{StaticResource PosterStyle}">
             <View.GestureRecognizers>
@@ -96,7 +96,7 @@
                 </View.GestureRecognizers>
 
                 <views:ImageView Style="{StaticResource PersonImageStyle}"
-                                 FlexLayout.Grow="1"/>
+                                 FlexLayout.Grow="1" />
 
                 <Label Text="{Binding Name}"
                        LineBreakMode="TailTruncation"
@@ -168,41 +168,20 @@
             </views:SectionView.Header>
 
             <AbsoluteLayout BindingContext="{Binding Source, Source={Static maui:Constants.AncestorBindingContext}}"
-                            x:DataType="viewmodels:AsyncListViewModel(x:Object)"
-                            CompressedLayout.IsHeadless="True">
+                            x:DataType="viewmodels:AsyncListViewModel(x:Object)">
                 <CollectionView ItemsSource="{Binding Items}"
                                 ItemTemplate="{StaticResource CompressedListSelector}"
                                 RemainingItemsThresholdReachedCommand="{Binding LoadMoreCommand}"
                                 RemainingItemsThreshold="4"
-                                AbsoluteLayout.LayoutBounds="0.5,0.5,1,1"
-                                AbsoluteLayout.LayoutFlags="All">
+                                HeightRequest="200"
+                                Style="{StaticResource AsyncListViewModelCollectionViewStyle}"
+                                AbsoluteLayout.LayoutBounds="0.5,0.5,1,-1"
+                                AbsoluteLayout.LayoutFlags="PositionProportional,WidthProportional">
                     <CollectionView.ItemsLayout>
                         <LinearItemsLayout Orientation="Horizontal"
                                            ItemSpacing="10" />
                     </CollectionView.ItemsLayout>
-
-                    <!--<CollectionView.ItemTemplate>
-                <DataTemplate>
-                    <ContentView CompressedLayout.IsHeadless="True"
-                                 ext:ContentView.ItemSource="{Binding}"
-                                 ext:ContentView.ContentTemplate="{StaticResource CompressedListSelector}"
-                                 WidthRequest="{Binding Height, Source={RelativeSource Self}, Converter={Static maui:ArithmeticConverter.DIVIDE}, ConverterParameter=1.5}" />
-                </DataTemplate>
-            </CollectionView.ItemTemplate>-->
-
-                    <ItemsView.EmptyView>
-                        <Binding Path="Loading">
-                            <Binding.Converter>
-                                <maui:BoolToObjectConverter TrueObject=""
-                                                            FalseObject="No items!" />
-                            </Binding.Converter>
-                        </Binding>
-                    </ItemsView.EmptyView>
                 </CollectionView>
-
-                <ActivityIndicator IsRunning="{Binding Loading}"
-                                   AbsoluteLayout.LayoutBounds="0.5,0.5,-1,-1"
-                                   AbsoluteLayout.LayoutFlags="PositionProportional" />
 
                 <RefreshView IsVisible="False"
                              Style="{StaticResource AsyncListViewModelRefreshStyle}" />

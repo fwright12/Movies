@@ -12,7 +12,7 @@ namespace Movies
                 .UseMauiApp<App>()
                 .ConfigureMauiHandlers(c =>
                 {
-                    c.AddHandler<CollectionView, MauiExtensions.CollectionViewHandler>();
+                    //c.AddHandler<CollectionView, MauiExtensions.CollectionViewHandler>();
                 })
                 .ConfigureFonts(fonts =>
                 {

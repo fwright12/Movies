@@ -36,7 +36,7 @@
         <ScrollView Orientation="Vertical"
                     AbsoluteLayout.LayoutBounds="0,0,1,1"
                     AbsoluteLayout.LayoutFlags="All"
-                    StyleClass="ShowsNavBarOnScroll">
+                    StyleClass="ShowsNavBarOnScroll, HidesTabBarOnScroll">
             <Border StrokeShape="RoundRectangle 10"
                     Padding="{StaticResource PagePadding}"
                     BackgroundColor="{Binding BackgroundColor, Source={RelativeSource AncestorType={x:Type Page}}}">

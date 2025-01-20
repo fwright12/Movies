@@ -21,8 +21,7 @@
                     Header="test"
                     Footer="test">
         <CollectionView.ItemsLayout>
-            <LinearItemsLayout Orientation="Vertical"
-                               ext:ItemsLayout.ItemSize="250" />
+            <LinearItemsLayout Orientation="Vertical" />
         </CollectionView.ItemsLayout>
 
         <CollectionView.HeaderTemplate>

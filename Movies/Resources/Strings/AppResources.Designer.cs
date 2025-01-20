@@ -133,6 +133,15 @@ namespace Movies.Resources.Strings {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to No items!.
+        /// </summary>
+        internal static string EmptyItemListText {
+            get {
+                return ResourceManager.GetString("EmptyItemListText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Explore.
         /// </summary>
         internal static string ExploreTab {

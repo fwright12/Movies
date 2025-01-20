@@ -1,4 +1,5 @@
-﻿using Microsoft.Maui.Controls.Compatibility;
+﻿using MauiExtensions.Services;
+using Microsoft.Maui.Controls.Compatibility;
 using Movies.Models;
 using System.Collections.ObjectModel;
 
@@ -42,7 +43,7 @@ namespace Movies.ViewModels
                 return;
             }
 
-            var navBarHeight = 100;
+            var navBarHeight = 0;// PlatformService.NavBarHeight;
             VisualStateManager.GoToState(page, sender.ScrollY > sender.Content.Margin.Top - navBarHeight ? "Details" : "Poster");
         }
     }
