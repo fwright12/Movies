@@ -6,10 +6,9 @@
                  xmlns:views="clr-namespace:Movies.Views"
                  xmlns:ext="clr-namespace:Microsoft.Maui.Controls.Extensions;assembly=MauiExtensions"
                  xmlns:maui="clr-namespace:Microsoft.Maui.Controls;assembly=MauiExtensions"
-                 xmlns:forms="clr-namespace:Microsoft.Maui.Controls.Compatibility;assembly=MauiExtensions"
                  xmlns:templates="clr-namespace:Movies.Templates"
                  x:Class="Movies.ListTemplate">
-    <forms:DrawerView x:Name="root"
+    <maui:DrawerView x:Name="root"
                      BackgroundColor="{Binding BackgroundColor, Source={RelativeSource AncestorType={x:Type Page}}}"
                      BindingContext="{TemplateBinding BindingContext}"
                      DrawerTemplate="{DataTemplate views:FilterView}">
@@ -52,11 +51,11 @@
             <views:ShowFiltersBehavior CollectionView="{x:Reference collectionView}" />
         </VisualElement.Behaviors>
 
-        <forms:DrawerView.SnapPoints>
+        <maui:DrawerView.SnapPoints>
             <viewmodels:ItemTypeSnapPoint Alignment="End" />
 
-            <forms:SnapPoint Value="{Binding Height, Source={RelativeSource AncestorType={x:Type forms:DrawerView}}, Converter={Static maui:ArithmeticConverter.SUBTRACT}, ConverterParameter=25}" />
-        </forms:DrawerView.SnapPoints>
+            <maui:SnapPoint Value="{Binding Height, Source={RelativeSource AncestorType={x:Type maui:DrawerView}}, Converter={Static maui:ArithmeticConverter.SUBTRACT}, ConverterParameter=25}" />
+        </maui:DrawerView.SnapPoints>
 
         <!--<VisualElement.Triggers>
             <DataTrigger TargetType="formsOld:DrawerView"
@@ -386,7 +385,7 @@
 
                                 <Button Text="{OnPlatform Android=&#xf38b;, iOS=&#xf31b;}"
                                         Command="{Binding OpenFiltersCommand, Source={Static Application.Current}}"
-                                        CommandParameter="{Binding Source={RelativeSource AncestorType={x:Type forms:DrawerView}}}"
+                                        CommandParameter="{Binding Source={RelativeSource AncestorType={x:Type maui:DrawerView}}}"
                                         IsVisible="{Binding Filters.Editors.Count, Converter={Static maui:ObjectToFalseConverter.Instance}, ConverterParameter={StaticResource zero}}" />
 
                                 <Button Command="{Binding ToggleListLayoutCommand}">
@@ -504,5 +503,5 @@
                         CommandParameter="{Binding SelectedItems, Source={x:Reference collectionView}}" />
             </StackLayout>
         </Grid>
-    </forms:DrawerView>
+    </maui:DrawerView>
 </ControlTemplate>

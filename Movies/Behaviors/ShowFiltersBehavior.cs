@@ -6,7 +6,7 @@ using System.Text;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui;
 using Microsoft.Maui.Controls.Compatibility;
-using DrawerView = Microsoft.Maui.Controls.Compatibility.DrawerView;
+using DrawerView = Microsoft.Maui.Controls.DrawerView;
 
 namespace Movies.Views
 {

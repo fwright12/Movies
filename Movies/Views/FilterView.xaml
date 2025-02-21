@@ -5,7 +5,6 @@
             xmlns:viewmodels="clr-namespace:Movies.ViewModels"
             xmlns:views="clr-namespace:Movies.Views"
             xmlns:forms="clr-namespace:Microsoft.Maui.Controls;assembly=MauiExtensions"
-            xmlns:formsOld="clr-namespace:Microsoft.Maui.Controls.Compatibility;assembly=MauiExtensions"
             x:Class="Movies.Views.FilterView"
             BackgroundColor="{AppThemeBinding Light={StaticResource LightSecondaryBackground}, Dark={StaticResource DarkSecondaryBackground}}"
             Direction="Column">
@@ -52,7 +51,7 @@
                                           HorizontalOptions="StartAndExpand" />
 
                         <Button Text="Done"
-                                Command="{Binding NextSnapPointCommand, Source={RelativeSource AncestorType={x:Type formsOld:DrawerView}}}"
+                                Command="{Binding NextSnapPointCommand, Source={RelativeSource AncestorType={x:Type forms:DrawerView}}}"
                                 HorizontalOptions="End" />
                     </StackLayout>
 
@@ -69,7 +68,7 @@
 
     <VisualStateManager.VisualStateGroups>
         <VisualStateGroup>
-            <VisualState Name="{Static formsOld:DrawerView+VisualStates.Closed}">
+            <VisualState Name="{Static forms:DrawerView+VisualStates.Closed}">
                 <VisualState.Setters>
                     <Setter TargetName="scroll"
                             Property="ScrollView.Orientation"
@@ -103,7 +102,7 @@
                 </VisualState.Setters>
             </VisualState>
 
-            <VisualState Name="{Static formsOld:DrawerView+VisualStates.Open}">
+            <VisualState Name="{Static forms:DrawerView+VisualStates.Open}">
                 <VisualState.Setters>
                     <Setter TargetName="scroll"
                             Property="ScrollView.Orientation"

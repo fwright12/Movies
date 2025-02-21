@@ -377,7 +377,7 @@ namespace Movies
             CreateListCommand = new Command<ElementTemplate>(template => _ = CreateList(template));
             AddSyncSourceCommand = new Command<ListViewModel>(model => _ = AddSyncSource(model), list => list != null && list.SyncWith.Count != LoggedInListProviders().Count());
             DeleteListCommand = new Command<ListViewModel>(list => _ = DeleteList(list));
-            OpenFiltersCommand = new Command<DrawerView>(async drawer =>
+            OpenFiltersCommand = new Command<Microsoft.Maui.Controls.DrawerView>(async drawer =>
             {
                 if (drawer?.BindingContext is ListViewModel list && !list.SyncWith.Any(sync => sync.Provider == LocalDatabase))
                 {
