@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using Microsoft.Maui.Handlers;
 using Microsoft.Maui.Layouts;
 
 namespace Movies
@@ -47,7 +48,7 @@ namespace Movies
         }
     }
 
-    public abstract class ImprovedStackLayoutManager : Microsoft.Maui.Layouts.StackLayoutManager
+    public abstract class StackLayoutManager : Microsoft.Maui.Layouts.StackLayoutManager
     {
         protected abstract double MainAxisDimension { get; }
         protected abstract double MainAxisMinimumDimension { get; }
@@ -59,7 +60,7 @@ namespace Movies
 
         protected abstract BindableProperty CrossAxisLayoutOptions { get; }
 
-        protected ImprovedStackLayoutManager(IStackLayout stack) : base(stack) { }
+        protected StackLayoutManager(IStackLayout stack) : base(stack) { }
 
         protected Size OrientationAgnosticMeasure(double mainAxisConstraint, double crossAxisConstraint)
         {
@@ -125,7 +126,7 @@ namespace Movies
             return CreateSize(finalMainAxisSize, finalCrossAxisSize);
         }
 
-        protected Size OrientationAgnosticArrange(Rect bounds)
+        public override Size ArrangeChildren(Rect bounds)
         {
             var padding = Stack.Padding;
 
@@ -159,14 +160,13 @@ namespace Movies
 
                 var size = GetMainAxisDimension(child.DesiredSize) + CalculateFlexAmount(child, extraSpace, flexTotal);
                 var destination = new Rect(CreatePoint(position, inset), CreateSize(size, crossAxisSize));
+                var actual = child.Arrange(destination);
 
-                child.Arrange(destination);
-                position += GetMainAxisDimension(destination.Size) + Stack.Spacing;
+                position += Math.Min(GetMainAxisDimension(destination.Size), GetMainAxisDimension(actual)) + Stack.Spacing;
             }
 
-            var actual = CreateSize(position, crossAxisSize);
-
-            return actual.AdjustForFill(bounds, Stack);
+            var result = CreateSize(position, crossAxisSize);
+            return result.AdjustForFill(bounds, Stack);
         }
 
         private double MeasureDecorativeSpace()
@@ -240,7 +240,7 @@ namespace Movies
         protected abstract Size MeasureChild(IView child, double mainAxisConstraint, double crossAxisConstraint);
     }
 
-    public class HorizontalStackLayoutManager : ImprovedStackLayoutManager
+    public class HorizontalStackLayoutManager : StackLayoutManager
     {
         protected override double MainAxisDimension => Stack.Width;
         protected override double MainAxisMinimumDimension => Stack.MinimumWidth;
@@ -255,7 +255,6 @@ namespace Movies
         public HorizontalStackLayoutManager(IStackLayout stack) : base(stack) { }
 
         public override Size Measure(double widthConstraint, double heightConstraint) => OrientationAgnosticMeasure(widthConstraint, heightConstraint);
-        public override Size ArrangeChildren(Rect bounds) => OrientationAgnosticArrange(bounds);
 
         protected override double GetMainAxisValue(Point point) => point.X;
         protected override double GetMainAxisDimension(Size size) => size.Width;
@@ -275,7 +274,7 @@ namespace Movies
         protected override Size MeasureChild(IView child, double mainAxisConstraint, double crossAxisConstraint) => child.Measure(mainAxisConstraint, crossAxisConstraint);
     }
 
-    public class VerticalStackLayoutManager : ImprovedStackLayoutManager
+    public class VerticalStackLayoutManager : StackLayoutManager
     {
         protected override double MainAxisDimension => Stack.Height;
         protected override double MainAxisMinimumDimension => Stack.MinimumHeight;
@@ -290,7 +289,6 @@ namespace Movies
         public VerticalStackLayoutManager(IStackLayout stack) : base(stack) { }
 
         public override Size Measure(double widthConstraint, double heightConstraint) => OrientationAgnosticMeasure(heightConstraint, widthConstraint);
-        public override Size ArrangeChildren(Rect bounds) => OrientationAgnosticArrange(bounds);
 
         protected override double GetMainAxisValue(Point point) => point.Y;
         protected override double GetMainAxisDimension(Size size) => size.Height;

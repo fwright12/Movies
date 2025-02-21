@@ -19,7 +19,7 @@
                 <ResourceDictionary Source="Resources/Styles/DarkTheme.xaml" />
                 <ResourceDictionary Source="Resources/Styles/Controls.xaml" />
                 <ResourceDictionary Source="Resources/Templates/Templates.xaml" />
-                <ext:Controls />
+                <forms:ControlStyles />
             </ResourceDictionary.MergedDictionaries>
 
             <Style x:Key="ContentPresenterFix"

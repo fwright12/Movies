@@ -40,6 +40,8 @@ namespace Movies
 
             public bool MoveNext()
             {
+                // TODO Cannot rely on null Current to indicate enumeration hasn't started
+                return false;
                 try
                 {
                     if (Current == null)

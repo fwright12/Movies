@@ -120,8 +120,8 @@
     <DataTemplate x:Key="LoadingTemplate"
                   x:DataType="viewmodels:AsyncListViewModel(x:Object)">
         <Grid>
-            <ActivityIndicator IsRunning="{Binding FallbackValue=False}"
-                               IsVisible="{Binding FallbackValue=False}"
+            <ActivityIndicator IsRunning="{Binding FallbackValue={x:Boolean false}, TargetNullValue={x:Boolean false}}"
+                               IsVisible="{Binding FallbackValue={x:Boolean false}, TargetNullValue={x:Boolean false}}"
                                HorizontalOptions="Center"
                                VerticalOptions="Center" />
         </Grid>
@@ -139,14 +139,13 @@
     </ext:BooleanTemplateSelector>
 
     <Style TargetType="CollectionView"
-           x:Key="AsyncListViewModelCollectionViewStyle"
-           x:DataType="viewmodels:AsyncListViewModel(x:Object)">
+           x:Key="AsyncListViewModelCollectionViewStyle">
         <Setter Property="EmptyView"
-                Value="{Binding Loading}" />
+                Value="{Binding Loading, FallbackValue={x:Boolean false}}" />
         <Setter Property="EmptyViewTemplate"
                 Value="{StaticResource LoadingTemplateSelector}" />
         <Setter Property="Footer"
-                Value="{Binding Loading}" />
+                Value="{Binding Loading, FallbackValue={x:Boolean false}}" />
         <Setter Property="FooterTemplate"
                 Value="{StaticResource LoadingTemplate}" />
     </Style>

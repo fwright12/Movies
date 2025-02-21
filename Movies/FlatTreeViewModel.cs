@@ -25,12 +25,9 @@ namespace Movies.ViewModels
 
     public class TreeToListConverter<T> : IValueConverter
     {
-        public object Convert(object value, Type targetType, object parameter, CultureInfo culture) => new FlatTreeViewModel<T>((ObservableNode<T>)value).Leaves;
+        public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture) => value == null ? null : new FlatTreeViewModel<T>((ObservableNode<T>)value).Leaves;
 
-        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
-        {
-            throw new NotImplementedException();
-        }
+        public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => (value as FlatTreeViewModel<T>)?.Root;
     }
 
     public class FlatTreeViewModel<T>

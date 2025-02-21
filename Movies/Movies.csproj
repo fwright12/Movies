@@ -80,6 +80,12 @@
 	    <AutoGen>True</AutoGen>
 	    <DependentUpon>AppResources.resx</DependentUpon>
 	  </Compile>
+	  <Compile Update="Views\FilterView.xaml.cs">
+	    <DependentUpon>FilterView.xaml</DependentUpon>
+	  </Compile>
+	  <Compile Update="Resources\Templates\ListTemplate.xaml.cs">
+	    <DependentUpon>ListTemplate.xaml</DependentUpon>
+	  </Compile>
 	</ItemGroup>
 
 	<ItemGroup>

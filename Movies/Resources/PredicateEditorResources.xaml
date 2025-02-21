@@ -196,10 +196,10 @@
            TargetType="Layout"
            BasedOn="{StaticResource OptionsStyle}"
            ApplyToDerivedTypes="True">
-        <Setter Property="forms:Selection.SelectionMode"
+        <!--<Setter Property="forms:Selection.SelectionMode"
                 Value="Multiple" />
         <Setter Property="forms:Selection.SelectedItems"
-                Value="{StaticResource OptionsSelectedItemsBinding}" />
+                Value="{StaticResource OptionsSelectedItemsBinding}" />-->
     </Style>
 
     <Style x:Key="StringSelectorStyle"
@@ -477,8 +477,10 @@
                                     Template="{StaticResource TimeSpanPickerTemplate}" />
             <forms:TypeDataTemplate Type="{x:Type sys:DateTime}"
                                     Template="{StaticResource DateTimePickerTemplate}" />
+            <!--<forms:TypeDataTemplate Type="{x:Type models:WatchProvider}"
+                                    Template="{StaticResource WatchProviderListTemplate}" />-->
             <forms:TypeDataTemplate Type="{x:Type models:WatchProvider}"
-                                    Template="{StaticResource WatchProviderListTemplate}" />
+                                    Template="{DataTemplate Label}" />
             <forms:TypeDataTemplate Type="{x:Type viewmodels:PersonViewModel}"
                                     Template="{StaticResource PersonListTemplate}" />
             <forms:TypeDataTemplate Type="{x:Type x:String}"
@@ -497,10 +499,19 @@
                                         LargeValuesTemplate="{StaticResource StringInfiniteTemplate}" />
 
     <DataTemplate x:Key="MultiEditorTemplate">
-        <StackLayout Orientation="Vertical"
-                     Spacing="10"
-                     BindableLayout.ItemsSource="{Binding Editors}"
-                     BindableLayout.ItemTemplateSelector="{StaticResource EditorTemplateSelector}" />
+        <VerticalStackLayout Spacing="10"
+                             BindableLayout.ItemsSource="{Binding Editors}"
+                             BindableLayout.ItemTemplateSelector="{StaticResource EditorTemplateSelector}" />
+    </DataTemplate>
+
+    <DataTemplate x:Key="MultiEditorTemplate1">
+        <CollectionView ItemsSource="{Binding Editors}"
+                        ItemTemplate="{StaticResource EditorTemplateSelector}">
+            <CollectionView.ItemsLayout>
+                <LinearItemsLayout Orientation="Vertical"
+                                   ItemSpacing="10" />
+            </CollectionView.ItemsLayout>
+        </CollectionView>
     </DataTemplate>
 
     <DataTemplate x:Key="EditorTemplate">

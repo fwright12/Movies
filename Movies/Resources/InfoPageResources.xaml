@@ -53,32 +53,27 @@
                 </TapGestureRecognizer>
             </View.GestureRecognizers>
 
-            <VerticalStackLayout Spacing="10">
+            <VerticalStackLayout Spacing="5">
                 <Label Text="{Binding Company.Name}"
                        FontSize="Small"
                        LineBreakMode="TailTruncation"
                        HorizontalOptions="Fill" />
 
-                <FlexLayout JustifyContent="SpaceBetween"
-                            AlignItems="Center"
-                            HorizontalOptions="Fill">
+                <HorizontalStackLayout HorizontalOptions="Fill">
                     <Image FlexLayout.Grow="1"
-                           FlexLayout.Shrink="0">
+                           VerticalOptions="Fill">
                         <Image.Source>
-                            <Binding Path="Company.LogoPath"
-                                     Converter="{Static converters:UriToImageSourceConverter.Instance}">
-                                <Binding.ConverterParameter>
-                                    <UriImageSource CacheValidity="{Static movies:App.LogoCacheValidity}" />
-                                </Binding.ConverterParameter>
-                            </Binding>
+                            <UriImageSource Uri="{Binding Company.LogoPath}"
+                                            CacheValidity="{Static movies:App.LogoCacheValidity}" />
                         </Image.Source>
                     </Image>
 
                     <Label Text="{Binding Score}"
                            FontAttributes="Bold"
                            FontSize="Title"
+                           FlexLayout.Shrink="0"
                            TextColor="{AppThemeBinding Light={StaticResource LightPrimaryText}, Dark={StaticResource DarkPrimaryText}}" />
-                </FlexLayout>
+                </HorizontalStackLayout>
 
                 <Label Text="{Binding Source={Static strings:AppResources.SeeReviewsText}, StringFormat='{0} >'}"
                        FontSize="Caption"
@@ -135,11 +130,12 @@
         <VerticalStackLayout>
             <views:ImageView Source="{Binding Company.LogoPath}"
                              AspectRequest="1"
+                             FlexLayout.Grow="1"
+                             HeightRequest="{Binding Bounds.Height, Source={RelativeSource Self}}"
                              HorizontalOptions="Center" />
 
             <Label Text="{Binding Company.Name}"
                    HorizontalTextAlignment="Center"
-                   MaxLines="2"
                    LineBreakMode="TailTruncation" />
         </VerticalStackLayout>
     </DataTemplate>
@@ -147,9 +143,13 @@
     <DataTemplate x:Key="WatchProviderListTemplate">
         <CollectionView ItemsSource="{Binding}"
                         ItemTemplate="{StaticResource WatchProviderTemplate}"
-                        ItemsLayout="HorizontalList"
                         IsGrouped="True"
                         EmptyView="{Static strings:AppResources.WatchProvidersEmptyView}">
+            <StructuredItemsView.ItemsLayout>
+                <LinearItemsLayout Orientation="Horizontal"
+                                   ItemSpacing="10" />
+            </StructuredItemsView.ItemsLayout>
+
             <CollectionView.GroupHeaderTemplate>
                 <DataTemplate>
                     <Label Text="{Binding Name}"
@@ -159,7 +159,8 @@
         </CollectionView>
     </DataTemplate>
 
-    <DataTemplate x:Key="CreditTemplate">
+    <DataTemplate x:Key="CreditTemplate"
+                  x:DataType="models:Credit">
         <VerticalStackLayout>
             <View.GestureRecognizers>
                 <TapGestureRecognizer CommandParameter="{Binding Parent.Content.BindingContext, Source={RelativeSource Self}}">
@@ -198,32 +199,31 @@
         </CollectionView>
     </DataTemplate>
 
+    <DataTemplate x:Key="CompanyTemplate"
+                  x:DataType="models:Company">
+        <views:AspectContentView AspectRequest="16:9"
+                                 VerticalOptions="Fill">
+            <Border Style="{StaticResource CardStyle}">
+                <VerticalStackLayout>
+                    <Image Source="{Binding LogoPath}" />
+
+                    <Label Text="{Binding Name}"
+                           LineBreakMode="MiddleTruncation"
+                           HorizontalTextAlignment="Center" />
+                </VerticalStackLayout>
+            </Border>
+        </views:AspectContentView>
+    </DataTemplate>
+
     <DataTemplate x:Key="CompanyListTemplate">
         <CollectionView ItemsSource="{Binding}"
+                        ItemTemplate="{StaticResource CompanyTemplate}"
                         ItemSizingStrategy="{OnPlatform Android=MeasureAllItems, Default=MeasureFirstItem}"
                         EmptyView="{Static strings:AppResources.CompanyListEmptyView}">
             <CollectionView.ItemsLayout>
                 <LinearItemsLayout Orientation="Horizontal"
                                    ItemSpacing="10" />
             </CollectionView.ItemsLayout>
-
-            <ItemsView.ItemTemplate>
-                <DataTemplate x:DataType="models:Company">
-                    <Border Style="{StaticResource CardStyle}">
-                        <views:AspectContentView AspectRequest="16:9 ">
-                            <VerticalStackLayout>
-                                <Image Source="{Binding LogoPath}"
-                                       FlexLayout.Grow="1" />
-
-                                <Label Text="{Binding Name}"
-                                       LineBreakMode="MiddleTruncation"
-                                       HorizontalTextAlignment="Center"
-                                       FlexLayout.Shrink="0" />
-                            </VerticalStackLayout>
-                        </views:AspectContentView>
-                    </Border>
-                </DataTemplate>
-            </ItemsView.ItemTemplate>
         </CollectionView>
     </DataTemplate>
 

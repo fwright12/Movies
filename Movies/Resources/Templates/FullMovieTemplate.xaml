@@ -129,24 +129,22 @@
 
                     <views:SectionView Title="{Static strings:AppResources.WhereToWatchHeader}"
                                        ext:ContentView.ItemSource="{Binding WatchProviders, TargetNullValue={StaticResource EmptyWatchProviders}}"
-                                       Style="{StaticResource InfoSectionStyle}">
+                                       Style="{StaticResource InfoSectionStyle}"
+                                       ext:VisualElement.OneTimeHeightRequest="100">
                         <views:SectionView.Header>
                             <DataTemplate>
                                 <Border BackgroundColor="{AppThemeBinding Light={StaticResource LightSecondaryBackground}, Dark={StaticResource DarkSecondaryBackground}}"
                                         StyleClass="MaxRounded"
-                                        HorizontalOptions="Start"
                                         Padding="10, 5">
 
-                                    <Grid ColumnDefinitions="Auto, *">
+                                    <HorizontalStackLayout Spacing="5">
                                         <Label Text="{Static strings:AppResources.PoweredByLabel}"
                                                FontSize="Small"
-                                               VerticalOptions="Center"
-                                               x:Name="poweredBy" />
+                                               VerticalOptions="Center" />
 
-                                        <Image HeightRequest="{Binding Height, Source={x:Reference poweredBy}}"
-                                               Source="{Static movies:App.JustWatchAttribution}"
-                                               Grid.Column="1" />
-                                    </Grid>
+                                        <Image Source="{Static movies:App.JustWatchAttribution}"
+                                               VerticalOptions="Fill"/>
+                                    </HorizontalStackLayout>
                                 </Border>
                             </DataTemplate>
                         </views:SectionView.Header>

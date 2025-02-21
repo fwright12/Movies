@@ -72,7 +72,9 @@
                   x:DataType="viewmodels:MediaViewModel">
         <views:ImageView Source="{Binding PosterPath}"
                          AltText="{Binding Title}"
-                         Style="{StaticResource PosterStyle}">
+                         Style="{StaticResource PosterStyle}"
+                         HeightRequest="300">
+            <!--HeightRequest="{Binding Height, Source={RelativeSource Self}}"-->
             <View.GestureRecognizers>
                 <TapGestureRecognizer CommandParameter="{Binding}">
                     <TapGestureRecognizer.Command>
@@ -85,26 +87,26 @@
 
     <DataTemplate x:Key="CompressedPersonTemplate"
                   x:DataType="viewmodels:PersonViewModel">
-        <views:AspectContentView AspectRequest="2:3">
-            <VerticalStackLayout>
-                <View.GestureRecognizers>
-                    <TapGestureRecognizer CommandParameter="{Binding}">
-                        <TapGestureRecognizer.Command>
-                            <views:PushPageCommand PageTemplate="{DataTemplate views:PersonInfoPage}" />
-                        </TapGestureRecognizer.Command>
-                    </TapGestureRecognizer>
-                </View.GestureRecognizers>
+        <VerticalStackLayout>
+            <View.GestureRecognizers>
+                <TapGestureRecognizer CommandParameter="{Binding}">
+                    <TapGestureRecognizer.Command>
+                        <views:PushPageCommand PageTemplate="{DataTemplate views:PersonInfoPage}" />
+                    </TapGestureRecognizer.Command>
+                </TapGestureRecognizer>
+            </View.GestureRecognizers>
 
-                <views:ImageView Style="{StaticResource PersonImageStyle}"
-                                 FlexLayout.Grow="1" />
+            <views:ImageView Style="{StaticResource PersonImageStyle}"
+                             FlexLayout.Grow="1"
+                             HeightRequest="{Binding Height, Source={RelativeSource Self}}" />
 
-                <Label Text="{Binding Name}"
-                       LineBreakMode="TailTruncation"
-                       HorizontalTextAlignment="Center"
-                       MaxLines="2"
-                       FlexLayout.Shrink="0" />
-            </VerticalStackLayout>
-        </views:AspectContentView>
+            <maui:MaxSizeLabel Text="{Binding Name}"
+                               LineBreakMode="TailTruncation"
+                               HorizontalTextAlignment="Center"
+                               FlexLayout.Shrink="0"
+                               MaxLines="2"
+                               HorizontalOptions="Fill" />
+        </VerticalStackLayout>
     </DataTemplate>
 
     <DataTemplate x:Key="CompressedTVSeasonTemplate"
@@ -173,7 +175,7 @@
                                 ItemTemplate="{StaticResource CompressedListSelector}"
                                 RemainingItemsThresholdReachedCommand="{Binding LoadMoreCommand}"
                                 RemainingItemsThreshold="4"
-                                HeightRequest="200"
+                                ext:VisualElement.OneTimeHeightRequest="200"
                                 Style="{StaticResource AsyncListViewModelCollectionViewStyle}"
                                 AbsoluteLayout.LayoutBounds="0.5,0.5,1,-1"
                                 AbsoluteLayout.LayoutFlags="PositionProportional,WidthProportional">
