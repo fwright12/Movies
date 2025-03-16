@@ -437,6 +437,15 @@
     <DataTemplate x:Key="SingleStringTemplate">
         <FlexLayout Wrap="Wrap"
                     BindableLayout.ItemsSource="{Binding RHSOptions}"
+                    BindableLayout.ItemTemplate="{StaticResource DefaultPredicateRHSTemplate}"
+                    forms:Selection.SelectionMode="Single"
+                    forms:Selection.SelectedItems="{Binding Selected.Value.RHS, Converter={Static viewmodels:SingleItemListConverter.Instance}}">
+        </FlexLayout>
+    </DataTemplate>
+
+    <DataTemplate x:Key="SingleStringTemplate1">
+        <FlexLayout Wrap="Wrap"
+                    BindableLayout.ItemsSource="{Binding RHSOptions}"
                     forms:Selection.SelectionMode="Single"
                     forms:Selection.SelectedItems="{Binding Selected.Value.RHS, Converter={Static viewmodels:SingleItemListConverter.Instance}}">
             <BindableLayout.ItemTemplate>

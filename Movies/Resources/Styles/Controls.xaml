@@ -54,6 +54,16 @@
     </Style>-->
 
     <Style TargetType="Button"
+           x:Key="Stadium">
+        <Setter Property="CornerRadius"
+                Value="1000000" />
+    </Style>
+
+    <Style TargetType="Button"
+           Class="Stadium"
+           BasedOn="{StaticResource Stadium}" />
+
+    <Style TargetType="Button"
            ApplyToDerivedTypes="True">
         <Setter Property="TextColor"
                 Value="{OnPlatform Default={StaticResource Primary}, Android={AppThemeBinding Light={StaticResource White}, Dark={StaticResource PrimaryDarkText}}}" />
@@ -307,22 +317,22 @@
            x:Key="ImageStyle">
         <Setter Property="ControlTemplate">
             <ControlTemplate x:DataType="views:ImageView">
-                <Border Stroke="{AppThemeBinding Light={StaticResource LightPrimaryText}, Dark={StaticResource DarkPrimaryText}}">
-                    <Border.StrokeShape>
-                        <RoundRectangle CornerRadius="{TemplateBinding CornerRadius}" />
-                    </Border.StrokeShape>
+                <AbsoluteLayout>
+                    <Border Stroke="{AppThemeBinding Light={StaticResource LightPrimaryText}, Dark={StaticResource DarkPrimaryText}}"
+                            AbsoluteLayout.LayoutBounds="0.5,0.5,1,1"
+                            AbsoluteLayout.LayoutFlags="All">
+                        <Border.StrokeShape>
+                            <RoundRectangle CornerRadius="{TemplateBinding CornerRadius}" />
+                        </Border.StrokeShape>
 
-                    <AbsoluteLayout>
                         <Label Text="{TemplateBinding AltText}"
                                HorizontalTextAlignment="Center"
                                VerticalTextAlignment="Center"
-                               Padding="10"
-                               AbsoluteLayout.LayoutBounds="0.5,0.5,1,1"
-                               AbsoluteLayout.LayoutFlags="All" />
+                               Padding="10" />
+                    </Border>
 
-                        <ContentPresenter />
-                    </AbsoluteLayout>
-                </Border>
+                    <ContentPresenter />
+                </AbsoluteLayout>
             </ControlTemplate>
         </Setter>
     </Style>

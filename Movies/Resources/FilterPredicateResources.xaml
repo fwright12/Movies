@@ -7,9 +7,104 @@
                     xmlns:viewmodels="clr-namespace:Movies.ViewModels"
                     xmlns:models="clr-namespace:Movies.Models"
                     xmlns:sys="clr-namespace:System;assembly=mscorlib"
+                    xmlns:scg="clr-namespace:System.Collections.Generic;assembly=mscorlib"
                     xmlns:ext="clr-namespace:Microsoft.Maui.Controls.Extensions;assembly=MauiExtensions"
                     xmlns:forms="clr-namespace:Microsoft.Maui.Controls;assembly=MauiExtensions"
                     x:Class="Movies.FilterPredicateResources">
+    <Style x:Key="SelectableButtonStyle"
+           TargetType="Button"
+           BasedOn="{StaticResource Stadium}">
+        <Setter Property="Padding"
+                Value="10, 8" />
+        <Setter Property="Margin"
+                Value="2" />
+        <Setter Property="VisualStateManager.VisualStateGroups">
+            <VisualStateGroupList>
+                <VisualStateGroup Name="CommonStates">
+                    <VisualState Name="{Static VisualStateManager+CommonStates.Normal}">
+                        <VisualState.Setters>
+                            <Setter Property="TextColor"
+                                    Value="{AppThemeBinding Light={StaticResource LightSecondaryText}, Dark={StaticResource DarkSecondaryText}}" />
+                            <Setter Property="BackgroundColor"
+                                    Value="Transparent" />
+                            <Setter Property="BorderColor"
+                                    Value="{Binding TextColor, Source={RelativeSource Self}, Mode=TwoWay}" />
+                        </VisualState.Setters>
+                    </VisualState>
+
+                    <VisualState Name="{Static VisualStateManager+CommonStates.Selected}">
+                        <VisualState.Setters>
+                            <Setter Property="TextColor"
+                                    Value="{StaticResource DarkPrimaryText}" />
+                            <Setter Property="BackgroundColor"
+                                    Value="{StaticResource Primary}" />
+                            <Setter Property="BorderColor"
+                                    Value="Transparent" />
+                        </VisualState.Setters>
+                    </VisualState>
+                </VisualStateGroup>
+            </VisualStateGroupList>
+        </Setter>
+    </Style>
+
+    <forms:MappingConverter x:Key="LessThanOperatorConverter"
+                            x:TypeArguments="sys:Type,x:String">
+        <forms:Mapping Key="{x:Type sys:DateTime}">Before</forms:Mapping>
+        <forms:Mapping Key="{x:Type x:Object}">Under</forms:Mapping>
+    </forms:MappingConverter>
+
+    <forms:MappingConverter x:Key="GreaterThanOperatorConverter"
+                            x:TypeArguments="sys:Type,x:String">
+        <forms:Mapping Key="{x:Type sys:DateTime}">After</forms:Mapping>
+        <forms:Mapping Key="{x:Type x:Object}">Over</forms:Mapping>
+    </forms:MappingConverter>
+
+    <DataTemplate x:Key="LessThanOperatorTemplate">
+        <Button Text="{Binding Selected.Value.LHS.Type, Source={RelativeSource AncestorType={x:Type viewmodels:OperatorEditor}}, Converter={StaticResource LessThanOperatorConverter}}"
+                Style="{StaticResource SelectableButtonStyle}" />
+    </DataTemplate>
+
+    <DataTemplate x:Key="EqualToOperatorTemplate">
+        <Button Text="Exactly"
+                Style="{StaticResource SelectableButtonStyle}" />
+    </DataTemplate>
+
+    <DataTemplate x:Key="GreaterThanOperatorTemplate">
+        <Button Text="{Binding Selected.Value.LHS.Type, Source={RelativeSource AncestorType={x:Type viewmodels:OperatorEditor}}, Converter={StaticResource GreaterThanOperatorConverter}}"
+                Style="{StaticResource SelectableButtonStyle}" />
+    </DataTemplate>
+
+    <forms:MappingDataTemplateSelector x:Key="OperatorTemplateSelector"
+                                       x:TypeArguments="movies:Operators">
+        <forms:MappingDataTemplateSelector.Mappings>
+            <forms:TemplateMapping Key="{Static movies:Operators.LessThan}"
+                                   Value="{StaticResource LessThanOperatorTemplate}" />
+            <forms:TemplateMapping Key="{Static movies:Operators.Equal}"
+                                   Value="{StaticResource EqualToOperatorTemplate}" />
+            <forms:TemplateMapping Key="{Static movies:Operators.GreaterThan}"
+                                   Value="{StaticResource GreaterThanOperatorTemplate}" />
+        </forms:MappingDataTemplateSelector.Mappings>
+    </forms:MappingDataTemplateSelector>
+
+    <forms:MappingConverter x:Key="OperatorConverter"
+                            x:TypeArguments="movies:Operators,x:Object">
+        <forms:Mapping Key="{Static movies:Operators.LessThan}">
+            <forms:MappingConverter x:TypeArguments="sys:Type,x:String">
+                <forms:Mapping Key="{x:Type sys:DateTime}">Before</forms:Mapping>
+                <forms:Mapping Key="{x:Type x:Object}">Under</forms:Mapping>
+            </forms:MappingConverter>
+        </forms:Mapping>
+        <forms:Mapping Key="{Static movies:Operators.Equal}">
+            
+        </forms:Mapping>
+        <forms:Mapping Key="{Static movies:Operators.GreaterThan}">
+            <forms:MappingConverter x:TypeArguments="sys:Type,x:String">
+                <forms:Mapping Key="{x:Type sys:DateTime}">After</forms:Mapping>
+                <forms:Mapping Key="{x:Type x:Object}">Over</forms:Mapping>
+            </forms:MappingConverter>
+        </forms:Mapping>
+    </forms:MappingConverter>
+
     <Style x:Key="DefaultComparisonStyle"
            TargetType="Label"
            CanCascade="True">
@@ -74,7 +169,21 @@
         <Label Text="{Binding StringFormat='{0:d}'}" />
     </DataTemplate>
 
+    <forms:MappingConverter x:Key="FilterTypeConverter"
+                            x:TypeArguments="sys:Type,x:String">
+        <forms:Mapping Key="{x:Type models:Movie}">Movie</forms:Mapping>
+        <forms:Mapping Key="{x:Type models:TVShow}">Shows</forms:Mapping>
+        <forms:Mapping Key="{x:Type models:Person}">People</forms:Mapping>
+        <forms:Mapping Key="{x:Type models:Collection}">Collections</forms:Mapping>
+    </forms:MappingConverter>
+
     <DataTemplate x:Key="TypeTemplate"
+                  x:DataType="sys:Type">
+        <Button Text="{Binding Converter={StaticResource FilterTypeConverter}}"
+                Style="{StaticResource SelectableButtonStyle}" />
+    </DataTemplate>
+
+    <DataTemplate x:Key="TypeTemplate1"
                   x:DataType="sys:Type">
         <Label>
             <VisualElement.Triggers>
@@ -116,6 +225,11 @@
     </DataTemplate>
 
     <DataTemplate x:Key="DefaultPredicateRHSTemplate">
+        <Button Text="{Binding}"
+                Style="{StaticResource SelectableButtonStyle}" />
+    </DataTemplate>
+
+    <DataTemplate x:Key="DefaultPredicateRHSTemplate1">
         <Label Text="{Binding}" />
     </DataTemplate>
 
@@ -174,7 +288,7 @@
     </ControlTemplate>
 
     <DataTemplate x:Key="PredicateRHSOnlyTemplate">
-        <Frame StyleClass="PredicateClass" />
+        <ContentView Content="{Binding Value.RHS, Converter={Static ext:TemplatedContentConverter.Instance}, ConverterParameter={StaticResource PredicateRHSTemplateSelector}}" />
     </DataTemplate>
 
     <DataTemplate x:Key="PredicateOperatorRHSTemplate">

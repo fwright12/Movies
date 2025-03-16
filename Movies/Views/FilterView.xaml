@@ -126,8 +126,8 @@
         <MultiBinding Converter="{Static forms:ThicknessConverter.Instance}"
                       ConverterParameter="horizontal, top">
             <Binding Source="{StaticResource PagePadding}" />
-            <Binding Path="CornerRadius"
-                     Source="{RelativeSource AncestorType={x:Type Frame}}"
+            <Binding Path="StrokeShape.StrokeThickness"
+                     Source="{RelativeSource AncestorType={x:Type Border}}"
                      FallbackValue="{StaticResource PagePadding}" />
         </MultiBinding>
     </Layout.Padding>
