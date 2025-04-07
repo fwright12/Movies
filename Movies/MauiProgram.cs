@@ -1,5 +1,4 @@
 ﻿using Microsoft.Extensions.Logging;
-using Microsoft.Maui.Handlers;
 using Microsoft.Maui.Layouts;
 
 namespace Movies
@@ -20,7 +19,8 @@ namespace Movies
                     fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
                     fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
                     fonts.AddFont("Ionicons.ttf", "Ionicons");
-                });
+                })
+                .RegisterConverters();
 
 #if DEBUG
             builder.Logging.AddDebug();
@@ -106,7 +106,7 @@ namespace Movies
             if (flexTotal > 0)
             {
                 finalMainAxisSize = mainAxisConstraint;
-                
+
                 foreach (var child in Stack)
                 {
                     var flex = CalculateFlexAmount(child, extraSpace, flexTotal);

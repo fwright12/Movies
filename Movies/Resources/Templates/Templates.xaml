@@ -73,7 +73,7 @@
         <views:ImageView Source="{Binding PosterPath}"
                          AltText="{Binding Title}"
                          Style="{StaticResource PosterStyle}"
-                         HeightRequest="300">
+                         BaseSize="500,750">
             <!--HeightRequest="{Binding Height, Source={RelativeSource Self}}"-->
             <View.GestureRecognizers>
                 <TapGestureRecognizer CommandParameter="{Binding}">
@@ -175,7 +175,6 @@
                                 ItemTemplate="{StaticResource CompressedListSelector}"
                                 RemainingItemsThresholdReachedCommand="{Binding LoadMoreCommand}"
                                 RemainingItemsThreshold="4"
-                                ext:VisualElement.OneTimeHeightRequest="200"
                                 Style="{StaticResource AsyncListViewModelCollectionViewStyle}"
                                 AbsoluteLayout.LayoutBounds="0.5,0.5,1,-1"
                                 AbsoluteLayout.LayoutFlags="PositionProportional,WidthProportional">

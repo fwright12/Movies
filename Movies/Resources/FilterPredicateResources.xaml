@@ -16,8 +16,6 @@
            BasedOn="{StaticResource Stadium}">
         <Setter Property="Padding"
                 Value="10, 8" />
-        <Setter Property="Margin"
-                Value="2" />
         <Setter Property="VisualStateManager.VisualStateGroups">
             <VisualStateGroupList>
                 <VisualStateGroup Name="CommonStates">
@@ -47,117 +45,33 @@
         </Setter>
     </Style>
 
-    <forms:MappingConverter x:Key="LessThanOperatorConverter"
-                            x:TypeArguments="sys:Type,x:String">
-        <forms:Mapping Key="{x:Type sys:DateTime}">Before</forms:Mapping>
-        <forms:Mapping Key="{x:Type x:Object}">Under</forms:Mapping>
-    </forms:MappingConverter>
-
-    <forms:MappingConverter x:Key="GreaterThanOperatorConverter"
-                            x:TypeArguments="sys:Type,x:String">
-        <forms:Mapping Key="{x:Type sys:DateTime}">After</forms:Mapping>
-        <forms:Mapping Key="{x:Type x:Object}">Over</forms:Mapping>
-    </forms:MappingConverter>
-
-    <DataTemplate x:Key="LessThanOperatorTemplate">
-        <Button Text="{Binding Selected.Value.LHS.Type, Source={RelativeSource AncestorType={x:Type viewmodels:OperatorEditor}}, Converter={StaticResource LessThanOperatorConverter}}"
-                Style="{StaticResource SelectableButtonStyle}" />
-    </DataTemplate>
-
-    <DataTemplate x:Key="EqualToOperatorTemplate">
-        <Button Text="Exactly"
-                Style="{StaticResource SelectableButtonStyle}" />
-    </DataTemplate>
-
-    <DataTemplate x:Key="GreaterThanOperatorTemplate">
-        <Button Text="{Binding Selected.Value.LHS.Type, Source={RelativeSource AncestorType={x:Type viewmodels:OperatorEditor}}, Converter={StaticResource GreaterThanOperatorConverter}}"
-                Style="{StaticResource SelectableButtonStyle}" />
-    </DataTemplate>
-
-    <forms:MappingDataTemplateSelector x:Key="OperatorTemplateSelector"
-                                       x:TypeArguments="movies:Operators">
-        <forms:MappingDataTemplateSelector.Mappings>
-            <forms:TemplateMapping Key="{Static movies:Operators.LessThan}"
-                                   Value="{StaticResource LessThanOperatorTemplate}" />
-            <forms:TemplateMapping Key="{Static movies:Operators.Equal}"
-                                   Value="{StaticResource EqualToOperatorTemplate}" />
-            <forms:TemplateMapping Key="{Static movies:Operators.GreaterThan}"
-                                   Value="{StaticResource GreaterThanOperatorTemplate}" />
-        </forms:MappingDataTemplateSelector.Mappings>
-    </forms:MappingDataTemplateSelector>
-
-    <forms:MappingConverter x:Key="OperatorConverter"
-                            x:TypeArguments="movies:Operators,x:Object">
+    <forms:MappingConverter x:Key="OperatorConverter">
         <forms:Mapping Key="{Static movies:Operators.LessThan}">
-            <forms:MappingConverter x:TypeArguments="sys:Type,x:String">
+            <forms:MappingConverter Default="Under">
                 <forms:Mapping Key="{x:Type sys:DateTime}">Before</forms:Mapping>
-                <forms:Mapping Key="{x:Type x:Object}">Under</forms:Mapping>
             </forms:MappingConverter>
         </forms:Mapping>
-        <forms:Mapping Key="{Static movies:Operators.Equal}">
-            
-        </forms:Mapping>
+
+        <forms:Mapping Key="{Static movies:Operators.Equal}">Exactly</forms:Mapping>
+
         <forms:Mapping Key="{Static movies:Operators.GreaterThan}">
-            <forms:MappingConverter x:TypeArguments="sys:Type,x:String">
+            <forms:MappingConverter Default="Over">
                 <forms:Mapping Key="{x:Type sys:DateTime}">After</forms:Mapping>
-                <forms:Mapping Key="{x:Type x:Object}">Over</forms:Mapping>
             </forms:MappingConverter>
         </forms:Mapping>
     </forms:MappingConverter>
 
-    <Style x:Key="DefaultComparisonStyle"
-           TargetType="Label"
-           CanCascade="True">
-        <Style.Triggers>
-            <DataTrigger TargetType="Label"
-                         Binding="{Binding}"
-                         Value="{Static movies:Operators.LessThan}">
-                <Setter Property="Text"
-                        Value="Under" />
-            </DataTrigger>
-
-            <DataTrigger TargetType="Label"
-                         Binding="{Binding}"
-                         Value="{Static movies:Operators.Equal}">
-                <Setter Property="Text"
-                        Value="Exactly" />
-            </DataTrigger>
-
-            <DataTrigger TargetType="Label"
-                         Binding="{Binding}"
-                         Value="{Static movies:Operators.GreaterThan}">
-                <Setter Property="Text"
-                        Value="Over" />
-            </DataTrigger>
-        </Style.Triggers>
-    </Style>
-
-    <Style x:Key="DateTimeComparisonStyle"
-           TargetType="Label"
-           CanCascade="True">
-        <Style.Triggers>
-            <DataTrigger TargetType="Label"
-                         Binding="{Binding}"
-                         Value="{Static movies:Operators.LessThan}">
-                <Setter Property="Text"
-                        Value="Before" />
-            </DataTrigger>
-
-            <DataTrigger TargetType="Label"
-                         Binding="{Binding}"
-                         Value="{Static movies:Operators.Equal}">
-                <Setter Property="Text"
-                        Value="Exactly" />
-            </DataTrigger>
-
-            <DataTrigger TargetType="Label"
-                         Binding="{Binding}"
-                         Value="{Static movies:Operators.GreaterThan}">
-                <Setter Property="Text"
-                        Value="After" />
-            </DataTrigger>
-        </Style.Triggers>
-    </Style>
+    <DataTemplate x:Key="OperatorTemplate">
+        <Button Style="{StaticResource SelectableButtonStyle}">
+            <Button.Text>
+                <MultiBinding Converter="{StaticResource OperatorConverter}">
+                    <Binding />
+                    <Binding Path="Selected.Value.LHS.Type"
+                             Source="{RelativeSource AncestorType={x:Type viewmodels:OperatorEditor}}" />
+                </MultiBinding>
+            </Button.Text>
+        </Button>
+    </DataTemplate>
 
     <DataTemplate x:Key="TimeSpanTemplate"
                   x:DataType="x:TimeSpan">
@@ -169,9 +83,8 @@
         <Label Text="{Binding StringFormat='{0:d}'}" />
     </DataTemplate>
 
-    <forms:MappingConverter x:Key="FilterTypeConverter"
-                            x:TypeArguments="sys:Type,x:String">
-        <forms:Mapping Key="{x:Type models:Movie}">Movie</forms:Mapping>
+    <forms:MappingConverter x:Key="FilterTypeConverter">
+        <forms:Mapping Key="{x:Type models:Movie}">Movies</forms:Mapping>
         <forms:Mapping Key="{x:Type models:TVShow}">Shows</forms:Mapping>
         <forms:Mapping Key="{x:Type models:Person}">People</forms:Mapping>
         <forms:Mapping Key="{x:Type models:Collection}">Collections</forms:Mapping>
@@ -181,41 +94,6 @@
                   x:DataType="sys:Type">
         <Button Text="{Binding Converter={StaticResource FilterTypeConverter}}"
                 Style="{StaticResource SelectableButtonStyle}" />
-    </DataTemplate>
-
-    <DataTemplate x:Key="TypeTemplate1"
-                  x:DataType="sys:Type">
-        <Label>
-            <VisualElement.Triggers>
-                <DataTrigger TargetType="Label"
-                             Binding="{Binding}"
-                             Value="{x:Type models:Movie}">
-                    <Setter Property="Text"
-                            Value="Movies" />
-                </DataTrigger>
-
-                <DataTrigger TargetType="Label"
-                             Binding="{Binding}"
-                             Value="{x:Type models:TVShow}">
-                    <Setter Property="Text"
-                            Value="Shows" />
-                </DataTrigger>
-
-                <DataTrigger TargetType="Label"
-                             Binding="{Binding}"
-                             Value="{x:Type models:Person}">
-                    <Setter Property="Text"
-                            Value="People" />
-                </DataTrigger>
-
-                <DataTrigger TargetType="Label"
-                             Binding="{Binding}"
-                             Value="{x:Type models:Collection}">
-                    <Setter Property="Text"
-                            Value="Collections" />
-                </DataTrigger>
-            </VisualElement.Triggers>
-        </Label>
     </DataTemplate>
 
     <DataTemplate x:Key="PresetDisplayTemplate">
@@ -292,11 +170,11 @@
     </DataTemplate>
 
     <DataTemplate x:Key="PredicateOperatorRHSTemplate">
-        <Frame>
+        <Border>
             <ContentView ControlTemplate="{StaticResource PredicateOperatorRHSControlTemplate}"
                          StyleClass="PredicateClass"
                          CompressedLayout.IsHeadless="True" />
-        </Frame>
+        </Border>
     </DataTemplate>
 
     <DataTemplate x:Key="PredicateFullTemplate">
@@ -322,14 +200,46 @@
                                          FullExpressionTemplate="{StaticResource PredicateFullTemplate}"
                                          MoneyValueTemplate="{StaticResource MoneyPredicateTemplate}" />
 
+    <movies:TypeDisplayConverter x:Key="OperatorPredicateRHSConverter">
+        <forms:MappingConverter>
+            <forms:Mapping Key="{x:Type sys:DateTime}">{0:d}</forms:Mapping>
+            <forms:Mapping Key="{x:Type sys:TimeSpan}">
+                <movies:HrMinConverter />
+            </forms:Mapping>
+            <forms:Mapping Key="{x:Type sys:Type}"
+                           Value="{StaticResource FilterTypeConverter}" />
+        </forms:MappingConverter>
+    </movies:TypeDisplayConverter>
+
+    <DataTemplate x:Key="PredicateTemplate">
+        <Label>
+            <Label.Text>
+                <MultiBinding Converter="{Static forms:StringJoinConverter.Instance}"
+                              ConverterParameter=" ">
+                    <Binding Path="Value"
+                             Converter="{forms:ServicesInstance Type={x:Type movies:OperatorPredicateLHSConverter}}" />
+
+                    <MultiBinding Converter="{StaticResource OperatorConverter}">
+                        <Binding Path="Value"
+                                 Converter="{forms:ServicesInstance Type={x:Type movies:OperatorPredicateOperatorConverter}}" />
+                        <Binding Path="Value.LHS.Type" />
+                    </MultiBinding>
+
+                    <Binding Path="Value.RHS"
+                             Converter="{StaticResource OperatorPredicateRHSConverter}" />
+                </MultiBinding>
+            </Label.Text>
+        </Label>
+    </DataTemplate>
+
     <DataTemplate x:Key="INodeTemplate">
-        <Frame>
+        <Border>
             <Label Text="{Binding Children[0].Value.RHS}" />
-        </Frame>
+        </Border>
     </DataTemplate>
 
     <viewmodels:TreeNodeTemplateSelector x:TypeArguments="x:Object"
                                          x:Key="NodeSelector"
                                          INodeTemplate="{StaticResource INodeTemplate}"
-                                         LeafNodeTemplate="{StaticResource PredicateTemplateSelector}" />
+                                         LeafNodeTemplate="{StaticResource PredicateTemplate}" />
 </ResourceDictionary>

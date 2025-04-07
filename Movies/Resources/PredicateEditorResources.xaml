@@ -87,19 +87,15 @@
     </Style>
 
     <ControlTemplate x:Key="CompareControlTemplate">
-        <StackLayout BindingContext="{TemplateBinding BindingContext}"
-                     Orientation="Horizontal">
-            <FlexLayout Direction="Column"
+        <Grid BindingContext="{TemplateBinding BindingContext}"
+              ColumnDefinitions="Auto,*">
+            <VerticalStackLayout Grid.Column="0"
                         BindableLayout.ItemsSource="{Binding OperatorOptions, Converter={Static forms:ReverseListConverter.Instance}}"
+                        BindableLayout.ItemTemplate="{StaticResource OperatorTemplate}"
+                                 Spacing="5"
                         forms:Selection.SelectionMode="MandatorySingle"
                         forms:Selection.SelectedItems="{Binding Selected.Value.Operator, Converter={Static viewmodels:SingleItemListConverter.Instance}}">
-                <VisualElement.Resources>
-                    <Style TargetType="Label"
-                           CanCascade="True"
-                           BasedOn="{StaticResource SelectableFrameTextStyle}" />
-                </VisualElement.Resources>
-
-                <BindableLayout.ItemTemplate>
+                <!--<BindableLayout.ItemTemplate>
                     <DataTemplate>
                         <Frame Style="{StaticResource SelectableTextStyle}">
                             <Label Style="{StaticResource DefaultComparisonStyle}">
@@ -114,12 +110,12 @@
                             </Label>
                         </Frame>
                     </DataTemplate>
-                </BindableLayout.ItemTemplate>
-            </FlexLayout>
+                </BindableLayout.ItemTemplate>-->
+            </VerticalStackLayout>
 
-            <ContentPresenter HorizontalOptions="FillAndExpand"
+            <ContentPresenter Grid.Column="1"
                               VerticalOptions="Center" />
-        </StackLayout>
+        </Grid>
     </ControlTemplate>
 
     <DataTemplate x:Key="SelectorTemplate">
@@ -180,9 +176,6 @@
         </Style.Behaviors>
     </Style>
 
-    <Binding x:Key="OptionsSelectedItemsBinding"
-             Path="Selected.Children" />
-
     <Style x:Key="CollectionViewOptionsStyle"
            TargetType="CollectionView"
            BasedOn="{StaticResource OptionsStyle}">
@@ -190,25 +183,6 @@
                 Value="Multiple" />
         <Setter Property="SelectedItems"
                 Value="{Binding Selected.Children}" />
-    </Style>
-
-    <Style x:Key="BindableLayoutOptionsStyle"
-           TargetType="Layout"
-           BasedOn="{StaticResource OptionsStyle}"
-           ApplyToDerivedTypes="True">
-        <!--<Setter Property="forms:Selection.SelectionMode"
-                Value="Multiple" />
-        <Setter Property="forms:Selection.SelectedItems"
-                Value="{StaticResource OptionsSelectedItemsBinding}" />-->
-    </Style>
-
-    <Style x:Key="StringSelectorStyle"
-           TargetType="FlexLayout"
-           BasedOn="{StaticResource BindableLayoutOptionsStyle}">
-        <Setter Property="Wrap"
-                Value="Wrap" />
-        <Setter Property="BindableLayout.ItemTemplateSelector"
-                Value="{StaticResource OptionNodeSelector}" />
     </Style>
 
     <Style TargetType="Slider">
@@ -443,33 +417,12 @@
         </FlexLayout>
     </DataTemplate>
 
-    <DataTemplate x:Key="SingleStringTemplate1">
-        <FlexLayout Wrap="Wrap"
-                    BindableLayout.ItemsSource="{Binding RHSOptions}"
-                    forms:Selection.SelectionMode="Single"
-                    forms:Selection.SelectedItems="{Binding Selected.Value.RHS, Converter={Static viewmodels:SingleItemListConverter.Instance}}">
-            <BindableLayout.ItemTemplate>
-                <DataTemplate>
-                    <Frame Style="{StaticResource SelectableTextStyle}">
-                        <Label Text="{Binding}"
-                               Style="{StaticResource SelectableFrameTextStyle}" />
-                    </Frame>
-                </DataTemplate>
-            </BindableLayout.ItemTemplate>
-        </FlexLayout>
-    </DataTemplate>
-
     <DataTemplate x:Key="StringFiniteTemplate">
-        <FlexLayout Style="{StaticResource StringSelectorStyle}">
-            <VisualElement.Resources>
-                <Style TargetType="Frame"
-                       BasedOn="{StaticResource SelectableTextStyle}" />
-
-                <Style TargetType="Label"
-                       CanCascade="True"
-                       BasedOn="{StaticResource SelectableFrameTextStyle}" />
-            </VisualElement.Resources>
-        </FlexLayout>
+        <FlexLayout Wrap="Wrap"
+                    BindableLayout.ItemTemplateSelector="{StaticResource OptionNodeSelector}"
+                    Style="{StaticResource OptionsStyle}"
+                    forms:Selection.SelectionMode="Multiple"
+                    forms:Selection.SelectedItems="{Binding Selected.Children}" />
     </DataTemplate>
 
     <DataTemplate x:Key="StringInfiniteTemplate">
