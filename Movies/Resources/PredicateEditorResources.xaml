@@ -8,10 +8,12 @@
                     xmlns:viewmodels="clr-namespace:Movies.ViewModels"
                     xmlns:views="clr-namespace:Movies.Views"
                     xmlns:sys="clr-namespace:System;assembly=mscorlib"
+                    xmlns:sc="clr-namespace:System.Collections;assembly=mscorlib"
                     xmlns:ext="clr-namespace:Microsoft.Maui.Controls.Extensions;assembly=MauiExtensions"
                     xmlns:forms="clr-namespace:Microsoft.Maui.Controls;assembly=MauiExtensions"
                     x:Class="Movies.PredicateEditorResources">
     <ResourceDictionary.MergedDictionaries>
+        <movies:FilterResources />
         <movies:FilterPredicateResources />
     </ResourceDictionary.MergedDictionaries>
 
@@ -90,11 +92,11 @@
         <Grid BindingContext="{TemplateBinding BindingContext}"
               ColumnDefinitions="Auto,*">
             <VerticalStackLayout Grid.Column="0"
-                        BindableLayout.ItemsSource="{Binding OperatorOptions, Converter={Static forms:ReverseListConverter.Instance}}"
-                        BindableLayout.ItemTemplate="{StaticResource OperatorTemplate}"
+                                 BindableLayout.ItemsSource="{Binding OperatorOptions, Converter={Static forms:ReverseListConverter.Instance}}"
+                                 BindableLayout.ItemTemplate="{StaticResource OperatorTemplate}"
                                  Spacing="5"
-                        forms:Selection.SelectionMode="MandatorySingle"
-                        forms:Selection.SelectedItems="{Binding Selected.Value.Operator, Converter={Static viewmodels:SingleItemListConverter.Instance}}">
+                                 forms:Selection.SelectionMode="MandatorySingle"
+                                 forms:Selection.SelectedItems="{Binding Selected.Value.Operator, Converter={Static viewmodels:SingleItemListConverter.Instance}}">
                 <!--<BindableLayout.ItemTemplate>
                     <DataTemplate>
                         <Frame Style="{StaticResource SelectableTextStyle}">
@@ -408,28 +410,29 @@
         </CollectionView>
     </DataTemplate>
 
-    <DataTemplate x:Key="SingleStringTemplate">
-        <FlexLayout Wrap="Wrap"
-                    BindableLayout.ItemsSource="{Binding RHSOptions}"
-                    BindableLayout.ItemTemplate="{StaticResource DefaultPredicateRHSTemplate}"
-                    forms:Selection.SelectionMode="Single"
-                    forms:Selection.SelectedItems="{Binding Selected.Value.RHS, Converter={Static viewmodels:SingleItemListConverter.Instance}}">
-        </FlexLayout>
+    <DataTemplate x:Key="ItemTypeSelectionTemplate">
+        <movies:SelectableOptionsLayout forms:Selection.SelectionMode="Multiple">
+            <BindableLayout.ItemTemplate>
+                <DataTemplate>
+                    <Button Text="{Binding Value.RHS, Converter={StaticResource FilterTypeConverter}}" />
+                </DataTemplate>
+            </BindableLayout.ItemTemplate>
+        </movies:SelectableOptionsLayout>
     </DataTemplate>
 
-    <DataTemplate x:Key="StringFiniteTemplate">
-        <FlexLayout Wrap="Wrap"
-                    BindableLayout.ItemTemplateSelector="{StaticResource OptionNodeSelector}"
-                    Style="{StaticResource OptionsStyle}"
-                    forms:Selection.SelectionMode="Multiple"
-                    forms:Selection.SelectedItems="{Binding Selected.Children}" />
+    <DataTemplate x:Key="DefaultSingleSelectionTemplate">
+        <movies:SelectableOptionsLayout forms:Selection.SelectionMode="Single" />
     </DataTemplate>
 
-    <DataTemplate x:Key="StringInfiniteTemplate">
-        <Editor Text="{Binding Selected.Value.RHS}" />
+    <DataTemplate x:Key="DefaultMultiSelectionTemplate">
+        <movies:SelectableOptionsLayout forms:Selection.SelectionMode="Multiple" />
     </DataTemplate>
 
-    <forms:TypeTemplateSelector x:Key="ValueTemplateSelector">
+    <templates:SelectorTemplateSelector x:Key="SelectorTemplateSelector"
+                                        ItemTypeTemplate="{StaticResource ItemTypeSelectionTemplate}"
+                                        SearchTemplate="{StaticResource SearchTemplate}"
+                                        SmallValuesTemplate="{StaticResource DefaultMultiSelectionTemplate}"
+                                        MoneyPickerTemplate="{StaticResource MoneyPickerTemplate}">
         <forms:TypeTemplateSelector.Templates>
             <forms:TypeDataTemplate Type="{x:Type x:Int64}"
                                     Template="{StaticResource MoneyPickerTemplate}" />
@@ -440,25 +443,20 @@
             <forms:TypeDataTemplate Type="{x:Type sys:DateTime}"
                                     Template="{StaticResource DateTimePickerTemplate}" />
             <!--<forms:TypeDataTemplate Type="{x:Type models:WatchProvider}"
-                                    Template="{StaticResource WatchProviderListTemplate}" />-->
+                            Template="{StaticResource WatchProviderListTemplate}" />-->
             <forms:TypeDataTemplate Type="{x:Type models:WatchProvider}"
                                     Template="{DataTemplate Label}" />
             <forms:TypeDataTemplate Type="{x:Type viewmodels:PersonViewModel}"
                                     Template="{StaticResource PersonListTemplate}" />
             <forms:TypeDataTemplate Type="{x:Type x:String}"
-                                    Template="{StaticResource SingleStringTemplate}" />
+                                    Template="{StaticResource DefaultSingleSelectionTemplate}" />
 
+            <forms:TypeDataTemplate Type="{x:Type sc:IEnumerable}"
+                                    Template="{StaticResource DefaultMultiSelectionTemplate}" />
             <forms:TypeDataTemplate Type="{x:Type x:Object}"
                                     Template="{StaticResource StringSearchTemplate}" />
         </forms:TypeTemplateSelector.Templates>
-    </forms:TypeTemplateSelector>
-
-    <templates:SelectorTemplateSelector x:Key="SelectorTemplateSelector"
-                                        SearchTemplate="{StaticResource SearchTemplate}"
-                                        TypeTemplate="{StaticResource TypeTemplate}"
-                                        FiniteValuesTemplate="{StaticResource ValueTemplateSelector}"
-                                        SmallValuesTemplate="{StaticResource StringFiniteTemplate}"
-                                        LargeValuesTemplate="{StaticResource StringInfiniteTemplate}" />
+    </templates:SelectorTemplateSelector>
 
     <DataTemplate x:Key="MultiEditorTemplate">
         <VerticalStackLayout Spacing="10"

@@ -166,6 +166,11 @@
     </ControlTemplate>
 
     <DataTemplate x:Key="PredicateRHSOnlyTemplate">
+        <Button Text="{Binding Value.RHS, Converter={StaticResource OperatorPredicateRHSConverter}}"
+                Style="{StaticResource SelectableButtonStyle}" />
+    </DataTemplate>
+
+    <DataTemplate x:Key="PredicateRHSOnlyTemplate1">
         <ContentView Content="{Binding Value.RHS, Converter={Static ext:TemplatedContentConverter.Instance}, ConverterParameter={StaticResource PredicateRHSTemplateSelector}}" />
     </DataTemplate>
 
