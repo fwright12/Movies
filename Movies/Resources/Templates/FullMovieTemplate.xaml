@@ -68,6 +68,14 @@
                                 <Setter Property="IsVisible"
                                         Value="{Binding IsVideoPlaying, Source={RelativeSource AncestorType={x:Type viewmodels:MediaViewModel}}, Converter={Static maui:NegateBoolConverter.Instance}}" />
                             </Style>
+
+                            <Style x:Key="ItemListTemplate"
+                                   TargetType="views:CondensedItemList">
+                                <Setter Property="ItemWidth"
+                                        Value="100" />
+                                <Setter Property="IsVisible"
+                                        Value="{Binding Converter={maui:ServicesInstance Type={x:Type maui:FalseIfNullConverter}}}" />
+                            </Style>
                         </ResourceDictionary>
                     </VisualElement.Resources>
 
@@ -129,8 +137,7 @@
 
                     <views:SectionView Title="{Static strings:AppResources.WhereToWatchHeader}"
                                        ext:ContentView.ItemSource="{Binding WatchProviders, TargetNullValue={StaticResource EmptyWatchProviders}}"
-                                       Style="{StaticResource InfoSectionStyle}"
-                                       ext:VisualElement.OneTimeHeightRequest="100">
+                                       Style="{StaticResource InfoSectionStyle}">
                         <views:SectionView.Header>
                             <DataTemplate>
                                 <Border BackgroundColor="{AppThemeBinding Light={StaticResource LightSecondaryBackground}, Dark={StaticResource DarkSecondaryBackground}}"
@@ -143,7 +150,7 @@
                                                VerticalOptions="Center" />
 
                                         <Image Source="{Static movies:App.JustWatchAttribution}"
-                                               VerticalOptions="Fill"/>
+                                               VerticalOptions="Fill" />
                                     </HorizontalStackLayout>
                                 </Border>
                             </DataTemplate>
@@ -171,8 +178,7 @@
                         <StackLayout Orientation="Vertical">
                             <views:SectionView Title="{Static strings:AppResources.CompaniesSubheader}"
                                                ext:ContentView.ItemSource="{Binding ProductionCompanies, TargetNullValue={StaticResource EmptyCompanies}}"
-                                               Style="{StaticResource InfoSubsectionStyle}"
-                                               HeightRequest="125" />
+                                               Style="{StaticResource InfoSubsectionStyle}" />
 
                             <views:SectionView Title="{Static strings:AppResources.NetworksSubheader}"
                                                x:DataType="viewmodels:TVShowViewModel"
@@ -200,14 +206,20 @@
                         </StackLayout>
                     </views:SectionView>
 
-                    <ContentView x:DataType="viewmodels:MovieViewModel"
+                    <views:CondensedItemList BindingContext="{Binding ParentCollection, Source={RelativeSource AncestorType={x:Type viewmodels:MediaViewModel}}}"
+                                             Style="{StaticResource ItemListTemplate}" />
+
+                    <!--<ContentView x:DataType="viewmodels:MovieViewModel"
                                  ext:ContentView.ItemSource="{Binding ParentCollection}"
                                  HeightRequest="200"
-                                 Style="{StaticResource InfoSectionStyle}" />
+                                 Style="{StaticResource InfoSectionStyle}" />-->
 
-                    <ContentView ext:ContentView.ItemSource="{Binding Recommended}"
+                    <views:CondensedItemList BindingContext="{Binding Recommended, Source={RelativeSource AncestorType={x:Type viewmodels:MediaViewModel}}}"
+                                             Style="{StaticResource ItemListTemplate}" />
+
+                    <!--<ContentView ext:ContentView.ItemSource="{Binding Recommended}"
                                  HeightRequest="200"
-                                 Style="{StaticResource InfoSectionStyle}" />
+                                 Style="{StaticResource InfoSectionStyle}" />-->
 
                     <views:LabeledLabel Label="{Static strings:AppResources.KeywordsLabel}"
                                         Value="{Binding Keywords, Converter={StaticResource ListToString}}" />

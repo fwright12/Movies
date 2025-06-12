@@ -55,6 +55,7 @@
             <ShellContent.ContentTemplate>
                 <DataTemplate>
                     <ContentPage BindingContext="{Binding Popular, Source={Static Application.Current}}"
+                                 Padding="0"
                                  Shell.NavBarIsVisible="False"
                                  ios:Page.UseSafeArea="True">
                         <ContentPage.ControlTemplate>

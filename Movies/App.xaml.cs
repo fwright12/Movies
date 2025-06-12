@@ -279,7 +279,7 @@ namespace Movies
             }
             MovieExplore = new List<object>
             {
-                //new CollectionViewModel("Trending Movies", test(tmdb.GetTrendingPeopleAsync())),
+                //new CollectionViewModel("Trending Movies", test(tmdb.GetTrendingMoviesAsync())),
                 new CollectionViewModel("Trending Movies", tmdb.GetTrendingMoviesAsync()),
                 new CollectionViewModel("Trending TV", tmdb.GetTrendingTVShowsAsync()),
                 new CollectionViewModel("Trending People", tmdb.GetTrendingPeopleAsync()),

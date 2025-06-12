@@ -127,17 +127,18 @@
 
     <DataTemplate x:Key="WatchProviderTemplate"
                   x:DataType="models:WatchProvider">
-        <VerticalStackLayout>
+        <FlexLayout Direction="Column">
             <views:ImageView Source="{Binding Company.LogoPath}"
                              AspectRequest="1"
-                             FlexLayout.Grow="1"
-                             HeightRequest="{Binding Bounds.Height, Source={RelativeSource Self}}"
+                             MaximumHeightRequest="33"
                              HorizontalOptions="Center" />
 
             <Label Text="{Binding Company.Name}"
                    HorizontalTextAlignment="Center"
-                   LineBreakMode="TailTruncation" />
-        </VerticalStackLayout>
+                   LineBreakMode="TailTruncation"
+                   MaximumWidthRequest="150"
+                   FlexLayout.Shrink="0" />
+        </FlexLayout>
     </DataTemplate>
 
     <DataTemplate x:Key="WatchProviderListTemplate">
@@ -201,29 +202,34 @@
 
     <DataTemplate x:Key="CompanyTemplate"
                   x:DataType="models:Company">
-        <views:AspectContentView AspectRequest="16:9"
-                                 VerticalOptions="Fill">
-            <Border Style="{StaticResource CardStyle}">
-                <VerticalStackLayout>
-                    <Image Source="{Binding LogoPath}" />
+        <Border Style="{StaticResource CardStyle}">
+            <VerticalStackLayout>
+                <Image Source="{Binding LogoPath}"
+                       ext:VisualElement.AspectRequest="1.77" />
 
-                    <Label Text="{Binding Name}"
-                           LineBreakMode="MiddleTruncation"
-                           HorizontalTextAlignment="Center" />
-                </VerticalStackLayout>
-            </Border>
-        </views:AspectContentView>
+                <Label Text="{Binding Name}"
+                       FontSize="14"
+                       LineBreakMode="MiddleTruncation"
+                       HorizontalOptions="Center"
+                       Grid.Row="1" />
+            </VerticalStackLayout>
+        </Border>
     </DataTemplate>
 
     <DataTemplate x:Key="CompanyListTemplate">
         <CollectionView ItemsSource="{Binding}"
-                        ItemTemplate="{StaticResource CompanyTemplate}"
                         ItemSizingStrategy="{OnPlatform Android=MeasureAllItems, Default=MeasureFirstItem}"
                         EmptyView="{Static strings:AppResources.CompanyListEmptyView}">
             <CollectionView.ItemsLayout>
                 <LinearItemsLayout Orientation="Horizontal"
                                    ItemSpacing="10" />
             </CollectionView.ItemsLayout>
+
+            <CollectionView.ItemTemplate>
+                <movies:FixedSizeLayoutDataTemplate Orientation="Horizontal"
+                                                    Size="150"
+                                                    Template="{StaticResource CompanyTemplate}" />
+            </CollectionView.ItemTemplate>
         </CollectionView>
     </DataTemplate>
 

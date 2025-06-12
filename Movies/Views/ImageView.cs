@@ -198,6 +198,7 @@ namespace Movies.Views
 
         protected override Size ArrangeOverride(Rect bounds)
         {
+            return base.ArrangeOverride(bounds);
             Aspect aspect;
             if (Aspect == Aspect.AspectFit)
             {

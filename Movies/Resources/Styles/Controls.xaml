@@ -627,23 +627,21 @@
            ApplyToDerivedTypes="True">
         <Setter Property="ControlTemplate">
             <ControlTemplate>
-                <StackLayout Orientation="Vertical">
-                    <Grid ColumnDefinitions="Auto, *"
-                          RowDefinitions="Auto">
+                <VerticalStackLayout Spacing="5">
+                    <Grid ColumnDefinitions="*, Auto">
                         <Label Text="{TemplateBinding Title}"
                                Style="{StaticResource ValueDescriptorStyle}"
-                               VerticalOptions="Center">
-                        </Label>
+                               VerticalOptions="Center" />
 
                         <ContentView Content="{TemplateBinding HeaderView}"
+                                     VerticalOptions="Center"
                                      Grid.Column="1" />
                     </Grid>
 
-                    <ContentPresenter VerticalOptions="FillAndExpand" />
+                    <ContentPresenter />
 
-                    <ContentView Content="{TemplateBinding FooterView}"
-                                 HorizontalOptions="FillAndExpand" />
-                </StackLayout>
+                    <ContentView Content="{TemplateBinding FooterView}" />
+                </VerticalStackLayout>
             </ControlTemplate>
         </Setter>
     </Style>

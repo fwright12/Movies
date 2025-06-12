@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<views:SectionView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+                   xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+                   xmlns:maui="clr-namespace:Microsoft.Maui.Controls;assembly=MauiExtensions"
+                   xmlns:viewmodels="clr-namespace:Movies.ViewModels"
+                   xmlns:views="clr-namespace:Movies.Views"
+                   x:Class="Movies.Views.CondensedItemList"
+                   x:DataType="viewmodels:CollectionViewModel"
+                   Title="{Binding Name}">
+    <views:SectionView.Header>
+        <DataTemplate>
+            <StackLayout Orientation="Horizontal">
+                <Button Text="See all"
+                        HorizontalOptions="EndAndExpand"
+                        CommandParameter="{Binding}">
+                    <Button.Command>
+                        <views:PushPageCommand PageTemplate="{StaticResource ListPageTemplate}" />
+                    </Button.Command>
+                </Button>
+            </StackLayout>
+        </DataTemplate>
+    </views:SectionView.Header>
+
+    <Grid BindingContext="{Binding Source, Source={Static maui:Constants.AncestorBindingContext}}"
+          x:DataType="viewmodels:AsyncListViewModel(x:Object)">
+        <CollectionView ItemsSource="{Binding Items}"
+                        RemainingItemsThresholdReachedCommand="{Binding LoadMoreCommand}"
+                        RemainingItemsThreshold="4"
+                        Style="{StaticResource AsyncListViewModelCollectionViewStyle}">
+            <CollectionView.ItemsLayout>
+                <LinearItemsLayout Orientation="Horizontal"
+                                   ItemSpacing="10" />
+            </CollectionView.ItemsLayout>
+
+            <ItemsView.ItemTemplate>
+                <DataTemplate>
+                    <ContentView Content="{Binding Converter={maui:ServicesInstance Type={x:Type maui:ObjectToViewConverter}}, ConverterParameter={StaticResource CompressedListSelector}}"
+                                 WidthRequest="{Binding ItemWidth, Source={RelativeSource AncestorType={x:Type views:CondensedItemList}}}" />
+                </DataTemplate>
+            </ItemsView.ItemTemplate>
+        </CollectionView>
+
+        <RefreshView IsVisible="False"
+                     Style="{StaticResource AsyncListViewModelRefreshStyle}" />
+    </Grid>
+</views:SectionView>

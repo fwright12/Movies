@@ -72,9 +72,7 @@
                   x:DataType="viewmodels:MediaViewModel">
         <views:ImageView Source="{Binding PosterPath}"
                          AltText="{Binding Title}"
-                         Style="{StaticResource PosterStyle}"
-                         BaseSize="500,750">
-            <!--HeightRequest="{Binding Height, Source={RelativeSource Self}}"-->
+                         Style="{StaticResource PosterStyle}">
             <View.GestureRecognizers>
                 <TapGestureRecognizer CommandParameter="{Binding}">
                     <TapGestureRecognizer.Command>
@@ -152,42 +150,8 @@
         </Grid>
     </DataTemplate>
 
-    <DataTemplate x:Key="CondensedListTemplate"
-                  x:DataType="viewmodels:CollectionViewModel">
-        <views:SectionView Title="{Binding Name}">
-            <views:SectionView.Header>
-                <DataTemplate>
-                    <StackLayout Orientation="Horizontal">
-                        <Button Text="See all"
-                                HorizontalOptions="EndAndExpand"
-                                CommandParameter="{Binding}">
-                            <Button.Command>
-                                <views:PushPageCommand PageTemplate="{StaticResource ListPageTemplate}" />
-                            </Button.Command>
-                        </Button>
-                    </StackLayout>
-                </DataTemplate>
-            </views:SectionView.Header>
-
-            <AbsoluteLayout BindingContext="{Binding Source, Source={Static maui:Constants.AncestorBindingContext}}"
-                            x:DataType="viewmodels:AsyncListViewModel(x:Object)">
-                <CollectionView ItemsSource="{Binding Items}"
-                                ItemTemplate="{StaticResource CompressedListSelector}"
-                                RemainingItemsThresholdReachedCommand="{Binding LoadMoreCommand}"
-                                RemainingItemsThreshold="4"
-                                Style="{StaticResource AsyncListViewModelCollectionViewStyle}"
-                                AbsoluteLayout.LayoutBounds="0.5,0.5,1,-1"
-                                AbsoluteLayout.LayoutFlags="PositionProportional,WidthProportional">
-                    <CollectionView.ItemsLayout>
-                        <LinearItemsLayout Orientation="Horizontal"
-                                           ItemSpacing="10" />
-                    </CollectionView.ItemsLayout>
-                </CollectionView>
-
-                <RefreshView IsVisible="False"
-                             Style="{StaticResource AsyncListViewModelRefreshStyle}" />
-            </AbsoluteLayout>
-        </views:SectionView>
+    <DataTemplate x:Key="CondensedListTemplate">
+        <views:CondensedItemList ItemWidth="150" />
     </DataTemplate>
 
     <ControlTemplate x:Key="EditListTemplate">
