@@ -133,6 +133,15 @@ namespace Movies.Resources.Strings {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to No description provided.
+        /// </summary>
+        internal static string DescriptionNull {
+            get {
+                return ResourceManager.GetString("DescriptionNull", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to No items!.
         /// </summary>
         internal static string EmptyItemListText {

@@ -1,10 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <DataTemplate xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
               xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-              xmlns:forms="clr-namespace:Microsoft.Maui.Controls;assembly=MauiExtensions"
+              xmlns:maui="clr-namespace:Microsoft.Maui.Controls;assembly=MauiExtensions"
+              xmlns:models="clr-namespace:Movies.Models"
+              xmlns:strings="clr-namespace:Movies.Resources.Strings"
               xmlns:views="clr-namespace:Movies.Views"
               xmlns:viewmodels="clr-namespace:Movies.ViewModels"
-              xmlns:models="clr-namespace:Movies.Models"
               x:Class="Movies.Templates.DetailedCollectionTemplate"
               x:DataType="viewmodels:CollectionViewModel">
     <views:CollectionItemView Title="{Binding Name}"
@@ -12,12 +13,12 @@
         <View.GestureRecognizers>
             <TapGestureRecognizer CommandParameter="{Binding}">
                 <TapGestureRecognizer.Command>
-                    <views:PushPageCommand PageTemplate="{StaticResource ListPageTemplate}" />
+                    <views:PushPageCommand PageTemplate="{StaticResource OpenPageSelector}" />
                 </TapGestureRecognizer.Command>
             </TapGestureRecognizer>
         </View.GestureRecognizers>
-        
-        <StackLayout Orientation="Vertical">
+
+        <VerticalStackLayout>
             <Label Style="{StaticResource MultiPartLabel}">
                 <Label.FormattedText>
                     <FormattedString>
@@ -30,6 +31,7 @@
                                 </MultiBinding>
                             </Span.Text>
                         </Span>
+
                         <Span Text="{Binding Author, FallbackValue=''}"
                               x:DataType="models:List" />
                         <!--<Span x:DataType="models:List">
@@ -49,9 +51,9 @@
             </Label>
 
             <Label x:DataType="{x:Null}"
-                   Text="{Binding Item.Description, Converter={Static forms:NullIfEmptyConverter.Instance}, TargetNullValue='No description provided'}"
+                   Text="{Binding Item.Description, Converter={Static maui:NullIfEmptyConverter.Instance}, TargetNullValue={Static strings:AppResources.DescriptionNull}}"
                    LineBreakMode="TailTruncation"
                    MaxLines="3" />
-        </StackLayout>
+        </VerticalStackLayout>
     </views:CollectionItemView>
 </DataTemplate>

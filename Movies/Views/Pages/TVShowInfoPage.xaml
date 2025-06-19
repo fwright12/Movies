@@ -7,21 +7,25 @@
              xmlns:templates="clr-namespace:Movies.Templates"
              xmlns:forms="clr-namespace:Microsoft.Maui.Controls;assembly=MauiExtensions"
              x:Class="Movies.Views.TVShowInfoPage"
-             Style="{StaticResource InfoPageStyle}"
-             Title="{Binding CurrentItem.Name, Source={x:Reference carousel}}">
+             Title="{Binding CurrentItem, Source={x:Reference carousel}}">
     <ContentPage.ToolbarItems>
         <ToolbarItem Text="test"
-                     CommandParameter="{Binding Seasons}">
-            <MenuItem.Command>
-                <views:PushPageCommand PageTemplate="{StaticResource ListPageTemplate}" />
-            </MenuItem.Command>
-        </ToolbarItem>
+                     Command="{Static movies:App.PopToTVSeasonOverviewCommand}"
+                     CommandParameter="{Binding TVShowViewModel.Seasons}" />
     </ContentPage.ToolbarItems>
 
-    <AbsoluteLayout>
-        <CarouselView IndicatorView="indicator"
+    <AbsoluteLayout BindingContext="{Binding TVShowViewModel.Seasons.Source}">
+        <RefreshView IsVisible="False"
+                     Style="{StaticResource AsyncListViewModelRefreshStyle}" />
+
+        <CarouselView x:Name="carousel"
+                      IndicatorView="indicator"
                       ItemsSource="{Binding Items}"
+                      ItemTemplate="{StaticResource FullCollectionTemplate}"
+                      CurrentItem="{Binding Source={RelativeSource AncestorType={x:Type viewmodels:TVSeasonViewModel}}}"
+                      RemainingItemsThresholdReachedCommand="{Binding LoadMoreCommand}"
                       RemainingItemsThreshold="0"
+                      Style="{StaticResource AsyncListViewModelCollectionViewStyle}"
                       Margin="-10, 0"
                       AbsoluteLayout.LayoutBounds="0.5,0.5,1,1"
                       AbsoluteLayout.LayoutFlags="All">
@@ -31,32 +35,6 @@
                                    SnapPointsType="MandatorySingle"
                                    SnapPointsAlignment="Center" />
             </CarouselView.ItemsLayout>
-
-            <CarouselView.ItemTemplate>
-                <forms:TypeTemplateSelector>
-                    <forms:TypeTemplateSelector.Templates>
-                        <forms:TypeDataTemplate Type="{x:Type viewmodels:TVShowViewModel}">
-                            <templates:FullMovieTemplate />
-                        </forms:TypeDataTemplate>
-
-                        <forms:TypeDataTemplate Type="{x:Type viewmodels:TVSeasonViewModel}">
-                            <views:FullCollectionTemplate />
-                        </forms:TypeDataTemplate>
-                    </forms:TypeTemplateSelector.Templates>
-                </forms:TypeTemplateSelector>
-            </CarouselView.ItemTemplate>
-
-            <!--<CarouselView.ItemTemplate>
-                <forms:TypeTemplateSelector>
-                    <forms:TypeTemplateSelector.Templates>
-                        <forms:TypeDataTemplate Type="{x:Type viewmodels:TVShowViewModel}"
-                                                Template="{DataTemplate templates:FullMovieTemplate}" />
-
-                        <forms:TypeDataTemplate Type="{x:Type viewmodels:TVSeasonViewModel}"
-                                                Template="{DataTemplate views:FullCollectionTemplate}" />
-                    </forms:TypeTemplateSelector.Templates>
-                </forms:TypeTemplateSelector>
-            </CarouselView.ItemTemplate>-->
         </CarouselView>
 
         <IndicatorView x:Name="indicator"
@@ -64,36 +42,5 @@
                        MaximumVisible="10"
                        AbsoluteLayout.LayoutBounds="0.5,1,-1,-1"
                        AbsoluteLayout.LayoutFlags="PositionProportional" />
-
-        <!--<Label Text="Seasons"
-               FontSize="Title"
-               IsVisible="false"
-               Style="{StaticResource ValueDescriptorStyle}" />
-
-        <CollectionView ItemsSource="{Binding ItemsSource, Source={x:Reference carousel}}"
-                        ItemsLayout="HorizontalList"
-                        IsVisible="false"
-                        SelectionMode="Single"
-                        HeightRequest="50">
-            <CollectionView.ItemTemplate>
-                <DataTemplate>
-                    <Button Text="{Binding Number, FallbackValue='a'}"
-                            InputTransparent="True"
-                            WidthRequest="{Binding Height, Source={RelativeSource Self}}">
-                        <VisualStateManager.VisualStateGroups>
-                            <VisualStateGroup Name="CommonStates">
-                                <VisualState Name="{Static VisualStateManager+CommonStates.Normal}" />
-                                <VisualState Name="{Static VisualStateManager+CommonStates.Selected}">
-                                    <VisualState.Setters>
-                                        <Setter Property="BackgroundColor"
-                                                Value="Green" />
-                                    </VisualState.Setters>
-                                </VisualState>
-                            </VisualStateGroup>
-                        </VisualStateManager.VisualStateGroups>
-                    </Button>
-                </DataTemplate>
-            </CollectionView.ItemTemplate>
-        </CollectionView>-->
     </AbsoluteLayout>
 </ContentPage>

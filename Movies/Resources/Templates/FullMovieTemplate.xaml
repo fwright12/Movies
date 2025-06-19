@@ -119,6 +119,9 @@
                         </VerticalStackLayout>
                     </ContentView>
 
+                    <views:CondensedItemList BindingContext="{Binding Seasons, Source={RelativeSource AncestorType={x:Type viewmodels:MediaViewModel}}}"
+                                             Style="{StaticResource ItemListTemplate}" />
+                    
                     <!--<ContentView x:DataType="viewmodels:TVShowViewModel"
                                  ext:ContentView.ItemSource="{Binding Seasons}"
                                  HeightRequest="200"

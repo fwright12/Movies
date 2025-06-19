@@ -685,7 +685,7 @@
 
     <Style TargetType="Span">
         <Setter Property="TextColor"
-                Value="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}" />
+                Value="{AppThemeBinding Light={StaticResource LightSecondaryText}, Dark={StaticResource DarkSecondaryText}}" />
     </Style>
 
     <Style TargetType="SwipeItem">

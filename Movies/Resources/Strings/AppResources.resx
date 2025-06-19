@@ -141,6 +141,9 @@
   <data name="CrewSubheader" xml:space="preserve">
     <value>Crew</value>
   </data>
+  <data name="DescriptionNull" xml:space="preserve">
+    <value>No description provided</value>
+  </data>
   <data name="EmptyItemListText" xml:space="preserve">
     <value>No items!</value>
   </data>

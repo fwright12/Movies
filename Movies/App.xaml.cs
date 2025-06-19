@@ -112,6 +112,29 @@ namespace Movies
 
         public static ICommand FocusCommand { get; } = new Command<VisualElement>(visualElement => visualElement.Focus());
         public ICommand SaveRatingTemplatesCommand { get; }
+        public static ICommand PopToTVSeasonOverviewCommand { get; } = new Command<object>(async bindingContext =>
+        {
+            var navigation = Application.Current?.MainPage?.Navigation;
+            if (navigation == null)
+            {
+                Print.Log("No navigation to pop from");
+                return;
+            }
+
+            var stack = navigation.NavigationStack;
+            if (stack.Count > 1 && (stack[stack.Count - 2].BindingContext as CollectionViewModel)?.Name != "Seasons")
+            {
+                var page = (Application.Current?.Resources["ListPageTemplate"] as DataTemplate)?.CreateContent() as Page;
+
+                if (page != null)
+                {
+                    page.BindingContext = bindingContext;
+                    navigation.InsertPageBefore(page, stack[stack.Count - 1]);
+                }
+            }
+
+            await navigation.PopAsync();
+        });
 
         private Dictionary<ServiceName, IService> Services;
         private Database LocalDatabase;
@@ -256,7 +279,7 @@ namespace Movies
             Session.LastAccessed = DateTime.Now;
 
             IAsyncEventProcessor<IEnumerable<KeyValueRequestArgs<Uri>>> tmdbHandlers = new TMDbHttpProcessor(TMDB.WebClient, resolver, TMDbApi.AutoAppend);
-            IEventAsyncCache<KeyValueRequestArgs<Uri>>  tmdbLocalCache = new TMDbLocalCache(LocalDatabase.ItemCache, resolver);
+            IEventAsyncCache<KeyValueRequestArgs<Uri>> tmdbLocalCache = new TMDbLocalCache(LocalDatabase.ItemCache, resolver);
             tmdbLocalCache = new LocalMovieCache(LocalDatabase.ResourceDAO);
 
             DataService.Instance.Controller

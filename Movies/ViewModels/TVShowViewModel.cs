@@ -98,6 +98,9 @@ namespace Movies.ViewModels
 
         public override string PrimaryImagePath => (Item as Collection)?.PosterPath ?? base.PrimaryImagePath;
 
+        public TVShowViewModel TVShowViewModel => _TVShowViewModel ??= new TVShowViewModel(((TVSeason)Item).TVShow);
+        private TVShowViewModel _TVShowViewModel;
+
         //public TVSeasonViewModel(TVSeason season) : base(season)
         public TVSeasonViewModel(TVSeason season) : base(season.Name, GetEpisodes(season), null, season)
         {

@@ -10,7 +10,7 @@ using Microsoft.Maui;
 namespace Movies.Views
 {
     [XamlCompilation(XamlCompilationOptions.Compile)]
-    public partial class CollectionItemView : Frame
+    public partial class CollectionItemView : ContentView
     {
         public static readonly BindableProperty TitleProperty = BindableProperty.Create(nameof(Title), typeof(string), typeof(CollectionItemView));
 

@@ -113,7 +113,7 @@
             <View.GestureRecognizers>
                 <TapGestureRecognizer CommandParameter="{Binding}">
                     <TapGestureRecognizer.Command>
-                        <views:PushPageCommand PageTemplate="{StaticResource ListPageTemplate}" />
+                        <views:PushPageCommand PageTemplate="{StaticResource OpenPageSelector}" />
                     </TapGestureRecognizer.Command>
                 </TapGestureRecognizer>
             </View.GestureRecognizers>
@@ -164,6 +164,8 @@
         </FlexLayout>
     </ControlTemplate>
 
+    <views:FullCollectionTemplate x:Key="FullCollectionTemplate" />
+
     <DataTemplate x:Key="InlineBannerTemplate">
         <ContentView IsVisible="false">
             <maui:AdView Style="{StaticResource InlineBannerAdStyle}"
@@ -177,7 +179,8 @@
 
     <DataTemplate x:Key="ListPageTemplate"
                   x:DataType="viewmodels:ListViewModel">
-        <ContentPage Title="{Binding Name}">
+        <ContentPage Title="{Binding Name}"
+                     ext:ContentPage.ContentTemplate="{StaticResource FullCollectionTemplate}">
             <Page.ToolbarItems>
                 <ToolbarItem Command="{Binding ToggleEditCommand}"
                              CommandParameter="{Binding}">
@@ -191,10 +194,6 @@
                     </ToolbarItem.Text>
                 </ToolbarItem>
             </Page.ToolbarItems>
-
-            <ext:ContentPage.ContentTemplate>
-                <views:FullCollectionTemplate />
-            </ext:ContentPage.ContentTemplate>
         </ContentPage>
     </DataTemplate>
 
@@ -207,6 +206,10 @@
     </DataTemplate>
 
     <!-- ================================== TEMPLATE SELECTORS ================================== -->
+
+    <movies:CollectionTemplateSelector x:Key="CollectionTemplateSelector"
+                                       TVSeasonsTemplate="{DataTemplate views:TVShowInfoPage}"
+                                       DefaultTemplate="{StaticResource ListPageTemplate}" />
 
     <maui:TypeTemplateSelector x:Key="CompressedListSelector">
         <maui:TypeTemplateSelector.Templates>
@@ -227,10 +230,10 @@
 
     <maui:TypeTemplateSelector x:Key="OpenPageSelector">
         <maui:TypeTemplateSelector.Templates>
-            <maui:TypeDataTemplate Type="{x:Type viewmodels:MovieViewModel}"
-                                   Template="{StaticResource MediaPageTemplate}" />
-            <maui:TypeDataTemplate Type="{x:Type viewmodels:TVShowViewModel}"
+            <maui:TypeDataTemplate Type="{x:Type viewmodels:TVSeasonViewModel}"
                                    Template="{DataTemplate views:TVShowInfoPage}" />
+            <maui:TypeDataTemplate Type="{x:Type viewmodels:MediaViewModel}"
+                                   Template="{StaticResource MediaPageTemplate}" />
             <maui:TypeDataTemplate Type="{x:Type viewmodels:PersonViewModel}"
                                    Template="{DataTemplate views:PersonInfoPage}" />
             <maui:TypeDataTemplate Type="{x:Type viewmodels:TVEpisodeViewModel}"

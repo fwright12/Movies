@@ -6,10 +6,8 @@
                  xmlns:views="clr-namespace:Movies.Views"
                  xmlns:viewmodels="clr-namespace:Movies.ViewModels"
                  x:Class="Movies.Templates.QuickActionsTemplate">
-    <StackLayout Orientation="Vertical"
-                 BindingContext="{TemplateBinding BindingContext}">
-        <StackLayout Orientation="Horizontal"
-                     Spacing="10">
+    <VerticalStackLayout BindingContext="{TemplateBinding BindingContext}">
+        <HorizontalStackLayout Spacing="10">
             <VisualElement.Resources>
                 <Style x:Key="QuickActionButton"
                        TargetType="Button">
@@ -26,12 +24,13 @@
                     <Setter Property="TextColor"
                             Value="{StaticResource Primary}" />
                 </Style>
-                
+
                 <Style x:Key="QuickAction"
                        TargetType="views:QuickActionView">
                     <Setter Property="ext:ContentView.EmptyView">
                         <DataTemplate>
                             <Button Text="{Binding Icon, Source={RelativeSource AncestorType={x:Type views:QuickActionView}}}"
+                                    Padding="0"
                                     IsEnabled="{Binding IsVisible, Source={RelativeSource AncestorType={x:Type views:QuickActionView}}, Mode=OneWayToSource}"
                                     views:QuickActionView.ToggleListMember="{Binding RemoveCommand}"
                                     CommandParameter="{Binding BindingContext.Item, Source={RelativeSource AncestorType={x:Type StackLayout}}}"
@@ -91,7 +90,7 @@
                                     <ContentPage.ToolbarItems>
                                         <ToolbarItem Text="Add"
                                                      Command="{Binding AddToListCommand}"
-                                                     Clicked="ToolbarItem_Clicked"/>
+                                                     Clicked="ToolbarItem_Clicked" />
                                     </ContentPage.ToolbarItems>
 
                                     <ContentPage.ControlTemplate>
@@ -103,6 +102,6 @@
                     </Button.Command>
                 </Button>
             </views:LabeledContentView>
-        </StackLayout>
-    </StackLayout>
+        </HorizontalStackLayout>
+    </VerticalStackLayout>
 </ControlTemplate>

@@ -30,7 +30,7 @@
             </Style>
         </VisualElement.Resources>
 
-        <StackLayout Orientation="Vertical">
+        <VerticalStackLayout>
             <VisualElement.Behaviors>
                 <movies:BatchBehavior />
             </VisualElement.Behaviors>
@@ -46,6 +46,6 @@
             </Label>
 
             <Label Text="{Binding Birthplace}" />
-        </StackLayout>
+        </VerticalStackLayout>
     </views:CollectionItemView>
 </DataTemplate>

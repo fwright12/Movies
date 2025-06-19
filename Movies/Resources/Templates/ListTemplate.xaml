@@ -173,9 +173,6 @@
                                     <LinearItemsLayout Orientation="Vertical"
                                                        ItemSpacing="5" />
                                 </Setter>
-
-                                <Setter Property="ItemSizingStrategy"
-                                        Value="MeasureAllItems" />
                             </VisualState.Setters>
                         </VisualState>
 
@@ -211,9 +208,6 @@
                                         </Style.Triggers>
                                     </Style>
                                 </Setter>-->
-
-                                <Setter Property="ItemSizingStrategy"
-                                        Value="MeasureAllItems" />
                             </VisualState.Setters>
                         </VisualState>
                     </VisualStateGroup>

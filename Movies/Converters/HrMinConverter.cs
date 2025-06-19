@@ -5,6 +5,7 @@ using Microsoft.Maui;
 
 namespace Movies
 {
+    [BindingValueConverter]
     public class HrMinConverter : IValueConverter
     {
         public static readonly HrMinConverter Instance = new HrMinConverter();

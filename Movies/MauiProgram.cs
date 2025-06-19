@@ -1,8 +1,28 @@
 ﻿using Microsoft.Extensions.Logging;
 using Microsoft.Maui.Layouts;
+using Movies.Models;
+using Movies.ViewModels;
 
 namespace Movies
 {
+    public class CollectionTemplateSelector : DataTemplateSelector
+    {
+        public DataTemplate? TVSeasonsTemplate { get; set; }
+        public DataTemplate? DefaultTemplate { get; set; }
+
+        protected override DataTemplate? OnSelectTemplate(object item, BindableObject container)
+        {
+            if (item is CollectionViewModel cvm && cvm.Name == "Seasons")
+            {
+                return TVSeasonsTemplate;
+            }
+            else
+            {
+                return DefaultTemplate;
+            }
+        }
+    }
+
     public class FixedSizeLayoutDataTemplate : ItemLayoutDataTemplate
     {
         public ItemsLayoutOrientation Orientation { get; set; }
