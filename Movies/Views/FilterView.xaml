@@ -1,11 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Grid xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
-      xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
       xmlns:ext="clr-namespace:Microsoft.Maui.Controls.Extensions;assembly=MauiExtensions"
+      xmlns:maui="clr-namespace:Microsoft.Maui.Controls;assembly=MauiExtensions"
       xmlns:movies="clr-namespace:Movies"
-      xmlns:viewmodels="clr-namespace:Movies.ViewModels"
+      xmlns:strings="clr-namespace:Movies.Resources.Strings"
       xmlns:views="clr-namespace:Movies.Views"
-      xmlns:forms="clr-namespace:Microsoft.Maui.Controls;assembly=MauiExtensions"
+      xmlns:viewmodels="clr-namespace:Movies.ViewModels"
+      xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
       x:Class="Movies.Views.FilterView"
       BackgroundColor="{AppThemeBinding Light={StaticResource LightSecondaryBackground}, Dark={StaticResource DarkSecondaryBackground}}"
       RowDefinitions="Auto,*">
@@ -29,24 +30,20 @@
                     <ContentView Content="{Binding Converter={Static ext:TemplatedContentConverter.Instance}, ConverterParameter={StaticResource NodeSelector}}">
                         <ContentView.ControlTemplate>
                             <ControlTemplate>
-                                <StackLayout BindingContext="{TemplateBinding BindingContext}"
-                                             Orientation="Horizontal"
-                                             Spacing="0">
+                                <HorizontalStackLayout BindingContext="{TemplateBinding BindingContext}">
                                     <ContentPresenter Padding="5, 5, 0, 5" />
 
                                     <ImageButton Command="{Binding RemoveSelfCommand}"
                                                  CommandParameter="{Binding}"
                                                  BackgroundColor="Transparent"
-                                                 Padding="{OnPlatform Android=5}"
-                                                 HeightRequest="0"
-                                                 WidthRequest="33">
+                                                 Padding="{OnPlatform Android=5}">
                                         <ImageButton.Source>
                                             <FontImageSource Glyph="{OnPlatform Android=&#xf2d7;, iOS=&#xf404;}"
                                                              FontFamily="{StaticResource IoniconsFont}"
                                                              Color="{StaticResource Primary}" />
                                         </ImageButton.Source>
                                     </ImageButton>
-                                </StackLayout>
+                                </HorizontalStackLayout>
                             </ControlTemplate>
                         </ContentView.ControlTemplate>
                     </ContentView>
@@ -64,37 +61,37 @@
                 <Setter Property="BindableLayout.ItemTemplate"
                         Value="{StaticResource NodeTemplate}" />
                 <Setter Property="BindableLayout.EmptyView"
-                        Value="No additional filters" />
+                        Value="{Static strings:AppResources.FiltersEmptyView}" />
             </Style>
 
             <ControlTemplate x:Key="CompactFiltersTemplate">
-                <StackLayout Orientation="Horizontal">
-                    <ContentPresenter Style="{StaticResource ContentPresenterFix}" />
+                <FlexLayout Direction="Row"
+                            AlignItems="Center">
+                    <ContentPresenter FlexLayout.Shrink="0" />
 
                     <ScrollView Orientation="Horizontal"
-                                VerticalOptions="Center">
-                        <StackLayout Orientation="Horizontal"
-                                     Style="{StaticResource FilterExpressionStyle}" />
+                                VerticalOptions="Center"
+                                FlexLayout.Grow="1">
+                        <HorizontalStackLayout Style="{StaticResource FilterExpressionStyle}"
+                                               Spacing="5" />
                     </ScrollView>
-                </StackLayout>
+                </FlexLayout>
             </ControlTemplate>
 
             <ControlTemplate x:Key="FullFiltersTemplate">
-                <StackLayout Orientation="Vertical">
-                    <StackLayout Orientation="Horizontal">
-                        <ContentPresenter Style="{StaticResource ContentPresenterFix}"
-                                          HorizontalOptions="StartAndExpand" />
+                <VerticalStackLayout>
+                    <FlexLayout AlignItems="Center"
+                                JustifyContent="SpaceBetween">
+                        <ContentPresenter />
 
-                        <Button Text="Done"
-                                Command="{Binding NextSnapPointCommand, Source={RelativeSource AncestorType={x:Type forms:DrawerView}}}"
-                                HorizontalOptions="End" />
-                    </StackLayout>
+                        <Button Text="{Static strings:AppResources.DoneAction}"
+                                Command="{Binding NextSnapPointCommand, Source={RelativeSource AncestorType={x:Type maui:DrawerView}}}" />
+                    </FlexLayout>
 
                     <FlexLayout Direction="Row"
                                 Wrap="Wrap"
-                                HorizontalOptions="FillAndExpand"
                                 Style="{StaticResource FilterExpressionStyle}" />
-                </StackLayout>
+                </VerticalStackLayout>
             </ControlTemplate>
 
             <x:Int32 x:Key="zero">0</x:Int32>
@@ -103,7 +100,7 @@
 
     <VisualStateManager.VisualStateGroups>
         <VisualStateGroup>
-            <VisualState Name="{Static forms:DrawerView+VisualStates.Closed}">
+            <VisualState Name="{Static maui:DrawerView+VisualStates.Closed}">
                 <VisualState.Setters>
                     <Setter TargetName="scroll"
                             Property="ScrollView.Orientation"
@@ -117,27 +114,27 @@
                             Value="{StaticResource CompactFiltersTemplate}" />
                     <Setter TargetName="filters"
                             Property="ContentView.IsVisible"
-                            Value="{Binding Children.Count, Converter={Static forms:ObjectToFalseConverter.Instance}, ConverterParameter={StaticResource zero}}" />
+                            Value="{Binding Children.Count, Converter={Static maui:ObjectToFalseConverter.Instance}, ConverterParameter={StaticResource zero}}" />
 
                     <!--<MultiBinding>
-                                            <MultiBinding.Converter>
-                                                <views:ArithmeticConverter Operation="Add" />
-                                            </MultiBinding.Converter>
+                            <MultiBinding.Converter>
+                                <views:ArithmeticConverter Operation="Add" />
+                            </MultiBinding.Converter>
 
-                                            <Binding Path="Y"
-                                                     Source="{x:Reference minheight}" />
-                                            <Binding Path="Child.Height">
-                                                <Binding.Source>
-                                                    <views:ChildViewModel Layout="{x:Reference minheight}"
-                                                                          Index="0" />
-                                                </Binding.Source>
-                                            </Binding>
-                                        </MultiBinding>
-                                    </Setter>-->
+                            <Binding Path="Y"
+                                        Source="{x:Reference minheight}" />
+                            <Binding Path="Child.Height">
+                                <Binding.Source>
+                                    <views:ChildViewModel Layout="{x:Reference minheight}"
+                                                            Index="0" />
+                                </Binding.Source>
+                            </Binding>
+                        </MultiBinding>
+                    </Setter>-->
                 </VisualState.Setters>
             </VisualState>
 
-            <VisualState Name="{Static forms:DrawerView+VisualStates.Open}">
+            <VisualState Name="{Static maui:DrawerView+VisualStates.Open}">
                 <VisualState.Setters>
                     <Setter TargetName="scroll"
                             Property="ScrollView.Orientation"
@@ -158,10 +155,10 @@
     </VisualStateManager.VisualStateGroups>
 
     <Layout.Padding>
-        <MultiBinding Converter="{Static forms:ThicknessConverter.Instance}"
+        <MultiBinding Converter="{Static maui:ThicknessConverter.Instance}"
                       ConverterParameter="horizontal, top">
             <Binding Source="{StaticResource PagePadding}" />
-            <Binding Path="StrokeShape.StrokeThickness"
+            <Binding Path="StrokeShape.CornerRadius.TopLeft"
                      Source="{RelativeSource AncestorType={x:Type Border}}"
                      FallbackValue="{StaticResource PagePadding}" />
         </MultiBinding>
@@ -170,13 +167,13 @@
     <ContentView x:Name="filters"
                  BindingContext="{Binding Root}"
                  Grid.Row="0">
-        <Button Text="Clear"
+        <Button Text="{Static strings:AppResources.ClearAction}"
                 TextColor="Red"
                 Command="{Binding ClearCommand}"
                 VerticalOptions="Start" />
     </ContentView>
 
     <ScrollView x:Name="scroll"
-                views:Extensions.Content="{Binding Converter={Static forms:ObjectToViewConverter.Instance}, ConverterParameter={StaticResource PredicateTemplateSelector}}"
+                views:Extensions.Content="{Binding Converter={Static maui:ObjectToViewConverter.Instance}, ConverterParameter={StaticResource PredicateTemplateSelector}}"
                 Grid.Row="1" />
 </Grid>

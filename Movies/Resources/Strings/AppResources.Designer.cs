@@ -97,6 +97,15 @@ namespace Movies.Resources.Strings {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Clear.
+        /// </summary>
+        internal static string ClearAction {
+            get {
+                return ResourceManager.GetString("ClearAction", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Companies.
         /// </summary>
         internal static string CompaniesSubheader {
@@ -142,6 +151,15 @@ namespace Movies.Resources.Strings {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Done.
+        /// </summary>
+        internal static string DoneAction {
+            get {
+                return ResourceManager.GetString("DoneAction", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to No items!.
         /// </summary>
         internal static string EmptyItemListText {
@@ -156,6 +174,15 @@ namespace Movies.Resources.Strings {
         internal static string ExploreTab {
             get {
                 return ResourceManager.GetString("ExploreTab", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to No additional filters.
+        /// </summary>
+        internal static string FiltersEmptyView {
+            get {
+                return ResourceManager.GetString("FiltersEmptyView", resourceCulture);
             }
         }
         

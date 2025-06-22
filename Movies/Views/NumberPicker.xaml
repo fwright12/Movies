@@ -3,64 +3,44 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              x:Class="Movies.Views.NumberPicker"
              xmlns:views="clr-namespace:Movies.Views">
-    <VisualElement.Resources>
-        <Style x:Key="NumberPicker"
-               TargetType="BindableObject"
-               ApplyToDerivedTypes="True">
-            <Setter Property="BindingContext"
-                    Value="{Binding Source={RelativeSource AncestorType={x:Type views:NumberPicker}}}" />
-        </Style>
-
-        <Style x:Key="asdfljwkerj"
-               TargetType="Slider"
-               BasedOn="{StaticResource NumberPicker}">
-            <Setter Property="Maximum"
-                    Value="{Binding Upper}" />
-            <Setter Property="Minimum"
-                    Value="{Binding Lower}" />
-            <Setter Property="views:Extensions.Step"
-                    Value="{Binding Step}" />
-            <Setter Property="Value"
-                    Value="{Binding Value, Mode=OneWayToSource}" />
-        </Style>
-
-        <Style TargetType="Entry"
-               BasedOn="{StaticResource NumberPicker}">
-            <Setter Property="Text"
-                    Value="{Binding Value, Mode=TwoWay}" />
-            <Setter Property="Keyboard"
-                    Value="Numeric" />
-        </Style>
-    </VisualElement.Resources>
-
     <TemplatedView.ControlTemplate>
         <ControlTemplate x:DataType="views:NumberPicker">
-            <StackLayout Orientation="Vertical">
+            <VerticalStackLayout Spacing="10">
                 <Slider Maximum="{TemplateBinding Upper}"
                         Minimum="{TemplateBinding Lower}"
                         Value="{TemplateBinding Value}" />
 
                 <FlexLayout Direction="Row"
-                            JustifyContent="Center">
+                            AlignItems="Center"
+                            HorizontalOptions="Center">
                     <VisualElement.Resources>
                         <Style TargetType="Button">
                             <Setter Property="FontSize"
                                     Value="Title" />
+                            <Setter Property="Padding"
+                                    Value="0" />
+                            <Setter Property="FlexLayout.Shrink"
+                                    Value="0" />
+                            <Setter Property="WidthRequest"
+                                    Value="{Binding Height, Source={RelativeSource Self}}" />
                         </Style>
                     </VisualElement.Resources>
 
                     <Button Text="-"
                             Command="{TemplateBinding StepDownCommand}" />
 
-                    <Entry Text="{TemplateBinding Value, Mode=TwoWay}"
-                           Keyboard="Numeric"
-                           WidthRequest="75"
-                           FlexLayout.Shrink="0" />
+                    <ContentPresenter />
 
                     <Button Text="+"
                             Command="{TemplateBinding StepUpCommand}" />
                 </FlexLayout>
-            </StackLayout>
+            </VerticalStackLayout>
         </ControlTemplate>
     </TemplatedView.ControlTemplate>
+
+    <ContentView.Content>
+        <Entry Text="{Binding Value, Source={RelativeSource AncestorType={x:Type views:NumberPicker}}, Mode=TwoWay}"
+               Keyboard="Numeric"
+               WidthRequest="75" />
+    </ContentView.Content>
 </ContentView>

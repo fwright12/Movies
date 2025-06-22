@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ControlTemplate xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
-                 xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-                 xmlns:movies="clr-namespace:Movies"
-                 xmlns:viewmodels="clr-namespace:Movies.ViewModels"
-                 xmlns:views="clr-namespace:Movies.Views"
                  xmlns:ext="clr-namespace:Microsoft.Maui.Controls.Extensions;assembly=MauiExtensions"
                  xmlns:maui="clr-namespace:Microsoft.Maui.Controls;assembly=MauiExtensions"
+                 xmlns:movies="clr-namespace:Movies"
                  xmlns:templates="clr-namespace:Movies.Templates"
+                 xmlns:views="clr-namespace:Movies.Views"
+                 xmlns:viewmodels="clr-namespace:Movies.ViewModels"
+                 xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
                  x:Class="Movies.ListTemplate">
     <maui:DrawerView x:Name="root"
                      BackgroundColor="{Binding BackgroundColor, Source={RelativeSource AncestorType={x:Type Page}}}"
@@ -89,6 +89,7 @@
                             RemainingItemsThreshold="4"
                             VerticalScrollBarVisibility="Default"
                             Style="{StaticResource AsyncListViewModelCollectionViewStyle}"
+                            Margin="10, 0"
                             Grid.Row="0">
                 <!--<VisualElement.Effects>
                     <views:FixiOSCollectionViewScrollsToTopPlatformEffect />
@@ -220,7 +221,6 @@
 
                 <CollectionView.Header>
                     <VerticalStackLayout Spacing="20"
-                                         Padding="10,0"
                                          views:Extensions.Batch="{Binding BindingContext, Source={x:Reference root}}">
                         <maui:AdView Style="{StaticResource BannerAdStyle}"
                                      AdUnitID="{Static movies:App.TopBannerAdUnitID}" />
@@ -315,6 +315,8 @@
                                             Value="{StaticResource IoniconsFont}" />
                                     <Setter Property="FontSize"
                                             Value="Title" />
+                                    <Setter Property="Padding"
+                                            Value="5" />
                                 </Style>
                             </VisualElement.Resources>
 
@@ -326,6 +328,7 @@
                                    Grid.Column="0" />
 
                             <FlexLayout Direction="Row"
+                                        AlignItems="Center"
                                         Grid.Column="0">
                                 <VisualElement.Triggers>
                                     <DataTrigger TargetType="VisualElement"
@@ -371,10 +374,16 @@
 
                             <StackLayout x:Name="liststates"
                                          Orientation="Horizontal"
-                                         Spacing="0"
+                                         Spacing="2"
                                          Grid.Column="1">
                                 <VisualElement.Resources>
                                     <x:Int32 x:Key="zero">0</x:Int32>
+
+                                    <maui:MappingConverter x:Key="ListLayoutIconConverter">
+                                        <maui:Mapping Key="{Static viewmodels:ListLayouts.List}">&#xf13f;</maui:Mapping>
+                                        <maui:Mapping Key="{Static viewmodels:ListLayouts.Grid}"
+                                                      Value="{OnPlatform iOS='&#xf453;', Android='&#xf391;'}" />
+                                    </maui:MappingConverter>
                                 </VisualElement.Resources>
 
                                 <Button Text="{OnPlatform Android=&#xf38b;, iOS=&#xf31b;}"
@@ -382,34 +391,8 @@
                                         CommandParameter="{Binding Source={RelativeSource AncestorType={x:Type maui:DrawerView}}}"
                                         IsVisible="{Binding Filters.Editors.Count, Converter={Static maui:ObjectToFalseConverter.Instance}, ConverterParameter={StaticResource zero}}" />
 
-                                <Button Command="{Binding ToggleListLayoutCommand}">
-                                    <VisualStateManager.VisualStateGroups>
-                                        <VisualStateGroup>
-                                            <VisualState Name="List">
-                                                <VisualState.StateTriggers>
-                                                    <CompareStateTrigger Property="{Binding ListLayout}"
-                                                                         Value="{Static viewmodels:ListLayouts.List}" />
-                                                </VisualState.StateTriggers>
-
-                                                <VisualState.Setters>
-                                                    <Setter Property="Text"
-                                                            Value="&#xf13f;" />
-                                                </VisualState.Setters>
-                                            </VisualState>
-
-                                            <VisualState Name="Grid">
-                                                <VisualState.StateTriggers>
-                                                    <StateTrigger IsActive="True" />
-                                                </VisualState.StateTriggers>
-
-                                                <VisualState.Setters>
-                                                    <Setter Property="Text"
-                                                            Value="{OnPlatform iOS='&#xf453;', Android='&#xf391;'}" />
-                                                </VisualState.Setters>
-                                            </VisualState>
-                                        </VisualStateGroup>
-                                    </VisualStateManager.VisualStateGroups>
-                                </Button>
+                                <Button Command="{Binding ToggleListLayoutCommand}"
+                                        Text="{Binding ListLayout, Converter={StaticResource ListLayoutIconConverter}}" />
                             </StackLayout>
                         </Grid>
                     </VerticalStackLayout>

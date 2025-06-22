@@ -129,6 +129,9 @@
   <data name="CertificationLabel" xml:space="preserve">
     <value>Certification</value>
   </data>
+  <data name="ClearAction" xml:space="preserve">
+    <value>Clear</value>
+  </data>
   <data name="CompaniesSubheader" xml:space="preserve">
     <value>Companies</value>
   </data>
@@ -144,11 +147,17 @@
   <data name="DescriptionNull" xml:space="preserve">
     <value>No description provided</value>
   </data>
+  <data name="DoneAction" xml:space="preserve">
+    <value>Done</value>
+  </data>
   <data name="EmptyItemListText" xml:space="preserve">
     <value>No items!</value>
   </data>
   <data name="ExploreTab" xml:space="preserve">
     <value>Explore</value>
+  </data>
+  <data name="FiltersEmptyView" xml:space="preserve">
+    <value>No additional filters</value>
   </data>
   <data name="FindTab" xml:space="preserve">
     <value>Find</value>

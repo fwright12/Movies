@@ -139,7 +139,7 @@
                 </DataTrigger>
             </VisualElement.Triggers>
 
-            <StackLayout Orientation="Vertical">
+            <VerticalStackLayout>
                 <!--<StackLayout Orientation="Vertical"
                              BindableLayout.ItemsSource="{Binding Presets}"
                              Style="{StaticResource HideIfNoChildrenStyle}">
@@ -167,7 +167,7 @@
                         </Binding>
                     </TemplatedView.ControlTemplate>
                 </ContentView>
-            </StackLayout>
+            </VerticalStackLayout>
         </views:SectionView>
     </DataTemplate>
 
@@ -275,35 +275,7 @@
 
             <views:NumberPicker Content="{Binding DatePicker, Source={RelativeSource AncestorType={x:Type views:DeluxeDatePicker}}}"
                                 Value="{Binding Year, Source={RelativeSource AncestorType={x:Type views:DeluxeDatePicker}}}"
-                                Style="{StaticResource DatePickerStyle}">
-                <TemplatedView.ControlTemplate>
-                    <ControlTemplate x:DataType="views:NumberPicker">
-                        <StackLayout Orientation="Vertical">
-                            <Slider Maximum="{TemplateBinding Upper}"
-                                    Minimum="{TemplateBinding Lower}"
-                                    Value="{TemplateBinding Value}" />
-
-                            <FlexLayout Direction="Row"
-                                        JustifyContent="Center">
-                                <VisualElement.Resources>
-                                    <Style TargetType="Button">
-                                        <Setter Property="FontSize"
-                                                Value="Title" />
-                                    </Style>
-                                </VisualElement.Resources>
-
-                                <Button Text="-"
-                                        Command="{TemplateBinding StepDownCommand}" />
-
-                                <ContentPresenter FlexLayout.Shrink="0" />
-
-                                <Button Text="+"
-                                        Command="{TemplateBinding StepUpCommand}" />
-                            </FlexLayout>
-                        </StackLayout>
-                    </ControlTemplate>
-                </TemplatedView.ControlTemplate>
-            </views:NumberPicker>
+                                Style="{StaticResource DatePickerStyle}" />
         </views:DeluxeDatePicker>
     </DataTemplate>
 

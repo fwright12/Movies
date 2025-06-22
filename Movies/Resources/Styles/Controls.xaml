@@ -73,7 +73,7 @@
                 Value="{AppThemeBinding Light={StaticResource White}, Dark={StaticResource PrimaryDarkText}}" />-->
         <!--<Setter Property="BackgroundColor"
                 Value="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource PrimaryDark}}" />-->
-        <Setter Property="FontFamily"
+        <!--<Setter Property="FontFamily"
                 Value="OpenSansRegular" />
         <Setter Property="FontSize"
                 Value="14" />
@@ -82,7 +82,7 @@
         <Setter Property="CornerRadius"
                 Value="8" />
         <Setter Property="Padding"
-                Value="14,10" />
+                Value="14,10" />-->
         <Setter Property="MinimumHeightRequest"
                 Value="44" />
         <Setter Property="MinimumWidthRequest"
