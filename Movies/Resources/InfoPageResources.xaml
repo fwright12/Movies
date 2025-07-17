@@ -351,50 +351,15 @@
     </maui:MediaTemplateSelector>
 
     <ControlTemplate x:Key="BasicInfoTemplate">
-        <StackLayout BindingContext="{TemplateBinding BindingContext}"
-                     Orientation="Vertical"
-                     Spacing="25">
-            <ContentView HorizontalOptions="Center"
-                         IsVisible="{Binding Item, Converter={Static maui:FalseIfNullConverter.Instance}}"
-                         Grid.ColumnSpan="2">
-                <TemplatedView.ControlTemplate>
-                    <templates:QuickActionsTemplate />
-                </TemplatedView.ControlTemplate>
-
+        <VerticalStackLayout Spacing="25">
+            <views:QuickActionsPanel HorizontalOptions="Center"
+                                     IsVisible="{Binding Converter={maui:Converter Type={x:Type movies:QuickActionsAvailableConverter}}}">
                 <VisualElement.Triggers>
                     <!--<EventTrigger Event="LayoutChanged">
                         <movies:MoviePaddingTriggerAction />
                     </EventTrigger>-->
-
-                    <DataTrigger TargetType="VisualElement"
-                                 Binding="{Binding Converter={Static maui:GetTypeConverter.Instance}}"
-                                 Value="{x:Type viewmodels:TVSeasonViewModel}">
-                        <Setter Property="IsVisible"
-                                Value="False" />
-                    </DataTrigger>
-
-                    <DataTrigger TargetType="VisualElement"
-                                 Binding="{Binding Converter={Static maui:GetTypeConverter.Instance}}"
-                                 Value="{x:Type viewmodels:TVEpisodeViewModel}">
-                        <Setter Property="IsVisible"
-                                Value="False" />
-                    </DataTrigger>
-
-                    <DataTrigger TargetType="VisualElement"
-                                 Binding="{Binding Converter={Static maui:GetTypeConverter.Instance}}"
-                                 Value="{x:Type viewmodels:ListViewModel}">
-                        <Setter Property="IsVisible"
-                                Value="False" />
-                    </DataTrigger>
-
-                    <DataTrigger TargetType="VisualElement"
-                                 Binding="{Binding Converter={Static maui:GetTypeConverter.Instance}}"
-                                 Value="{x:Type viewmodels:NamedListViewModel}">
-                        <Setter Property="IsVisible"
-                                Value="False" />
-                    </DataTrigger>
                 </VisualElement.Triggers>
-            </ContentView>
+            </views:QuickActionsPanel>
 
             <FlexLayout Direction="Row"
                         AlignItems="Start"
@@ -416,6 +381,6 @@
 
                 <ContentPresenter FlexLayout.Grow="1" />
             </FlexLayout>
-        </StackLayout>
+        </VerticalStackLayout>
     </ControlTemplate>
 </ResourceDictionary>

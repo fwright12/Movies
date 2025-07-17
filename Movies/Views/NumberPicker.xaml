@@ -38,9 +38,7 @@
         </ControlTemplate>
     </TemplatedView.ControlTemplate>
 
-    <ContentView.Content>
-        <Entry Text="{Binding Value, Source={RelativeSource AncestorType={x:Type views:NumberPicker}}, Mode=TwoWay}"
-               Keyboard="Numeric"
-               WidthRequest="75" />
-    </ContentView.Content>
+    <Entry Text="{Binding Value, Source={RelativeSource AncestorType={x:Type views:NumberPicker}}, Mode=TwoWay}"
+           Keyboard="Numeric"
+           WidthRequest="75" />
 </ContentView>

@@ -13,7 +13,7 @@
             </ResourceDictionary.MergedDictionaries>
 
             <Style TargetType="Button"
-                   BasedOn="{StaticResource SelectableButtonStyle}" />
+                   BasedOn="{StaticResource ButtonOptionStyle}" />
         </ResourceDictionary>
     </VisualElement.Resources>
 </FlexLayout>

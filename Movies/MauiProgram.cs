@@ -1,25 +1,45 @@
 ﻿using Microsoft.Extensions.Logging;
 using Microsoft.Maui.Layouts;
-using Movies.Models;
 using Movies.ViewModels;
+using System.Globalization;
 
 namespace Movies
 {
-    public class CollectionTemplateSelector : DataTemplateSelector
+    [BindingValueConverter]
+    public class IsNullOrEmptyConverter : IValueConverter<string, bool>
     {
-        public DataTemplate? TVSeasonsTemplate { get; set; }
-        public DataTemplate? DefaultTemplate { get; set; }
+        public object? Convert(string? value, Type targetType, object? parameter, CultureInfo culture) => string.IsNullOrEmpty(value);
 
-        protected override DataTemplate? OnSelectTemplate(object item, BindableObject container)
+        public object? ConvertBack(bool value, Type targetType, object? parameter, CultureInfo culture)
         {
-            if (item is CollectionViewModel cvm && cvm.Name == "Seasons")
+            throw new NotImplementedException();
+        }
+    }
+
+    [BindingValueConverter]
+    public class QuickActionsAvailableConverter : IValueConverter<ItemViewModel, bool>
+    {
+        private static ISet<Type> Types = new HashSet<Type>
+        {
+            typeof(TVSeasonViewModel),
+            typeof(TVEpisodeViewModel),
+            typeof(ListViewModel),
+            typeof(NamedListViewModel)
+        };
+
+        public object? Convert(ItemViewModel? value, Type targetType, object? parameter, CultureInfo culture)
+        {
+            if (value == null)
             {
-                return TVSeasonsTemplate;
+                return false;
             }
-            else
-            {
-                return DefaultTemplate;
-            }
+
+            return value.Item != null && !Types.Contains(value.GetType());
+        }
+
+        public object? ConvertBack(bool value, Type targetType, object? parameter, CultureInfo culture)
+        {
+            throw new NotImplementedException();
         }
     }
 
@@ -290,9 +310,9 @@ namespace Movies
 
                 var size = GetMainAxisDimension(child.DesiredSize) + CalculateFlexAmount(child, extraSpace, flexTotal);
                 var destination = new Rect(CreatePoint(position, inset), CreateSize(size, crossAxisSize));
-                var actual = child.Arrange(destination);
+                child.Arrange(destination);
 
-                position += Math.Min(GetMainAxisDimension(destination.Size), GetMainAxisDimension(actual)) + Stack.Spacing;
+                position += Math.Min(GetMainAxisDimension(destination.Size), GetMainAxisDimension(destination.Size)) + Stack.Spacing;
             }
 
             var result = CreateSize(position, crossAxisSize);

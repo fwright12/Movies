@@ -546,16 +546,6 @@
                 Value="Never" />
     </Style>
 
-    <Style TargetType="ScrollView"
-           x:Key="AutoWidth">
-        <Setter Property="Orientation"
-                Value="Horizontal" />
-        <Setter Property="WidthRequest"
-                Value="0" />
-        <Setter Property="Width"
-                Value="{Binding Content.WidthRequest, Source={RelativeSource Self}, Mode=OneWayToSource}" />
-    </Style>
-
     <Style TargetType="SearchBar">
         <Setter Property="TextColor"
                 Value="{AppThemeBinding Light={StaticResource Gray900}, Dark={StaticResource White}}" />

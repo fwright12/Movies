@@ -347,9 +347,11 @@
                                 </VisualElement.Triggers>
 
                                 <Label Text="Sort:"
-                                       FontSize="Default" />
+                                       FontSize="Default"
+                                       FlexLayout.Shrink="0" />
 
-                                <Button Command="{Binding ToggleSortOrder}">
+                                <Button Command="{Binding ToggleSortOrder}"
+                                        FlexLayout.Shrink="0">
                                     <Button.Text>
                                         <Binding Path="SortAscending">
                                             <Binding.Converter>
@@ -367,9 +369,7 @@
                                         BackgroundColor="Transparent"
                                         TextColor="{StaticResource Primary}"
                                         TitleColor="{Binding TextColor, Source={RelativeSource Self}}"
-                                        WidthRequest="0"
-                                        FlexLayout.Grow="1"
-                                        FlexLayout.Shrink="0" />
+                                        FlexLayout.Grow="1" />
                             </FlexLayout>
 
                             <StackLayout x:Name="liststates"

@@ -7,12 +7,12 @@ using Microsoft.Maui.Controls.Xaml;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui;
 
-namespace Movies.Templates
+namespace Movies.Views
 {
     [XamlCompilation(XamlCompilationOptions.Compile)]
-    public partial class QuickActionsTemplate : ControlTemplate
+    public partial class QuickActionsPanel : HorizontalStackLayout
     {
-        public QuickActionsTemplate()
+        public QuickActionsPanel()
         {
             InitializeComponent();
         }

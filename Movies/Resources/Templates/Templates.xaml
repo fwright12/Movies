@@ -128,28 +128,6 @@
         </views:LabeledContentView>
     </DataTemplate>
 
-    <DataTemplate x:Key="CompressedTVShowTemplate">
-        <Grid RowDefinitions="*, Auto">
-            <views:ImageView AltText="{Binding Title}"
-                             Style="{StaticResource PosterStyle}"
-                             Grid.Row="0">
-                <Image Source="{Binding PosterPath}"
-                       Aspect="AspectFill" />
-            </views:ImageView>
-
-            <Frame Padding="10, 0"
-                   HorizontalOptions="Center"
-                   BackgroundColor="{AppThemeBinding Light={StaticResource LightSecondaryBackground}, Dark={StaticResource DarkSecondaryBackground}}"
-                   Style="{StaticResource RoundedFrameStyle}"
-                   Grid.Row="1">
-                <Label Text="{Binding Item.Items.Count, StringFormat='{0} Seasons'}"
-                       FontSize="Caption"
-                       HorizontalTextAlignment="Center"
-                       LineBreakMode="TailTruncation" />
-            </Frame>
-        </Grid>
-    </DataTemplate>
-
     <DataTemplate x:Key="CondensedListTemplate">
         <views:CondensedItemList ItemWidth="150" />
     </DataTemplate>
@@ -206,10 +184,6 @@
     </DataTemplate>
 
     <!-- ================================== TEMPLATE SELECTORS ================================== -->
-
-    <movies:CollectionTemplateSelector x:Key="CollectionTemplateSelector"
-                                       TVSeasonsTemplate="{DataTemplate views:TVShowInfoPage}"
-                                       DefaultTemplate="{StaticResource ListPageTemplate}" />
 
     <maui:TypeTemplateSelector x:Key="CompressedListSelector">
         <maui:TypeTemplateSelector.Templates>

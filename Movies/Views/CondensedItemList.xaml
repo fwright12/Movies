@@ -20,8 +20,8 @@
         </DataTemplate>
     </views:SectionView.Header>
 
-    <Grid BindingContext="{Binding Source, Source={Static maui:Constants.AncestorBindingContext}}"
-          x:DataType="viewmodels:AsyncListViewModel(x:Object)">
+    <Grid BindingContext="{Binding Source}"
+          x:DataType="{x:Null}">
         <CollectionView ItemsSource="{Binding Items}"
                         RemainingItemsThresholdReachedCommand="{Binding LoadMoreCommand}"
                         RemainingItemsThreshold="4"

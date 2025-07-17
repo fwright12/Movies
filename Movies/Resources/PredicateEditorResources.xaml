@@ -402,14 +402,13 @@
 
     <templates:SelectorTemplateSelector x:Key="SelectorTemplateSelector"
                                         ItemTypeTemplate="{StaticResource ItemTypeSelectionTemplate}"
+                                        MoneyTemplate="{StaticResource MoneyPickerTemplate}"
+                                        ScoreTemplate="{StaticResource ScorePickerTemplate}"
                                         SearchTemplate="{StaticResource SearchTemplate}"
-                                        SmallValuesTemplate="{StaticResource DefaultMultiSelectionTemplate}"
-                                        MoneyPickerTemplate="{StaticResource MoneyPickerTemplate}">
+                                        SmallValuesTemplate="{StaticResource DefaultMultiSelectionTemplate}">
         <forms:TypeTemplateSelector.Templates>
-            <forms:TypeDataTemplate Type="{x:Type x:Int64}"
-                                    Template="{StaticResource MoneyPickerTemplate}" />
-            <forms:TypeDataTemplate Type="{x:Type x:Double}"
-                                    Template="{StaticResource ScorePickerTemplate}" />
+            <!--<forms:TypeDataTemplate Type="{x:Type x:Int64}"
+                                    Template="{StaticResource MoneyPickerTemplate}" />-->
             <forms:TypeDataTemplate Type="{x:Type x:TimeSpan}"
                                     Template="{StaticResource TimeSpanPickerTemplate}" />
             <forms:TypeDataTemplate Type="{x:Type sys:DateTime}"

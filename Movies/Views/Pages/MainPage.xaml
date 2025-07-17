@@ -45,7 +45,7 @@
                           BindingContext="{Binding PeopleExplore, Source={Static Application.Current}}"
                           ContentTemplate="{DataTemplate views:ExplorePage}" />
         </Tab>
-        
+
         <ShellContent Title="{Static strings:AppResources.FindTab}">
             <ShellContent.Icon>
                 <FontImageSource Glyph="{OnPlatform iOS='&#xf4a4;', Android='&#xf2f5;'}"

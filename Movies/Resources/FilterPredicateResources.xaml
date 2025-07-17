@@ -11,8 +11,8 @@
                     xmlns:ext="clr-namespace:Microsoft.Maui.Controls.Extensions;assembly=MauiExtensions"
                     xmlns:forms="clr-namespace:Microsoft.Maui.Controls;assembly=MauiExtensions"
                     x:Class="Movies.FilterPredicateResources">
-    <Style x:Key="SelectableButtonStyle"
-           TargetType="Button"
+    <Style TargetType="Button"
+           x:Key="SelectableButtonStyle"
            BasedOn="{StaticResource Stadium}">
         <Setter Property="Padding"
                 Value="10, 8" />
@@ -45,6 +45,11 @@
         </Setter>
     </Style>
 
+    <Style TargetType="Button"
+           x:Key="ButtonOptionStyle"
+           BasedOn="{StaticResource SelectableButtonStyle}">
+    </Style>
+    
     <forms:MappingConverter x:Key="OperatorConverter">
         <forms:Mapping Key="{Static movies:Operators.LessThan}">
             <forms:MappingConverter Default="Under">
