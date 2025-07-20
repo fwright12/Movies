@@ -29,15 +29,6 @@
                          AltText="Content not available" />
     </DataTemplate>
 
-    <Style x:Key="RatingStyle"
-           TargetType="Border"
-           BasedOn="{StaticResource CardStyle}">
-        <Setter Property="Padding"
-                Value="10" />
-        <Setter Property="WidthRequest"
-                Value="100" />
-    </Style>
-
     <DataTemplate x:Key="ExternalRatingTemplate"
                   x:DataType="models:Rating">
         <Border Style="{StaticResource CardStyle}">
@@ -59,19 +50,13 @@
                        LineBreakMode="TailTruncation"
                        HorizontalOptions="Fill" />
 
-                <HorizontalStackLayout HorizontalOptions="Fill">
-                    <Image FlexLayout.Grow="1"
-                           VerticalOptions="Fill">
-                        <Image.Source>
-                            <UriImageSource Uri="{Binding Company.LogoPath}"
-                                            CacheValidity="{Static movies:App.LogoCacheValidity}" />
-                        </Image.Source>
-                    </Image>
+                <HorizontalStackLayout Spacing="5">
+                    <Image VerticalOptions="Fill"
+                           Source="{Binding Company.LogoPath, Converter={StaticResource DefaultImageSourceConverter}}" />
 
                     <Label Text="{Binding Score}"
                            FontAttributes="Bold"
                            FontSize="Title"
-                           FlexLayout.Shrink="0"
                            TextColor="{AppThemeBinding Light={StaticResource LightPrimaryText}, Dark={StaticResource DarkPrimaryText}}" />
                 </HorizontalStackLayout>
 
@@ -85,33 +70,8 @@
         </Border>
     </DataTemplate>
 
-    <DataTemplate x:Key="PersonalRatingTemplate"
-                  x:DataType="models:Rating">
-        <Frame Style="{StaticResource RatingStyle}">
-            <View.GestureRecognizers>
-                <TapGestureRecognizer CommandParameter="{Binding}">
-                    <TapGestureRecognizer.Command>
-                        <views:PushPageCommand PageTemplate="{DataTemplate views:PersonalReviewPage}" />
-                    </TapGestureRecognizer.Command>
-                </TapGestureRecognizer>
-            </View.GestureRecognizers>
-
-            <StackLayout Orientation="Vertical">
-                <Label Text="My Rating"
-                       Style="{StaticResource ValueDescriptorStyle}" />
-                <Label Text="{Binding Score, StringFormat='{0} stars', TargetNullValue='Not rated'}"
-                       VerticalTextAlignment="Center"
-                       HorizontalOptions="Center"
-                       VerticalOptions="FillAndExpand" />
-                <Label Text="Edit >"
-                       HorizontalOptions="End" />
-            </StackLayout>
-        </Frame>
-    </DataTemplate>
-
     <movies:RatingTemplateSelector x:Key="RatingTemplateSelector"
-                                   ExternalRatingTemplate="{StaticResource ExternalRatingTemplate}"
-                                   PersonalRatingTemplate="{StaticResource PersonalRatingTemplate}" />
+                                   ExternalRatingTemplate="{StaticResource ExternalRatingTemplate}" />
 
     <DataTemplate x:Key="RatingListTemplate">
         <CollectionView ItemsSource="{Binding}"

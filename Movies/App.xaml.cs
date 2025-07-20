@@ -46,10 +46,10 @@ namespace Movies
     {
         public static readonly string[] AdKeywords = "movie,tv,shows,tv show,series,streaming,entertainment,watch,list,film,actor,guide,library,theater".Split(',').ToArray();
 
-        public static readonly ImageSource TMDbAttribution = ImageSource.FromResource("Movies.Logos.TMDbAttribution.png");
-        public static readonly ImageSource TraktAttributionLight = ImageSource.FromResource("Movies.Logos.TraktAttributionLight.png");
-        public static readonly ImageSource TraktAttributionDark = ImageSource.FromResource("Movies.Logos.TraktAttributionDark.png");
-        public static readonly ImageSource JustWatchAttribution = ImageSource.FromResource("Movies.Logos.JustWatchAttribution.png");
+        public static readonly string TMDbAttribution = "tmdb_attribution.png";
+        public static readonly string TraktAttributionLight = "trakt_attribution_light.png";
+        public static readonly string TraktAttributionDark = "trakt_attribution_dark.png";
+        public static readonly string JustWatchAttribution = "justwatch_attribution.png";
 
         public static readonly BiMap<ItemType, Type> TypeMap = new BiMap<ItemType, Type>
         {
@@ -214,10 +214,10 @@ namespace Movies
 
             TMDB tmdb = new TMDB(TMDB_API_KEY, TMDB_V4_BEARER, new AppPropertiesCache(this));
             Trakt trakt = new Trakt(tmdb, TRAKT_CLIENT_ID, TRAKT_CLIENT_SECRET);
-
+            
             TMDbGetPropertyValues = tmdb.GetPropertyValues;
-            tmdb.Company.LogoPath ??= "file://Movies.Logos.TMDbLogo.png";
-            trakt.Company.LogoPath ??= "file://Movies.Logos.TraktLogo.png";
+            tmdb.Company.LogoPath ??= "tmdb_logo.png";
+            trakt.Company.LogoPath ??= "trakt_logo.png";
 
             async Task SetRegions()
             {

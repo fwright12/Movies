@@ -936,6 +936,35 @@
                 Value="0" />
     </Style>
 
+    <Style TargetType="Border"
+           x:Key="ExpandableSectionViewStyle">
+        <Setter Property="BackgroundColor"
+                Value="LightGray" />
+        <!--<Setter Property="CornerRadius"
+                Value="10" />-->
+        <Setter Property="Padding"
+                Value="10" />
+        <!--<Setter Property="views:SectionView.Footer">
+        <Label HorizontalTextAlignment="End">
+            <Label.Triggers>
+                <DataTrigger TargetType="Label"
+                             Binding="{Binding Parent.Content.MaxLines, Source={RelativeSource Self}}"
+                             Value="-1">
+                    <Setter Property="Text"
+                            Value="Tap to collapse" />
+                </DataTrigger>
+            </Label.Triggers>
+        </Label>
+    </Setter>-->
+
+        <!--<Style.Behaviors>
+        <views:AddGestureRecognizerBehavior>
+            <TapGestureRecognizer Command="{Static views:MainPage.ToggleStateActiveCommand}"
+                                  CommandParameter="{Binding Source={RelativeSource Self}}" />
+        </views:AddGestureRecognizerBehavior>
+    </Style.Behaviors>-->
+    </Style>
+
     <Style TargetType="Frame"
            BasedOn="{StaticResource FrameStyle}"
            x:Key="RoundedFrameStyle">
@@ -1000,36 +1029,6 @@
     <Style TargetType="views:SectionView"
            BasedOn="{StaticResource DefaultSectionViewStyle}"
            ApplyToDerivedTypes="True" />
-
-    <Style TargetType="views:SectionView"
-           BasedOn="{StaticResource DefaultSectionViewStyle}"
-           x:Key="ExpandableSectionViewStyle">
-        <Setter Property="BackgroundColor"
-                Value="LightGray" />
-        <!--<Setter Property="CornerRadius"
-                    Value="10" />-->
-        <Setter Property="Padding"
-                Value="10" />
-        <!--<Setter Property="views:SectionView.Footer">
-            <Label HorizontalTextAlignment="End">
-                <Label.Triggers>
-                    <DataTrigger TargetType="Label"
-                                 Binding="{Binding Parent.Content.MaxLines, Source={RelativeSource Self}}"
-                                 Value="-1">
-                        <Setter Property="Text"
-                                Value="Tap to collapse" />
-                    </DataTrigger>
-                </Label.Triggers>
-            </Label>
-        </Setter>-->
-
-        <!--<Style.Behaviors>
-            <views:AddGestureRecognizerBehavior>
-                <TapGestureRecognizer Command="{Static views:MainPage.ToggleStateActiveCommand}"
-                                      CommandParameter="{Binding Source={RelativeSource Self}}" />
-            </views:AddGestureRecognizerBehavior>
-        </Style.Behaviors>-->
-    </Style>
 
     <!-- ================================== BASED ON (LEVEL 2) ================================== -->
 

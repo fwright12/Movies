@@ -2,6 +2,7 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
                     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
                     x:Class="Movies.Constants"
+                    xmlns:converters="clr-namespace:Movies.Converters;assembly=Movies"
                     xmlns:maui="clr-namespace:Microsoft.Maui.Controls;assembly=MauiExtensions"
                     xmlns:movies="clr-namespace:Movies">
     <x:String x:Key="IoniconsFont">Ionicons</x:String>
@@ -15,4 +16,7 @@
     <maui:StringConcatConverter x:Key="ListToString"
                                 Separator=", " />
     <maui:EmbeddedVideoConverter x:Key="EmbedVideo" />
+
+    <converters:UriToImageSourceConverter x:Key="DefaultImageSourceConverter"
+                                          CacheValiditity="{Static movies:App.LogoCacheValidity}" />
 </ResourceDictionary>

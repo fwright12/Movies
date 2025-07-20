@@ -5,40 +5,25 @@ using Microsoft.Maui;
 
 namespace Movies.Converters
 {
-    public class UriToImageSourceConverter : IValueConverter
+    public class UriToImageSourceConverter : IValueConverter<string, ImageSource>
     {
-        public static readonly UriToImageSourceConverter Instance = new UriToImageSourceConverter();
+        public TimeSpan CacheValiditity { get; set; }
+        public bool CachingEnabled { get; set; }
 
-        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        public object? Convert(string? value, Type targetType, object? parameter, CultureInfo culture)
         {
-            if (value == null) return null;
-            Uri uri;
+            var source = (ImageSource)value;
 
-            try
+            if (source is UriImageSource uriSource)
             {
-                uri = new Uri(value.ToString(), UriKind.RelativeOrAbsolute);
-
-                if (uri.IsAbsoluteUri)
-                {
-                    if (uri.Scheme == "file")
-                    {
-                        return ImageSource.FromResource(uri.OriginalString.Replace(uri.Scheme, string.Empty).Trim('/', ':'));
-                    }
-                    else
-                    {
-                        var source = parameter as UriImageSource ?? new UriImageSource();
-                        source.Uri = uri;
-                        return source;
-                    }
-                }
+                uriSource.CacheValidity = CacheValiditity;
+                uriSource.CachingEnabled = CachingEnabled;
             }
-            catch
-            { }
 
-            return null;
+            return source;
         }
 
-        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        public object? ConvertBack(ImageSource? value, Type targetType, object? parameter, CultureInfo culture)
         {
             throw new NotImplementedException();
         }

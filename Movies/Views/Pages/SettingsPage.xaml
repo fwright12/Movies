@@ -30,7 +30,7 @@
                     <StackLayout BindingContext="{TemplateBinding BindingContext}"
                                  x:DataType="viewmodels:AccountViewModel"
                                  Orientation="Horizontal">
-                        <Image Source="{Binding Account.Company.LogoPath, Converter={Static converters:UriToImageSourceConverter.Instance}}"
+                        <Image Source="{Binding Account.Company.LogoPath, Converter={StaticResource DefaultImageSourceConverter}}"
                                WidthRequest="{Binding Height, Source={RelativeSource Self}}"
                                HeightRequest="0" />
 

@@ -77,7 +77,7 @@
                 <BindableLayout.ItemTemplate>
                     <DataTemplate x:DataType="models:Rating">
                         <HorizontalStackLayout Spacing="5">
-                            <Image Source="{Binding Company.LogoPath, Converter={Static converters:UriToImageSourceConverter.Instance}}"
+                            <Image Source="{Binding Company.LogoPath, Converter={StaticResource DefaultImageSourceConverter}}"
                                    ext:VisualElement.AspectRequest="1"
                                    VerticalOptions="Fill" />
 

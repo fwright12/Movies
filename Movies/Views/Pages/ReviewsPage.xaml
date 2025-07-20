@@ -2,8 +2,9 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:converters="clr-namespace:Movies.Converters"
-             xmlns:views="clr-namespace:Movies.Views"
+             xmlns:maui="clr-namespace:Microsoft.Maui.Controls;assembly=MauiExtensions"
              xmlns:models="clr-namespace:Movies.Models"
+             xmlns:views="clr-namespace:Movies.Views"
              x:Class="Movies.Views.ReviewsPage"
              x:DataType="models:Rating">
     <CollectionView views:Extensions.ItemsSource="{Binding Reviews}"
@@ -16,27 +17,41 @@
 
         <CollectionView.ItemTemplate>
             <DataTemplate x:DataType="models:Review">
-                <views:SectionView Style="{StaticResource ExpandableSectionViewStyle}"
-                                   Title="{Binding Author}"
-                                   BackgroundColor="{AppThemeBinding Light={StaticResource LightSecondaryBackground}, Dark={StaticResource DarkSecondaryBackground}}">
-                    <TemplatedView.ControlTemplate>
-                        <ControlTemplate>
-                            <StackLayout Orientation="Vertical">
-                                <Label Text="{TemplateBinding Title}"
-                                       TextColor="{AppThemeBinding Light={StaticResource LightPrimaryText}, Dark={StaticResource DarkPrimaryText}}" />
+                <Border Style="{StaticResource CardStyle}">
+                    <maui:ExpandableContentView CollapsedHeight="50">
+                        <TemplatedView.ControlTemplate>
+                            <ControlTemplate>
+                                <VerticalStackLayout>
+                                    <ContentPresenter />
 
-                                <ContentPresenter />
-                            </StackLayout>
-                        </ControlTemplate>
-                    </TemplatedView.ControlTemplate>
+                                    <Label Text="Tap to expand"
+                                           HorizontalOptions="End" />
+                                </VerticalStackLayout>
+                            </ControlTemplate>
+                        </TemplatedView.ControlTemplate>
 
-                    <Label Text="{Binding Content}" />
-                </views:SectionView>
+                        <views:SectionView Title="{Binding Author}"
+                                           BackgroundColor="{AppThemeBinding Light={StaticResource LightSecondaryBackground}, Dark={StaticResource DarkSecondaryBackground}}">
+                            <TemplatedView.ControlTemplate>
+                                <ControlTemplate>
+                                    <VerticalStackLayout>
+                                        <Label Text="{TemplateBinding Title}"
+                                               TextColor="{AppThemeBinding Light={StaticResource LightPrimaryText}, Dark={StaticResource DarkPrimaryText}}" />
+
+                                        <ContentPresenter />
+                                    </VerticalStackLayout>
+                                </ControlTemplate>
+                            </TemplatedView.ControlTemplate>
+
+                            <Label Text="{Binding Content}" />
+                        </views:SectionView>
+                    </maui:ExpandableContentView>
+                </Border>
             </DataTemplate>
         </CollectionView.ItemTemplate>
 
         <CollectionView.Header>
-            <StackLayout Orientation="Vertical">
+            <VerticalStackLayout>
                 <VisualElement.Resources>
                     <Style TargetType="Label">
                         <Setter Property="TextColor"
@@ -44,27 +59,22 @@
                     </Style>
                 </VisualElement.Resources>
 
-                <Label Text="{Binding Company.Name}"
-                       IsVisible="False"
+                <!--<Label Text="{Binding Company.Name}"
                        Style="{StaticResource ValueDescriptorStyle}"
-                       FontSize="Title" />
+                       FontSize="Title" />-->
 
                 <FlexLayout Direction="Column"
-                            AlignContent="Center">
-                    <StackLayout Orientation="Horizontal"
-                                 Spacing="10">
-                        <Image Source="{Binding Company.LogoPath, Converter={Static converters:UriToImageSourceConverter.Instance}}"
-                               Margin="0, 20, 0, 15">
-                            <VisualElement.Behaviors>
-                                <views:AutoSizeBehavior />
-                            </VisualElement.Behaviors>
-                        </Image>
+                            AlignItems="Center">
+                    <HorizontalStackLayout Spacing="10">
+                        <Image Source="{Binding Company.LogoPath, Converter={StaticResource DefaultImageSourceConverter}}"
+                               Margin="0, 20, 0, 15"
+                               VerticalOptions="Fill" />
 
                         <Label Text="{Binding Score}"
                                VerticalOptions="Center"
                                FontSize="75"
                                FontAttributes="Bold" />
-                    </StackLayout>
+                    </HorizontalStackLayout>
 
                     <Label Text="{Binding TotalVotes, StringFormat='{0} Ratings'}"
                            FontSize="Body" />
@@ -74,7 +84,7 @@
                        FontSize="Large"
                        Padding="0,0,0,6"
                        Style="{StaticResource ValueDescriptorStyle}" />
-            </StackLayout>
+            </VerticalStackLayout>
         </CollectionView.Header>
     </CollectionView>
 </ContentPage>
