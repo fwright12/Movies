@@ -227,7 +227,7 @@
                     <views:LabeledLabel Label="{Static strings:AppResources.KeywordsLabel}"
                                         Value="{Binding Keywords, Converter={StaticResource ListToString}}" />
 
-                    <maui:AdView Style="{StaticResource BannerAdStyle}"
+                    <maui:AdView Style="{StaticResource InlineBannerAdStyle}"
                                  AdUnitID="{Static movies:App.BottomBannerAdUnitID}" />
                 </VerticalStackLayout>
             </Border>

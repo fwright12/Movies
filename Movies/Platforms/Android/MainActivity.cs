@@ -2,6 +2,7 @@
 using Android.Content;
 using Android.Content.PM;
 using Android.OS;
+using Java.Lang;
 
 namespace Movies
 {
@@ -14,15 +15,13 @@ namespace Movies
               AutoVerify = true)]
     public class MainActivity : MauiAppCompatActivity
     {
-        protected override void OnCreate(Bundle savedInstanceState)
+        protected override void OnCreate(Bundle? savedInstanceState)
         {
             //TabLayoutResource = Resource.Layout.Tabbar;
             //ToolbarResource = Resource.Layout.Toolbar;
             //var app = Xamarin.Forms.Application.Current;
 
             base.OnCreate(savedInstanceState);
-
-            //Android.Gms.Ads.MobileAds.Initialize(ApplicationContext);
 
             //global::Xamarin.Forms.Forms.Init(this, savedInstanceState);
 

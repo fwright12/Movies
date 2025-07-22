@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using MauiExtensions.Handlers;
+using Microsoft.Extensions.Logging;
 using Microsoft.Maui.Layouts;
 using Movies.ViewModels;
 using System.Globalization;
@@ -160,9 +161,11 @@ namespace Movies
             var builder = MauiApp.CreateBuilder();
             builder
                 .UseMauiApp<App>()
-                .ConfigureMauiHandlers(c =>
+                .UseAdmobAds(App.AdKeywords)
+                .ConfigureMauiHandlers(handlers =>
                 {
                     //c.AddHandler<CollectionView, MauiExtensions.CollectionViewHandler>();
+                    handlers.AddHandler<AdView, AdViewHandler>();
                 })
                 .ConfigureFonts(fonts =>
                 {
