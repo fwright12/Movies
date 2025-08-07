@@ -375,6 +375,22 @@
     </Style>
 
     <Style TargetType="Label"
+           x:Key="ExpandableTextStyle">
+        <Setter Property="LineBreakMode"
+                Value="TailTruncation" />
+        <Style.Triggers>
+            <DataTrigger TargetType="Label"
+                         Binding="{Binding IsExpanded, Source={RelativeSource AncestorType={x:Type maui:ExpandableContentView}}}"
+                         Value="True">
+                <Setter Property="MaxLines"
+                        Value="-1" />
+                <Setter Property="LineBreakMode"
+                        Value="WordWrap" />
+            </DataTrigger>
+        </Style.Triggers>
+    </Style>
+
+    <Style TargetType="Label"
            x:Key="Headline">
         <Setter Property="TextColor"
                 Value="{AppThemeBinding Light={StaticResource MidnightBlue}, Dark={StaticResource White}}" />
@@ -839,8 +855,6 @@
 
     <Style TargetType="Page"
            ApplyToDerivedTypes="True">
-        <Setter Property="Padding"
-                Value="{StaticResource PagePadding}" />
         <Setter Property="BackgroundColor"
                 Value="{AppThemeBinding Light={StaticResource LightPrimaryBackground}, Dark={StaticResource DarkPrimaryBackground}}" />
         <!--<Setter Property="BackgroundColor"
@@ -964,6 +978,40 @@
         </views:AddGestureRecognizerBehavior>
     </Style.Behaviors>-->
     </Style>
+
+    <Style TargetType="maui:ExpandableContentView"
+           x:Key="DefaultExpandableContentViewStyle"
+           ApplyToDerivedTypes="True">
+        <Setter Property="ExpandHint"
+                Value="{Static strings:AppResources.ExpandContentHint}" />
+        <Setter Property="CollapseHint"
+                Value="{Static strings:AppResources.CollapseContentHint}" />
+        <Setter Property="ControlTemplate">
+            <ControlTemplate>
+                <Grid RowDefinitions="*, Auto">
+                    <ContentPresenter Grid.Row="0" />
+
+                    <Label Text="{TemplateBinding ExpandHint}"
+                           FontSize="{StaticResource CaptionFontSize}"
+                           HorizontalOptions="End"
+                           Grid.Row="1">
+                        <VisualElement.Triggers>
+                            <DataTrigger TargetType="Label"
+                                         Binding="{TemplateBinding IsExpanded}"
+                                         Value="True">
+                                <Setter Property="Text"
+                                        Value="{TemplateBinding CollapseHint}" />
+                            </DataTrigger>
+                        </VisualElement.Triggers>
+                    </Label>
+                </Grid>
+            </ControlTemplate>
+        </Setter>
+    </Style>
+
+    <Style TargetType="maui:ExpandableContentView"
+           BasedOn="{StaticResource DefaultExpandableContentViewStyle}"
+           ApplyToDerivedTypes="True" />
 
     <Style TargetType="Frame"
            BasedOn="{StaticResource FrameStyle}"

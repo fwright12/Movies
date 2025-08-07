@@ -80,6 +80,9 @@
 	    <AutoGen>True</AutoGen>
 	    <DependentUpon>AppResources.resx</DependentUpon>
 	  </Compile>
+	  <Compile Update="Views\Pages\MediaDetailPage.xaml.cs">
+	    <DependentUpon>MediaDetailPage.xaml</DependentUpon>
+	  </Compile>
 	  <Compile Update="Views\QuickActionsPanel.xaml.cs">
 	    <DependentUpon>QuickActionsPanel.xaml</DependentUpon>
 	  </Compile>
@@ -115,6 +118,12 @@
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
 	  <MauiXaml Update="Views\CondensedItemList.xaml">
+	    <Generator>MSBuild:Compile</Generator>
+	  </MauiXaml>
+	  <MauiXaml Update="Views\FullCollectionView.xaml">
+	    <Generator>MSBuild:Compile</Generator>
+	  </MauiXaml>
+	  <MauiXaml Update="Views\Pages\MediaDetailPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
 	  <MauiXaml Update="Views\Pages\ExplorePage.xaml">

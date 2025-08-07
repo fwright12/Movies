@@ -132,6 +132,9 @@
   <data name="ClearAction" xml:space="preserve">
     <value>Clear</value>
   </data>
+  <data name="CollapseContentHint" xml:space="preserve">
+    <value>Tap for less</value>
+  </data>
   <data name="CompaniesSubheader" xml:space="preserve">
     <value>Companies</value>
   </data>
@@ -152,6 +155,9 @@
   </data>
   <data name="EmptyItemListText" xml:space="preserve">
     <value>No items!</value>
+  </data>
+  <data name="ExpandContentHint" xml:space="preserve">
+    <value>Tap for more</value>
   </data>
   <data name="ExploreTab" xml:space="preserve">
     <value>Explore</value>
@@ -195,6 +201,9 @@
   <data name="ProductionHeader" xml:space="preserve">
     <value>Production</value>
   </data>
+  <data name="RatingCountText" xml:space="preserve">
+    <value>Ratings</value>
+  </data>
   <data name="RatingListEmptyView" xml:space="preserve">
     <value>No ratings available</value>
   </data>
@@ -206,6 +215,9 @@
   </data>
   <data name="RevenueLabel" xml:space="preserve">
     <value>Revenue</value>
+  </data>
+  <data name="ReviewsText" xml:space="preserve">
+    <value>Reviews</value>
   </data>
   <data name="RuntimeLabel" xml:space="preserve">
     <value>Runtime</value>

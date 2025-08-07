@@ -106,6 +106,15 @@ namespace Movies.Resources.Strings {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Tap for less.
+        /// </summary>
+        internal static string CollapseContentHint {
+            get {
+                return ResourceManager.GetString("CollapseContentHint", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Companies.
         /// </summary>
         internal static string CompaniesSubheader {
@@ -165,6 +174,15 @@ namespace Movies.Resources.Strings {
         internal static string EmptyItemListText {
             get {
                 return ResourceManager.GetString("EmptyItemListText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Tap for more.
+        /// </summary>
+        internal static string ExpandContentHint {
+            get {
+                return ResourceManager.GetString("ExpandContentHint", resourceCulture);
             }
         }
         
@@ -295,6 +313,15 @@ namespace Movies.Resources.Strings {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Ratings.
+        /// </summary>
+        internal static string RatingCountText {
+            get {
+                return ResourceManager.GetString("RatingCountText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to No ratings available.
         /// </summary>
         internal static string RatingListEmptyView {
@@ -327,6 +354,15 @@ namespace Movies.Resources.Strings {
         internal static string RevenueLabel {
             get {
                 return ResourceManager.GetString("RevenueLabel", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Reviews.
+        /// </summary>
+        internal static string ReviewsText {
+            get {
+                return ResourceManager.GetString("ReviewsText", resourceCulture);
             }
         }
         

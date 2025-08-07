@@ -8,8 +8,7 @@
             <Grid ColumnDefinitions="100, *"
                   RowDefinitions="Auto,*"
                   RowSpacing="5"
-                  ColumnSpacing="5"
-                  Padding="10,0">
+                  ColumnSpacing="5">
                 <ContentView Content="{TemplateBinding ThumbnailView}"
                              VerticalOptions="Center"
                              Grid.Column="0"

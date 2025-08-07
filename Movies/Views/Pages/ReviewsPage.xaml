@@ -4,6 +4,7 @@
              xmlns:converters="clr-namespace:Movies.Converters"
              xmlns:maui="clr-namespace:Microsoft.Maui.Controls;assembly=MauiExtensions"
              xmlns:models="clr-namespace:Movies.Models"
+             xmlns:strings="clr-namespace:Movies.Resources.Strings"
              xmlns:views="clr-namespace:Movies.Views"
              x:Class="Movies.Views.ReviewsPage"
              x:DataType="models:Rating">
@@ -18,18 +19,7 @@
         <CollectionView.ItemTemplate>
             <DataTemplate x:DataType="models:Review">
                 <Border Style="{StaticResource CardStyle}">
-                    <maui:ExpandableContentView CollapsedHeight="50">
-                        <TemplatedView.ControlTemplate>
-                            <ControlTemplate>
-                                <VerticalStackLayout>
-                                    <ContentPresenter />
-
-                                    <Label Text="Tap to expand"
-                                           HorizontalOptions="End" />
-                                </VerticalStackLayout>
-                            </ControlTemplate>
-                        </TemplatedView.ControlTemplate>
-
+                    <maui:ExpandableContentView>
                         <views:SectionView Title="{Binding Author}"
                                            BackgroundColor="{AppThemeBinding Light={StaticResource LightSecondaryBackground}, Dark={StaticResource DarkSecondaryBackground}}">
                             <TemplatedView.ControlTemplate>
@@ -43,7 +33,9 @@
                                 </ControlTemplate>
                             </TemplatedView.ControlTemplate>
 
-                            <Label Text="{Binding Content}" />
+                            <Label Text="{Binding Content}"
+                                   MaxLines="5"
+                                   Style="{StaticResource ExpandableTextStyle}" />
                         </views:SectionView>
                     </maui:ExpandableContentView>
                 </Border>
@@ -76,11 +68,18 @@
                                FontAttributes="Bold" />
                     </HorizontalStackLayout>
 
-                    <Label Text="{Binding TotalVotes, StringFormat='{0} Ratings'}"
-                           FontSize="Body" />
+                    <Label FontSize="Body">
+                        <Label.FormattedText>
+                            <FormattedString>
+                                <Span Text="{Binding TotalVotes}" />
+                                <Span Text=" " />
+                                <Span Text="{Static strings:AppResources.RatingCountText}" />
+                            </FormattedString>
+                        </Label.FormattedText>
+                    </Label>
                 </FlexLayout>
 
-                <Label Text="Reviews"
+                <Label Text="{Static strings:AppResources.ReviewsText}"
                        FontSize="Large"
                        Padding="0,0,0,6"
                        Style="{StaticResource ValueDescriptorStyle}" />

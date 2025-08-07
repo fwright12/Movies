@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:movies="clr-namespace:Movies"
+             xmlns:viewmodels="clr-namespace:Movies.ViewModels"
+             xmlns:views="clr-namespace:Movies.Views"
+             x:Class="Movies.Views.FullCollectionView"
+             x:DataType="viewmodels:CollectionViewModel">
+    <ContentView.ControlTemplate>
+        <movies:ListTemplate />
+    </ContentView.ControlTemplate>
+
+    <VerticalStackLayout>
+        <views:LabeledLabel x:DataType="viewmodels:TVSeasonViewModel"
+                            Label="Year"
+                            Value="{Binding Year, StringFormat='{0:yyyy}'}" />
+
+        <views:LabeledLabel Label="{MultiBinding StringFormat='Number of {0}', Bindings={Binding ListLabel, TargetNullValue='Items'}}"
+                            Value="{Binding Count}" />
+
+        <views:LabeledLabel x:DataType="viewmodels:TVSeasonViewModel"
+                            Label="Average Runtime"
+                            Value="{Binding AvgRuntime, Converter={Static movies:HrMinConverter.Instance}}" />
+
+        <FlexLayout Direction="Row"
+                    Style="{StaticResource EditingOnlyStyle}">
+            <Label Text="Public " />
+
+            <Switch x:DataType="{x:Null}"
+                    IsToggled="{Binding Item.Public, Mode=TwoWay}" />
+        </FlexLayout>
+
+        <!--<ContentView views:EditView1.IsEditing="{Binding Editing}"
+                     CompressedLayout.IsHeadless="False">
+            <views:EditView1.Display>
+                <Label Text="{Binding Item.Public}" />
+            </views:EditView1.Display>
+
+            <views:EditView1.Edit>
+                
+            </views:EditView1.Edit>
+        </ContentView>-->
+    </VerticalStackLayout>
+</ContentView>

@@ -6,7 +6,8 @@
              xmlns:movies="clr-namespace:Movies"
              xmlns:strings="clr-namespace:Movies.Resources.Strings"
              xmlns:views="clr-namespace:Movies.Views"
-             x:Class="Movies.Views.ExplorePage">
+             x:Class="Movies.Views.ExplorePage"
+             Padding="{StaticResource PagePadding}">
     <Page.ToolbarItems>
         <ToolbarItem Text="{Static strings:AppResources.SettingsToolbar}">
             <ToolbarItem.Command>

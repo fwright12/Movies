@@ -21,7 +21,7 @@
         <CarouselView x:Name="carousel"
                       IndicatorView="indicator"
                       ItemsSource="{Binding Items}"
-                      ItemTemplate="{StaticResource FullCollectionTemplate}"
+                      ItemTemplate="{DataTemplate views:FullCollectionView}"
                       CurrentItem="{Binding Source={RelativeSource AncestorType={x:Type viewmodels:TVSeasonViewModel}}}"
                       RemainingItemsThresholdReachedCommand="{Binding LoadMoreCommand}"
                       RemainingItemsThreshold="0"

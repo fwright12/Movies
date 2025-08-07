@@ -142,8 +142,6 @@
         </FlexLayout>
     </ControlTemplate>
 
-    <views:FullCollectionTemplate x:Key="FullCollectionTemplate" />
-
     <DataTemplate x:Key="InlineBannerTemplate">
         <ContentView IsVisible="false">
             <maui:AdView Style="{StaticResource InlineBannerAdStyle}"
@@ -157,8 +155,7 @@
 
     <DataTemplate x:Key="ListPageTemplate"
                   x:DataType="viewmodels:ListViewModel">
-        <ContentPage Title="{Binding Name}"
-                     ext:ContentPage.ContentTemplate="{StaticResource FullCollectionTemplate}">
+        <ContentPage Title="{Binding Name}">
             <Page.ToolbarItems>
                 <ToolbarItem Command="{Binding ToggleEditCommand}"
                              CommandParameter="{Binding}">
@@ -172,15 +169,13 @@
                     </ToolbarItem.Text>
                 </ToolbarItem>
             </Page.ToolbarItems>
+
+            <views:FullCollectionView />
         </ContentPage>
     </DataTemplate>
 
     <DataTemplate x:Key="MediaPageTemplate">
-        <ContentPage Style="{StaticResource InfoPageStyle}">
-            <ext:ContentPage.ContentTemplate>
-                <templates:FullMovieTemplate />
-            </ext:ContentPage.ContentTemplate>
-        </ContentPage>
+        <views:MediaDetailPage />
     </DataTemplate>
 
     <!-- ================================== TEMPLATE SELECTORS ================================== -->

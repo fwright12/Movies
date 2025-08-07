@@ -13,8 +13,12 @@
                     xmlns:views="clr-namespace:Movies.Views"
                     x:Class="Movies.Views.InfoPageResources">
     <DataTemplate x:Key="DefaultTemplate">
-        <Label Text="{Binding}"
-               IsVisible="{Binding Text, Source={RelativeSource Self}, Converter={Static maui:ObjectToFalseConverter.Instance}, ConverterParameter={Static x:String.Empty}}" />
+        <maui:ExpandableContentView>
+            <Label Text="{Binding}"
+                   MaxLines="10"
+                   Style="{StaticResource ExpandableTextStyle}"
+                   IsVisible="{Binding Text, Source={RelativeSource Self}, Converter={Static maui:ObjectToFalseConverter.Instance}, ConverterParameter={Static x:String.Empty}}" />
+        </maui:ExpandableContentView>
     </DataTemplate>
 
     <DataTemplate x:Key="DefaultInfoTemplate">
