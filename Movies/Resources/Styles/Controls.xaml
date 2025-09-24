@@ -314,7 +314,8 @@
     </Style>
 
     <Style TargetType="views:ImageView"
-           x:Key="ImageStyle">
+           x:Key="ImageStyle"
+           ApplyToDerivedTypes="True">
         <Setter Property="ControlTemplate">
             <ControlTemplate x:DataType="views:ImageView">
                 <AbsoluteLayout>
@@ -338,17 +339,13 @@
     </Style>
 
     <Style TargetType="views:ImageView"
-           x:Key="PersonImageStyle">
+           x:Key="PersonImageStyle"
+           BasedOn="{StaticResource ImageStyle}"
+           ApplyToDerivedTypes="True">
         <Setter Property="AltText"
                 Value="{Binding Name, Converter={Static movies:InitialsConverter.Instance}}" />
         <Setter Property="Source"
                 Value="{Binding ProfilePath}" />
-        <Setter Property="Aspect"
-                Value="AspectFill" />
-        <Setter Property="CornerRadius"
-                Value="{Binding Height, Source={RelativeSource Self}}" />
-        <Setter Property="AspectRequest"
-                Value="1" />
     </Style>
 
     <Style TargetType="IndicatorView">
@@ -633,8 +630,9 @@
            ApplyToDerivedTypes="True">
         <Setter Property="ControlTemplate">
             <ControlTemplate>
-                <VerticalStackLayout Spacing="5">
-                    <Grid ColumnDefinitions="*, Auto">
+                <Grid RowDefinitions="Auto, *, Auto">
+                    <Grid ColumnDefinitions="*, Auto"
+                          Grid.Row="0">
                         <Label Text="{TemplateBinding Title}"
                                Style="{StaticResource ValueDescriptorStyle}"
                                VerticalOptions="Center" />
@@ -644,10 +642,11 @@
                                      Grid.Column="1" />
                     </Grid>
 
-                    <ContentPresenter />
+                    <ContentPresenter Grid.Row="1" />
 
-                    <ContentView Content="{TemplateBinding FooterView}" />
-                </VerticalStackLayout>
+                    <ContentView Content="{TemplateBinding FooterView}"
+                                 Grid.Row="2" />
+                </Grid>
             </ControlTemplate>
         </Setter>
     </Style>
@@ -1031,7 +1030,7 @@
            x:Key="PosterStyle">
         <Setter Property="CornerRadius"
                 Value="10" />
-        <Setter Property="AspectRequest"
+        <Setter Property="ext:VisualElement.AspectRequest"
                 Value="{StaticResource PosterRatio}" />
         <Setter Property="Aspect"
                 Value="AspectFill" />

@@ -8,10 +8,10 @@
              xmlns:views="clr-namespace:Movies.Views"
              x:Class="Movies.Views.ListsPage"
              Title="My Lists">
-    <StackLayout Orientation="Vertical"
-                 Spacing="0">
+    <Grid RowDefinitions="*, Auto">
         <CollectionView views:CollectionViewExt.IsEditing="False"
-                        Style="{StaticResource CustomListsStyle}">
+                        Style="{StaticResource CustomListsStyle}"
+                        Grid.Row="0">
             <CollectionView.ItemTemplate>
                 <views:EditDataTemplateSelector SwipeTemplate="{StaticResource SwipeTemplate}"
                                                 EditTemplate="{StaticResource EditListTemplate}">
@@ -33,8 +33,7 @@
                     <maui:AdView Style="{StaticResource BannerAdStyle}"
                                  AdUnitID="{Static movies:App.TopBannerAdUnitID}" />
 
-                    <StackLayout Orientation="Vertical"
-                                 BindableLayout.ItemTemplate="{StaticResource CondensedListTemplate}">
+                    <StackLayout Orientation="Vertical">
                         <BindableLayout.ItemsSource>
                             <MultiBinding>
                                 <MultiBinding.Converter>
@@ -46,6 +45,12 @@
                                 <Binding Path="History" />
                             </MultiBinding>
                         </BindableLayout.ItemsSource>
+
+                        <BindableLayout.ItemTemplate>
+                            <DataTemplate>
+                                <views:CondensedItemList HeightRequest="250" />
+                            </DataTemplate>
+                        </BindableLayout.ItemTemplate>
                     </StackLayout>
 
                     <views:SectionView Title="Custom Lists">
@@ -85,7 +90,8 @@
                      BindingContext="{Binding Parent.Children[0], Source={RelativeSource Self}}"
                      StyleClass="SecondaryBackground"
                      IsVisible="{Binding SelectionMode, Converter={Static views:SelectionModeToBoolConverter.Instance}}"
-                     Padding="10, 5">
+                     Padding="10, 5"
+                     Grid.Row="1">
             <!--<Button CommandParameter="{Binding}">
     <VisualStateManager.VisualStateGroups>
         <VisualStateGroup>
@@ -115,5 +121,5 @@
                     Command="{Static views:CollectionViewExt.DeleteSelectedCommand}"
                     CommandParameter="{Binding}" />
         </StackLayout>
-    </StackLayout>
+    </Grid>
 </ContentPage>

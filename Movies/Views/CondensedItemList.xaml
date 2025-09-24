@@ -2,6 +2,7 @@
 <views:SectionView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
                    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
                    xmlns:maui="clr-namespace:Microsoft.Maui.Controls;assembly=MauiExtensions"
+                   xmlns:strings="clr-namespace:Movies.Resources.Strings"
                    xmlns:viewmodels="clr-namespace:Movies.ViewModels"
                    xmlns:views="clr-namespace:Movies.Views"
                    x:Class="Movies.Views.CondensedItemList"
@@ -10,7 +11,7 @@
     <views:SectionView.Header>
         <DataTemplate>
             <StackLayout Orientation="Horizontal">
-                <Button Text="See all"
+                <Button Text="{Static strings:AppResources.OpenListButtonText}"
                         CommandParameter="{Binding}">
                     <Button.Command>
                         <views:PushPageCommand PageTemplate="{StaticResource ListPageTemplate}" />
@@ -23,7 +24,6 @@
     <Grid BindingContext="{Binding Source}"
           x:DataType="{x:Null}">
         <CollectionView ItemsSource="{Binding Items}"
-                        RemainingItemsThresholdReachedCommand="{Binding LoadMoreCommand}"
                         RemainingItemsThreshold="4"
                         Style="{StaticResource AsyncListViewModelCollectionViewStyle}">
             <CollectionView.ItemsLayout>
@@ -33,8 +33,15 @@
 
             <ItemsView.ItemTemplate>
                 <DataTemplate>
-                    <ContentView Content="{Binding Converter={maui:ServicesInstance Type={x:Type maui:ObjectToViewConverter}}, ConverterParameter={StaticResource CompressedListSelector}}"
-                                 WidthRequest="{Binding ItemWidth, Source={RelativeSource AncestorType={x:Type views:CondensedItemList}}}" />
+                    <ContentView Content="{maui:TemplatedContentBinding Template={StaticResource CompressedListSelector}}">
+                        <View.GestureRecognizers>
+                            <TapGestureRecognizer CommandParameter="{Binding}">
+                                <TapGestureRecognizer.Command>
+                                    <views:PushPageCommand PageTemplate="{StaticResource OpenPageSelector}" />
+                                </TapGestureRecognizer.Command>
+                            </TapGestureRecognizer>
+                        </View.GestureRecognizers>
+                    </ContentView>
                 </DataTemplate>
             </ItemsView.ItemTemplate>
         </CollectionView>

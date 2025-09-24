@@ -183,6 +183,9 @@
   <data name="NetworksSubheader" xml:space="preserve">
     <value>Networks</value>
   </data>
+  <data name="OpenListButtonText" xml:space="preserve">
+    <value>See all</value>
+  </data>
   <data name="OriginalLanguageLabel" xml:space="preserve">
     <value>Original Language</value>
   </data>

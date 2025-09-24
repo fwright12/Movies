@@ -13,20 +13,10 @@
 
     <DataTemplate x:Key="CompressedCollectionTemplate"
                   x:DataType="viewmodels:CollectionViewModel">
-        <views:ImageView AltText="{Binding Name}"
-                         Style="{StaticResource PosterStyle}">
-            <View.GestureRecognizers>
-                <TapGestureRecognizer CommandParameter="{Binding}">
-                    <TapGestureRecognizer.Command>
-                        <views:PushPageCommand PageTemplate="{StaticResource ListPageTemplate}" />
-                    </TapGestureRecognizer.Command>
-                </TapGestureRecognizer>
-            </View.GestureRecognizers>
-
-            <Image x:DataType="{x:Null}"
-                   Source="{Binding Item.PosterPath}"
-                   Aspect="AspectFill" />
-        </views:ImageView>
+        <views:ImageView Source="{Binding Item.PosterPath}"
+                         Aspect="AspectFill"
+                         AltText="{Binding Name}"
+                         Style="{StaticResource PosterStyle}" />
     </DataTemplate>
 
     <DataTemplate x:Key="CompressedEpisodeTemplate"
@@ -72,39 +62,12 @@
                   x:DataType="viewmodels:MediaViewModel">
         <views:ImageView Source="{Binding PosterPath}"
                          AltText="{Binding Title}"
-                         Style="{StaticResource PosterStyle}">
-            <View.GestureRecognizers>
-                <TapGestureRecognizer CommandParameter="{Binding}">
-                    <TapGestureRecognizer.Command>
-                        <views:PushPageCommand PageTemplate="{StaticResource OpenPageSelector}" />
-                    </TapGestureRecognizer.Command>
-                </TapGestureRecognizer>
-            </View.GestureRecognizers>
-        </views:ImageView>
+                         Style="{StaticResource PosterStyle}" />
     </DataTemplate>
 
     <DataTemplate x:Key="CompressedPersonTemplate"
                   x:DataType="viewmodels:PersonViewModel">
-        <VerticalStackLayout>
-            <View.GestureRecognizers>
-                <TapGestureRecognizer CommandParameter="{Binding}">
-                    <TapGestureRecognizer.Command>
-                        <views:PushPageCommand PageTemplate="{DataTemplate views:PersonInfoPage}" />
-                    </TapGestureRecognizer.Command>
-                </TapGestureRecognizer>
-            </View.GestureRecognizers>
-
-            <views:ImageView Style="{StaticResource PersonImageStyle}"
-                             FlexLayout.Grow="1"
-                             HeightRequest="{Binding Height, Source={RelativeSource Self}}" />
-
-            <maui:MaxSizeLabel Text="{Binding Name}"
-                               LineBreakMode="TailTruncation"
-                               HorizontalTextAlignment="Center"
-                               FlexLayout.Shrink="0"
-                               MaxLines="2"
-                               HorizontalOptions="Fill" />
-        </VerticalStackLayout>
+        <views:PersonImageView Style="{StaticResource PersonImageStyle}" />
     </DataTemplate>
 
     <DataTemplate x:Key="CompressedTVSeasonTemplate"
@@ -129,7 +92,7 @@
     </DataTemplate>
 
     <DataTemplate x:Key="CondensedListTemplate">
-        <views:CondensedItemList ItemWidth="150" />
+        <views:CondensedItemList />
     </DataTemplate>
 
     <ControlTemplate x:Key="EditListTemplate">
@@ -202,7 +165,7 @@
             <maui:TypeDataTemplate Type="{x:Type viewmodels:TVSeasonViewModel}"
                                    Template="{DataTemplate views:TVShowInfoPage}" />
             <maui:TypeDataTemplate Type="{x:Type viewmodels:MediaViewModel}"
-                                   Template="{StaticResource MediaPageTemplate}" />
+                                   Template="{DataTemplate views:MediaDetailPage}" />
             <maui:TypeDataTemplate Type="{x:Type viewmodels:PersonViewModel}"
                                    Template="{DataTemplate views:PersonInfoPage}" />
             <maui:TypeDataTemplate Type="{x:Type viewmodels:TVEpisodeViewModel}"

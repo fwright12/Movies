@@ -14,12 +14,12 @@
                 </TapGestureRecognizer.Command>
             </TapGestureRecognizer>
         </View.GestureRecognizers>
-        
+
         <views:CollectionItemView.ThumbnailTemplate>
             <DataTemplate>
-                <views:ImageView Style="{StaticResource PersonImageStyle}"
-                                 HeightRequest="100"
-                                 VerticalOptions="Center" />
+                <views:PersonImageView Style="{StaticResource PersonImageStyle}"
+                                       HeightRequest="100"
+                                       VerticalOptions="Center" />
             </DataTemplate>
         </views:CollectionItemView.ThumbnailTemplate>
 

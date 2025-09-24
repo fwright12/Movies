@@ -72,10 +72,10 @@
 
                             <Style x:Key="ItemListTemplate"
                                    TargetType="views:CondensedItemList">
-                                <Setter Property="ItemWidth"
-                                        Value="100" />
                                 <Setter Property="IsVisible"
                                         Value="{Binding Converter={maui:ServicesInstance Type={x:Type maui:FalseIfNullConverter}}}" />
+                                <Setter Property="HeightRequest"
+                                        Value="200" />
                             </Style>
                         </ResourceDictionary>
                     </VisualElement.Resources>

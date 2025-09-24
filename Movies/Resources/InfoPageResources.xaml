@@ -213,7 +213,7 @@
     <maui:TypeTemplateSelector x:Key="InfoTemplateSelector">
         <maui:TypeTemplateSelector.Templates>
             <maui:TypeDataTemplate Type="{x:Type viewmodels:CollectionViewModel}"
-                                   Template="{StaticResource CondensedListTemplate}" />
+                                   Template="{DataTemplate views:CondensedItemList}" />
             <maui:TypeDataTemplate Type="{x:Type ImageSource}"
                                    Template="{StaticResource MediaTemplate}" />
             <maui:TypeDataTemplate Type="{x:Type x:String}"

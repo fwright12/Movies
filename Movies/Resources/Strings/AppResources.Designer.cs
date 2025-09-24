@@ -259,6 +259,15 @@ namespace Movies.Resources.Strings {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to See all.
+        /// </summary>
+        internal static string OpenListButtonText {
+            get {
+                return ResourceManager.GetString("OpenListButtonText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Original Language.
         /// </summary>
         internal static string OriginalLanguageLabel {

@@ -17,13 +17,19 @@
     </Page.ToolbarItems>
 
     <CollectionView ItemsSource="{Binding}"
-                    ItemTemplate="{StaticResource CondensedListTemplate}"
                     ItemsUpdatingScrollMode="KeepScrollOffset"
                     Header="test"
                     Footer="test">
         <CollectionView.ItemsLayout>
-            <LinearItemsLayout Orientation="Vertical" />
+            <LinearItemsLayout Orientation="Vertical"
+                               ItemSpacing="10" />
         </CollectionView.ItemsLayout>
+
+        <ItemsView.ItemTemplate>
+            <DataTemplate>
+                <views:CondensedItemList HeightRequest="250" />
+            </DataTemplate>
+        </ItemsView.ItemTemplate>
 
         <CollectionView.HeaderTemplate>
             <DataTemplate>
