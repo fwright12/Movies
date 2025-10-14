@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<views:DetailView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+                  xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+                  xmlns:maui="clr-namespace:Microsoft.Maui.Controls;assembly=MauiExtensions"
+                  xmlns:models="clr-namespace:Movies.Models"
+                  xmlns:strings="clr-namespace:Movies.Resources.Strings"
+                  xmlns:views="clr-namespace:Movies.Views"
+                  xmlns:viewmodels="clr-namespace:Movies.ViewModels"
+                  x:Class="Movies.Views.CollectionDetailView"
+                  x:DataType="viewmodels:CollectionViewModel"
+                  Title="{Binding Name}"
+                  ThumbnailTemplate="{DataTemplate views:CompactCollectionView}">
+    <View.GestureRecognizers>
+        <TapGestureRecognizer CommandParameter="{Binding}">
+            <TapGestureRecognizer.Command>
+                <views:PushPageCommand PageTemplate="{StaticResource OpenPageSelector}" />
+            </TapGestureRecognizer.Command>
+        </TapGestureRecognizer>
+    </View.GestureRecognizers>
+
+    <VerticalStackLayout>
+        <Label Style="{StaticResource MultiPartLabel}">
+            <Label.FormattedText>
+                <FormattedString>
+                    <Span>
+                        <Span.Text>
+                            <MultiBinding StringFormat="{}{0} {1}">
+                                <Binding Path="Count" />
+                                <Binding Path="ListLabel"
+                                         TargetNullValue="Items" />
+                            </MultiBinding>
+                        </Span.Text>
+                    </Span>
+
+                    <Span Text="{Binding Author, FallbackValue=''}"
+                          x:DataType="models:List" />
+                    <!--<Span x:DataType="models:List">
+                        <Span.Text>
+                            <Binding Path="Private"
+                                     TargetNullValue="{StaticResource DetailedTemplateNullValue}"
+                                     FallbackValue="">
+                                <Binding.Converter>
+                                    <views:BoolToObjectConverter TrueObject="Private"
+                                                                 FalseObject="Public" />
+                                </Binding.Converter>
+                            </Binding>
+                        </Span.Text>
+                    </Span>-->
+                </FormattedString>
+            </Label.FormattedText>
+        </Label>
+
+        <Label x:DataType="{x:Null}"
+               Text="{Binding Item.Description, Converter={Static maui:NullIfEmptyConverter.Instance}, TargetNullValue={Static strings:AppResources.DescriptionNull}}"
+               LineBreakMode="TailTruncation"
+               MaxLines="3" />
+    </VerticalStackLayout>
+</views:DetailView>

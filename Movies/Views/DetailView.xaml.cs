@@ -10,13 +10,13 @@ using Microsoft.Maui;
 namespace Movies.Views
 {
     [XamlCompilation(XamlCompilationOptions.Compile)]
-    public partial class CollectionItemView : ContentView
+    public partial class DetailView : ContentView
     {
-        public static readonly BindableProperty TitleProperty = BindableProperty.Create(nameof(Title), typeof(string), typeof(CollectionItemView));
+        public static readonly BindableProperty TitleProperty = BindableProperty.Create(nameof(Title), typeof(string), typeof(DetailView));
 
-        public static readonly BindableProperty ThumbnailTemplateProperty = BindableProperty.Create(nameof(ThumbnailTemplate), typeof(DataTemplate), typeof(CollectionItemView), propertyChanged: (bindable, oldValue, newValue) =>
+        public static readonly BindableProperty ThumbnailTemplateProperty = BindableProperty.Create(nameof(ThumbnailTemplate), typeof(DataTemplate), typeof(DetailView), propertyChanged: (bindable, oldValue, newValue) =>
         {
-            CollectionItemView view = (CollectionItemView)bindable;
+            DetailView view = (DetailView)bindable;
             DataTemplate template = (DataTemplate)newValue;
 
             View content = (View)template.CreateContent();
@@ -26,7 +26,7 @@ namespace Movies.Views
             view.OnPropertyChanged(nameof(ThumbnailView));
         });//, propertyChanged: (bindable, oldValue, newValue) => ((CollectionItemView)bindable).UpdateThumbnail());
 
-        public static readonly BindableProperty DetailPageTemplateProperty = BindableProperty.Create(nameof(DetailPageTemplate), typeof(DataTemplate), typeof(CollectionItemView));
+        public static readonly BindableProperty DetailPageTemplateProperty = BindableProperty.Create(nameof(DetailPageTemplate), typeof(DataTemplate), typeof(DetailView));
 
         public string Title
         {
@@ -50,7 +50,7 @@ namespace Movies.Views
 
         //private ContentView ThumbnailView;
 
-        public CollectionItemView()
+        public DetailView()
         {
             InitializeComponent();
         }

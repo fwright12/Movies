@@ -76,11 +76,8 @@
                         views:CollectionViewExt.IsEditing="True"
                         SelectionMode="Multiple">
             <ItemsView.ItemTemplate>
-                <views:EditDataTemplateSelector EditTemplate="{StaticResource EditListTemplate}">
-                    <views:EditDataTemplateSelector.Main>
-                        <templates:DetailedCollectionTemplate />
-                    </views:EditDataTemplateSelector.Main>
-                </views:EditDataTemplateSelector>
+                <views:EditDataTemplateSelector EditTemplate="{StaticResource EditListTemplate}"
+                                                Main="{DataTemplate views:CollectionDetailView}" />
             </ItemsView.ItemTemplate>
         </CollectionView>
 

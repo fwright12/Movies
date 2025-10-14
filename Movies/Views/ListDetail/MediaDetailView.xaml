@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<views:DetailView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+                  xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+                  xmlns:converters="clr-namespace:Movies.Converters"
+                  xmlns:ext="clr-namespace:Microsoft.Maui.Controls.Extensions;assembly=MauiExtensions"
+                  xmlns:maui="clr-namespace:Microsoft.Maui.Controls;assembly=MauiExtensions"
+                  xmlns:models="clr-namespace:Movies.Models"
+                  xmlns:movies="clr-namespace:Movies"
+                  xmlns:strings="clr-namespace:Movies.Resources.Strings"
+                  xmlns:viewmodels="clr-namespace:Movies.ViewModels"
+                  xmlns:views="clr-namespace:Movies.Views"
+                  x:Class="Movies.Views.MediaDetailView"
+                  x:DataType="viewmodels:MediaViewModel"
+                  Title="{Binding Title}"
+                  ThumbnailTemplate="{DataTemplate views:CompactMediaView}">
+    <View.GestureRecognizers>
+        <TapGestureRecognizer CommandParameter="{Binding}">
+            <TapGestureRecognizer.Command>
+                <views:PushPageCommand PageTemplate="{StaticResource MediaPageTemplate}" />
+            </TapGestureRecognizer.Command>
+        </TapGestureRecognizer>
+    </View.GestureRecognizers>
+
+    <VerticalStackLayout Spacing="5">
+        <VisualElement.Resources>
+            <Style TargetType="Label">
+                <Setter Property="LineBreakMode"
+                        Value="TailTruncation" />
+            </Style>
+
+            <Style TargetType="Span"
+                   x:Key="SpacerSpan">
+                <Setter Property="Text"
+                        Value=" &#183; " />
+            </Style>
+        </VisualElement.Resources>
+
+        <VisualElement.Behaviors>
+            <movies:BatchBehavior />
+        </VisualElement.Behaviors>
+
+        <Label LineBreakMode="NoWrap">
+            <Label.FormattedText>
+                <FormattedString>
+                    <Span>
+                        <Span.Text>
+                            <MultiBinding x:DataType="viewmodels:TVShowViewModel"
+                                          StringFormat="{}{0}{1}">
+                                <Binding Path="FirstAirDate"
+                                         StringFormat="{}{0:yyyy}-"
+                                         TargetNullValue=""
+                                         FallbackValue="" />
+                                <Binding Path="LastAirDate"
+                                         StringFormat="{}{0:yyyy}" />
+                            </MultiBinding>
+                        </Span.Text>
+                    </Span>
+
+                    <Span x:DataType="viewmodels:MovieViewModel"
+                          Text="{Binding Year, StringFormat='{}{0:yyyy}', FallbackValue=''}" />
+
+                    <Span Style="{StaticResource SpacerSpan}" />
+
+                    <Span Text="{Binding Runtime, Converter={maui:ServicesInstance Type={x:Type movies:HrMinConverter}}}" />
+
+                    <Span Style="{StaticResource SpacerSpan}" />
+
+                    <Span Text="{Binding ContentRating}" />
+                </FormattedString>
+            </Label.FormattedText>
+        </Label>
+
+        <Label Text="{Binding Genres, Converter={Static maui:StringJoinConverter.Instance}}" />
+
+        <HorizontalStackLayout BindableLayout.ItemsSource="{Binding Ratings}"
+                               BindableLayout.EmptyView="{Static strings:AppResources.RatingListEmptyView}">
+            <BindableLayout.ItemTemplate>
+                <DataTemplate x:DataType="models:Rating">
+                    <HorizontalStackLayout Spacing="5">
+                        <Image Source="{Binding Company.LogoPath, Converter={StaticResource DefaultImageSourceConverter}}"
+                               VerticalOptions="Fill" />
+
+                        <Label Text="{Binding Score}" />
+                    </HorizontalStackLayout>
+                </DataTemplate>
+            </BindableLayout.ItemTemplate>
+        </HorizontalStackLayout>
+
+        <Grid BindingContext="{Binding WatchProviders[0]}"
+              ColumnSpacing="5"
+              ColumnDefinitions="Auto, *">
+            <Label Text="{Binding Name, StringFormat='{0}:', FallbackValue={Static strings:AppResources.WatchProvidersEmptyView}}" />
+
+            <HorizontalStackLayout BindableLayout.ItemsSource="{Binding}"
+                                   Grid.Column="1">
+                <BindableLayout.ItemTemplate>
+                    <DataTemplate x:DataType="models:WatchProvider">
+                        <Image Source="{Binding Company.LogoPath}"
+                               ext:VisualElement.AspectRequest="1" />
+                    </DataTemplate>
+                </BindableLayout.ItemTemplate>
+            </HorizontalStackLayout>
+        </Grid>
+    </VerticalStackLayout>
+</views:DetailView>

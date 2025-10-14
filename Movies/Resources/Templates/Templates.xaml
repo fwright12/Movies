@@ -11,90 +11,6 @@
                     xmlns:viewmodels="clr-namespace:Movies.ViewModels">
     <!-- ================================== TEMPLATES ================================== -->
 
-    <DataTemplate x:Key="CompressedCollectionTemplate"
-                  x:DataType="viewmodels:CollectionViewModel">
-        <views:ImageView Source="{Binding Item.PosterPath}"
-                         Aspect="AspectFill"
-                         AltText="{Binding Name}"
-                         Style="{StaticResource PosterStyle}" />
-    </DataTemplate>
-
-    <DataTemplate x:Key="CompressedEpisodeTemplate"
-                  x:DataType="viewmodels:TVEpisodeViewModel">
-        <Grid>
-            <View.GestureRecognizers>
-                <TapGestureRecognizer CommandParameter="{Binding}">
-                    <TapGestureRecognizer.Command>
-                        <views:PushPageCommand PageTemplate="{StaticResource MediaPageTemplate}" />
-                    </TapGestureRecognizer.Command>
-                </TapGestureRecognizer>
-            </View.GestureRecognizers>
-
-            <views:ImageView AltText="{Binding Title}"
-                             AspectRequest="1.5"
-                             Style="{StaticResource PosterStyle}">
-                <Image Source="{Binding PosterPath}"
-                       Aspect="AspectFill" />
-            </views:ImageView>
-
-            <Label Text="{Binding Title}"
-                   TextColor="White"
-                   FontSize="Title"
-                   HorizontalTextAlignment="End"
-                   VerticalOptions="End"
-                   HorizontalOptions="End"
-                   Padding="10">
-                <VisualElement.BackgroundColor>
-                    <Color>
-                        <x:Arguments>
-                            <x:Single>0</x:Single>
-                            <x:Single>0</x:Single>
-                            <x:Single>0</x:Single>
-                            <x:Single>0.2</x:Single>
-                        </x:Arguments>
-                    </Color>
-                </VisualElement.BackgroundColor>
-            </Label>
-        </Grid>
-    </DataTemplate>
-
-    <DataTemplate x:Key="CompressedMovieTemplate"
-                  x:DataType="viewmodels:MediaViewModel">
-        <views:ImageView Source="{Binding PosterPath}"
-                         AltText="{Binding Title}"
-                         Style="{StaticResource PosterStyle}" />
-    </DataTemplate>
-
-    <DataTemplate x:Key="CompressedPersonTemplate"
-                  x:DataType="viewmodels:PersonViewModel">
-        <views:PersonImageView Style="{StaticResource PersonImageStyle}" />
-    </DataTemplate>
-
-    <DataTemplate x:Key="CompressedTVSeasonTemplate"
-                  x:DataType="viewmodels:TVSeasonViewModel">
-        <views:LabeledContentView Label="{Binding Number, StringFormat='Season {0}'}">
-            <View.GestureRecognizers>
-                <TapGestureRecognizer CommandParameter="{Binding}">
-                    <TapGestureRecognizer.Command>
-                        <views:PushPageCommand PageTemplate="{StaticResource OpenPageSelector}" />
-                    </TapGestureRecognizer.Command>
-                </TapGestureRecognizer>
-            </View.GestureRecognizers>
-
-            <views:ImageView AltText="{Binding Name}"
-                             HorizontalOptions="Center"
-                             Style="{StaticResource PosterStyle}">
-                <Image x:DataType="{x:Null}"
-                       Source="{Binding Item.PosterPath}"
-                       Aspect="AspectFill" />
-            </views:ImageView>
-        </views:LabeledContentView>
-    </DataTemplate>
-
-    <DataTemplate x:Key="CondensedListTemplate">
-        <views:CondensedItemList />
-    </DataTemplate>
-
     <ControlTemplate x:Key="EditListTemplate">
         <FlexLayout Direction="{OnPlatform iOS=RowReverse, Android=Row}"
                     InputTransparent="True">
@@ -145,18 +61,29 @@
 
     <maui:TypeTemplateSelector x:Key="CompressedListSelector">
         <maui:TypeTemplateSelector.Templates>
-            <maui:TypeDataTemplate Type="{x:Type viewmodels:MovieViewModel}"
-                                   Template="{StaticResource CompressedMovieTemplate}" />
-            <maui:TypeDataTemplate Type="{x:Type viewmodels:TVShowViewModel}"
-                                   Template="{StaticResource CompressedMovieTemplate}" />
+            <maui:TypeDataTemplate Type="{x:Type viewmodels:MediaViewModel}"
+                                   Template="{DataTemplate views:CompactMediaView}" />
             <maui:TypeDataTemplate Type="{x:Type viewmodels:TVEpisodeViewModel}"
-                                   Template="{StaticResource CompressedEpisodeTemplate}" />
+                                   Template="{DataTemplate views:CompactEpisodeView}" />
             <maui:TypeDataTemplate Type="{x:Type viewmodels:PersonViewModel}"
-                                   Template="{StaticResource CompressedPersonTemplate}" />
+                                   Template="{DataTemplate views:CompactPersonView}" />
             <maui:TypeDataTemplate Type="{x:Type viewmodels:TVSeasonViewModel}"
-                                   Template="{StaticResource CompressedTVSeasonTemplate}" />
+                                   Template="{DataTemplate views:CompactTVSeasonView}" />
             <maui:TypeDataTemplate Type="{x:Type viewmodels:CollectionViewModel}"
-                                   Template="{StaticResource CompressedCollectionTemplate}" />
+                                   Template="{DataTemplate views:CompactCollectionView}" />
+        </maui:TypeTemplateSelector.Templates>
+    </maui:TypeTemplateSelector>
+
+    <maui:TypeTemplateSelector x:Key="DetailTemplateSelector">
+        <maui:TypeTemplateSelector.Templates>
+            <maui:TypeDataTemplate Type="{x:Type viewmodels:MediaViewModel}"
+                                   Template="{DataTemplate views:MediaDetailView}" />
+            <maui:TypeDataTemplate Type="{x:Type viewmodels:TVEpisodeViewModel}"
+                                   Template="{DataTemplate views:EpisodeDetailView}" />
+            <maui:TypeDataTemplate Type="{x:Type viewmodels:PersonViewModel}"
+                                   Template="{DataTemplate views:PersonDetailView}" />
+            <maui:TypeDataTemplate Type="{x:Type viewmodels:CollectionViewModel}"
+                                   Template="{DataTemplate views:CollectionDetailView}" />
         </maui:TypeTemplateSelector.Templates>
     </maui:TypeTemplateSelector>
 

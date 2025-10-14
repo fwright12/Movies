@@ -80,8 +80,14 @@
 	    <AutoGen>True</AutoGen>
 	    <DependentUpon>AppResources.resx</DependentUpon>
 	  </Compile>
+	  <Compile Update="Views\DetailView.xaml.cs">
+	    <DependentUpon>DetailView.xaml</DependentUpon>
+	  </Compile>
 	  <Compile Update="Views\Pages\MediaDetailPage.xaml.cs">
 	    <DependentUpon>MediaDetailPage.xaml</DependentUpon>
+	  </Compile>
+	  <Compile Update="Views\ListCompact\CompactPersonView.xaml.cs">
+	    <DependentUpon>CompactPersonView.xaml</DependentUpon>
 	  </Compile>
 	  <Compile Update="Views\QuickActionsPanel.xaml.cs">
 	    <DependentUpon>QuickActionsPanel.xaml</DependentUpon>
@@ -117,7 +123,31 @@
 	  <MauiXaml Update="Resources\Templates\Templates.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
+	  <MauiXaml Update="Views\ListCompact\CompactCollectionView.xaml">
+	    <Generator>MSBuild:Compile</Generator>
+	  </MauiXaml>
+	  <MauiXaml Update="Views\ListCompact\CompactEpisodeView.xaml">
+	    <Generator>MSBuild:Compile</Generator>
+	  </MauiXaml>
+	  <MauiXaml Update="Views\ListCompact\CompactMediaView.xaml">
+	    <Generator>MSBuild:Compile</Generator>
+	  </MauiXaml>
+	  <MauiXaml Update="Views\ListCompact\CompactTVSeasonView.xaml">
+	    <Generator>MSBuild:Compile</Generator>
+	  </MauiXaml>
+	  <MauiXaml Update="Views\ListDetail\CollectionDetailView.xaml">
+	    <Generator>MSBuild:Compile</Generator>
+	  </MauiXaml>
 	  <MauiXaml Update="Views\CondensedItemList.xaml">
+	    <Generator>MSBuild:Compile</Generator>
+	  </MauiXaml>
+	  <MauiXaml Update="Views\ListDetail\EpisodeDetailView.xaml">
+	    <Generator>MSBuild:Compile</Generator>
+	  </MauiXaml>
+	  <MauiXaml Update="Views\ListDetail\MediaDetailView.xaml">
+	    <Generator>MSBuild:Compile</Generator>
+	  </MauiXaml>
+	  <MauiXaml Update="Views\ListDetail\PersonDetailView.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
 	  <MauiXaml Update="Views\FullCollectionView.xaml">
@@ -132,9 +162,15 @@
 	  <MauiXaml Update="Views\Pages\ListsPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
-	  <MauiXaml Update="Views\PersonImageView.xaml">
+	  <MauiXaml Update="Views\ListCompact\CompactPersonView.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
+	</ItemGroup>
+
+	<ItemGroup>
+	  <None Update="Views\CollectionDetailView.xaml">
+	    <Generator>MSBuild:Compile</Generator>
+	  </None>
 	</ItemGroup>
 
 </Project>

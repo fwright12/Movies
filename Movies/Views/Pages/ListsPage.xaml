@@ -14,11 +14,8 @@
                         Grid.Row="0">
             <CollectionView.ItemTemplate>
                 <views:EditDataTemplateSelector SwipeTemplate="{StaticResource SwipeTemplate}"
-                                                EditTemplate="{StaticResource EditListTemplate}">
-                    <views:EditDataTemplateSelector.Main>
-                        <templates:DetailedCollectionTemplate />
-                    </views:EditDataTemplateSelector.Main>
-                </views:EditDataTemplateSelector>
+                                                EditTemplate="{StaticResource EditListTemplate}"
+                                                Main="{DataTemplate views:CollectionDetailView}" />
             </CollectionView.ItemTemplate>
 
             <View.Margin>
@@ -86,12 +83,11 @@
             </CollectionView.Footer>
         </CollectionView>
 
-        <StackLayout Orientation="Horizontal"
-                     BindingContext="{Binding Parent.Children[0], Source={RelativeSource Self}}"
-                     StyleClass="SecondaryBackground"
-                     IsVisible="{Binding SelectionMode, Converter={Static views:SelectionModeToBoolConverter.Instance}}"
-                     Padding="10, 5"
-                     Grid.Row="1">
+        <HorizontalStackLayout BindingContext="{Binding Parent.Children[0], Source={RelativeSource Self}}"
+                               StyleClass="SecondaryBackground"
+                               IsVisible="{Binding SelectionMode, Converter={Static views:SelectionModeToBoolConverter.Instance}}"
+                               Padding="10, 5"
+                               Grid.Row="1">
             <!--<Button CommandParameter="{Binding}">
     <VisualStateManager.VisualStateGroups>
         <VisualStateGroup>
@@ -117,9 +113,9 @@
 </Button>-->
 
             <Button Text="Delete"
-                    HorizontalOptions="EndAndExpand"
+                    HorizontalOptions="End"
                     Command="{Static views:CollectionViewExt.DeleteSelectedCommand}"
                     CommandParameter="{Binding}" />
-        </StackLayout>
+        </HorizontalStackLayout>
     </Grid>
 </ContentPage>

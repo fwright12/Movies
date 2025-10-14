@@ -353,10 +353,8 @@
 
             <ItemsView.ItemTemplate>
                 <DataTemplate x:DataType="viewmodels:PersonViewModel">
-                    <ContentView ext:ContentView.ItemSource="{Binding}"
-                                 ext:ContentView.ContentTemplate="{StaticResource CompressedPersonTemplate}"
-                                 WidthRequest="100"
-                                 InputTransparent="True" />
+                    <views:CompactPersonView WidthRequest="100"
+                                             InputTransparent="True" />
                 </DataTemplate>
             </ItemsView.ItemTemplate>
 

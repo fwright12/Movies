@@ -137,7 +137,7 @@
 
             <ContentView movies:App.AutoWireFromItem="{Binding Person, Source={RelativeSource AncestorType={x:Type models:Credit}}}"
                          ext:ContentView.ItemSource="{Binding}"
-                         ext:ContentView.ContentTemplate="{StaticResource CompressedPersonTemplate}" />
+                         ext:ContentView.ContentTemplate="{DataTemplate views:CompactPersonView}" />
 
             <Label Text="{Binding Role}"
                    FontSize="Small"
