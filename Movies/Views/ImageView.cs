@@ -98,13 +98,14 @@ namespace Movies.Views
 
         public AspectContentView()
         {
-            HorizontalOptions = LayoutOptions.Center;
-            VerticalOptions = LayoutOptions.Center;
+            //HorizontalOptions = LayoutOptions.Center;
+            //VerticalOptions = LayoutOptions.Center;
         }
 
         protected override Size MeasureOverride(double widthConstraint, double heightConstraint)
         {
             var size = base.MeasureOverride(widthConstraint, heightConstraint);
+            return size;
             widthConstraint = Math.Max(widthConstraint, size.Width);
             heightConstraint = Math.Max(heightConstraint, size.Height);
             
@@ -324,6 +325,18 @@ namespace Movies.Views
         public void OnImageSourceSourceChanged(object sender, EventArgs e)
         {
             ((IImageElement)Image).OnImageSourceSourceChanged(sender, e);
+        }
+
+        protected override Size MeasureOverride(double widthConstraint, double heightConstraint)
+        {
+            if (IsSet(WidthRequestProperty) || IsSet(HeightRequestProperty) || Content == null)
+            {
+                return base.MeasureOverride(widthConstraint, heightConstraint);
+            }
+            else
+            {
+                return Content.Measure(widthConstraint, heightConstraint);
+            }
         }
 
         /*protected override SizeRequest OnMeasure(double widthConstraint, double heightConstraint)
