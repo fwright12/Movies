@@ -1,11 +1,33 @@
 ﻿using MauiExtensions.Handlers;
 using Microsoft.Extensions.Logging;
 using Microsoft.Maui.Layouts;
+using Movies.Models;
 using Movies.ViewModels;
 using System.Globalization;
 
 namespace Movies
 {
+    [BindingValueConverter]
+    public class ItemViewModelConverter : IValueConverter<object, ItemViewModel>
+    {
+        public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+        {
+            if (value is Movie movie) return new MovieViewModel(movie);
+            else if (value is TVShow show) return new TVShowViewModel(show);
+            else if (value is TVSeason season) return new TVSeasonViewModel(season);
+            else if (value is TVEpisode episode) return new TVEpisodeViewModel(episode);
+            else if (value is Collection collection) return new CollectionViewModel(collection);
+            else if (value is Person person) return new PersonViewModel(person);
+
+            return value;
+        }
+
+        public object? ConvertBack(ItemViewModel? value, Type targetType, object? parameter, CultureInfo culture)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
     [BindingValueConverter]
     public class IsNullOrEmptyConverter : IValueConverter<string, bool>
     {

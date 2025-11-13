@@ -767,6 +767,19 @@
         </Setter>
     </Style>
 
+    <Style TargetType="View"
+           x:Key="ClickableItemStyle">
+        <Setter Property="maui:ViewExtensions.GestureRecognizers">
+            <DataTemplate>
+                <TapGestureRecognizer CommandParameter="{Binding}">
+                    <TapGestureRecognizer.Command>
+                        <views:PushPageCommand PageTemplate="{StaticResource OpenPageSelector}" />
+                    </TapGestureRecognizer.Command>
+                </TapGestureRecognizer>
+            </DataTemplate>
+        </Setter>
+    </Style>
+
     <Style TargetType="VisualElement"
            x:Key="EditingOnlyStyle">
         <Setter Property="IsVisible"

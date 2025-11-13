@@ -9,6 +9,36 @@
                     xmlns:templates="clr-namespace:Movies.Templates"
                     xmlns:views="clr-namespace:Movies.Views"
                     xmlns:viewmodels="clr-namespace:Movies.ViewModels">
+
+    <Style TargetType="views:MediaDetailView"
+           BasedOn="{StaticResource ClickableItemStyle}" />
+    
+    <Style TargetType="views:EpisodeDetailView"
+           BasedOn="{StaticResource ClickableItemStyle}" />
+    
+    <Style TargetType="views:PersonDetailView"
+           BasedOn="{StaticResource ClickableItemStyle}" />
+
+    <Style TargetType="views:CollectionDetailView"
+           BasedOn="{StaticResource ClickableItemStyle}" />
+    
+    
+
+    <Style TargetType="views:CompactMediaView"
+           BasedOn="{StaticResource ClickableItemStyle}" />
+
+    <Style TargetType="views:CompactTVSeasonView"
+           BasedOn="{StaticResource ClickableItemStyle}" />
+
+    <Style TargetType="views:CompactEpisodeView"
+           BasedOn="{StaticResource ClickableItemStyle}" />
+
+    <Style TargetType="views:CompactPersonView"
+           BasedOn="{StaticResource ClickableItemStyle}" />
+
+    <Style TargetType="views:CompactCollectionView"
+           BasedOn="{StaticResource ClickableItemStyle}" />
+
     <!-- ================================== TEMPLATES ================================== -->
 
     <ControlTemplate x:Key="EditListTemplate">
@@ -96,7 +126,7 @@
             <maui:TypeDataTemplate Type="{x:Type viewmodels:PersonViewModel}"
                                    Template="{DataTemplate views:PersonInfoPage}" />
             <maui:TypeDataTemplate Type="{x:Type viewmodels:TVEpisodeViewModel}"
-                                   Template="{StaticResource MediaPageTemplate}" />
+                                   Template="{DataTemplate views:MediaDetailPage}" />
             <maui:TypeDataTemplate Type="{x:Type viewmodels:CollectionViewModel}"
                                    Template="{StaticResource ListPageTemplate}" />
         </maui:TypeTemplateSelector.Templates>

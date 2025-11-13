@@ -13,14 +13,6 @@
                   x:DataType="viewmodels:MediaViewModel"
                   Title="{Binding Title}"
                   ThumbnailTemplate="{DataTemplate views:CompactMediaView}">
-    <View.GestureRecognizers>
-        <TapGestureRecognizer CommandParameter="{Binding}">
-            <TapGestureRecognizer.Command>
-                <views:PushPageCommand PageTemplate="{StaticResource MediaPageTemplate}" />
-            </TapGestureRecognizer.Command>
-        </TapGestureRecognizer>
-    </View.GestureRecognizers>
-
     <VerticalStackLayout Spacing="5">
         <VisualElement.Resources>
             <Style TargetType="Label">

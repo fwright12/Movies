@@ -24,26 +24,13 @@
     <Grid BindingContext="{Binding Source}"
           x:DataType="{x:Null}">
         <CollectionView ItemsSource="{Binding Items}"
+                        ItemTemplate="{StaticResource CompressedListSelector}"
                         RemainingItemsThreshold="4"
                         Style="{StaticResource AsyncListViewModelCollectionViewStyle}">
             <CollectionView.ItemsLayout>
                 <LinearItemsLayout Orientation="Horizontal"
                                    ItemSpacing="10" />
             </CollectionView.ItemsLayout>
-
-            <ItemsView.ItemTemplate>
-                <DataTemplate>
-                    <ContentView Content="{maui:TemplatedContentBinding Template={StaticResource CompressedListSelector}}">
-                        <View.GestureRecognizers>
-                            <TapGestureRecognizer CommandParameter="{Binding}">
-                                <TapGestureRecognizer.Command>
-                                    <views:PushPageCommand PageTemplate="{StaticResource OpenPageSelector}" />
-                                </TapGestureRecognizer.Command>
-                            </TapGestureRecognizer>
-                        </View.GestureRecognizers>
-                    </ContentView>
-                </DataTemplate>
-            </ItemsView.ItemTemplate>
         </CollectionView>
 
         <RefreshView IsVisible="False"

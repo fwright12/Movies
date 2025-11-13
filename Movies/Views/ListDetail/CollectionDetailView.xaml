@@ -10,14 +10,6 @@
                   x:DataType="viewmodels:CollectionViewModel"
                   Title="{Binding Name}"
                   ThumbnailTemplate="{DataTemplate views:CompactCollectionView}">
-    <View.GestureRecognizers>
-        <TapGestureRecognizer CommandParameter="{Binding}">
-            <TapGestureRecognizer.Command>
-                <views:PushPageCommand PageTemplate="{StaticResource OpenPageSelector}" />
-            </TapGestureRecognizer.Command>
-        </TapGestureRecognizer>
-    </View.GestureRecognizers>
-
     <VerticalStackLayout>
         <Label Style="{StaticResource MultiPartLabel}">
             <Label.FormattedText>
