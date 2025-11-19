@@ -9,7 +9,7 @@
                   x:Class="Movies.Views.CollectionDetailView"
                   x:DataType="viewmodels:CollectionViewModel"
                   Title="{Binding Name}"
-                  ThumbnailTemplate="{DataTemplate views:CompactCollectionView}">
+                  ThumbnailTemplate="{DataTemplate views:CollectionThumbnailView}">
     <VerticalStackLayout>
         <Label Style="{StaticResource MultiPartLabel}">
             <Label.FormattedText>

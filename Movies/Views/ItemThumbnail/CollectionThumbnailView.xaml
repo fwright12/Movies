@@ -3,8 +3,9 @@
                  xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
                  xmlns:views="clr-namespace:Movies.Views"
                  xmlns:viewmodels="clr-namespace:Movies.ViewModels"
-                 x:Class="Movies.Views.CompactMediaView"
-                 x:DataType="viewmodels:MediaViewModel"
-                 Source="{Binding PosterPath}"
-                 AltText="{Binding Title}"
+                 x:Class="Movies.Views.CollectionThumbnailView"
+                 x:DataType="viewmodels:CollectionViewModel"
+                 Source="{Binding Item.PosterPath}"
+                 Aspect="AspectFill"
+                 AltText="{Binding Name}"
                  Style="{StaticResource PosterStyle}" />

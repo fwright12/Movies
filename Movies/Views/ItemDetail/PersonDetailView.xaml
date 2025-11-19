@@ -9,8 +9,8 @@
                   Title="{Binding Name}">
     <views:DetailView.ThumbnailTemplate>
         <DataTemplate>
-            <views:CompactPersonView HeightRequest="100"
-                                     VerticalOptions="Center" />
+            <views:PersonThumbnailView HeightRequest="100"
+                                       VerticalOptions="Center" />
         </DataTemplate>
     </views:DetailView.ThumbnailTemplate>
 

@@ -126,25 +126,30 @@
 
     <DataTemplate x:Key="CreditTemplate"
                   x:DataType="models:Credit">
-        <VerticalStackLayout>
-            <View.GestureRecognizers>
+        <Grid RowDefinitions="*, Auto">
+            <!--<View.GestureRecognizers>
                 <TapGestureRecognizer CommandParameter="{Binding Parent.Content.BindingContext, Source={RelativeSource Self}}">
                     <TapGestureRecognizer.Command>
                         <views:PushPageCommand PageTemplate="{DataTemplate views:PersonInfoPage}" />
                     </TapGestureRecognizer.Command>
                 </TapGestureRecognizer>
-            </View.GestureRecognizers>
+            </View.GestureRecognizers>-->
 
-            <ContentView movies:App.AutoWireFromItem="{Binding Person, Source={RelativeSource AncestorType={x:Type models:Credit}}}"
+            <!--<ContentView Grid.Row="0"
+                         movies:App.AutoWireFromItem="{Binding Person, Source={RelativeSource AncestorType={x:Type models:Credit}}}"
                          ext:ContentView.ItemSource="{Binding}"
-                         ext:ContentView.ContentTemplate="{DataTemplate views:CompactPersonView}" />
+                         ext:ContentView.ContentTemplate="{DataTemplate views:CompactPersonView}" />-->
 
-            <Label Text="{Binding Role}"
+            <views:PersonThumbnailView Grid.Row="0"
+                                       BindingContext="{Binding Person, Converter={maui:Converter Type={x:Type movies:ItemViewModelConverter}}}" />
+
+            <Label Grid.Row="1"
+                   Text="{Binding Role}"
                    FontSize="Small"
                    HorizontalOptions="Fill"
                    HorizontalTextAlignment="Center"
                    LineBreakMode="TailTruncation" />
-        </VerticalStackLayout>
+        </Grid>
     </DataTemplate>
 
     <DataTemplate x:Key="CreditListTemplate">

@@ -4,7 +4,7 @@
                  xmlns:ext="clr-namespace:Microsoft.Maui.Controls.Extensions;assembly=MauiExtensions"
                  xmlns:views="clr-namespace:Movies.Views"
                  xmlns:viewmodels="clr-namespace:Movies.ViewModels"
-                 x:Class="Movies.Views.CompactPersonView"
+                 x:Class="Movies.Views.PersonThumbnailView"
                  x:DataType="viewmodels:PersonViewModel"
                  Aspect="AspectFill"
                  CornerRadius="{Binding Height, Source={RelativeSource Self}}"

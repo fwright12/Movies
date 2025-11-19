@@ -12,7 +12,7 @@
                   x:Class="Movies.Views.MediaDetailView"
                   x:DataType="viewmodels:MediaViewModel"
                   Title="{Binding Title}"
-                  ThumbnailTemplate="{DataTemplate views:CompactMediaView}">
+                  ThumbnailTemplate="{DataTemplate views:MediaThumbnailView}">
     <VerticalStackLayout Spacing="5">
         <VisualElement.Resources>
             <Style TargetType="Label">

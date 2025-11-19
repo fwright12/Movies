@@ -3,7 +3,7 @@
       xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
       xmlns:views="clr-namespace:Movies.Views"
       xmlns:viewmodels="clr-namespace:Movies.ViewModels"
-      x:Class="Movies.Views.CompactEpisodeView"
+      x:Class="Movies.Views.EpisodeThumbnailView"
       x:DataType="viewmodels:TVEpisodeViewModel">
     <views:ImageView AltText="{Binding Title}"
                      AspectRequest="1.5"

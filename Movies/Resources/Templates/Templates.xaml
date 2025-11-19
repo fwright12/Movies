@@ -24,19 +24,19 @@
     
     
 
-    <Style TargetType="views:CompactMediaView"
+    <Style TargetType="views:MediaThumbnailView"
            BasedOn="{StaticResource ClickableItemStyle}" />
 
-    <Style TargetType="views:CompactTVSeasonView"
+    <Style TargetType="views:TVSeasonThumbnailView"
            BasedOn="{StaticResource ClickableItemStyle}" />
 
-    <Style TargetType="views:CompactEpisodeView"
+    <Style TargetType="views:EpisodeThumbnailView"
            BasedOn="{StaticResource ClickableItemStyle}" />
 
-    <Style TargetType="views:CompactPersonView"
+    <Style TargetType="views:PersonThumbnailView"
            BasedOn="{StaticResource ClickableItemStyle}" />
 
-    <Style TargetType="views:CompactCollectionView"
+    <Style TargetType="views:CollectionThumbnailView"
            BasedOn="{StaticResource ClickableItemStyle}" />
 
     <!-- ================================== TEMPLATES ================================== -->
@@ -92,15 +92,15 @@
     <maui:TypeTemplateSelector x:Key="CompressedListSelector">
         <maui:TypeTemplateSelector.Templates>
             <maui:TypeDataTemplate Type="{x:Type viewmodels:MediaViewModel}"
-                                   Template="{DataTemplate views:CompactMediaView}" />
+                                   Template="{DataTemplate views:MediaThumbnailView}" />
             <maui:TypeDataTemplate Type="{x:Type viewmodels:TVEpisodeViewModel}"
-                                   Template="{DataTemplate views:CompactEpisodeView}" />
+                                   Template="{DataTemplate views:EpisodeThumbnailView}" />
             <maui:TypeDataTemplate Type="{x:Type viewmodels:PersonViewModel}"
-                                   Template="{DataTemplate views:CompactPersonView}" />
+                                   Template="{DataTemplate views:PersonThumbnailView}" />
             <maui:TypeDataTemplate Type="{x:Type viewmodels:TVSeasonViewModel}"
-                                   Template="{DataTemplate views:CompactTVSeasonView}" />
+                                   Template="{DataTemplate views:TVSeasonThumbnailView}" />
             <maui:TypeDataTemplate Type="{x:Type viewmodels:CollectionViewModel}"
-                                   Template="{DataTemplate views:CompactCollectionView}" />
+                                   Template="{DataTemplate views:CollectionThumbnailView}" />
         </maui:TypeTemplateSelector.Templates>
     </maui:TypeTemplateSelector>
 

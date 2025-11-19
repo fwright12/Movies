@@ -3,7 +3,7 @@
                           xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
                           xmlns:views="clr-namespace:Movies.Views"
                           xmlns:viewmodels="clr-namespace:Movies.ViewModels"
-                          x:Class="Movies.Views.CompactTVSeasonView"
+                          x:Class="Movies.Views.TVSeasonThumbnailView"
                           x:DataType="viewmodels:TVSeasonViewModel"
                           Label="{Binding Number, StringFormat='Season {0}'}">
     <views:ImageView AltText="{Binding Name}"
