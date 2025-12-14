@@ -80,9 +80,6 @@
 	    <AutoGen>True</AutoGen>
 	    <DependentUpon>AppResources.resx</DependentUpon>
 	  </Compile>
-	  <Compile Update="Views\ItemDetail\CollectionDetailView.xaml.cs">
-	    <DependentUpon>CollectionDetailView.xaml</DependentUpon>
-	  </Compile>
 	  <Compile Update="Views\ItemListCompactView.xaml.cs">
 	    <DependentUpon>ItemListCompactView.xaml</DependentUpon>
 	  </Compile>
@@ -153,19 +150,7 @@
 	  <MauiXaml Update="Views\ItemThumbnail\TVSeasonThumbnailView.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
-	  <MauiXaml Update="Views\ItemDetail\CollectionDetailView.xaml">
-	    <Generator>MSBuild:Compile</Generator>
-	  </MauiXaml>
 	  <MauiXaml Update="Views\ItemListCompactView.xaml">
-	    <Generator>MSBuild:Compile</Generator>
-	  </MauiXaml>
-	  <MauiXaml Update="Views\ItemDetail\EpisodeDetailView.xaml">
-	    <Generator>MSBuild:Compile</Generator>
-	  </MauiXaml>
-	  <MauiXaml Update="Views\ItemDetail\MediaDetailView.xaml">
-	    <Generator>MSBuild:Compile</Generator>
-	  </MauiXaml>
-	  <MauiXaml Update="Views\ItemDetail\PersonDetailView.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
 	  <MauiXaml Update="Views\FullCollectionView.xaml">

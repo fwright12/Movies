@@ -1,8 +1,8 @@
 namespace Movies.Views;
 
-public partial class CondensedItemList : SectionView
+public partial class ItemListCompactView : SectionView
 {
-	public CondensedItemList()
+	public ItemListCompactView()
 	{
 		InitializeComponent();
 	}

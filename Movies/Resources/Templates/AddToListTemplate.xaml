@@ -77,7 +77,7 @@
                         SelectionMode="Multiple">
             <ItemsView.ItemTemplate>
                 <views:EditDataTemplateSelector EditTemplate="{StaticResource EditListTemplate}"
-                                                Main="{DataTemplate views:CollectionDetailView}" />
+                                                Main="{StaticResource CollectionDetailTemplate}" />
             </ItemsView.ItemTemplate>
         </CollectionView>
 

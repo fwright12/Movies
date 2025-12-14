@@ -19,14 +19,9 @@ namespace Movies.Views
             DetailView view = (DetailView)bindable;
             DataTemplate template = (DataTemplate)newValue;
 
-            View content = (View)template.CreateContent();
-            content.SetBinding(BindingContextProperty, new Binding(nameof(BindingContext), source: view));
-
-            view.ThumbnailView = content;
+            view.ThumbnailView = (View)template.CreateContent();
             view.OnPropertyChanged(nameof(ThumbnailView));
         });//, propertyChanged: (bindable, oldValue, newValue) => ((CollectionItemView)bindable).UpdateThumbnail());
-
-        public static readonly BindableProperty DetailPageTemplateProperty = BindableProperty.Create(nameof(DetailPageTemplate), typeof(DataTemplate), typeof(DetailView));
 
         public string Title
         {
@@ -41,12 +36,6 @@ namespace Movies.Views
         }
 
         public View ThumbnailView { get; private set; }
-
-        public DataTemplate DetailPageTemplate
-        {
-            get => (DataTemplate)GetValue(DetailPageTemplateProperty);
-            set => SetValue(DetailPageTemplateProperty, value);
-        }
 
         //private ContentView ThumbnailView;
 

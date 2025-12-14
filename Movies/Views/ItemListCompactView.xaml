@@ -5,7 +5,7 @@
                    xmlns:strings="clr-namespace:Movies.Resources.Strings"
                    xmlns:viewmodels="clr-namespace:Movies.ViewModels"
                    xmlns:views="clr-namespace:Movies.Views"
-                   x:Class="Movies.Views.CondensedItemList"
+                   x:Class="Movies.Views.ItemListCompactView"
                    x:DataType="viewmodels:CollectionViewModel"
                    Title="{Binding Name}">
     <views:SectionView.Header>
@@ -24,7 +24,7 @@
     <Grid BindingContext="{Binding Source}"
           x:DataType="{x:Null}">
         <CollectionView ItemsSource="{Binding Items}"
-                        ItemTemplate="{StaticResource CompressedListSelector}"
+                        ItemTemplate="{StaticResource ItemThumbnailTemplateSelector}"
                         RemainingItemsThreshold="4"
                         Style="{StaticResource AsyncListViewModelCollectionViewStyle}">
             <CollectionView.ItemsLayout>

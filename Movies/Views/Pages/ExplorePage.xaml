@@ -27,7 +27,7 @@
 
         <ItemsView.ItemTemplate>
             <DataTemplate>
-                <views:CondensedItemList HeightRequest="250" />
+                <views:ItemListCompactView HeightRequest="250" />
             </DataTemplate>
         </ItemsView.ItemTemplate>
 

@@ -128,12 +128,12 @@
                     </ControlTemplate>
 
                     <views:EditDataTemplateSelector x:Key="EditListSelector"
-                                                    Main="{StaticResource DetailTemplateSelector}"
+                                                    Main="{StaticResource ItemDetailTemplateSelector}"
                                                     SwipeTemplate="{StaticResource ListSwipeTemplate}"
                                                     EditTemplate="{StaticResource EditListTemplate}" />
 
                     <views:EditDataTemplateSelector x:Key="EditGridSelector"
-                                                    Main="{StaticResource CompressedListSelector}"
+                                                    Main="{StaticResource ItemThumbnailTemplateSelector}"
                                                     EditTemplate="{StaticResource EditGridTemplate}" />
                 </VisualElement.Resources>
 
@@ -145,7 +145,7 @@
                                     <Binding Path="Editable">
                                         <Binding.Converter>
                                             <maui:BoolToObjectConverter TrueObject="{StaticResource EditListSelector}"
-                                                                        FalseObject="{StaticResource DetailTemplateSelector}" />
+                                                                        FalseObject="{StaticResource ItemDetailTemplateSelector}" />
                                         </Binding.Converter>
                                     </Binding>
                                 </Setter>
@@ -163,7 +163,7 @@
                                     <Binding Path="Editable">
                                         <Binding.Converter>
                                             <maui:BoolToObjectConverter TrueObject="{StaticResource EditGridSelector}"
-                                                                        FalseObject="{StaticResource CompressedListSelector}" />
+                                                                        FalseObject="{StaticResource ItemThumbnailTemplateSelector}" />
                                         </Binding.Converter>
                                     </Binding>
                                 </Setter>

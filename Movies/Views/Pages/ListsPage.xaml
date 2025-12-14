@@ -15,7 +15,7 @@
             <CollectionView.ItemTemplate>
                 <views:EditDataTemplateSelector SwipeTemplate="{StaticResource SwipeTemplate}"
                                                 EditTemplate="{StaticResource EditListTemplate}"
-                                                Main="{DataTemplate views:CollectionDetailView}" />
+                                                Main="{StaticResource ItemDetailTemplateSelector}" />
             </CollectionView.ItemTemplate>
 
             <View.Margin>
@@ -45,7 +45,7 @@
 
                         <BindableLayout.ItemTemplate>
                             <DataTemplate>
-                                <views:CondensedItemList HeightRequest="250" />
+                                <views:ItemListCompactView HeightRequest="250" />
                             </DataTemplate>
                         </BindableLayout.ItemTemplate>
                     </StackLayout>

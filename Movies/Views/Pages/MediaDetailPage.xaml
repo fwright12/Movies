@@ -71,7 +71,7 @@
                             </Style>
 
                             <Style x:Key="ItemListTemplate"
-                                   TargetType="views:CondensedItemList">
+                                   TargetType="views:ItemListCompactView">
                                 <Setter Property="IsVisible"
                                         Value="{Binding Converter={maui:ServicesInstance Type={x:Type maui:FalseIfNullConverter}}}" />
                                 <Setter Property="HeightRequest"
@@ -120,8 +120,8 @@
                         </VerticalStackLayout>
                     </ContentView>
 
-                    <views:CondensedItemList BindingContext="{Binding Seasons, Source={RelativeSource AncestorType={x:Type viewmodels:MediaViewModel}}}"
-                                             Style="{StaticResource ItemListTemplate}" />
+                    <views:ItemListCompactView BindingContext="{Binding Seasons, Source={RelativeSource AncestorType={x:Type viewmodels:MediaViewModel}}}"
+                                               Style="{StaticResource ItemListTemplate}" />
 
                     <!--<ContentView x:DataType="viewmodels:TVShowViewModel"
                              ext:ContentView.ItemSource="{Binding Seasons}"
@@ -141,6 +141,7 @@
 
                     <views:SectionView Title="{Static strings:AppResources.WhereToWatchHeader}"
                                        ext:ContentView.ItemSource="{Binding WatchProviders, TargetNullValue={StaticResource EmptyWatchProviders}}"
+                                       HeightRequest="100"
                                        Style="{StaticResource InfoSectionStyle}">
                         <views:SectionView.Header>
                             <DataTemplate>
@@ -161,25 +162,25 @@
                         </views:SectionView.Header>
                     </views:SectionView>
 
-                    <!--<views:SectionView Title="{Static strings:AppResources.PeopleHeader}"
-                                   Style="{StaticResource InfoSectionStyle}">
-                    <StackLayout Orientation="Vertical">
-                        <views:SectionView Title="{Static strings:AppResources.CastSubheader}"
-                                           ext:ContentView.ItemSource="{Binding Cast, TargetNullValue={StaticResource EmptyCredits}}"
-                                           Style="{StaticResource InfoSubsectionStyle}" />
+                    <views:SectionView Title="{Static strings:AppResources.PeopleHeader}"
+                                       Style="{StaticResource InfoSectionStyle}">
+                        <VerticalStackLayout>
+                            <views:SectionView Title="{Static strings:AppResources.CastSubheader}"
+                                               ext:ContentView.ItemSource="{Binding Cast, TargetNullValue={StaticResource EmptyCredits}}"
+                                               Style="{StaticResource InfoSubsectionStyle}" />
 
-                        <views:SectionView Title="{Static strings:AppResources.CrewSubheader}"
-                                           ext:ContentView.ItemSource="{Binding Crew, TargetNullValue={StaticResource EmptyCredits}}"
-                                           Style="{StaticResource InfoSubsectionStyle}" />
-                    </StackLayout>
-                </views:SectionView>-->
+                            <views:SectionView Title="{Static strings:AppResources.CrewSubheader}"
+                                               ext:ContentView.ItemSource="{Binding Crew, TargetNullValue={StaticResource EmptyCredits}}"
+                                               Style="{StaticResource InfoSubsectionStyle}" />
+                        </VerticalStackLayout>
+                    </views:SectionView>
 
                     <maui:AdView Style="{StaticResource InlineBannerAdStyle}"
                                  AdUnitID="{Static movies:App.InlineBannerAdUnitID2}" />
 
                     <views:SectionView Title="{Static strings:AppResources.ProductionHeader}"
                                        Style="{StaticResource InfoSectionStyle}">
-                        <StackLayout Orientation="Vertical">
+                        <VerticalStackLayout>
                             <views:SectionView Title="{Static strings:AppResources.CompaniesSubheader}"
                                                ext:ContentView.ItemSource="{Binding ProductionCompanies, TargetNullValue={StaticResource EmptyCompanies}}"
                                                Style="{StaticResource InfoSubsectionStyle}" />
@@ -196,30 +197,30 @@
                             <views:LabeledLabel x:DataType="viewmodels:MovieViewModel"
                                                 Label="{Static strings:AppResources.RevenueLabel}"
                                                 Value="{Binding Revenue, StringFormat='{0:C}'}" />
-                        </StackLayout>
+                        </VerticalStackLayout>
                     </views:SectionView>
 
                     <views:SectionView Title="{Static strings:AppResources.AddtionalInfoHeader}"
                                        Style="{StaticResource InfoSectionStyle}">
-                        <StackLayout Orientation="Vertical">
+                        <VerticalStackLayout>
                             <views:LabeledLabel Label="{Static strings:AppResources.OriginalTitleLabel}"
                                                 Value="{Binding OriginalTitle, TargetNullValue={Static x:String.Empty}}" />
 
                             <views:LabeledLabel Label="{Static strings:AppResources.OriginalLanguageLabel}"
                                                 Value="{Binding OriginalLanguage, TargetNullValue={Static x:String.Empty}}" />
-                        </StackLayout>
+                        </VerticalStackLayout>
                     </views:SectionView>
 
-                    <views:CondensedItemList BindingContext="{Binding ParentCollection, Source={RelativeSource AncestorType={x:Type viewmodels:MediaViewModel}}}"
-                                             Style="{StaticResource ItemListTemplate}" />
+                    <views:ItemListCompactView BindingContext="{Binding ParentCollection, Source={RelativeSource AncestorType={x:Type viewmodels:MediaViewModel}}}"
+                                               Style="{StaticResource ItemListTemplate}" />
 
                     <!--<ContentView x:DataType="viewmodels:MovieViewModel"
                              ext:ContentView.ItemSource="{Binding ParentCollection}"
                              HeightRequest="200"
                              Style="{StaticResource InfoSectionStyle}" />-->
 
-                    <views:CondensedItemList BindingContext="{Binding Recommended, Source={RelativeSource AncestorType={x:Type viewmodels:MediaViewModel}}}"
-                                             Style="{StaticResource ItemListTemplate}" />
+                    <views:ItemListCompactView BindingContext="{Binding Recommended, Source={RelativeSource AncestorType={x:Type viewmodels:MediaViewModel}}}"
+                                               Style="{StaticResource ItemListTemplate}" />
 
                     <!--<ContentView ext:ContentView.ItemSource="{Binding Recommended}"
                              HeightRequest="200"

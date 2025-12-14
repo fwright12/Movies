@@ -773,7 +773,7 @@
             <DataTemplate>
                 <TapGestureRecognizer CommandParameter="{Binding}">
                     <TapGestureRecognizer.Command>
-                        <views:PushPageCommand PageTemplate="{StaticResource OpenPageSelector}" />
+                        <views:PushPageCommand PageTemplate="{StaticResource ItemPageTemplateSelector}" />
                     </TapGestureRecognizer.Command>
                 </TapGestureRecognizer>
             </DataTemplate>
@@ -1055,7 +1055,8 @@
 
     <Style TargetType="Label"
            BasedOn="{StaticResource BodyLabel}"
-           ApplyToDerivedTypes="True">
+           ApplyToDerivedTypes="True"
+           CanCascade="True">
         <!--<Setter Property="TextColor"
                     Value="{AppThemeBinding Light={StaticResource Black}, Dark={StaticResource White}}" />-->
         <Setter Property="BackgroundColor"

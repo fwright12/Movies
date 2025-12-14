@@ -254,14 +254,18 @@ namespace Movies
                     continue;
                 }
 
+                Size measure;
                 if (child is View view && view.IsSet(CrossAxisLayoutOptions) && (LayoutOptions)view.GetValue(CrossAxisLayoutOptions) == LayoutOptions.Fill)
                 {
                     deferred.Add(view);
-                    continue;
+                    measure = new Size(view.MinimumWidthRequest, view.MinimumHeightRequest);
+                }
+                else
+                {
+                    measure = MeasureChild(child, double.PositiveInfinity, crossAxisConstraint - GetCrossAxisThickness(padding));
+                    mainAxisSize += GetMainAxisDimension(measure);
                 }
 
-                var measure = MeasureChild(child, double.PositiveInfinity, crossAxisConstraint - GetCrossAxisThickness(padding));
-                mainAxisSize += GetMainAxisDimension(measure);
                 crossAxisSize = Math.Max(crossAxisSize, GetCrossAxisDimension(measure));
             }
 

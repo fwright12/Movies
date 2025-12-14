@@ -91,18 +91,19 @@
 
     <DataTemplate x:Key="WatchProviderTemplate"
                   x:DataType="models:WatchProvider">
-        <FlexLayout Direction="Column">
+        <VerticalStackLayout>
             <views:ImageView Source="{Binding Company.LogoPath}"
-                             AspectRequest="1"
-                             MaximumHeightRequest="33"
-                             HorizontalOptions="Center" />
+                             ext:VisualElement.AspectRequest="1"
+                             HorizontalOptions="Center"
+                             FlexLayout.Grow="1" />
 
             <Label Text="{Binding Company.Name}"
                    HorizontalTextAlignment="Center"
+                   HorizontalOptions="Fill"
+                   FlexLayout.Shrink="0"
                    LineBreakMode="TailTruncation"
-                   MaximumWidthRequest="150"
-                   FlexLayout.Shrink="0" />
-        </FlexLayout>
+                   MinimumWidthRequest="100" />
+        </VerticalStackLayout>
     </DataTemplate>
 
     <DataTemplate x:Key="WatchProviderListTemplate">
@@ -126,40 +127,45 @@
 
     <DataTemplate x:Key="CreditTemplate"
                   x:DataType="models:Credit">
-        <Grid RowDefinitions="*, Auto">
-            <!--<View.GestureRecognizers>
-                <TapGestureRecognizer CommandParameter="{Binding Parent.Content.BindingContext, Source={RelativeSource Self}}">
-                    <TapGestureRecognizer.Command>
-                        <views:PushPageCommand PageTemplate="{DataTemplate views:PersonInfoPage}" />
-                    </TapGestureRecognizer.Command>
-                </TapGestureRecognizer>
-            </View.GestureRecognizers>-->
+        <VerticalStackLayout>
+            <VisualElement.Resources>
+                <Style TargetType="Label"
+                       BasedOn="{StaticResource BodyLabel}"
+                       ApplyToDerivedTypes="True">
+                    <Setter Property="LineBreakMode"
+                            Value="TailTruncation" />
+                    <Setter Property="HorizontalTextAlignment"
+                            Value="Center" />
+                    <Setter Property="FlexLayout.Shrink"
+                            Value="0" />
+                    <Setter Property="HorizontalOptions"
+                            Value="Fill" />
+                </Style>
+            </VisualElement.Resources>
 
-            <!--<ContentView Grid.Row="0"
-                         movies:App.AutoWireFromItem="{Binding Person, Source={RelativeSource AncestorType={x:Type models:Credit}}}"
-                         ext:ContentView.ItemSource="{Binding}"
-                         ext:ContentView.ContentTemplate="{DataTemplate views:CompactPersonView}" />-->
+            <views:PersonThumbnailView BindingContext="{Binding Person, Converter={maui:Converter Type={x:Type movies:ItemViewModelConverter}}}"
+                                       FlexLayout.Grow="1" />
 
-            <views:PersonThumbnailView Grid.Row="0"
-                                       BindingContext="{Binding Person, Converter={maui:Converter Type={x:Type movies:ItemViewModelConverter}}}" />
+            <maui:MaxSizeLabel Text="{Binding Person.Name}"
+                               MaxLines="2" />
 
-            <Label Grid.Row="1"
-                   Text="{Binding Role}"
-                   FontSize="Small"
-                   HorizontalOptions="Fill"
-                   HorizontalTextAlignment="Center"
-                   LineBreakMode="TailTruncation" />
-        </Grid>
+            <Label Text="{Binding Role}"
+                   FontSize="Small" />
+        </VerticalStackLayout>
     </DataTemplate>
 
     <DataTemplate x:Key="CreditListTemplate">
         <CollectionView ItemsSource="{Binding}"
                         ItemTemplate="{StaticResource CreditTemplate}"
-                        ItemsLayout="HorizontalList"
                         ItemSizingStrategy="{OnPlatform iOS='MeasureFirstItem'}"
                         HeightRequest="175"
                         EmptyView="{OnPlatform Android={Static strings:AppResources.CreditListEmptyView}}"
                         IsGrouped="True">
+            <CollectionView.ItemsLayout>
+                <LinearItemsLayout Orientation="Horizontal"
+                                   ItemSpacing="10" />
+            </CollectionView.ItemsLayout>
+
             <CollectionView.GroupHeaderTemplate>
                 <DataTemplate>
                     <Label Text="{Binding Name}"
@@ -218,7 +224,7 @@
     <maui:TypeTemplateSelector x:Key="InfoTemplateSelector">
         <maui:TypeTemplateSelector.Templates>
             <maui:TypeDataTemplate Type="{x:Type viewmodels:CollectionViewModel}"
-                                   Template="{DataTemplate views:CondensedItemList}" />
+                                   Template="{DataTemplate views:ItemListCompactView}" />
             <maui:TypeDataTemplate Type="{x:Type ImageSource}"
                                    Template="{StaticResource MediaTemplate}" />
             <maui:TypeDataTemplate Type="{x:Type x:String}"

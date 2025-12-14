@@ -10,19 +10,8 @@
                     xmlns:views="clr-namespace:Movies.Views"
                     xmlns:viewmodels="clr-namespace:Movies.ViewModels">
 
-    <Style TargetType="views:MediaDetailView"
+    <Style TargetType="views:DetailView"
            BasedOn="{StaticResource ClickableItemStyle}" />
-    
-    <Style TargetType="views:EpisodeDetailView"
-           BasedOn="{StaticResource ClickableItemStyle}" />
-    
-    <Style TargetType="views:PersonDetailView"
-           BasedOn="{StaticResource ClickableItemStyle}" />
-
-    <Style TargetType="views:CollectionDetailView"
-           BasedOn="{StaticResource ClickableItemStyle}" />
-    
-    
 
     <Style TargetType="views:MediaThumbnailView"
            BasedOn="{StaticResource ClickableItemStyle}" />
@@ -83,13 +72,222 @@
         </ContentPage>
     </DataTemplate>
 
-    <DataTemplate x:Key="MediaPageTemplate">
-        <views:MediaDetailPage />
+    <DataTemplate x:Key="MediaDetailTemplate"
+                  x:DataType="viewmodels:MediaViewModel">
+        <views:DetailView Title="{Binding Title}"
+                          ThumbnailTemplate="{DataTemplate views:MediaThumbnailView}">
+            <VerticalStackLayout Spacing="5">
+                <VisualElement.Resources>
+                    <Style TargetType="Label">
+                        <Setter Property="LineBreakMode"
+                                Value="TailTruncation" />
+                    </Style>
+
+                    <Style TargetType="Span"
+                           x:Key="SpacerSpan">
+                        <Setter Property="Text"
+                                Value=" &#183; " />
+                    </Style>
+                </VisualElement.Resources>
+
+                <VisualElement.Behaviors>
+                    <movies:BatchBehavior />
+                </VisualElement.Behaviors>
+
+                <Label LineBreakMode="NoWrap">
+                    <Label.FormattedText>
+                        <FormattedString>
+                            <Span>
+                                <Span.Text>
+                                    <MultiBinding x:DataType="viewmodels:TVShowViewModel"
+                                                  StringFormat="{}{0}{1}">
+                                        <Binding Path="FirstAirDate"
+                                                 StringFormat="{}{0:yyyy}-"
+                                                 TargetNullValue=""
+                                                 FallbackValue="" />
+                                        <Binding Path="LastAirDate"
+                                                 StringFormat="{}{0:yyyy}" />
+                                    </MultiBinding>
+                                </Span.Text>
+                            </Span>
+
+                            <Span x:DataType="viewmodels:MovieViewModel"
+                                  Text="{Binding Year, StringFormat='{}{0:yyyy}', FallbackValue=''}" />
+
+                            <Span Style="{StaticResource SpacerSpan}" />
+
+                            <Span Text="{Binding Runtime, Converter={maui:ServicesInstance Type={x:Type movies:HrMinConverter}}}" />
+
+                            <Span Style="{StaticResource SpacerSpan}" />
+
+                            <Span Text="{Binding ContentRating}" />
+                        </FormattedString>
+                    </Label.FormattedText>
+                </Label>
+
+                <Label Text="{Binding Genres, Converter={Static maui:StringJoinConverter.Instance}}" />
+
+                <HorizontalStackLayout BindableLayout.ItemsSource="{Binding Ratings}"
+                                       BindableLayout.EmptyView="{Static strings:AppResources.RatingListEmptyView}">
+                    <BindableLayout.ItemTemplate>
+                        <DataTemplate x:DataType="models:Rating">
+                            <HorizontalStackLayout Spacing="5">
+                                <Image Source="{Binding Company.LogoPath, Converter={StaticResource DefaultImageSourceConverter}}"
+                                       VerticalOptions="Fill" />
+
+                                <Label Text="{Binding Score}" />
+                            </HorizontalStackLayout>
+                        </DataTemplate>
+                    </BindableLayout.ItemTemplate>
+                </HorizontalStackLayout>
+
+                <Grid BindingContext="{Binding WatchProviders[0]}"
+                      ColumnSpacing="5"
+                      ColumnDefinitions="Auto, *">
+                    <Label Text="{Binding Name, StringFormat='{0}:', FallbackValue={Static strings:AppResources.WatchProvidersEmptyView}}" />
+
+                    <HorizontalStackLayout BindableLayout.ItemsSource="{Binding}"
+                                           Grid.Column="1">
+                        <BindableLayout.ItemTemplate>
+                            <DataTemplate x:DataType="models:WatchProvider">
+                                <Image Source="{Binding Company.LogoPath}"
+                                       ext:VisualElement.AspectRequest="1" />
+                            </DataTemplate>
+                        </BindableLayout.ItemTemplate>
+                    </HorizontalStackLayout>
+                </Grid>
+            </VerticalStackLayout>
+        </views:DetailView>
     </DataTemplate>
+
+    <DataTemplate x:Key="TVEpisodeDetailTemplate"
+                  x:DataType="viewmodels:TVEpisodeViewModel">
+        <views:DetailView>
+            <views:DetailView.Title>
+                <MultiBinding StringFormat="{}{0}. {1}">
+                    <Binding Path="Number" />
+                    <Binding Path="Title" />
+                </MultiBinding>
+            </views:DetailView.Title>
+
+            <views:DetailView.ThumbnailTemplate>
+                <DataTemplate>
+                    <VerticalStackLayout>
+                        <views:ImageView Source="{Binding PosterPath}"
+                                         Aspect="AspectFill"
+                                         ext:VisualElement.AspectRequest="1.778" />
+
+                        <Label Text="{Binding AirDate, StringFormat='{0:M/d/yy}', FallbackValue=''}"
+                               HorizontalTextAlignment="Center"
+                               LineBreakMode="NoWrap" />
+                    </VerticalStackLayout>
+                </DataTemplate>
+            </views:DetailView.ThumbnailTemplate>
+
+            <Label Text="{Binding Description}"
+                   LineBreakMode="TailTruncation"
+                   MaxLines="5" />
+        </views:DetailView>
+    </DataTemplate>
+
+    <DataTemplate x:Key="PersonDetailTemplate"
+                  x:DataType="viewmodels:PersonViewModel">
+        <views:DetailView Title="{Binding Name}">
+            <VerticalStackLayout>
+                <VisualElement.Resources>
+                    <Style TargetType="Label">
+                        <Setter Property="LineBreakMode"
+                                Value="TailTruncation" />
+                    </Style>
+                </VisualElement.Resources>
+
+                <VisualElement.Behaviors>
+                    <movies:BatchBehavior />
+                </VisualElement.Behaviors>
+
+                <Label>
+                    <Label.FormattedText>
+                        <FormattedString>
+                            <Span Text="{Binding Birthday, StringFormat='{0:d}'}" />
+                            <Span Text="{Binding Deathday, StringFormat='-{0:d}', TargetNullValue=''}" />
+                            <Span Text="{Binding Age, StringFormat=' ({0})', TargetNullValue=''}" />
+                        </FormattedString>
+                    </Label.FormattedText>
+                </Label>
+
+                <Label Text="{Binding Birthplace}" />
+            </VerticalStackLayout>
+        </views:DetailView>
+    </DataTemplate>
+
+    <DataTemplate x:Key="CollectionDetailTemplate"
+                  x:DataType="viewmodels:CollectionViewModel">
+        <views:DetailView Title="{Binding Name}"
+                          ThumbnailTemplate="{DataTemplate views:CollectionThumbnailView}">
+            <VerticalStackLayout>
+                <Label Style="{StaticResource MultiPartLabel}">
+                    <Label.FormattedText>
+                        <FormattedString>
+                            <Span>
+                                <Span.Text>
+                                    <MultiBinding StringFormat="{}{0} {1}">
+                                        <Binding Path="Count" />
+                                        <Binding Path="ListLabel"
+                                                 TargetNullValue="Items" />
+                                    </MultiBinding>
+                                </Span.Text>
+                            </Span>
+
+                            <Span Text="{Binding Author, FallbackValue=''}"
+                                  x:DataType="models:List" />
+                            <!--<Span x:DataType="models:List">
+                        <Span.Text>
+                            <Binding Path="Private"
+                                     TargetNullValue="{StaticResource DetailedTemplateNullValue}"
+                                     FallbackValue="">
+                                <Binding.Converter>
+                                    <views:BoolToObjectConverter TrueObject="Private"
+                                                                 FalseObject="Public" />
+                                </Binding.Converter>
+                            </Binding>
+                        </Span.Text>
+                    </Span>-->
+                        </FormattedString>
+                    </Label.FormattedText>
+                </Label>
+
+                <Label x:DataType="{x:Null}"
+                       Text="{Binding Item.Description, Converter={Static maui:NullIfEmptyConverter.Instance}, TargetNullValue={Static strings:AppResources.DescriptionNull}}"
+                       LineBreakMode="TailTruncation"
+                       MaxLines="3" />
+            </VerticalStackLayout>
+        </views:DetailView>
+    </DataTemplate>
+
+    <ControlTemplate x:Key="ItemDetailControlTemplate"
+                     x:DataType="views:DetailView">
+        <Grid ColumnDefinitions="100,*"
+              RowDefinitions="Auto,*"
+              RowSpacing="5"
+              ColumnSpacing="5">
+            <ContentView Content="{TemplateBinding ThumbnailView}"
+                         Grid.Column="0"
+                         Grid.RowSpan="2" />
+
+            <Label Text="{TemplateBinding Title}"
+                   LineBreakMode="TailTruncation"
+                   Style="{StaticResource PrimaryLabel}"
+                   Grid.Row="0"
+                   Grid.Column="1" />
+
+            <ContentPresenter Grid.Row="1"
+                              Grid.Column="1" />
+        </Grid>
+    </ControlTemplate>
 
     <!-- ================================== TEMPLATE SELECTORS ================================== -->
 
-    <maui:TypeTemplateSelector x:Key="CompressedListSelector">
+    <maui:TypeTemplateSelector x:Key="ItemThumbnailTemplateSelector">
         <maui:TypeTemplateSelector.Templates>
             <maui:TypeDataTemplate Type="{x:Type viewmodels:MediaViewModel}"
                                    Template="{DataTemplate views:MediaThumbnailView}" />
@@ -104,20 +302,24 @@
         </maui:TypeTemplateSelector.Templates>
     </maui:TypeTemplateSelector>
 
-    <maui:TypeTemplateSelector x:Key="DetailTemplateSelector">
-        <maui:TypeTemplateSelector.Templates>
-            <maui:TypeDataTemplate Type="{x:Type viewmodels:MediaViewModel}"
-                                   Template="{DataTemplate views:MediaDetailView}" />
-            <maui:TypeDataTemplate Type="{x:Type viewmodels:TVEpisodeViewModel}"
-                                   Template="{DataTemplate views:EpisodeDetailView}" />
-            <maui:TypeDataTemplate Type="{x:Type viewmodels:PersonViewModel}"
-                                   Template="{DataTemplate views:PersonDetailView}" />
-            <maui:TypeDataTemplate Type="{x:Type viewmodels:CollectionViewModel}"
-                                   Template="{DataTemplate views:CollectionDetailView}" />
-        </maui:TypeTemplateSelector.Templates>
-    </maui:TypeTemplateSelector>
+    <maui:ControlTemplateSelector x:Key="ItemDetailTemplateSelector"
+                                  x:TypeArguments="views:DetailView"
+                                  ControlTemplate="{StaticResource ItemDetailControlTemplate}">
+        <maui:TypeTemplateSelector>
+            <maui:TypeTemplateSelector.Templates>
+                <maui:TypeDataTemplate Type="{x:Type viewmodels:MediaViewModel}"
+                                       Template="{StaticResource MediaDetailTemplate}" />
+                <maui:TypeDataTemplate Type="{x:Type viewmodels:TVEpisodeViewModel}"
+                                       Template="{StaticResource TVEpisodeDetailTemplate}" />
+                <maui:TypeDataTemplate Type="{x:Type viewmodels:PersonViewModel}"
+                                       Template="{StaticResource PersonDetailTemplate}" />
+                <maui:TypeDataTemplate Type="{x:Type viewmodels:CollectionViewModel}"
+                                       Template="{StaticResource CollectionDetailTemplate}" />
+            </maui:TypeTemplateSelector.Templates>
+        </maui:TypeTemplateSelector>
+    </maui:ControlTemplateSelector>
 
-    <maui:TypeTemplateSelector x:Key="OpenPageSelector">
+    <maui:TypeTemplateSelector x:Key="ItemPageTemplateSelector">
         <maui:TypeTemplateSelector.Templates>
             <maui:TypeDataTemplate Type="{x:Type viewmodels:TVSeasonViewModel}"
                                    Template="{DataTemplate views:TVShowInfoPage}" />
