@@ -11,28 +11,11 @@
              x:DataType="viewmodels:MediaViewModel"
              Style="{StaticResource InfoPageStyle}">
     <AbsoluteLayout Style="{StaticResource BatchStyle}">
-        <views:ImageView x:Name="backgroundImage"
-                         Source="{Binding PosterPath, Converter={Static views:ImageSizeConverter.Instance}}"
-                         Aspect="AspectFill"
-                         BackgroundColor="DarkGray"
-                         AltText="{Binding Title}"
-                         AbsoluteLayout.LayoutBounds="0.5,0,1,300"
-                         AbsoluteLayout.LayoutFlags="PositionProportional,WidthProportional">
-            <TemplatedView.ControlTemplate>
-                <ControlTemplate x:DataType="views:ImageView">
-                    <AbsoluteLayout>
-                        <Label Text="{TemplateBinding AltText}"
-                               HorizontalTextAlignment="Center"
-                               VerticalTextAlignment="Center"
-                               Padding="10"
-                               AbsoluteLayout.LayoutBounds="0.5,0.5,1,1"
-                               AbsoluteLayout.LayoutFlags="All" />
-
-                        <ContentPresenter />
-                    </AbsoluteLayout>
-                </ControlTemplate>
-            </TemplatedView.ControlTemplate>
-        </views:ImageView>
+        <ContentView x:Name="backgroundImage"
+                     Content="{ext:ViewBinding Template={StaticResource ItemThumbnailTemplateSelector}}"
+                     BackgroundColor="DarkGray"
+                     AbsoluteLayout.LayoutBounds="0,0,1,-1"
+                     AbsoluteLayout.LayoutFlags="WidthProportional" />
 
         <ScrollView Orientation="Vertical"
                     AbsoluteLayout.LayoutBounds="0,0,1,1"

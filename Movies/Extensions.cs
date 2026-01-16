@@ -311,54 +311,6 @@ namespace Movies.Views
         public static object GetBatch(this BindableObject bindable) => bindable.GetValue(BatchProperty);
         public static void SetBatch(this BindableObject bindable, object value) => bindable.SetValue(BatchProperty, value);
 
-        public static readonly BindableProperty AspectRequestProperty = BindableProperty.CreateAttached("AspectRequest", typeof(double), typeof(VisualElement), null, propertyChanged: (bindable, oldValue, newValue) =>
-        {
-            return;
-            var visualElement = (VisualElement)bindable;
-            var aspect = (double)newValue;
-
-            visualElement.RemoveBinding(VisualElement.WidthRequestProperty);
-            visualElement.RemoveBinding(VisualElement.HeightRequestProperty);
-
-            var source = new RelativeBindingSource(RelativeBindingSourceMode.Self);
-            visualElement.SetBinding(VisualElement.WidthRequestProperty, new Binding
-            {
-                Path = VisualElement.HeightProperty.PropertyName,
-                Source = source,
-                Converter = new ConverterFunc((value, _, _, _) =>
-                {
-                    Print.Log("height is " + value);
-                    if ((double)value <= 0)
-                    {
-                        return -1;
-                        //return value;
-                    }
-
-                    return ((double)value) / aspect;
-                }, null)
-            });
-            visualElement.SetBinding(VisualElement.HeightRequestProperty, new Binding
-            {
-                Path = VisualElement.WidthProperty.PropertyName,
-                Source = source,
-                Converter = new ConverterFunc((value, _, _, _) =>
-            {
-                Print.Log("width is " + value);
-                if ((double)value <= 0)
-                {
-                    return -1;
-                    //return value;
-                }
-
-                return ((double)value) * aspect;
-            }, null)
-            });
-        }, defaultValueCreator: bindable =>
-        {
-            ((VisualElement)bindable).SizeChanged += AdjustAspect;
-            return null;
-        });
-
         private class ConverterFunc : IValueConverter
         {
             public Func<object?, Type, object?, CultureInfo, object?> ConvertFunc { get; }
@@ -374,72 +326,6 @@ namespace Movies.Views
 
             public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => ConvertBackFunc?.Invoke(value, targetType, parameter, culture);
         }
-
-        private static void AdjustAspect(object sender, EventArgs e)
-        {
-            var visualElement = (VisualElement)sender;
-
-            double aspect = visualElement.Width / visualElement.Height;
-            double request = GetAspectRequest(visualElement);
-
-#if DEBUG
-            if (sender is ImageView image && image.AltText?.ToLower() == "m. m.")
-            //if (request == 5)
-            {
-                Print.Log(visualElement.IsSet(VisualElement.WidthRequestProperty), visualElement.IsSet(VisualElement.HeightRequestProperty));
-                ;
-            }
-#endif
-
-            if (request > aspect && !visualElement.IsSet(VisualElement.WidthRequestProperty))
-            {
-                visualElement.WidthRequest = request * visualElement.Height;
-            }
-            else if (request < aspect && !visualElement.IsSet(VisualElement.HeightRequestProperty))
-            {
-                visualElement.HeightRequest = visualElement.Width / request;
-            }
-            else if (request < aspect)
-            {
-                visualElement.WidthRequest = request * visualElement.Height;
-            }
-            else if (request > aspect)
-            {
-                visualElement.HeightRequest = visualElement.Width / request;
-            }
-            return;
-
-            Size size = new Size();
-
-            if (!visualElement.IsSet(VisualElement.WidthRequestProperty) || !visualElement.IsSet(VisualElement.HeightRequestProperty))
-            {
-                visualElement.WidthRequest = visualElement.Width;
-                visualElement.HeightRequest = visualElement.Width / request;
-            }
-
-            //visualElement.WidthRequest = visualElement.IsSet(VisualElement.WidthRequestProperty) ? (aspect < request ? visualElement.Width : request * visualElement.Height) : Math.Max(visualElement.Width, request * visualElement.Height);
-            //visualElement.HeightRequest = visualElement.IsSet(VisualElement.HeightRequestProperty) ? (aspect < request ? visualElement.Width / request : visualElement.Height) : Math.Max(visualElement.Height, visualElement.Width / request);
-
-            /*if (!visualElement.IsSet(VisualElement.WidthRequestProperty) || !visualElement.IsSet(VisualElement.HeightRequestProperty))
-            {
-                visualElement.WidthRequest = request * visualElement.Height;
-                visualElement.HeightRequest = visualElement.Width / request;
-            }
-            else*/
-            else if (aspect < request)// && visualElement.Width < visualElement.Height))
-            {
-                visualElement.WidthRequest = visualElement.Width;
-                visualElement.HeightRequest = visualElement.Width / request;
-            }
-            else if (aspect > request)// && visualElement.Height < visualElement.Width))
-            {
-                visualElement.WidthRequest = request * visualElement.Height;
-                visualElement.HeightRequest = visualElement.Height;
-            }
-        }
-
-        public static double GetAspectRequest(this VisualElement visualElement) => (double)visualElement.GetValue(AspectRequestProperty);
-        public static void SetAspectRequest(this VisualElement visualElement, double value) => visualElement.SetValue(AspectRequestProperty, value);
 
         public static readonly BindableProperty ItemsSourceProperty = BindableProperty.CreateAttached("ItemsSource", typeof(object), typeof(ItemsView), null, propertyChanged: (bindable, oldValue, newValue) =>
         {

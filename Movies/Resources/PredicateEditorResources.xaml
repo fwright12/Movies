@@ -291,9 +291,9 @@
 
             <ItemsView.ItemTemplate>
                 <DataTemplate>
-                    <views:ImageView AltText="{Binding Value.RHS.Company.Name}"
-                                     WidthRequest="50"
-                                     Padding="0, 5">
+                    <ext:ImageView AltView="{Binding Value.RHS.Company.Name}"
+                                   WidthRequest="50"
+                                   Padding="0, 5">
                         <VisualStateManager.VisualStateGroups>
                             <VisualStateGroup>
                                 <VisualState Name="Normal">
@@ -315,7 +315,7 @@
                         </VisualStateManager.VisualStateGroups>
 
                         <Image Source="{Binding Value.RHS.Company.LogoPath, Converter={Static forms:UrlToUriImageSourceConverter.Instance}, ConverterParameter={Static movies:TMDB.PROPERTY_VALUES_CACHE_DURATION}}" />
-                    </views:ImageView>
+                    </ext:ImageView>
                 </DataTemplate>
             </ItemsView.ItemTemplate>
         </CollectionView>

@@ -6,11 +6,5 @@
                           x:Class="Movies.Views.TVSeasonThumbnailView"
                           x:DataType="viewmodels:TVSeasonViewModel"
                           Label="{Binding Number, StringFormat='Season {0}'}">
-    <views:ImageView AltText="{Binding Name}"
-                     HorizontalOptions="Center"
-                     Style="{StaticResource PosterStyle}">
-        <Image x:DataType="{x:Null}"
-               Source="{Binding Item.PosterPath}"
-               Aspect="AspectFill" />
-    </views:ImageView>
+    <views:MediaThumbnailView BindingContext="{Binding Item}" />
 </views:LabeledContentView>

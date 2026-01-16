@@ -83,7 +83,7 @@
 	  <Compile Update="Views\ItemListCompactView.xaml.cs">
 	    <DependentUpon>ItemListCompactView.xaml</DependentUpon>
 	  </Compile>
-	  <Compile Update="Views\ItemDetail\DetailView.xaml.cs">
+	  <Compile Update="Views\DetailView.xaml.cs">
 	    <DependentUpon>DetailView.xaml</DependentUpon>
 	  </Compile>
 	  <Compile Update="Views\ItemThumbnail\CollectionThumbnailView.xaml.cs">

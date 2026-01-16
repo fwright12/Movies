@@ -1,9 +1,9 @@
-namespace Movies.Views;
+namespace Movies.Views; 
 
-public partial class CollectionThumbnailView : ImageView
+public partial class CollectionThumbnailView : Border
 {
-	public CollectionThumbnailView()
-	{
-		InitializeComponent();
-	}
+    public CollectionThumbnailView()
+    {
+        InitializeComponent();
+    }
 }

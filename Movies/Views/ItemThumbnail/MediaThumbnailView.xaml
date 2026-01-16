@@ -1,10 +1,24 @@
 <?xml version="1.0" encoding="utf-8" ?>
-<views:ImageView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
-                 xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-                 xmlns:views="clr-namespace:Movies.Views"
-                 xmlns:viewmodels="clr-namespace:Movies.ViewModels"
-                 x:Class="Movies.Views.MediaThumbnailView"
-                 x:DataType="viewmodels:MediaViewModel"
-                 Source="{Binding PosterPath}"
-                 AltText="{Binding Title}"
-                 Style="{StaticResource PosterStyle}" />
+<Border xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+        xmlns:ext="clr-namespace:Microsoft.Maui.Controls.Extensions;assembly=MauiExtensions"
+        xmlns:maui="clr-namespace:Microsoft.Maui.Controls;assembly=MauiExtensions"
+        xmlns:movies="clr-namespace:Movies"
+        x:Class="Movies.Views.MediaThumbnailView"
+        Style="{StaticResource PosterStyle}">
+    <ext:ImageView AltView="{Binding Name}">
+        <ext:ImageView.Source>
+            <FileImageSource>
+                <FileImageSource.File>
+                    <MultiBinding Converter="{maui:Converter Type={x:Type movies:ImageSizeConverter}}">
+                        <Binding Path="PosterPath" />
+                        <Binding Path="Parent.Width"
+                                 Source="{RelativeSource Self}" />
+                        <Binding Path="Parent.Height"
+                                 Source="{RelativeSource Self}" />
+                    </MultiBinding>
+                </FileImageSource.File>
+            </FileImageSource>
+        </ext:ImageView.Source>
+    </ext:ImageView>
+</Border>

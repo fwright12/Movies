@@ -26,13 +26,6 @@
                             Value="{Binding Value}" />
     </DataTemplate>
 
-    <DataTemplate x:Key="MediaTemplate">
-        <views:ImageView ext:ContentView.ContentTemplate="{StaticResource MediaTemplateSelector}"
-                         ext:ContentView.ItemSource="{Binding}"
-                         VerticalOptions="Start"
-                         AltText="Content not available" />
-    </DataTemplate>
-
     <DataTemplate x:Key="ExternalRatingTemplate"
                   x:DataType="models:Rating">
         <Border Style="{StaticResource CardStyle}">
@@ -92,17 +85,15 @@
     <DataTemplate x:Key="WatchProviderTemplate"
                   x:DataType="models:WatchProvider">
         <VerticalStackLayout>
-            <views:ImageView Source="{Binding Company.LogoPath}"
-                             ext:VisualElement.AspectRequest="1"
-                             HorizontalOptions="Center"
-                             FlexLayout.Grow="1" />
+            <ext:ImageView Source="{Binding Company.LogoPath}"
+                           ext:VisualElement.AspectRequest="1"
+                           HorizontalOptions="Center"
+                           FlexLayout.Grow="1" />
 
             <Label Text="{Binding Company.Name}"
                    HorizontalTextAlignment="Center"
-                   HorizontalOptions="Fill"
                    FlexLayout.Shrink="0"
-                   LineBreakMode="TailTruncation"
-                   MinimumWidthRequest="100" />
+                   LineBreakMode="TailTruncation" />
         </VerticalStackLayout>
     </DataTemplate>
 
@@ -225,8 +216,8 @@
         <maui:TypeTemplateSelector.Templates>
             <maui:TypeDataTemplate Type="{x:Type viewmodels:CollectionViewModel}"
                                    Template="{DataTemplate views:ItemListCompactView}" />
-            <maui:TypeDataTemplate Type="{x:Type ImageSource}"
-                                   Template="{StaticResource MediaTemplate}" />
+            <!--<maui:TypeDataTemplate Type="{x:Type ImageSource}"
+                                   Template="{StaticResource MediaTemplateSelector}" />-->
             <maui:TypeDataTemplate Type="{x:Type x:String}"
                                    Template="{StaticResource DefaultTemplate}" />
 
@@ -340,19 +331,17 @@
                         AlignItems="Start"
                         JustifyContent="Center"
                         Wrap="Wrap">
-                <!--<views:MaxContentView MaxWidth="177.778"
-                                      MaxHeight="200"
-                                      IsVisible="{Binding Content.IsVisible, Source={RelativeSource Self}}">
-                </views:MaxContentView>-->
-
-                <views:ImageView ext:ContentView.ItemSource="{Binding PrimaryImagePath}"
-                                 ext:ContentView.ContentTemplate="{StaticResource MediaTemplateSelector}"
-                                 MaximumWidthRequest="177.78"
-                                 MaximumHeightRequest="200"
+                <Grid HeightRequest="200"
+                      IsVisible="false">
+                    <ContentView x:Name="mediaContent"
+                                 Content="{ext:ViewBinding PrimaryImagePath, Template={StaticResource MediaTemplateSelector}}"
                                  IsVisible="{Binding Content.IsVisible, Source={RelativeSource Self}}"
                                  Style="{StaticResource OptionalContentViewStyle}"
-                                 AltText="Content not available"
                                  Margin="0,0,10,10" />
+
+                    <ContentView Content="{ext:ViewBinding Source='Content not available', Template={StaticResource ImageAltViewTemplate}}"
+                                 WidthRequest="{Binding Width, Source={x:Reference mediaContent}}" />
+                </Grid>
 
                 <ContentPresenter FlexLayout.Grow="1" />
             </FlexLayout>

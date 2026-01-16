@@ -48,6 +48,29 @@
         </Setter>
     </Style>
 
+    <Style TargetType="Border"
+           x:Key="ThumbnailStyle">
+        <Setter Property="Stroke"
+                Value="{AppThemeBinding Light={StaticResource LightPrimaryText}, Dark={StaticResource DarkPrimaryText}}" />
+        <Setter Property="StrokeThickness"
+                Value="0" />
+        <Setter Property="StrokeShape">
+            <RoundRectangle CornerRadius="10" />
+        </Setter>
+    </Style>
+
+    <Style TargetType="Border"
+           x:Key="PosterStyle"
+           Class="Poster"
+           BasedOn="{StaticResource ThumbnailStyle}">
+        <!--<Setter Property="CornerRadius"
+    Value="10" />-->
+        <Setter Property="ext:VisualElement.AspectRequest"
+                Value="{StaticResource PosterRatio}" />
+        <!--<Setter Property="Aspect"
+    Value="AspectFill" />-->
+    </Style>
+
     <!--<Style TargetType="BoxView">
         <Setter Property="BackgroundColor"
                 Value="{AppThemeBinding Light={StaticResource Gray950}, Dark={StaticResource Gray200}}" />
@@ -313,39 +336,20 @@
         </Setter>
     </Style>
 
-    <Style TargetType="views:ImageView"
-           x:Key="ImageStyle"
-           ApplyToDerivedTypes="True">
-        <Setter Property="ControlTemplate">
-            <ControlTemplate x:DataType="views:ImageView">
-                <AbsoluteLayout>
-                    <Border Stroke="{AppThemeBinding Light={StaticResource LightPrimaryText}, Dark={StaticResource DarkPrimaryText}}"
-                            AbsoluteLayout.LayoutBounds="0.5,0.5,1,1"
-                            AbsoluteLayout.LayoutFlags="All">
-                        <Border.StrokeShape>
-                            <RoundRectangle CornerRadius="{TemplateBinding CornerRadius}" />
-                        </Border.StrokeShape>
+    <DataTemplate x:Key="ImageAltViewTemplate">
+        <Border Stroke="{AppThemeBinding Light={StaticResource LightPrimaryText}, Dark={StaticResource DarkPrimaryText}}"
+                StrokeShape="{Binding Parent.StrokeShape, Source={RelativeSource AncestorType={x:Type ext:ImageView}}}">
+            <Label Text="{Binding}"
+                   HorizontalTextAlignment="Center"
+                   VerticalTextAlignment="Center"
+                   Padding="10" />
+        </Border>
+    </DataTemplate>
 
-                        <Label Text="{TemplateBinding AltText}"
-                               HorizontalTextAlignment="Center"
-                               VerticalTextAlignment="Center"
-                               Padding="10" />
-                    </Border>
-
-                    <ContentPresenter />
-                </AbsoluteLayout>
-            </ControlTemplate>
-        </Setter>
-    </Style>
-
-    <Style TargetType="views:ImageView"
-           x:Key="PersonImageStyle"
-           BasedOn="{StaticResource ImageStyle}"
-           ApplyToDerivedTypes="True">
-        <Setter Property="AltText"
-                Value="{Binding Name, Converter={Static movies:InitialsConverter.Instance}}" />
-        <Setter Property="Source"
-                Value="{Binding ProfilePath}" />
+    <Style TargetType="ext:ImageView"
+           x:Key="ImageStyle">
+        <Setter Property="AltViewTemplate"
+                Value="{StaticResource ImageAltViewTemplate}" />
     </Style>
 
     <Style TargetType="IndicatorView">
@@ -1035,19 +1039,8 @@
         </Style.Triggers>
     </Style>
 
-    <Style TargetType="views:ImageView"
+    <Style TargetType="ext:ImageView"
            BasedOn="{StaticResource ImageStyle}" />
-
-    <Style TargetType="views:ImageView"
-           BasedOn="{StaticResource ImageStyle}"
-           x:Key="PosterStyle">
-        <Setter Property="CornerRadius"
-                Value="10" />
-        <Setter Property="ext:VisualElement.AspectRequest"
-                Value="{StaticResource PosterRatio}" />
-        <Setter Property="Aspect"
-                Value="AspectFill" />
-    </Style>
 
     <Style TargetType="ItemsView"
            BasedOn="{StaticResource ItemsViewStyle}"

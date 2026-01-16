@@ -1,9 +1,9 @@
 namespace Movies.Views;
 
-public partial class PersonThumbnailView : ImageView
+public partial class PersonThumbnailView : Border
 {
-	public PersonThumbnailView()
-	{
-		InitializeComponent();
-	}
+    public PersonThumbnailView()
+    {
+        InitializeComponent();
+    }
 }

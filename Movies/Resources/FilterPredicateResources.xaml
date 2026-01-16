@@ -176,7 +176,7 @@
     </DataTemplate>
 
     <DataTemplate x:Key="PredicateRHSOnlyTemplate1">
-        <ContentView Content="{Binding Value.RHS, Converter={Static ext:TemplatedContentConverter.Instance}, ConverterParameter={StaticResource PredicateRHSTemplateSelector}}" />
+        <ContentView Content="{ext:ViewBinding Value.RHS, Template={StaticResource PredicateRHSTemplateSelector}}" />
     </DataTemplate>
 
     <DataTemplate x:Key="PredicateOperatorRHSTemplate">

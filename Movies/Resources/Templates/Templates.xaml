@@ -173,9 +173,9 @@
             <views:DetailView.ThumbnailTemplate>
                 <DataTemplate>
                     <VerticalStackLayout>
-                        <views:ImageView Source="{Binding PosterPath}"
-                                         Aspect="AspectFill"
-                                         ext:VisualElement.AspectRequest="1.778" />
+                        <ext:ImageView Source="{Binding PosterPath}"
+                                       Aspect="AspectFill"
+                                       ext:VisualElement.AspectRequest="1.778" />
 
                         <Label Text="{Binding AirDate, StringFormat='{0:M/d/yy}', FallbackValue=''}"
                                HorizontalTextAlignment="Center"
@@ -271,6 +271,7 @@
               RowSpacing="5"
               ColumnSpacing="5">
             <ContentView Content="{TemplateBinding ThumbnailView}"
+                         VerticalOptions="Center"
                          Grid.Column="0"
                          Grid.RowSpan="2" />
 

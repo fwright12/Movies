@@ -27,7 +27,7 @@
                         StrokeShape="RoundRectangle 10"
                         Stroke="{StaticResource Primary}"
                         Margin="2">
-                    <ContentView Content="{Binding Converter={Static ext:TemplatedContentConverter.Instance}, ConverterParameter={StaticResource NodeSelector}}">
+                    <ContentView Content="{ext:ViewBinding Template={StaticResource NodeSelector}}">
                         <ContentView.ControlTemplate>
                             <ControlTemplate>
                                 <HorizontalStackLayout BindingContext="{TemplateBinding BindingContext}">
