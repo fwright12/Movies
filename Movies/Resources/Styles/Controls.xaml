@@ -634,9 +634,13 @@
            ApplyToDerivedTypes="True">
         <Setter Property="ControlTemplate">
             <ControlTemplate>
-                <Grid RowDefinitions="Auto, *, Auto">
+                <Grid RowDefinitions="Auto, *, Auto"
+                      ColumnSpacing="5"
+                      RowSpacing="5">
                     <Grid ColumnDefinitions="*, Auto"
-                          Grid.Row="0">
+                          Grid.Row="0"
+                          ColumnSpacing="5"
+                          RowSpacing="5">
                         <Label Text="{TemplateBinding Title}"
                                Style="{StaticResource ValueDescriptorStyle}"
                                VerticalOptions="Center" />
@@ -829,8 +833,6 @@
 
     <Style TargetType="ContentPage"
            x:Key="InfoPageStyle">
-        <Setter Property="Title"
-                Value="{Binding Name}" />
         <Setter Property="Padding"
                 Value="0" />
         <!--<Setter Property="ios:NavigationPage.PrefersLargeTitles"
@@ -843,7 +845,7 @@
                     <VisualState Name="Poster">
                         <VisualState.Setters>
                             <Setter Property="Shell.NavBarIsVisible"
-                                    Value="False" />
+                                    Value="{OnPlatform True, Android=False}" />
                         </VisualState.Setters>
                     </VisualState>
 
@@ -851,6 +853,8 @@
                         <VisualState.Setters>
                             <Setter Property="Shell.NavBarIsVisible"
                                     Value="True" />
+                            <Setter Property="Title"
+                                    Value="{Binding Name}" />
                         </VisualState.Setters>
                     </VisualState>
                 </VisualStateGroup>
@@ -1073,6 +1077,17 @@
         </Setter>
     </Style>
 
+    <Style TargetType="Label"
+           BasedOn="{StaticResource BodyLabel}"
+           x:Key="CaptionStyle">
+        <Setter Property="LineBreakMode"
+                Value="TailTruncation" />
+        <Setter Property="HorizontalTextAlignment"
+                Value="Center" />
+        <Setter Property="HorizontalOptions"
+                Value="Fill" />
+    </Style>
+    
     <Style TargetType="Label"
            BasedOn="{StaticResource PrimaryLabel}"
            x:Key="ValueDescriptorStyle">

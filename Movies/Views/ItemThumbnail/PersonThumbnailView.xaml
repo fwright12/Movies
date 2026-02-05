@@ -1,15 +1,20 @@
 <?xml version="1.0" encoding="utf-8" ?>
-<Border xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-        xmlns:ext="clr-namespace:Microsoft.Maui.Controls.Extensions;assembly=MauiExtensions"
-        xmlns:movies="clr-namespace:Movies"
-        xmlns:views="clr-namespace:Movies.Views"
-        xmlns:viewmodels="clr-namespace:Movies.ViewModels"
-        x:Class="Movies.Views.PersonThumbnailView"
-        x:DataType="viewmodels:PersonViewModel"
-        StrokeShape="Ellipse"
-        ext:VisualElement.AspectRequest="1"
-        Style="{StaticResource ThumbnailStyle}">
-    <ext:ImageView AltView="{Binding Name, Converter={Static movies:InitialsConverter.Instance}}"
-                   Source="{Binding ProfilePath}" />
-</Border>
+<VerticalStackLayout xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+                     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+                     xmlns:ext="clr-namespace:Microsoft.Maui.Controls.Extensions;assembly=MauiExtensions"
+                     xmlns:movies="clr-namespace:Movies"
+                     xmlns:views="clr-namespace:Movies.Views"
+                     xmlns:viewmodels="clr-namespace:Movies.ViewModels"
+                     x:Class="Movies.Views.PersonThumbnailView"
+                     x:DataType="viewmodels:PersonViewModel">
+    <Border StrokeShape="Ellipse"
+            Style="{StaticResource ThumbnailStyle}">
+        <ext:ImageView AltView="{Binding Name, Converter={Static movies:InitialsConverter.Instance}}"
+                       Source="{Binding ProfilePath}"
+                       ext:VisualElement.AspectRequest="1" />
+    </Border>
+
+    <Label Text="{Binding Name}"
+           Style="{StaticResource CaptionStyle}"
+           MaxLines="2" />
+</VerticalStackLayout>

@@ -43,7 +43,7 @@ namespace Movies.ViewModels
                 return;
             }
 
-            var navBarHeight = 0;// PlatformService.NavBarHeight;
+            var navBarHeight = Shell.GetNavBarIsVisible(page) ? 0 : PlatformService.NavBarHeight;
             VisualStateManager.GoToState(page, sender.ScrollY > sender.Content.Margin.Top - navBarHeight ? "Details" : "Poster");
         }
     }

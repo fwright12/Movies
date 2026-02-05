@@ -291,15 +291,15 @@
     <maui:TypeTemplateSelector x:Key="ItemThumbnailTemplateSelector">
         <maui:TypeTemplateSelector.Templates>
             <maui:TypeDataTemplate Type="{x:Type viewmodels:MediaViewModel}"
-                                   Template="{DataTemplate views:MediaThumbnailView}" />
+                                   Template="{ext:LengthDataTemplate Template={DataTemplate views:MediaThumbnailView}, Length='0.667*'}" />
             <maui:TypeDataTemplate Type="{x:Type viewmodels:TVEpisodeViewModel}"
-                                   Template="{DataTemplate views:EpisodeThumbnailView}" />
+                                   Template="{ext:LengthDataTemplate Template={DataTemplate views:EpisodeThumbnailView}, Length='1.778*'}" />
             <maui:TypeDataTemplate Type="{x:Type viewmodels:PersonViewModel}"
-                                   Template="{DataTemplate views:PersonThumbnailView}" />
+                                   Template="{ext:LengthDataTemplate Template={DataTemplate views:PersonThumbnailView}, Length='0.667*'}" />
             <maui:TypeDataTemplate Type="{x:Type viewmodels:TVSeasonViewModel}"
-                                   Template="{DataTemplate views:TVSeasonThumbnailView}" />
+                                   Template="{ext:LengthDataTemplate Template={DataTemplate views:TVSeasonThumbnailView}, Length='0.667*'}" />
             <maui:TypeDataTemplate Type="{x:Type viewmodels:CollectionViewModel}"
-                                   Template="{DataTemplate views:CollectionThumbnailView}" />
+                                   Template="{ext:LengthDataTemplate Template={DataTemplate views:CollectionThumbnailView}, Length='0.667*'}" />
         </maui:TypeTemplateSelector.Templates>
     </maui:TypeTemplateSelector>
 

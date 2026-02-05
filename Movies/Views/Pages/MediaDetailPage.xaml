@@ -57,8 +57,8 @@
                                    TargetType="views:ItemListCompactView">
                                 <Setter Property="IsVisible"
                                         Value="{Binding Converter={maui:ServicesInstance Type={x:Type maui:FalseIfNullConverter}}}" />
-                                <Setter Property="HeightRequest"
-                                        Value="200" />
+                                <Setter Property="BaseItemHeight"
+                                        Value="125" />
                             </Style>
                         </ResourceDictionary>
                     </VisualElement.Resources>

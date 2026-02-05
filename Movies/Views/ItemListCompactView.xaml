@@ -1,12 +1,14 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <views:SectionView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
                    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+                   xmlns:ext="clr-namespace:Microsoft.Maui.Controls.Extensions;assembly=MauiExtensions"
                    xmlns:maui="clr-namespace:Microsoft.Maui.Controls;assembly=MauiExtensions"
                    xmlns:strings="clr-namespace:Movies.Resources.Strings"
                    xmlns:viewmodels="clr-namespace:Movies.ViewModels"
                    xmlns:views="clr-namespace:Movies.Views"
                    x:Class="Movies.Views.ItemListCompactView"
                    x:DataType="viewmodels:CollectionViewModel"
+                   x:Name="this"
                    Title="{Binding Name}">
     <views:SectionView.Header>
         <DataTemplate>
@@ -29,7 +31,8 @@
                         Style="{StaticResource AsyncListViewModelCollectionViewStyle}">
             <CollectionView.ItemsLayout>
                 <LinearItemsLayout Orientation="Horizontal"
-                                   ItemSpacing="10" />
+                                   ItemSpacing="10"
+                                   ext:ItemsLayout.ItemLength="{Binding BaseItemHeight, Source={x:Reference this}}" />
             </CollectionView.ItemsLayout>
         </CollectionView>
 

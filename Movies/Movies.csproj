@@ -89,6 +89,9 @@
 	  <Compile Update="Views\ItemThumbnail\CollectionThumbnailView.xaml.cs">
 	    <DependentUpon>CollectionThumbnailView.xaml</DependentUpon>
 	  </Compile>
+	  <Compile Update="Views\ItemThumbnail\CompanyThumbnailView.xaml.cs">
+	    <DependentUpon>CompanyThumbnailView.xaml</DependentUpon>
+	  </Compile>
 	  <Compile Update="Views\ItemThumbnail\TVSeasonThumbnailView.xaml.cs">
 	    <DependentUpon>TVSeasonThumbnailView.xaml</DependentUpon>
 	  </Compile>
@@ -139,6 +142,9 @@
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
 	  <MauiXaml Update="Views\ItemThumbnail\CollectionThumbnailView.xaml">
+	    <Generator>MSBuild:Compile</Generator>
+	  </MauiXaml>
+	  <MauiXaml Update="Views\ItemThumbnail\CompanyThumbnailView.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
 	  <MauiXaml Update="Views\ItemThumbnail\EpisodeThumbnailView.xaml">

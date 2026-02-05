@@ -5,7 +5,7 @@
         xmlns:viewmodels="clr-namespace:Movies.ViewModels"
         x:Class="Movies.Views.EpisodeThumbnailView"
         x:DataType="viewmodels:TVEpisodeViewModel"
-        ext:VisualElement.AspectRequest="1.5"
+        ext:VisualElement.AspectRequest="1.778"
         Style="{StaticResource ThumbnailStyle}">
     <Grid>
         <ext:ImageView Source="{Binding PosterPath}"

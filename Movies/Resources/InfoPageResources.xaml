@@ -49,12 +49,14 @@
 
                 <HorizontalStackLayout Spacing="5">
                     <Image VerticalOptions="Fill"
-                           Source="{Binding Company.LogoPath, Converter={StaticResource DefaultImageSourceConverter}}" />
+                           Source="{Binding Company.LogoPath, Converter={StaticResource DefaultImageSourceConverter}}"
+                           FlexLayout.Grow="1" />
 
                     <Label Text="{Binding Score}"
                            FontAttributes="Bold"
                            FontSize="Title"
-                           TextColor="{AppThemeBinding Light={StaticResource LightPrimaryText}, Dark={StaticResource DarkPrimaryText}}" />
+                           TextColor="{AppThemeBinding Light={StaticResource LightPrimaryText}, Dark={StaticResource DarkPrimaryText}}"
+                           FlexLayout.Shrink="0" />
                 </HorizontalStackLayout>
 
                 <Label Text="{Binding Source={Static strings:AppResources.SeeReviewsText}, StringFormat='{0} >'}"
@@ -119,82 +121,52 @@
     <DataTemplate x:Key="CreditTemplate"
                   x:DataType="models:Credit">
         <VerticalStackLayout>
-            <VisualElement.Resources>
-                <Style TargetType="Label"
-                       BasedOn="{StaticResource BodyLabel}"
-                       ApplyToDerivedTypes="True">
-                    <Setter Property="LineBreakMode"
-                            Value="TailTruncation" />
-                    <Setter Property="HorizontalTextAlignment"
-                            Value="Center" />
-                    <Setter Property="FlexLayout.Shrink"
-                            Value="0" />
-                    <Setter Property="HorizontalOptions"
-                            Value="Fill" />
-                </Style>
-            </VisualElement.Resources>
-
             <views:PersonThumbnailView BindingContext="{Binding Person, Converter={maui:Converter Type={x:Type movies:ItemViewModelConverter}}}"
                                        FlexLayout.Grow="1" />
 
-            <maui:MaxSizeLabel Text="{Binding Person.Name}"
-                               MaxLines="2" />
-
             <Label Text="{Binding Role}"
-                   FontSize="Small" />
+                   FontSize="Small"
+                   Style="{StaticResource CaptionStyle}"
+                   FlexLayout.Shrink="0" />
         </VerticalStackLayout>
     </DataTemplate>
 
     <DataTemplate x:Key="CreditListTemplate">
         <CollectionView ItemsSource="{Binding}"
                         ItemTemplate="{StaticResource CreditTemplate}"
-                        ItemSizingStrategy="{OnPlatform iOS='MeasureFirstItem'}"
-                        HeightRequest="175"
                         EmptyView="{OnPlatform Android={Static strings:AppResources.CreditListEmptyView}}"
                         IsGrouped="True">
             <CollectionView.ItemsLayout>
                 <LinearItemsLayout Orientation="Horizontal"
-                                   ItemSpacing="10" />
+                                   ItemSpacing="10"
+                                   ext:ItemsLayout.ItemLength="100" />
             </CollectionView.ItemsLayout>
 
             <CollectionView.GroupHeaderTemplate>
                 <DataTemplate>
                     <Label Text="{Binding Name}"
-                           VerticalTextAlignment="Center" />
+                           VerticalOptions="Center"
+                           ext:ItemsLayout.Length="Auto" />
                 </DataTemplate>
             </CollectionView.GroupHeaderTemplate>
         </CollectionView>
     </DataTemplate>
 
-    <DataTemplate x:Key="CompanyTemplate"
-                  x:DataType="models:Company">
-        <Border Style="{StaticResource CardStyle}">
-            <VerticalStackLayout>
-                <Image Source="{Binding LogoPath}"
-                       ext:VisualElement.AspectRequest="1.77" />
-
-                <Label Text="{Binding Name}"
-                       FontSize="14"
-                       LineBreakMode="MiddleTruncation"
-                       HorizontalOptions="Center"
-                       Grid.Row="1" />
-            </VerticalStackLayout>
-        </Border>
-    </DataTemplate>
-
     <DataTemplate x:Key="CompanyListTemplate">
         <CollectionView ItemsSource="{Binding}"
-                        ItemSizingStrategy="{OnPlatform Android=MeasureAllItems, Default=MeasureFirstItem}"
                         EmptyView="{Static strings:AppResources.CompanyListEmptyView}">
             <CollectionView.ItemsLayout>
                 <LinearItemsLayout Orientation="Horizontal"
-                                   ItemSpacing="10" />
+                                   ItemSpacing="10"
+                                   ext:ItemsLayout.ItemLength="150" />
             </CollectionView.ItemsLayout>
 
             <CollectionView.ItemTemplate>
-                <movies:FixedSizeLayoutDataTemplate Orientation="Horizontal"
-                                                    Size="150"
-                                                    Template="{StaticResource CompanyTemplate}" />
+                <DataTemplate x:DataType="models:Company">
+                    <Border Style="{StaticResource CardStyle}">
+                        <views:CompanyThumbnailView />
+                    </Border>
+                </DataTemplate>
             </CollectionView.ItemTemplate>
         </CollectionView>
     </DataTemplate>

@@ -66,116 +66,6 @@ namespace Movies
         }
     }
 
-    public class FixedSizeLayoutDataTemplate : ItemLayoutDataTemplate
-    {
-        public ItemsLayoutOrientation Orientation { get; set; }
-        public double Size { get; set; }
-
-        protected override void SetLayout(object content)
-        {
-            if (false == content is VisualElement visualElement)
-            {
-                return;
-            }
-
-            if (Orientation == ItemsLayoutOrientation.Horizontal)
-            {
-                visualElement.WidthRequest = Size;
-            }
-            else if (Orientation == ItemsLayoutOrientation.Vertical)
-            {
-                visualElement.HeightRequest = Size;
-            }
-        }
-    }
-
-    public class BaseSizeLayoutDataTemplate : ItemLayoutDataTemplate
-    {
-        public ItemsLayoutOrientation Orientation { get; set; }
-        public double BaseSize { get; set; }
-
-        protected override void SetLayout(object content)
-        {
-            if (false == content is VisualElement visualElement)
-            {
-                return;
-            }
-
-            visualElement.SizeChanged += SizeChanged;
-
-            if (Orientation == ItemsLayoutOrientation.Horizontal)
-            {
-                visualElement.HeightRequest = BaseSize;
-            }
-            else
-            {
-                visualElement.WidthRequest = BaseSize;
-            }
-        }
-
-        private void SizeChanged(object? sender, EventArgs e)
-        {
-            if (false == sender is VisualElement visualElement)
-            {
-                return;
-            }
-
-            if (Orientation == ItemsLayoutOrientation.Horizontal)
-            {
-                if (visualElement.Height != BaseSize)
-                {
-                    return;
-                }
-
-                visualElement.HeightRequest = -1;
-                visualElement.WidthRequest = visualElement.Width;
-            }
-            else
-            {
-                if (visualElement.Width != BaseSize)
-                {
-                    return;
-                }
-
-                visualElement.WidthRequest = -1;
-                visualElement.HeightRequest = visualElement.Height;
-            }
-
-            visualElement.SizeChanged -= SizeChanged;
-        }
-    }
-
-    [ContentProperty(nameof(Template))]
-    public abstract class ItemLayoutDataTemplate : DataTemplateSelector
-    {
-        public DataTemplate? Template { get; set; }
-
-        private Dictionary<DataTemplate, DataTemplate> Templates { get; } = new Dictionary<DataTemplate, DataTemplate>();
-
-        protected override DataTemplate OnSelectTemplate(object item, BindableObject container)
-        {
-            var template = (Template as DataTemplateSelector)?.SelectTemplate(item, container) ?? Template;
-            if (template == null)
-            {
-                throw new InvalidOperationException("Template cannot be null");
-            }
-
-            if (!Templates.TryGetValue(template, out var layoutTemplate))
-            {
-                Templates[template] = layoutTemplate = new DataTemplate(() =>
-                {
-                    var content = template.CreateContent();
-                    SetLayout(content);
-                    return content;
-                });
-            }
-
-            return layoutTemplate;
-        }
-
-        protected abstract void SetLayout(object content);
-    }
-
     public static class MauiProgram
     {
         public static MauiApp CreateMauiApp()
@@ -273,6 +163,12 @@ namespace Movies
             {
                 var measure = MeasureChild(child, double.PositiveInfinity, crossAxisSize);
                 mainAxisSize += GetMainAxisDimension(measure);
+
+                if (child is VisualElement ve)
+                {
+                    //ve.SizeChanged -= ChildSizeChanged;
+                    //ve.SizeChanged += ChildSizeChanged;
+                }
             }
 
             mainAxisSize += MeasureDecorativeSpace();
@@ -303,6 +199,11 @@ namespace Movies
             var finalCrossAxisSize = ResolveConstraints(crossAxisConstraint, CrossAxisDimension, crossAxisSize, CrossAxisMinimumDimension, CrossAxisMaximumDimension);
 
             return CreateSize(finalMainAxisSize, finalCrossAxisSize);
+        }
+
+        private void ChildSizeChanged(object? sender, EventArgs e)
+        {
+            ((VisualElement)sender).InvalidateMeasure();
         }
 
         public override Size ArrangeChildren(Rect bounds)
