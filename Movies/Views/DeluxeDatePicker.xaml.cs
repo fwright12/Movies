@@ -83,6 +83,14 @@ namespace Movies.Views
 
         private void DateChanged(object sender, DateChangedEventArgs e) => DateChanged(e.NewDate);
 
+        private void DateChanged(DateTime? date)
+        {
+            if (date.HasValue)
+            {
+                DateChanged(date.Value);
+            }
+        }
+
         private void DateChanged(DateTime date)
         {
             Batch = true;

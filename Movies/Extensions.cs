@@ -179,14 +179,14 @@ namespace Movies.Views
         public static bool GetAutoSizeFont(this Label bindable) => (bool)bindable.GetValue(AutoSizeFontProperty);
         public static void SetAutoSizeFont(this Label bindable, bool value) => bindable.SetValue(AutoSizeFontProperty, value);
 
-        public static readonly BindableProperty YearProperty = BindableProperty.CreateAttached(nameof(DateTime.Year), typeof(int), typeof(DatePicker), null, propertyChanged: (bindable, oldValue, newValue) =>
-        {
-            var picker = (DatePicker)bindable;
-            picker.Date = new DateTime((int)newValue, picker.Date.Month, picker.Date.Day);
-        });
+        //public static readonly BindableProperty YearProperty = BindableProperty.CreateAttached(nameof(DateTime.Year), typeof(int), typeof(DatePicker), null, propertyChanged: (bindable, oldValue, newValue) =>
+        //{
+        //    var picker = (DatePicker)bindable;
+        //    picker.Date = new DateTime((int)newValue, picker.Date.Month, picker.Date.Day);
+        //});
 
-        public static int GetYear(this DatePicker bindable) => (int)bindable.GetValue(YearProperty);
-        public static void SetYear(this DatePicker bindable, int value) => bindable.SetValue(YearProperty, value);
+        //public static int GetYear(this DatePicker bindable) => (int)bindable.GetValue(YearProperty);
+        //public static void SetYear(this DatePicker bindable, int value) => bindable.SetValue(YearProperty, value);
 
         public static readonly BindableProperty ContentProperty = BindableProperty.CreateAttached("Content", typeof(View), typeof(ScrollView), null, propertyChanged: (bindable, oldValue, newValue) =>
         {
@@ -763,7 +763,7 @@ namespace Movies.Views
             get => SafeSwipeTemplate?.Value;
             set => SafeSwipeTemplate = new Lazy<ControlTemplate>(() =>
             {
-                var swipe = value?.CreateContent() as SwipeView;
+                var swipe = value?.CreateContent() as SwipeView ?? new SwipeView();
 
                 if (swipe.Content is ContentPresenter)
                 {
@@ -773,7 +773,7 @@ namespace Movies.Views
                 {
                     return new ControlTemplate(() =>
                     {
-                        var swipe = value?.CreateContent() as SwipeView;
+                        var swipe = value?.CreateContent() as SwipeView ?? new SwipeView();
                         swipe.Content = new ContentPresenter();
                         return swipe;
                     });
