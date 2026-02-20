@@ -15,7 +15,14 @@
                      Content="{ext:ViewBinding Template={StaticResource ItemThumbnailTemplateSelector}}"
                      BackgroundColor="DarkGray"
                      AbsoluteLayout.LayoutBounds="0,0,1,-1"
-                     AbsoluteLayout.LayoutFlags="WidthProportional" />
+                     AbsoluteLayout.LayoutFlags="WidthProportional">
+            <VisualElement.Resources>
+                <Style TargetType="Border">
+                    <Setter Property="StrokeThickness"
+                            Value="0" />
+                </Style>
+            </VisualElement.Resources>
+        </ContentView>
 
         <ScrollView Orientation="Vertical"
                     AbsoluteLayout.LayoutBounds="0,0,1,1"
@@ -98,7 +105,7 @@
                             <!--<ScrollView Style="{StaticResource AutoWidth}">-->
                             <views:LabeledLabel Label="{Static strings:AppResources.GenresLabel}"
                                                 Value="{Binding Genres, Converter={StaticResource ListToString}, TargetNullValue={Static x:String.Empty}}"
-                                                HorizontalOptions="Fill" />
+                                                WidthRequest="{ext:Percent 100}" />
                             <!--</ScrollView>-->
                         </VerticalStackLayout>
                     </ContentView>
@@ -138,7 +145,7 @@
                                                VerticalOptions="Center" />
 
                                         <Image Source="{Static movies:App.JustWatchAttribution}"
-                                               VerticalOptions="Fill" />
+                                               MaximumHeightRequest="{ext:Percent 100}" />
                                     </HorizontalStackLayout>
                                 </Border>
                             </DataTemplate>

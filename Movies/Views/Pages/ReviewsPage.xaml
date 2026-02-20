@@ -2,6 +2,7 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:converters="clr-namespace:Movies.Converters"
+             xmlns:ext="clr-namespace:Microsoft.Maui.Controls.Extensions;assembly=MauiExtensions"
              xmlns:maui="clr-namespace:Microsoft.Maui.Controls;assembly=MauiExtensions"
              xmlns:models="clr-namespace:Movies.Models"
              xmlns:strings="clr-namespace:Movies.Resources.Strings"
@@ -60,7 +61,7 @@
                     <HorizontalStackLayout Spacing="10">
                         <Image Source="{Binding Company.LogoPath, Converter={StaticResource DefaultImageSourceConverter}}"
                                Margin="0, 20, 0, 15"
-                               VerticalOptions="Fill" />
+                               MaximumHeightRequest="{ext:Percent 100}" />
 
                         <Label Text="{Binding Score}"
                                VerticalOptions="Center"

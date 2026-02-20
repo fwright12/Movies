@@ -431,8 +431,11 @@ namespace Movies
             };
 
             InitializeComponent();
+        }
 
-            MainPage = new MainPage();
+        protected override Window CreateWindow(IActivationState? activationState)
+        {
+            return new Window(new AppShell());
         }
 
         public static readonly BindableProperty AutoWireFromItemProperty = BindableProperty.CreateAttached("AutoWireFromItem", typeof(Item), typeof(BindableObject), null, propertyChanged: (bindable, oldValue, newValue) =>

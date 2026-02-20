@@ -133,7 +133,7 @@
                         <DataTemplate x:DataType="models:Rating">
                             <HorizontalStackLayout Spacing="5">
                                 <Image Source="{Binding Company.LogoPath, Converter={StaticResource DefaultImageSourceConverter}}"
-                                       VerticalOptions="Fill" />
+                                       MaximumHeightRequest="{ext:Percent 100}" />
 
                                 <Label Text="{Binding Score}" />
                             </HorizontalStackLayout>

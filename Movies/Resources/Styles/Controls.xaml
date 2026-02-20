@@ -634,13 +634,9 @@
            ApplyToDerivedTypes="True">
         <Setter Property="ControlTemplate">
             <ControlTemplate>
-                <Grid RowDefinitions="Auto, *, Auto"
-                      ColumnSpacing="5"
-                      RowSpacing="5">
+                <VerticalStackLayout Spacing="5">
                     <Grid ColumnDefinitions="*, Auto"
-                          Grid.Row="0"
-                          ColumnSpacing="5"
-                          RowSpacing="5">
+                          ColumnSpacing="5">
                         <Label Text="{TemplateBinding Title}"
                                Style="{StaticResource ValueDescriptorStyle}"
                                VerticalOptions="Center" />
@@ -650,11 +646,10 @@
                                      Grid.Column="1" />
                     </Grid>
 
-                    <ContentPresenter Grid.Row="1" />
+                    <ContentPresenter />
 
-                    <ContentView Content="{TemplateBinding FooterView}"
-                                 Grid.Row="2" />
-                </Grid>
+                    <ContentView Content="{TemplateBinding FooterView}" />
+                </VerticalStackLayout>
             </ControlTemplate>
         </Setter>
     </Style>
@@ -1084,10 +1079,10 @@
                 Value="TailTruncation" />
         <Setter Property="HorizontalTextAlignment"
                 Value="Center" />
-        <Setter Property="HorizontalOptions"
-                Value="Fill" />
+        <Setter Property="WidthRequest"
+                Value="{ext:Percent 100}" />
     </Style>
-    
+
     <Style TargetType="Label"
            BasedOn="{StaticResource PrimaryLabel}"
            x:Key="ValueDescriptorStyle">

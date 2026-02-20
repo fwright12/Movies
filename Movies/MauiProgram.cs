@@ -133,7 +133,6 @@ namespace Movies
 
             double mainAxisSize = 0;
             double crossAxisSize = 0;
-            var deferred = new List<IView>();
 
             for (int n = 0; n < Stack.Count; n++)
             {
@@ -144,31 +143,10 @@ namespace Movies
                     continue;
                 }
 
-                Size measure;
-                if (child is View view && view.IsSet(CrossAxisLayoutOptions) && (LayoutOptions)view.GetValue(CrossAxisLayoutOptions) == LayoutOptions.Fill)
-                {
-                    deferred.Add(view);
-                    measure = new Size(view.MinimumWidthRequest, view.MinimumHeightRequest);
-                }
-                else
-                {
-                    measure = MeasureChild(child, double.PositiveInfinity, crossAxisConstraint - GetCrossAxisThickness(padding));
-                    mainAxisSize += GetMainAxisDimension(measure);
-                }
+                var measure = MeasureChild(child, double.PositiveInfinity, crossAxisConstraint - GetCrossAxisThickness(padding));
 
-                crossAxisSize = Math.Max(crossAxisSize, GetCrossAxisDimension(measure));
-            }
-
-            foreach (var child in deferred)
-            {
-                var measure = MeasureChild(child, double.PositiveInfinity, crossAxisSize);
                 mainAxisSize += GetMainAxisDimension(measure);
-
-                if (child is VisualElement ve)
-                {
-                    //ve.SizeChanged -= ChildSizeChanged;
-                    //ve.SizeChanged += ChildSizeChanged;
-                }
+                crossAxisSize = Math.Max(crossAxisSize, GetCrossAxisDimension(measure));
             }
 
             mainAxisSize += MeasureDecorativeSpace();
@@ -199,11 +177,6 @@ namespace Movies
             var finalCrossAxisSize = ResolveConstraints(crossAxisConstraint, CrossAxisDimension, crossAxisSize, CrossAxisMinimumDimension, CrossAxisMaximumDimension);
 
             return CreateSize(finalMainAxisSize, finalCrossAxisSize);
-        }
-
-        private void ChildSizeChanged(object? sender, EventArgs e)
-        {
-            ((VisualElement)sender).InvalidateMeasure();
         }
 
         public override Size ArrangeChildren(Rect bounds)

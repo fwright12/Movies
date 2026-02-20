@@ -10,7 +10,6 @@
     <Label Text="{Binding Name}"
            FontSize="14"
            LineBreakMode="MiddleTruncation"
-           HorizontalOptions="Fill"
-           HorizontalTextAlignment="Center"
+           Style="{StaticResource CaptionStyle}"
            FlexLayout.Shrink="0" />
 </VerticalStackLayout>

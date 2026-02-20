@@ -5,9 +5,9 @@ using Microsoft.Maui;
 namespace Movies.Views
 {
     [XamlCompilation(XamlCompilationOptions.Compile)]
-    public partial class MainPage : Shell
+    public partial class AppShell : Shell
     {
-        public MainPage()
+        public AppShell()
         {
             InitializeComponent();
         }

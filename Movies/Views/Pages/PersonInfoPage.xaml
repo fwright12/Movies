@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:ext="clr-namespace:Microsoft.Maui.Controls.Extensions;assembly=MauiExtensions"
              xmlns:maui="clr-namespace:Microsoft.Maui.Controls;assembly=MauiExtensions"
              xmlns:movies="clr-namespace:Movies"
              xmlns:views="clr-namespace:Movies.Views"
@@ -18,7 +19,7 @@
 
         <views:LabeledLabel Label="Birthplace"
                             Value="{Binding Birthplace, TargetNullValue={Static x:String.Empty}}"
-                            HorizontalOptions="Fill" />
+                            WidthRequest="{ext:Percent 100}" />
 
         <views:LabeledLabel Label="Died"
                             Value="{Binding Deathday, StringFormat='{0:MMMM d, yyyy}'}"
@@ -29,6 +30,6 @@
 
         <views:LabeledLabel Label="Also Known As"
                             Value="{Binding AlsoKnownAs, Converter={StaticResource ListToString}}"
-                            HorizontalOptions="Fill" />
+                            WidthRequest="{ext:Percent 100}" />
     </VerticalStackLayout>
 </ContentPage>

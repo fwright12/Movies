@@ -5,7 +5,7 @@
        xmlns:movies="clr-namespace:Movies"
        xmlns:strings="clr-namespace:Movies.Resources.Strings"
        xmlns:views="clr-namespace:Movies.Views"
-       x:Class="Movies.Views.MainPage"
+       x:Class="Movies.Views.AppShell"
        BackgroundColor="{AppThemeBinding Light='White', Dark='#1B1B1B'}"
        ForegroundColor="#138808"
        TitleColor="{AppThemeBinding Light={StaticResource LightPrimaryText}, Dark={StaticResource DarkPrimaryText}}"
