@@ -54,7 +54,7 @@
         <maui:DrawerView.SnapPoints>
             <viewmodels:ItemTypeSnapPoint Alignment="End" />
 
-            <maui:SnapPoint Value="{Binding Height, Source={RelativeSource AncestorType={x:Type maui:DrawerView}}, Converter={Static maui:ArithmeticConverter.SUBTRACT}, ConverterParameter=25}" />
+            <maui:SnapPoint Value="{Binding Height, Source={RelativeSource AncestorType={x:Type maui:DrawerView}}, Converter={Static maui:ArithmeticConverter.SUBTRACT}, ConverterParameter=100}" />
         </maui:DrawerView.SnapPoints>
 
         <!--<VisualElement.Triggers>
@@ -286,7 +286,7 @@
 
                         <Grid x:Name="sort"
                               ColumnDefinitions="*, Auto"
-                              Padding="0,0,0,5">
+                              ColumnSpacing="5">
                             <VisualElement.Resources>
                                 <Style TargetType="Button">
                                     <Setter Property="WidthRequest"
@@ -309,7 +309,8 @@
 
                             <FlexLayout Direction="Row"
                                         AlignItems="Center"
-                                        Grid.Column="0">
+                                        Grid.Column="0"
+                                        ext:FlexLayout.ColumnSpacing="2">
                                 <VisualElement.Triggers>
                                     <DataTrigger TargetType="VisualElement"
                                                  Binding="{Binding Items.Count, FallbackValue=0}"
@@ -326,7 +327,7 @@
                                     </DataTrigger>
                                 </VisualElement.Triggers>
 
-                                <Label Text="Sort:"
+                                <Label Text="Sort: "
                                        FontSize="Default"
                                        FlexLayout.Shrink="0" />
 
@@ -352,10 +353,9 @@
                                         FlexLayout.Grow="1" />
                             </FlexLayout>
 
-                            <StackLayout x:Name="liststates"
-                                         Orientation="Horizontal"
-                                         Spacing="2"
-                                         Grid.Column="1">
+                            <HorizontalStackLayout x:Name="liststates"
+                                                   Spacing="2"
+                                                   Grid.Column="1">
                                 <VisualElement.Resources>
                                     <x:Int32 x:Key="zero">0</x:Int32>
 
@@ -373,7 +373,7 @@
 
                                 <Button Command="{Binding ToggleListLayoutCommand}"
                                         Text="{Binding ListLayout, Converter={StaticResource ListLayoutIconConverter}}" />
-                            </StackLayout>
+                            </HorizontalStackLayout>
                         </Grid>
                     </VerticalStackLayout>
                 </CollectionView.Header>

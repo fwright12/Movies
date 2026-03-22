@@ -10,6 +10,11 @@
       x:Class="Movies.Views.FilterView"
       BackgroundColor="{AppThemeBinding Light={StaticResource LightSecondaryBackground}, Dark={StaticResource DarkSecondaryBackground}}"
       RowDefinitions="Auto,*">
+    <Layout.Padding>
+        <ext:Thickness Horizontal="{StaticResource PagePadding}"
+                       Top="{Binding StrokeShape.CornerRadius.TopLeft, Source={RelativeSource AncestorType={x:Type Border}}, FallbackValue={StaticResource PagePadding}}" />
+    </Layout.Padding>
+
     <VisualElement.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
@@ -22,27 +27,32 @@
                         Value="{OnPlatform iOS=Medium, Android=Small}" />
             </Style>
 
+            <x:Double x:Key="NodeSpacing">2</x:Double>
+
             <DataTemplate x:Key="NodeTemplate">
                 <Border Style="{StaticResource BorderStyle}"
                         StrokeShape="RoundRectangle 10"
                         Stroke="{StaticResource Primary}"
-                        Margin="2">
+                        Padding="5">
                     <ContentView Content="{ext:ViewBinding Template={StaticResource NodeSelector}}">
                         <ContentView.ControlTemplate>
                             <ControlTemplate>
-                                <HorizontalStackLayout BindingContext="{TemplateBinding BindingContext}">
-                                    <ContentPresenter Padding="5, 5, 0, 5" />
+                                <HorizontalStackLayout BindingContext="{TemplateBinding BindingContext}"
+                                                       Spacing="5">
+                                    <ContentPresenter VerticalOptions="Center" />
 
-                                    <ImageButton Command="{Binding RemoveSelfCommand}"
-                                                 CommandParameter="{Binding}"
-                                                 BackgroundColor="Transparent"
-                                                 Padding="{OnPlatform Android=5}">
-                                        <ImageButton.Source>
+                                    <Image HeightRequest="{ext:Percent 100}">
+                                        <View.GestureRecognizers>
+                                            <TapGestureRecognizer Command="{Binding RemoveSelfCommand}"
+                                                                  CommandParameter="{Binding}" />
+                                        </View.GestureRecognizers>
+
+                                        <Image.Source>
                                             <FontImageSource Glyph="{OnPlatform Android=&#xf2d7;, iOS=&#xf404;}"
                                                              FontFamily="{StaticResource IoniconsFont}"
                                                              Color="{StaticResource Primary}" />
-                                        </ImageButton.Source>
-                                    </ImageButton>
+                                        </Image.Source>
+                                    </Image>
                                 </HorizontalStackLayout>
                             </ControlTemplate>
                         </ContentView.ControlTemplate>
@@ -65,32 +75,36 @@
             </Style>
 
             <ControlTemplate x:Key="CompactFiltersTemplate">
-                <FlexLayout Direction="Row"
-                            AlignItems="Center">
-                    <ContentPresenter FlexLayout.Shrink="0" />
+                <Grid ColumnDefinitions="Auto,*"
+                      ColumnSpacing="5">
+                    <ContentPresenter Grid.Column="0"
+                                      VerticalOptions="Center" />
 
                     <ScrollView Orientation="Horizontal"
                                 VerticalOptions="Center"
-                                FlexLayout.Grow="1">
+                                Grid.Column="1">
                         <HorizontalStackLayout Style="{StaticResource FilterExpressionStyle}"
-                                               Spacing="5" />
+                                               Spacing="{StaticResource NodeSpacing}" />
                     </ScrollView>
-                </FlexLayout>
+                </Grid>
             </ControlTemplate>
 
             <ControlTemplate x:Key="FullFiltersTemplate">
-                <VerticalStackLayout>
-                    <FlexLayout AlignItems="Center"
-                                JustifyContent="SpaceBetween">
-                        <ContentPresenter />
+                <VerticalStackLayout Spacing="10">
+                    <Grid ColumnDefinitions="Auto,*,Auto">
+                        <ContentPresenter Grid.Column="0" />
 
                         <Button Text="{Static strings:AppResources.DoneAction}"
-                                Command="{Binding NextSnapPointCommand, Source={RelativeSource AncestorType={x:Type maui:DrawerView}}}" />
-                    </FlexLayout>
+                                Command="{Binding NextSnapPointCommand, Source={RelativeSource AncestorType={x:Type maui:DrawerView}}}"
+                                Grid.Column="2" />
+                    </Grid>
 
                     <FlexLayout Direction="Row"
                                 Wrap="Wrap"
-                                Style="{StaticResource FilterExpressionStyle}" />
+                                AlignItems="Center"
+                                Style="{StaticResource FilterExpressionStyle}"
+                                ext:FlexLayout.RowSpacing="{StaticResource NodeSpacing}"
+                                ext:FlexLayout.ColumnSpacing="{StaticResource NodeSpacing}" />
                 </VerticalStackLayout>
             </ControlTemplate>
 
@@ -154,16 +168,6 @@
         </VisualStateGroup>
     </VisualStateManager.VisualStateGroups>
 
-    <Layout.Padding>
-        <MultiBinding Converter="{Static maui:ThicknessConverter.Instance}"
-                      ConverterParameter="horizontal, top">
-            <Binding Source="{StaticResource PagePadding}" />
-            <Binding Path="StrokeShape.CornerRadius.TopLeft"
-                     Source="{RelativeSource AncestorType={x:Type Border}}"
-                     FallbackValue="{StaticResource PagePadding}" />
-        </MultiBinding>
-    </Layout.Padding>
-
     <ContentView x:Name="filters"
                  BindingContext="{Binding Root}"
                  Grid.Row="0">
@@ -174,6 +178,6 @@
     </ContentView>
 
     <ScrollView x:Name="scroll"
-                views:Extensions.Content="{Binding Converter={Static maui:ObjectToViewConverter.Instance}, ConverterParameter={StaticResource PredicateTemplateSelector}}"
+                ext:ScrollView.Content="{ext:ViewBinding Template={StaticResource PredicateTemplateSelector}}"
                 Grid.Row="1" />
 </Grid>

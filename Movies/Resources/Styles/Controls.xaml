@@ -638,6 +638,7 @@
                     <Grid ColumnDefinitions="*, Auto"
                           ColumnSpacing="5">
                         <Label Text="{TemplateBinding Title}"
+                               LineBreakMode="TailTruncation"
                                Style="{StaticResource ValueDescriptorStyle}"
                                VerticalOptions="Center" />
 

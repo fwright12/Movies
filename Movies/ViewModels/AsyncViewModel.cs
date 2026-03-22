@@ -143,4 +143,38 @@ namespace Movies.ViewModels
             }
         }
     }
+
+    public class AsyncViewModel : BindableViewModel
+    {
+        private IDictionary<string, Task> Tasks = new Dictionary<string, Task>();
+
+        public string String => GetValue(GetString);
+
+        protected T GetValue<T>(Func<Task<T>> taskCreator, [CallerMemberName] string propertyName = null!)
+        {
+            if (Tasks.TryGetValue(propertyName, out var task))
+            {
+                if (task.IsCompleted)
+                {
+                    return ((Task<T>)task).Result;
+                }
+            }
+            else
+            {
+                T property = default!;
+
+                var t = taskCreator();
+                Tasks[propertyName] = t;
+                t.ContinueWith(result => SetValue(ref property, result.Result, propertyName));
+            }
+
+            return default!;
+        }
+
+        private async Task<string> GetString()
+        {
+            await Task.Delay(1000);
+            return "";
+        }
+    }
 }

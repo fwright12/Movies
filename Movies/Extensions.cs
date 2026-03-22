@@ -188,17 +188,6 @@ namespace Movies.Views
         //public static int GetYear(this DatePicker bindable) => (int)bindable.GetValue(YearProperty);
         //public static void SetYear(this DatePicker bindable, int value) => bindable.SetValue(YearProperty, value);
 
-        public static readonly BindableProperty ContentProperty = BindableProperty.CreateAttached("Content", typeof(View), typeof(ScrollView), null, propertyChanged: (bindable, oldValue, newValue) =>
-        {
-            var scrollView = (ScrollView)bindable;
-            var content = (View)newValue;
-
-            scrollView.Content = content;
-        });
-
-        public static View GetContent(this ScrollView bindable) => (View)bindable.GetValue(ContentProperty);
-        public static void SetContent(this ScrollView bindable, object value) => bindable.SetValue(ContentProperty, value);
-
         public static readonly BindableProperty ChildCountProperty = BindableProperty.CreateAttached("ChildCount", typeof(int), typeof(Microsoft.Maui.Controls.Compatibility.Layout), 0, coerceValue: (bindable, value) =>
         {
             if (bindable is ContentView contentView)

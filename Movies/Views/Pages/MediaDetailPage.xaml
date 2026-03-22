@@ -31,14 +31,18 @@
             <Border StrokeShape="RoundRectangle 10"
                     Padding="{StaticResource PagePadding}"
                     BackgroundColor="{Binding BackgroundColor, Source={RelativeSource AncestorType={x:Type Page}}}">
-                <ext:Margin.Top>
-                    <MultiBinding Converter="{Static maui:ArithmeticMultiConverter.SUBTRACT}">
-                        <Binding Path="Height"
-                                 Source="{x:Reference backgroundImage}" />
-                        <Binding Path="StrokeShape.CornerRadius.TopLeft"
-                                 Source="{RelativeSource Self}" />
-                    </MultiBinding>
-                </ext:Margin.Top>
+                <View.Margin>
+                    <ext:Thickness>
+                        <ext:Thickness.Top>
+                            <MultiBinding Converter="{Static maui:ArithmeticMultiConverter.SUBTRACT}">
+                                <Binding Path="Height"
+                                         Source="{x:Reference backgroundImage}" />
+                                <Binding Path="StrokeShape.CornerRadius.TopLeft"
+                                         Source="{RelativeSource Self}" />
+                            </MultiBinding>
+                        </ext:Thickness.Top>
+                    </ext:Thickness>
+                </View.Margin>
 
                 <VerticalStackLayout Spacing="25">
                     <!--<View.Margin>
@@ -131,7 +135,6 @@
 
                     <views:SectionView Title="{Static strings:AppResources.WhereToWatchHeader}"
                                        ext:ContentView.ItemSource="{Binding WatchProviders, TargetNullValue={StaticResource EmptyWatchProviders}}"
-                                       HeightRequest="100"
                                        Style="{StaticResource InfoSectionStyle}">
                         <views:SectionView.Header>
                             <DataTemplate>
