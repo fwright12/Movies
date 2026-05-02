@@ -1,18 +1,7 @@
 ﻿using Movies.Models;
-using System;
 using System.Collections;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Collections.Specialized;
 using System.ComponentModel;
-using System.Globalization;
-using System.Linq;
-using System.Text.Json;
-using System.Threading;
-using System.Threading.Tasks;
-using Microsoft.Maui.Controls;
-using Microsoft.Maui;
-using Microsoft.Maui.Controls.Compatibility;
 
 namespace Movies.ViewModels
 {
@@ -288,7 +277,7 @@ namespace Movies.ViewModels
             {
                 LHSOptions = new ObservableCollection<object>(properties),
                 OperatorOptions = operators.ToList<Operators>(),
-                RHSOptions = !properties.Skip(1).Any() ? properties.FirstOrDefault()?.Values : properties.SelectMany(property => property.Values.OfType<object>()),
+                RHSOptions = !properties.Skip(1).Any() ? properties.FirstOrDefault()?.Values : properties.SelectMany(property => property.Values.OfType<object>()).ToHashSet(),
                 DefaultLHS = properties.FirstOrDefault(),
                 DefaultOperator = operators?.FirstOrDefault() ?? Operators.Equal,
                 DefaultRHS = defaultValue
@@ -375,6 +364,8 @@ namespace Movies.ViewModels
     {
         public ItemTypeSnapPoint()
         {
+            Alignment = SnapPointsAlignment.End;
+
             PropertyChanging += ParentWillChange;
             PropertyChanged += ParentDidChange;
         }
@@ -395,12 +386,87 @@ namespace Movies.ViewModels
             }
         }
 
-        private void OnDescendantAdded(object sender, ElementEventArgs e)
+        private static bool IsItemTypePredicate(object bindingContext) => bindingContext is OperatorEditor op && op.RHSOptions is Type[];
+
+        private void OnDescendantAdded(object? sender, ElementEventArgs e)
         {
-            if (e.Element is VisualElement ve && ve.BindingContext is OperatorEditor op && op.RHSOptions is Type[])
+            if (false && e.Element is VisualElement ve && IsItemTypePredicate(e.Element.BindingContext) && !IsItemTypePredicate(e.Element.Parent.BindingContext))
+            {
+                //Element = ve;
+            }
+
+            //return;
+
+            if (e.Element.BindingContext is PropertyEditorFilter filter && e.Element.Parent.BindingContext is not PropertyEditorFilter && e.Element is Layout layout)
+            {
+                //Parent.DescendantAdded -= OnDescendantAdded;
+
+                UpdateSnapPoint(layout);
+                layout.ChildAdded += UpdateSnapPoint;
+                layout.ChildrenReordered += UpdateSnapPoint;
+            }
+
+            return;
+
+            var editor = (Parent.BindingContext as CollectionViewModel)?.Filters;
+            if (editor == null)
+            {
+                if (Parent.BindingContext != null)
+                {
+                    throw new InvalidOperationException("The filters view model structure has changed and the closed drawer height can no longer be determined");
+                }
+            }
+            //if (e.Element is VisualElement ve && IsItemTypeContext(e.Element))
+            else if (e.Element.BindingContext == editor && e.Element is Layout layout1)
             {
                 Parent.DescendantAdded -= OnDescendantAdded;
+
+                Element = e.Element as VisualElement;
+
+                //layout.ChildAdded += EditorsChildAdded;
+                //layout.ChildrenReordered += EditorsChildrenReordered;
+            }
+        }
+
+        private void ItemTypeLayoutChildAdded(object? sender, ElementEventArgs e) => ItemTypeLayoutChildAdded(e.Element);
+
+        private void ItemTypeLayoutChildAdded(Element element)
+        {
+            if (element is VisualElement ve && element.BindingContext is OperatorEditor op && op.RHSOptions is Type[])
+            {
                 Element = ve;
+            }
+        }
+
+        private void UpdateSnapPoint(object? sender, EventArgs e)
+        {
+            if (sender is Layout layout)
+            {
+                UpdateSnapPoint(layout);
+            }
+        }
+
+        private void UpdateSnapPoint(Layout layout)
+        {
+            for (int i = 0; i < layout.Children.Count; i++)
+            {
+                var child = layout.Children[i];
+
+                if ((child as BindableObject)?.BindingContext is OperatorEditor op && op.RHSOptions is Type[])
+                {
+                    if (i + 1 < layout.Children.Count && layout.Children[i + 1] is VisualElement ve)
+                    {
+                        Alignment = SnapPointsAlignment.Start;
+                        Element = ve;
+                    }
+                    else
+                    {
+                        Alignment = SnapPointsAlignment.End;
+                        Element = layout;
+                    }
+
+                    break;
+                }
             }
         }
     }

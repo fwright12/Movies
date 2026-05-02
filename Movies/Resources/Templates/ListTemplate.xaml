@@ -52,7 +52,7 @@
         </VisualElement.Behaviors>
 
         <maui:DrawerView.SnapPoints>
-            <viewmodels:ItemTypeSnapPoint Alignment="End" />
+            <viewmodels:ItemTypeSnapPoint />
 
             <maui:SnapPoint Value="{Binding Height, Source={RelativeSource AncestorType={x:Type maui:DrawerView}}, Converter={Static maui:ArithmeticConverter.SUBTRACT}, ConverterParameter=100}" />
         </maui:DrawerView.SnapPoints>
@@ -170,7 +170,7 @@
 
                                 <Setter Property="ItemsLayout">
                                     <GridItemsLayout Orientation="Vertical"
-                                                     Span="2"
+                                                     Span="{OnPlatform 2, Android=1}"
                                                      HorizontalItemSpacing="5"
                                                      VerticalItemSpacing="5" />
                                 </Setter>

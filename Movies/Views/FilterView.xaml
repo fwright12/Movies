@@ -2,8 +2,10 @@
 <Grid xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
       xmlns:ext="clr-namespace:Microsoft.Maui.Controls.Extensions;assembly=MauiExtensions"
       xmlns:maui="clr-namespace:Microsoft.Maui.Controls;assembly=MauiExtensions"
+      xmlns:models="clr-namespace:Movies.Models"
       xmlns:movies="clr-namespace:Movies"
       xmlns:strings="clr-namespace:Movies.Resources.Strings"
+      xmlns:sys="clr-namespace:System;assembly=mscorlib"
       xmlns:views="clr-namespace:Movies.Views"
       xmlns:viewmodels="clr-namespace:Movies.ViewModels"
       xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
@@ -17,17 +19,143 @@
 
     <VisualElement.Resources>
         <ResourceDictionary>
-            <ResourceDictionary.MergedDictionaries>
-                <movies:PredicateEditorResources />
-            </ResourceDictionary.MergedDictionaries>
+            <x:Int32 x:Key="zero">0</x:Int32>
+
+            <maui:MappingConverter x:Key="OperatorConverter">
+                <maui:Mapping Key="{Static movies:Operators.LessThan}">
+                    <maui:MappingConverter Default="Under">
+                        <maui:Mapping Key="{x:Type sys:DateTime}">Before</maui:Mapping>
+                    </maui:MappingConverter>
+                </maui:Mapping>
+
+                <maui:Mapping Key="{Static movies:Operators.Equal}">Exactly</maui:Mapping>
+
+                <maui:Mapping Key="{Static movies:Operators.GreaterThan}">
+                    <maui:MappingConverter Default="Over">
+                        <maui:Mapping Key="{x:Type sys:DateTime}">After</maui:Mapping>
+                    </maui:MappingConverter>
+                </maui:Mapping>
+            </maui:MappingConverter>
+
+            <maui:MappingConverter x:Key="FilterTypeConverter">
+                <maui:Mapping Key="{x:Type models:Movie}">Movies</maui:Mapping>
+                <maui:Mapping Key="{x:Type models:TVShow}">Shows</maui:Mapping>
+                <maui:Mapping Key="{x:Type models:Person}">People</maui:Mapping>
+                <maui:Mapping Key="{x:Type models:Collection}">Collections</maui:Mapping>
+            </maui:MappingConverter>
 
             <Style TargetType="Button"
                    CanCascade="True">
                 <Setter Property="FontSize"
                         Value="{OnPlatform iOS=Medium, Android=Small}" />
             </Style>
+        </ResourceDictionary>
+    </VisualElement.Resources>
 
+    <VisualStateManager.VisualStateGroups>
+        <VisualStateGroup>
+            <VisualState Name="{Static maui:DrawerView+VisualStates.Closed}">
+                <VisualState.Setters>
+                    <Setter TargetName="scroll"
+                            Property="ScrollView.Orientation"
+                            Value="Neither" />
+                    <Setter TargetName="scroll"
+                            Property="Layout.Padding"
+                            Value="0,0,0,10" />
+
+                    <Setter TargetName="filters"
+                            Property="ContentView.ControlTemplate"
+                            Value="{DynamicResource CompactFiltersTemplate}" />
+                    <Setter TargetName="filters"
+                            Property="ContentView.IsVisible"
+                            Value="{Binding Children.Count, Converter={Static maui:ObjectToFalseConverter.Instance}, ConverterParameter={StaticResource zero}}" />
+
+                    <!--<MultiBinding>
+                            <MultiBinding.Converter>
+                                <views:ArithmeticConverter Operation="Add" />
+                            </MultiBinding.Converter>
+
+                            <Binding Path="Y"
+                                        Source="{x:Reference minheight}" />
+                            <Binding Path="Child.Height">
+                                <Binding.Source>
+                                    <views:ChildViewModel Layout="{x:Reference minheight}"
+                                                            Index="0" />
+                                </Binding.Source>
+                            </Binding>
+                        </MultiBinding>
+                    </Setter>-->
+                </VisualState.Setters>
+            </VisualState>
+
+            <VisualState Name="{Static maui:DrawerView+VisualStates.Open}">
+                <VisualState.Setters>
+                    <Setter TargetName="scroll"
+                            Property="ScrollView.Orientation"
+                            Value="Vertical" />
+                    <Setter TargetName="scroll"
+                            Property="Layout.Padding"
+                            Value="0" />
+
+                    <Setter TargetName="filters"
+                            Property="ContentView.ControlTemplate"
+                            Value="{DynamicResource FullFiltersTemplate}" />
+                    <Setter TargetName="filters"
+                            Property="ContentView.IsVisible"
+                            Value="True" />
+                </VisualState.Setters>
+            </VisualState>
+        </VisualStateGroup>
+    </VisualStateManager.VisualStateGroups>
+
+    <ContentView x:Name="filters"
+                 BindingContext="{Binding Root}"
+                 Grid.Row="0">
+        <VisualElement.Resources>
             <x:Double x:Key="NodeSpacing">2</x:Double>
+
+            <movies:TypeDisplayConverter x:Key="OperatorPredicateRHSConverter">
+                <maui:MappingConverter>
+                    <maui:Mapping Key="{x:Type sys:DateTime}">{0:d}</maui:Mapping>
+                    <maui:Mapping Key="{x:Type sys:TimeSpan}">
+                        <movies:HrMinConverter />
+                    </maui:Mapping>
+                    <maui:Mapping Key="{x:Type sys:Type}"
+                                  Value="{StaticResource FilterTypeConverter}" />
+                </maui:MappingConverter>
+            </movies:TypeDisplayConverter>
+
+            <DataTemplate x:Key="PredicateTemplate">
+                <Label>
+                    <Label.Text>
+                        <MultiBinding Converter="{Static maui:StringJoinConverter.Instance}"
+                                      ConverterParameter=" ">
+                            <Binding Path="Value"
+                                     Converter="{maui:ServicesInstance Type={x:Type movies:OperatorPredicateLHSConverter}}" />
+
+                            <MultiBinding Converter="{StaticResource OperatorConverter}">
+                                <Binding Path="Value"
+                                         Converter="{maui:ServicesInstance Type={x:Type movies:OperatorPredicateOperatorConverter}}" />
+                                <Binding Path="Value.LHS.Type" />
+                            </MultiBinding>
+
+                            <Binding Path="Value.RHS"
+                                     Converter="{StaticResource OperatorPredicateRHSConverter}" />
+                        </MultiBinding>
+                    </Label.Text>
+                </Label>
+            </DataTemplate>
+
+            <DataTemplate x:Key="INodeTemplate">
+                <Border>
+                    <Label Text="{Binding Children[0].Value.RHS}" />
+                </Border>
+            </DataTemplate>
+
+            <viewmodels:TreeNodeTemplateSelector x:TypeArguments="x:Object"
+                                                 x:Key="NodeSelector"
+                                                 INodeTemplate="{StaticResource INodeTemplate}"
+                                                 LeafNodeTemplate="{StaticResource PredicateTemplate}" />
 
             <DataTemplate x:Key="NodeTemplate">
                 <Border Style="{StaticResource BorderStyle}"
@@ -59,7 +187,7 @@
                     </ContentView>
                 </Border>
             </DataTemplate>
-
+            
             <Style x:Key="FilterExpressionStyle"
                    TargetType="Layout">
                 <Setter Property="BindingContext"
@@ -67,7 +195,7 @@
                 <Setter Property="BindableLayout.ItemsSource"
                         Value="{Binding}" />
                 <!--<Setter Property="BindableLayout.ItemTemplateSelector"
-                        Value="{StaticResource NodeSelector}" />-->
+            Value="{StaticResource NodeSelector}" />-->
                 <Setter Property="BindableLayout.ItemTemplate"
                         Value="{StaticResource NodeTemplate}" />
                 <Setter Property="BindableLayout.EmptyView"
@@ -108,76 +236,78 @@
                 </VerticalStackLayout>
             </ControlTemplate>
 
-            <x:Int32 x:Key="zero">0</x:Int32>
-        </ResourceDictionary>
-    </VisualElement.Resources>
+            <Style TargetType="Button"
+                   x:Key="DestructiveButtonStyle"
+                   Class="Destructive">
+                <Setter Property="TextColor"
+                        Value="{OnPlatform iOS='Red'}" />
+                <Setter Property="BackgroundColor"
+                        Value="Red" />
+            </Style>
+        </VisualElement.Resources>
 
-    <VisualStateManager.VisualStateGroups>
-        <VisualStateGroup>
-            <VisualState Name="{Static maui:DrawerView+VisualStates.Closed}">
-                <VisualState.Setters>
-                    <Setter TargetName="scroll"
-                            Property="ScrollView.Orientation"
-                            Value="Neither" />
-                    <Setter TargetName="scroll"
-                            Property="Layout.Padding"
-                            Value="0,0,0,10" />
-
-                    <Setter TargetName="filters"
-                            Property="ContentView.ControlTemplate"
-                            Value="{StaticResource CompactFiltersTemplate}" />
-                    <Setter TargetName="filters"
-                            Property="ContentView.IsVisible"
-                            Value="{Binding Children.Count, Converter={Static maui:ObjectToFalseConverter.Instance}, ConverterParameter={StaticResource zero}}" />
-
-                    <!--<MultiBinding>
-                            <MultiBinding.Converter>
-                                <views:ArithmeticConverter Operation="Add" />
-                            </MultiBinding.Converter>
-
-                            <Binding Path="Y"
-                                        Source="{x:Reference minheight}" />
-                            <Binding Path="Child.Height">
-                                <Binding.Source>
-                                    <views:ChildViewModel Layout="{x:Reference minheight}"
-                                                            Index="0" />
-                                </Binding.Source>
-                            </Binding>
-                        </MultiBinding>
-                    </Setter>-->
-                </VisualState.Setters>
-            </VisualState>
-
-            <VisualState Name="{Static maui:DrawerView+VisualStates.Open}">
-                <VisualState.Setters>
-                    <Setter TargetName="scroll"
-                            Property="ScrollView.Orientation"
-                            Value="Vertical" />
-                    <Setter TargetName="scroll"
-                            Property="Layout.Padding"
-                            Value="0" />
-
-                    <Setter TargetName="filters"
-                            Property="ContentView.ControlTemplate"
-                            Value="{StaticResource FullFiltersTemplate}" />
-                    <Setter TargetName="filters"
-                            Property="ContentView.IsVisible"
-                            Value="True" />
-                </VisualState.Setters>
-            </VisualState>
-        </VisualStateGroup>
-    </VisualStateManager.VisualStateGroups>
-
-    <ContentView x:Name="filters"
-                 BindingContext="{Binding Root}"
-                 Grid.Row="0">
         <Button Text="{Static strings:AppResources.ClearAction}"
-                TextColor="Red"
+                StyleClass="Destructive"
                 Command="{Binding ClearCommand}"
                 VerticalOptions="Start" />
     </ContentView>
 
     <ScrollView x:Name="scroll"
-                ext:ScrollView.Content="{ext:ViewBinding Template={StaticResource PredicateTemplateSelector}}"
-                Grid.Row="1" />
+                ext:ScrollView.Content="{ext:ViewBinding Template={Static ext:ResourceDataTemplateSelector.Instance}}"
+                Grid.Row="1">
+        <VisualElement.Resources>
+            <ResourceDictionary>
+                <ResourceDictionary.MergedDictionaries>
+                    <movies:PredicateEditorResources />
+                </ResourceDictionary.MergedDictionaries>
+
+                <ext:DataTypeTemplate x:Key="TypeTemplate"
+                                      Type="{x:Type sys:Type}">
+                    <DataTemplate>
+                        <Button Text="{Binding Converter={StaticResource FilterTypeConverter}}"
+                                Style="{StaticResource SelectableButtonStyle}" />
+                    </DataTemplate>
+                </ext:DataTypeTemplate>
+
+                <ext:DataTypeTemplate x:Key="GenreTemplate"
+                                      Type="{x:Type models:Genre}">
+                    <DataTemplate x:DataType="models:Genre">
+                        <Button Text="{Binding Name}"
+                                Style="{StaticResource SelectableButtonStyle}" />
+                    </DataTemplate>
+                </ext:DataTypeTemplate>
+
+                <ext:DataTypeTemplate x:Key="KeywordTemplate"
+                                      Type="{x:Type models:Keyword}">
+                    <DataTemplate x:DataType="models:Keyword">
+                        <Button Text="{Binding Name}"
+                                Style="{StaticResource SelectableButtonStyle}" />
+                    </DataTemplate>
+                </ext:DataTypeTemplate>
+
+                <ext:DataTypeTemplate x:Key="OperatorTemplate"
+                                      Type="{x:Type movies:Operators}">
+                    <DataTemplate>
+                        <Button Style="{StaticResource SelectableButtonStyle}">
+                            <Button.Text>
+                                <MultiBinding Converter="{StaticResource OperatorConverter}">
+                                    <Binding />
+                                    <Binding Path="Selected.Value.LHS.Type"
+                                             Source="{RelativeSource AncestorType={x:Type viewmodels:OperatorEditor}}" />
+                                </MultiBinding>
+                            </Button.Text>
+                        </Button>
+                    </DataTemplate>
+                </ext:DataTypeTemplate>
+
+                <ext:DataTypeTemplate x:Key="DefaultOptionTemplate"
+                                      Type="{x:Type sys:Object}">
+                    <DataTemplate>
+                        <Button Text="{Binding}"
+                                Style="{StaticResource SelectableButtonStyle}" />
+                    </DataTemplate>
+                </ext:DataTypeTemplate>
+            </ResourceDictionary>
+        </VisualElement.Resources>
+    </ScrollView>
 </Grid>

@@ -11,73 +11,6 @@
                     xmlns:ext="clr-namespace:Microsoft.Maui.Controls.Extensions;assembly=MauiExtensions"
                     xmlns:forms="clr-namespace:Microsoft.Maui.Controls;assembly=MauiExtensions"
                     x:Class="Movies.FilterPredicateResources">
-    <Style TargetType="Button"
-           x:Key="SelectableButtonStyle"
-           BasedOn="{StaticResource Stadium}">
-        <Setter Property="Padding"
-                Value="10, 8" />
-        <Setter Property="VisualStateManager.VisualStateGroups">
-            <VisualStateGroupList>
-                <VisualStateGroup Name="CommonStates">
-                    <VisualState Name="{Static VisualStateManager+CommonStates.Normal}">
-                        <VisualState.Setters>
-                            <Setter Property="TextColor"
-                                    Value="{AppThemeBinding Light={StaticResource LightSecondaryText}, Dark={StaticResource DarkSecondaryText}}" />
-                            <Setter Property="BackgroundColor"
-                                    Value="Transparent" />
-                            <Setter Property="BorderColor"
-                                    Value="{Binding TextColor, Source={RelativeSource Self}, Mode=TwoWay}" />
-                        </VisualState.Setters>
-                    </VisualState>
-
-                    <VisualState Name="{Static VisualStateManager+CommonStates.Selected}">
-                        <VisualState.Setters>
-                            <Setter Property="TextColor"
-                                    Value="{StaticResource DarkPrimaryText}" />
-                            <Setter Property="BackgroundColor"
-                                    Value="{StaticResource Primary}" />
-                            <Setter Property="BorderColor"
-                                    Value="Transparent" />
-                        </VisualState.Setters>
-                    </VisualState>
-                </VisualStateGroup>
-            </VisualStateGroupList>
-        </Setter>
-    </Style>
-
-    <Style TargetType="Button"
-           x:Key="ButtonOptionStyle"
-           BasedOn="{StaticResource SelectableButtonStyle}">
-    </Style>
-    
-    <forms:MappingConverter x:Key="OperatorConverter">
-        <forms:Mapping Key="{Static movies:Operators.LessThan}">
-            <forms:MappingConverter Default="Under">
-                <forms:Mapping Key="{x:Type sys:DateTime}">Before</forms:Mapping>
-            </forms:MappingConverter>
-        </forms:Mapping>
-
-        <forms:Mapping Key="{Static movies:Operators.Equal}">Exactly</forms:Mapping>
-
-        <forms:Mapping Key="{Static movies:Operators.GreaterThan}">
-            <forms:MappingConverter Default="Over">
-                <forms:Mapping Key="{x:Type sys:DateTime}">After</forms:Mapping>
-            </forms:MappingConverter>
-        </forms:Mapping>
-    </forms:MappingConverter>
-
-    <DataTemplate x:Key="OperatorTemplate">
-        <Button Style="{StaticResource SelectableButtonStyle}">
-            <Button.Text>
-                <MultiBinding Converter="{StaticResource OperatorConverter}">
-                    <Binding />
-                    <Binding Path="Selected.Value.LHS.Type"
-                             Source="{RelativeSource AncestorType={x:Type viewmodels:OperatorEditor}}" />
-                </MultiBinding>
-            </Button.Text>
-        </Button>
-    </DataTemplate>
-
     <DataTemplate x:Key="TimeSpanTemplate"
                   x:DataType="x:TimeSpan">
         <Label Text="{Binding Converter={Static movies:HrMinConverter.Instance}}" />
@@ -87,13 +20,6 @@
                   x:DataType="sys:DateTime">
         <Label Text="{Binding StringFormat='{0:d}'}" />
     </DataTemplate>
-
-    <forms:MappingConverter x:Key="FilterTypeConverter">
-        <forms:Mapping Key="{x:Type models:Movie}">Movies</forms:Mapping>
-        <forms:Mapping Key="{x:Type models:TVShow}">Shows</forms:Mapping>
-        <forms:Mapping Key="{x:Type models:Person}">People</forms:Mapping>
-        <forms:Mapping Key="{x:Type models:Collection}">Collections</forms:Mapping>
-    </forms:MappingConverter>
 
     <DataTemplate x:Key="TypeTemplate"
                   x:DataType="sys:Type">
@@ -209,47 +135,4 @@
                                          OperatorAndValueTemplate="{StaticResource PredicateOperatorRHSTemplate}"
                                          FullExpressionTemplate="{StaticResource PredicateFullTemplate}"
                                          MoneyValueTemplate="{StaticResource MoneyPredicateTemplate}" />
-
-    <movies:TypeDisplayConverter x:Key="OperatorPredicateRHSConverter">
-        <forms:MappingConverter>
-            <forms:Mapping Key="{x:Type sys:DateTime}">{0:d}</forms:Mapping>
-            <forms:Mapping Key="{x:Type sys:TimeSpan}">
-                <movies:HrMinConverter />
-            </forms:Mapping>
-            <forms:Mapping Key="{x:Type sys:Type}"
-                           Value="{StaticResource FilterTypeConverter}" />
-        </forms:MappingConverter>
-    </movies:TypeDisplayConverter>
-
-    <DataTemplate x:Key="PredicateTemplate">
-        <Label>
-            <Label.Text>
-                <MultiBinding Converter="{Static forms:StringJoinConverter.Instance}"
-                              ConverterParameter=" ">
-                    <Binding Path="Value"
-                             Converter="{forms:ServicesInstance Type={x:Type movies:OperatorPredicateLHSConverter}}" />
-
-                    <MultiBinding Converter="{StaticResource OperatorConverter}">
-                        <Binding Path="Value"
-                                 Converter="{forms:ServicesInstance Type={x:Type movies:OperatorPredicateOperatorConverter}}" />
-                        <Binding Path="Value.LHS.Type" />
-                    </MultiBinding>
-
-                    <Binding Path="Value.RHS"
-                             Converter="{StaticResource OperatorPredicateRHSConverter}" />
-                </MultiBinding>
-            </Label.Text>
-        </Label>
-    </DataTemplate>
-
-    <DataTemplate x:Key="INodeTemplate">
-        <Border>
-            <Label Text="{Binding Children[0].Value.RHS}" />
-        </Border>
-    </DataTemplate>
-
-    <viewmodels:TreeNodeTemplateSelector x:TypeArguments="x:Object"
-                                         x:Key="NodeSelector"
-                                         INodeTemplate="{StaticResource INodeTemplate}"
-                                         LeafNodeTemplate="{StaticResource PredicateTemplate}" />
 </ResourceDictionary>

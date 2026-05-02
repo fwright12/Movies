@@ -8,12 +8,11 @@
     <VisualElement.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
-                <movies:FilterResources />
-                <movies:FilterPredicateResources />
+                <movies:PredicateEditorResources />
             </ResourceDictionary.MergedDictionaries>
 
             <Style TargetType="Button"
-                   BasedOn="{StaticResource ButtonOptionStyle}" />
+                   BasedOn="{StaticResource SelectableButtonStyle}" />
         </ResourceDictionary>
     </VisualElement.Resources>
 </FlexLayout>

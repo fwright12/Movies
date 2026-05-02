@@ -12,128 +12,51 @@
                     xmlns:ext="clr-namespace:Microsoft.Maui.Controls.Extensions;assembly=MauiExtensions"
                     xmlns:forms="clr-namespace:Microsoft.Maui.Controls;assembly=MauiExtensions"
                     x:Class="Movies.PredicateEditorResources">
-    <ResourceDictionary.MergedDictionaries>
-        <movies:FilterResources />
+    <!--<ResourceDictionary.MergedDictionaries>
         <movies:FilterPredicateResources />
-    </ResourceDictionary.MergedDictionaries>
-
-    <DataTemplate x:Key="SearchTemplate"
-                  x:DataType="viewmodels:SearchPredicateBuilder">
-        <SearchBar Text="{Binding Query, Mode=TwoWay}"
-                   SearchCommand="{Binding SearchCommand}"
-                   TextColor="{AppThemeBinding Light={StaticResource LightPrimaryText}, Dark={StaticResource DarkPrimaryText}}"
-                   Placeholder="{Binding Placeholder}"
-                   PlaceholderColor="{AppThemeBinding Light={StaticResource LightSecondaryText}, Dark={StaticResource DarkSecondaryText}}"
-                   CancelButtonColor="{StaticResource Primary}" />
-    </DataTemplate>
-
-    <viewmodels:TreeNodeTemplateSelector x:TypeArguments="x:Object"
-                                         x:Key="OptionNodeSelector"
-                                         INodeTemplate="{StaticResource INodeTemplate}"
-                                         LeafNodeTemplate="{StaticResource PredicateRHSOnlyTemplate}" />
+    </ResourceDictionary.MergedDictionaries>-->
 
     <x:Int32 x:Key="zero">0</x:Int32>
     <x:Double x:Key="onetenth">0.1</x:Double>
     <x:Double x:Key="OptionSpacing">4</x:Double>
 
-    <Style x:Key="HideIfNoChildrenStyle"
-           TargetType="Layout"
-           ApplyToDerivedTypes="True">
-        <Setter Property="IsVisible"
-                Value="{Binding Children.Count, Source={RelativeSource Self}, Converter={Static forms:ObjectToFalseConverter.Instance}, ConverterParameter={StaticResource zero}}" />
+    <Style TargetType="Button"
+           x:Key="SelectableButtonStyle"
+           BasedOn="{StaticResource Stadium}">
+        <Setter Property="Padding"
+                Value="10, 8" />
+        <Setter Property="VisualStateManager.VisualStateGroups">
+            <VisualStateGroupList>
+                <VisualStateGroup Name="CommonStates">
+                    <VisualState Name="{Static VisualStateManager+CommonStates.Normal}">
+                        <VisualState.Setters>
+                            <Setter Property="TextColor"
+                                    Value="{AppThemeBinding Light={StaticResource LightSecondaryText}, Dark={StaticResource DarkSecondaryText}}" />
+                            <Setter Property="BackgroundColor"
+                                    Value="Transparent" />
+                            <Setter Property="BorderColor"
+                                    Value="{Binding TextColor, Source={RelativeSource Self}, Mode=TwoWay}" />
+                        </VisualState.Setters>
+                    </VisualState>
+
+                    <VisualState Name="{Static VisualStateManager+CommonStates.Selected}">
+                        <VisualState.Setters>
+                            <Setter Property="TextColor"
+                                    Value="{StaticResource DarkPrimaryText}" />
+                            <Setter Property="BackgroundColor"
+                                    Value="{StaticResource Primary}" />
+                            <Setter Property="BorderColor"
+                                    Value="Transparent" />
+                        </VisualState.Setters>
+                    </VisualState>
+                </VisualStateGroup>
+            </VisualStateGroupList>
+        </Setter>
     </Style>
 
-    <ControlTemplate x:Key="CompareControlTemplate">
-        <Grid BindingContext="{TemplateBinding BindingContext}"
-              ColumnDefinitions="Auto,*">
-            <VerticalStackLayout Grid.Column="0"
-                                 BindableLayout.ItemsSource="{Binding OperatorOptions, Converter={Static forms:ReverseListConverter.Instance}}"
-                                 BindableLayout.ItemTemplate="{StaticResource OperatorTemplate}"
-                                 Spacing="{StaticResource OptionSpacing}"
-                                 forms:Selection.SelectionMode="MandatorySingle"
-                                 forms:Selection.SelectedItems="{Binding Selected.Value.Operator, Converter={Static viewmodels:SingleItemListConverter.Instance}}">
-                <!--<BindableLayout.ItemTemplate>
-                    <DataTemplate>
-                        <Frame Style="{StaticResource SelectableTextStyle}">
-                            <Label Style="{StaticResource DefaultComparisonStyle}">
-                                <VisualElement.Triggers>
-                                    <DataTrigger TargetType="Label"
-                                                 Binding="{Binding Parent.Parent.BindingContext.Selected.Value.LHS.Type, Source={RelativeSource Self}}"
-                                                 Value="{x:Type sys:DateTime}">
-                                        <Setter Property="Style"
-                                                Value="{StaticResource DateTimeComparisonStyle}" />
-                                    </DataTrigger>
-                                </VisualElement.Triggers>
-                            </Label>
-                        </Frame>
-                    </DataTemplate>
-                </BindableLayout.ItemTemplate>-->
-            </VerticalStackLayout>
-
-            <ContentPresenter Grid.Column="1"
-                              VerticalOptions="Center" />
-        </Grid>
-    </ControlTemplate>
-
-    <DataTemplate x:Key="SelectorTemplate">
-        <views:SectionView Title="{Binding LHSOptions[0].Name}">
-            <views:SectionView.Header>
-                <ContentView>
-                    <Button Text="Reset"
-                            HorizontalOptions="End"
-                            Command="{Binding ResetCommand}" />
-                </ContentView>
-            </views:SectionView.Header>
-
-            <VisualElement.Triggers>
-                <DataTrigger TargetType="ContentView"
-                             Binding="{Binding Title.Length, Source={RelativeSource Self}, FallbackValue='0'}"
-                             Value="0">
-                    <Setter Property="ControlTemplate"
-                            Value="{x:Null}" />
-                </DataTrigger>
-            </VisualElement.Triggers>
-
-            <VerticalStackLayout>
-                <!--<StackLayout Orientation="Vertical"
-                             BindableLayout.ItemsSource="{Binding Presets}"
-                             Style="{StaticResource HideIfNoChildrenStyle}">
-                    <BindableLayout.ItemTemplate>
-                        <DataTemplate x:DataType="viewmodels:Preset">
-                            <views:LabeledContentView Label="{Binding Text}"
-                                                      LabelPosition="Left">
-                                <CheckBox IsChecked="{Binding IsActive}" />
-                            </views:LabeledContentView>
-                        </DataTemplate>
-                    </BindableLayout.ItemTemplate>
-                </StackLayout>-->
-
-                <ContentView Content="{ext:ViewBinding RHSOptions.Predicate, Template={StaticResource PredicateTemplateSelector}}"
-                             IsVisible="{Binding Content, Source={RelativeSource Self}, Converter={Static forms:ObjectToFalseConverter.Instance}}" />
-
-                <ContentView Content="{ext:ViewBinding Template={StaticResource SelectorTemplateSelector}}">
-                    <TemplatedView.ControlTemplate>
-                        <Binding Path="OperatorOptions.Count"
-                                 ConverterParameter="{Static viewmodels:CollectionViewModel.GreaterThanOnePredicate}">
-                            <Binding.Converter>
-                                <forms:BoolToObjectConverter TrueObject="{StaticResource CompareControlTemplate}" />
-                            </Binding.Converter>
-                        </Binding>
-                    </TemplatedView.ControlTemplate>
-                </ContentView>
-            </VerticalStackLayout>
-        </views:SectionView>
-    </DataTemplate>
-
-    <Style x:Key="OptionsStyle"
-           TargetType="View">
-        <Style.Behaviors>
-            <viewmodels:OptionsLayoutBehavior />
-        </Style.Behaviors>
-    </Style>
-
-    <Style x:Key="CollectionViewOptionsStyle"
-           TargetType="CollectionView"
+    <!-- Deprecated -->
+    <Style TargetType="CollectionView"
+           x:Key="CollectionViewOptionsStyle"
            BasedOn="{StaticResource OptionsStyle}">
         <Setter Property="SelectionMode"
                 Value="Multiple" />
@@ -141,17 +64,95 @@
                 Value="{Binding Selected.Children}" />
     </Style>
 
-    <Style TargetType="Slider">
-        <Setter Property="MinimumTrackColor"
-                Value="{StaticResource Primary}" />
-        <Setter Property="DragStartedCommand"
-                Value="{Binding PauseChangesCommand, Source={RelativeSource AncestorType={x:Type viewmodels:ExpressionBuilder}}}" />
-        <Setter Property="DragCompletedCommand"
-                Value="{Binding ResumeChangesCommand, Source={RelativeSource AncestorType={x:Type viewmodels:ExpressionBuilder}}}" />
+    <Style TargetType="CollectionView"
+           x:Key="SearchResultsStyle">
+        <Setter Property="ItemsSource"
+                Value="{Binding RHSOptions}" />
+        <Setter Property="SelectionMode"
+                Value="Single" />
+        <Setter Property="SelectedItem"
+                Value="{Binding Selected.Value.RHS}" />
+        <Setter Property="SelectionChangedCommand"
+                Value="{Binding AddNewCommand}" />
+        <!--<Setter Property="HeightRequest">
+        <Binding Path="ItemsSource.Items.Count"
+                 Source="{RelativeSource Self}"
+                 ConverterParameter="{Static viewmodels:CollectionViewModel.EqualsZeroPredicate}">
+            <Binding.Converter>
+                <forms:BoolToObjectConverter TrueObject="0"
+                                             FalseObject="150" />
+            </Binding.Converter>
+        </Binding>
+    </Setter>-->
     </Style>
 
-    <Style x:Key="DefaultPickerStyle"
-           TargetType="views:NumberPicker">
+    <Style TargetType="FlexLayout"
+           x:Key="DefaultSelectionStyle">
+        <Setter Property="Wrap"
+                Value="Wrap" />
+        <Setter Property="AlignItems"
+                Value="Center" />
+        <Setter Property="ext:FlexLayout.RowSpacing"
+                Value="{StaticResource OptionSpacing}" />
+        <Setter Property="ext:FlexLayout.ColumnSpacing"
+                Value="{StaticResource OptionSpacing}" />
+        <Setter Property="BindableLayout.ItemsSource"
+                Value="{Binding RHSOptions}" />
+        <Setter Property="BindableLayout.EmptyViewTemplate">
+            <DataTemplate>
+                <Label Text="Search for options to filter by"
+                       WidthRequest="{Binding Parent.Width, Source={RelativeSource Self}}"
+                       HorizontalTextAlignment="Center"
+                       VerticalTextAlignment="Center"
+                       MinimumHeightRequest="100" />
+            </DataTemplate>
+        </Setter>
+    </Style>
+
+    <!-- Deprecated -->
+    <Style TargetType="IBindableLayout"
+           x:Key="MultiSelectionLayoutStyle">
+        <!--<Setter Property="BindableLayout.ItemTemplateSelector"
+    Value="{StaticResource OptionNodeSelector}" />-->
+        <Setter Property="BindableLayout.ItemTemplate">
+            <DataTemplate>
+                <Button Text="{Binding Value.RHS}" />
+            </DataTemplate>
+        </Setter>
+        <Setter Property="forms:Selection.SelectionMode"
+                Value="Multiple" />
+        <Setter Property="forms:Selection.SelectedItems"
+                Value="{Binding Selected.Children}" />
+        <Style.Behaviors>
+            <viewmodels:OptionsLayoutBehavior />
+        </Style.Behaviors>
+    </Style>
+
+    <!-- Deprecated -->
+    <Style x:Key="SingleSelectionLayoutStyle"
+           TargetType="IBindableLayout">
+        <Setter Property="BindableLayout.ItemsSource"
+                Value="{Binding RHSOptions}" />
+        <Setter Property="BindableLayout.ItemTemplate">
+            <DataTemplate>
+                <Button Text="{Binding}" />
+            </DataTemplate>
+        </Setter>
+        <Setter Property="forms:Selection.SelectionMode"
+                Value="Single" />
+        <Setter Property="forms:Selection.SelectedItems"
+                Value="{Binding Selected.Value.RHS, Converter={Static viewmodels:SingleItemListConverter.Instance}}" />
+    </Style>
+
+    <Style TargetType="Layout"
+           x:Key="HideIfNoChildrenStyle"
+           ApplyToDerivedTypes="True">
+        <Setter Property="IsVisible"
+                Value="{Binding Children.Count, Source={RelativeSource Self}, Converter={Static forms:ObjectToFalseConverter.Instance}, ConverterParameter={StaticResource zero}}" />
+    </Style>
+
+    <Style TargetType="views:NumberPicker"
+           x:Key="DefaultPickerStyle">
         <Setter Property="AbsoluteMax"
                 Value="{Binding RHSOptions.Last}" />
         <Setter Property="AbsoluteMin"
@@ -166,17 +167,8 @@
                 Value="{Binding Selected.Value.RHS}" />
     </Style>
 
-    <Style x:Key="RuntimePickerStyle"
-           TargetType="views:NumberPicker"
-           BasedOn="{StaticResource DefaultPickerStyle}">
-        <Setter Property="Upper"
-                Value="180" />
-        <Setter Property="Step"
-                Value="1" />
-    </Style>
-
-    <Style x:Key="DatePickerStyle"
-           TargetType="views:NumberPicker"
+    <Style TargetType="views:NumberPicker"
+           x:Key="DatePickerStyle"
            BasedOn="{StaticResource DefaultPickerStyle}">
         <Setter Property="Upper"
                 Value="{Static viewmodels:CollectionViewModel.NextYear}" />
@@ -186,8 +178,8 @@
                 Value="1" />
     </Style>
 
-    <Style x:Key="MoneyPickerStyle"
-           TargetType="views:NumberPicker"
+    <Style TargetType="views:NumberPicker"
+           x:Key="MoneyPickerStyle"
            BasedOn="{StaticResource DefaultPickerStyle}">
         <Setter Property="Lower"
                 Value="0" />
@@ -197,25 +189,50 @@
                 Value="1000000" />
     </Style>
 
-    <DataTemplate x:Key="ScorePickerTemplate">
-        <views:NumberPicker Value="{Binding Selected.Value.RHS, Converter={Static converters:ObjectToDoubleConverter.Instance}}"
-                            Upper="10"
-                            Style="{StaticResource DefaultPickerStyle}" />
-    </DataTemplate>
+    <Style TargetType="views:NumberPicker"
+           x:Key="RuntimePickerStyle"
+           BasedOn="{StaticResource DefaultPickerStyle}">
+        <Setter Property="Upper"
+                Value="180" />
+        <Setter Property="Step"
+                Value="1" />
+    </Style>
 
-    <DataTemplate x:Key="MoneyPickerTemplate">
-        <views:NumberPicker Value="{Binding Selected.Value.RHS, Converter={Static converters:DoubleToLongConverter.Instance}}"
-                            AbsoluteMin="{Binding Selected.Value.LHS.Values.First}"
-                            AbsoluteMax="{Binding Selected.Value.LHS.Values.Last}"
-                            Style="{StaticResource MoneyPickerStyle}" />
-    </DataTemplate>
+    <!-- Deprecated -->
+    <Style TargetType="movies:SelectableOptionsLayout"
+           x:Key="SelectableOptionsLayoutStyle">
+        <Setter Property="AlignItems"
+                Value="Center" />
+        <Setter Property="ext:FlexLayout.RowSpacing"
+                Value="{StaticResource OptionSpacing}" />
+        <Setter Property="ext:FlexLayout.ColumnSpacing"
+                Value="{StaticResource OptionSpacing}" />
+    </Style>
 
-    <DataTemplate x:Key="TimeSpanPickerTemplate">
-        <views:NumberPicker Value="{Binding Selected.Value.RHS, Converter={Static converters:TimeSpanMinutesConverter.Instance}}"
-                            AbsoluteMin="{Binding Selected.Value.LHS.Values.First, Converter={Static converters:TimeSpanMinutesConverter.Instance}}"
-                            AbsoluteMax="{Binding Selected.Value.LHS.Values.Last, Converter={Static converters:TimeSpanMinutesConverter.Instance}}"
-                            Style="{StaticResource RuntimePickerStyle}" />
-    </DataTemplate>
+    <Style TargetType="Slider">
+        <Setter Property="MinimumTrackColor"
+                Value="{StaticResource Primary}" />
+        <Setter Property="ThumbColor"
+                Value="{StaticResource Primary}" />
+        <Setter Property="DragStartedCommand"
+                Value="{Binding PauseChangesCommand, Source={RelativeSource AncestorType={x:Type viewmodels:ExpressionBuilder}}}" />
+        <Setter Property="DragCompletedCommand"
+                Value="{Binding ResumeChangesCommand, Source={RelativeSource AncestorType={x:Type viewmodels:ExpressionBuilder}}}" />
+    </Style>
+
+    <!-- Deprecated -->
+    <Style TargetType="View"
+           x:Key="OptionsStyle">
+        <Style.Behaviors>
+            <viewmodels:OptionsLayoutBehavior />
+        </Style.Behaviors>
+    </Style>
+
+    <!-- Deprecated -->
+    <viewmodels:TreeNodeTemplateSelector x:Key="OptionNodeSelector"
+                                         x:TypeArguments="x:Object"
+                                         INodeTemplate="{StaticResource INodeTemplate}"
+                                         LeafNodeTemplate="{StaticResource PredicateRHSOnlyTemplate}" />
 
     <DataTemplate x:Key="DateTimePickerTemplate">
         <views:DeluxeDatePicker ControlTemplate="{x:Null}">
@@ -229,6 +246,116 @@
                                 Value="{Binding Year, Source={RelativeSource AncestorType={x:Type views:DeluxeDatePicker}}}"
                                 Style="{StaticResource DatePickerStyle}" />
         </views:DeluxeDatePicker>
+    </DataTemplate>
+
+    <DataTemplate x:Key="DefaultMultiSelectionTemplate">
+        <FlexLayout Style="{StaticResource DefaultSelectionStyle}"
+                    forms:Selection.SelectionMode="Multiple"
+                    forms:Selection.SelectedItems="{Binding Value}" />
+    </DataTemplate>
+
+    <!-- Deprecated -->
+    <DataTemplate x:Key="DefaultMultiSelectionTemplate1">
+        <movies:SelectableOptionsLayout AlignItems="Center"
+                                        ext:FlexLayout.RowSpacing="{StaticResource OptionSpacing}"
+                                        ext:FlexLayout.ColumnSpacing="{StaticResource OptionSpacing}"
+                                        Style="{StaticResource MultiSelectionLayoutStyle}" />
+    </DataTemplate>
+
+    <DataTemplate x:Key="DefaultSingleSelectionTemplate">
+        <FlexLayout Style="{StaticResource DefaultSelectionStyle}"
+                    forms:Selection.SelectionMode="Single"
+                    forms:Selection.SelectedItems="{Binding Selected.Value.RHS, Converter={Static viewmodels:SingleItemListConverter.Instance}}" />
+    </DataTemplate>
+
+    <!-- Deprecated -->
+    <DataTemplate x:Key="DefaultSingleSelectionTemplate1">
+        <movies:SelectableOptionsLayout forms:Selection.SelectionMode="Single"
+                                        AlignItems="Center"
+                                        ext:FlexLayout.RowSpacing="{StaticResource OptionSpacing}"
+                                        ext:FlexLayout.ColumnSpacing="{StaticResource OptionSpacing}" />
+    </DataTemplate>
+
+    <!-- Deprecated -->
+    <DataTemplate x:Key="ItemTypeSelectionTemplate">
+        <movies:SelectableOptionsLayout forms:Selection.SelectionMode="Multiple"
+                                        AlignItems="Center"
+                                        ext:FlexLayout.RowSpacing="{StaticResource OptionSpacing}"
+                                        ext:FlexLayout.ColumnSpacing="{StaticResource OptionSpacing}">
+            <BindableLayout.ItemTemplate>
+                <DataTemplate>
+                    <Button Text="{Binding Value.RHS, Converter={StaticResource FilterTypeConverter}}" />
+                </DataTemplate>
+            </BindableLayout.ItemTemplate>
+        </movies:SelectableOptionsLayout>
+    </DataTemplate>
+
+    <DataTemplate x:Key="MoneyPickerTemplate">
+        <views:NumberPicker Value="{Binding Selected.Value.RHS, Converter={Static converters:DoubleToLongConverter.Instance}}"
+                            AbsoluteMin="{Binding Selected.Value.LHS.Values.First}"
+                            AbsoluteMax="{Binding Selected.Value.LHS.Values.Last}"
+                            Style="{StaticResource MoneyPickerStyle}" />
+    </DataTemplate>
+
+    <DataTemplate x:Key="PersonListTemplate">
+        <CollectionView Style="{StaticResource SearchResultsStyle}"
+                        EmptyView="Search for people to filter by">
+            <CollectionView.ItemsLayout>
+                <LinearItemsLayout Orientation="Horizontal"
+                                   ItemSpacing="10"
+                                   ext:ItemsLayout.ItemLength="100" />
+            </CollectionView.ItemsLayout>
+
+            <ItemsView.ItemTemplate>
+                <DataTemplate>
+                    <views:PersonThumbnailView InputTransparent="True" />
+                </DataTemplate>
+            </ItemsView.ItemTemplate>
+
+            <viewmodels:RefreshHelper.RefreshView>
+                <RefreshView Style="{StaticResource AsyncListViewModelRefreshStyle}" />
+            </viewmodels:RefreshHelper.RefreshView>
+        </CollectionView>
+    </DataTemplate>
+
+    <DataTemplate x:Key="ScorePickerTemplate">
+        <views:NumberPicker Value="{Binding Selected.Value.RHS, Converter={Static converters:ObjectToDoubleConverter.Instance}}"
+                            Upper="10"
+                            Style="{StaticResource DefaultPickerStyle}" />
+    </DataTemplate>
+
+    <DataTemplate x:Key="SearchTemplate"
+                  x:DataType="viewmodels:SearchPredicateBuilder">
+        <SearchBar Text="{Binding Query, Mode=TwoWay}"
+                   SearchCommand="{Binding SearchCommand}"
+                   TextColor="{AppThemeBinding Light={StaticResource LightPrimaryText}, Dark={StaticResource DarkPrimaryText}}"
+                   Placeholder="{Binding Placeholder}"
+                   PlaceholderColor="{AppThemeBinding Light={StaticResource LightSecondaryText}, Dark={StaticResource DarkSecondaryText}}"
+                   CancelButtonColor="{StaticResource Primary}" />
+    </DataTemplate>
+
+    <!-- Deprecated -->
+    <DataTemplate x:Key="StringSearchTemplate">
+        <CollectionView Style="{StaticResource SearchResultsStyle}">
+            <ItemsView.ItemTemplate>
+                <DataTemplate>
+                    <Label Text="{Binding}"
+                           FontSize="Medium"
+                           Padding="20,0,0,0" />
+                </DataTemplate>
+            </ItemsView.ItemTemplate>
+
+            <viewmodels:RefreshHelper.RefreshView>
+                <RefreshView Style="{StaticResource AsyncListViewModelRefreshStyle}" />
+            </viewmodels:RefreshHelper.RefreshView>
+        </CollectionView>
+    </DataTemplate>
+
+    <DataTemplate x:Key="TimeSpanPickerTemplate">
+        <views:NumberPicker Value="{Binding Selected.Value.RHS, Converter={Static converters:TimeSpanMinutesConverter.Instance}}"
+                            AbsoluteMin="{Binding Selected.Value.LHS.Values.First, Converter={Static converters:TimeSpanMinutesConverter.Instance}}"
+                            AbsoluteMax="{Binding Selected.Value.LHS.Values.Last, Converter={Static converters:TimeSpanMinutesConverter.Instance}}"
+                            Style="{StaticResource RuntimePickerStyle}" />
     </DataTemplate>
 
     <DataTemplate x:Key="WatchProviderListTemplate">
@@ -273,104 +400,8 @@
         </CollectionView>
     </DataTemplate>
 
-    <Style x:Key="SearchResultsStyle"
-           TargetType="CollectionView">
-        <Setter Property="ItemsSource"
-                Value="{Binding RHSOptions}" />
-        <Setter Property="SelectionMode"
-                Value="Single" />
-        <Setter Property="SelectedItem"
-                Value="{Binding Selected.Value.RHS}" />
-        <Setter Property="SelectionChangedCommand"
-                Value="{Binding AddNewCommand}" />
-        <!--<Setter Property="HeightRequest">
-            <Binding Path="ItemsSource.Items.Count"
-                     Source="{RelativeSource Self}"
-                     ConverterParameter="{Static viewmodels:CollectionViewModel.EqualsZeroPredicate}">
-                <Binding.Converter>
-                    <forms:BoolToObjectConverter TrueObject="0"
-                                                 FalseObject="150" />
-                </Binding.Converter>
-            </Binding>
-        </Setter>-->
-    </Style>
-
-    <DataTemplate x:Key="PersonListTemplate">
-        <CollectionView Style="{StaticResource SearchResultsStyle}"
-                        EmptyView="Search for people to filter by">
-            <CollectionView.ItemsLayout>
-                <LinearItemsLayout Orientation="Horizontal"
-                                   ItemSpacing="10"
-                                   ext:ItemsLayout.ItemLength="100" />
-            </CollectionView.ItemsLayout>
-
-            <ItemsView.ItemTemplate>
-                <DataTemplate>
-                    <views:PersonThumbnailView InputTransparent="True" />
-                </DataTemplate>
-            </ItemsView.ItemTemplate>
-
-            <viewmodels:RefreshHelper.RefreshView>
-                <RefreshView Style="{StaticResource AsyncListViewModelRefreshStyle}" />
-            </viewmodels:RefreshHelper.RefreshView>
-        </CollectionView>
-    </DataTemplate>
-
-    <DataTemplate x:Key="StringSearchTemplate">
-        <CollectionView Style="{StaticResource SearchResultsStyle}">
-            <ItemsView.ItemTemplate>
-                <DataTemplate>
-                    <Label Text="{Binding}"
-                           FontSize="Medium"
-                           Padding="20,0,0,0" />
-                </DataTemplate>
-            </ItemsView.ItemTemplate>
-
-            <viewmodels:RefreshHelper.RefreshView>
-                <RefreshView Style="{StaticResource AsyncListViewModelRefreshStyle}" />
-            </viewmodels:RefreshHelper.RefreshView>
-        </CollectionView>
-    </DataTemplate>
-
-    <Style TargetType="movies:SelectableOptionsLayout"
-           x:Key="SelectableOptionsLayoutStyle">
-        <Setter Property="AlignItems"
-                Value="Center" />
-        <Setter Property="ext:FlexLayout.RowSpacing"
-                Value="{StaticResource OptionSpacing}" />
-        <Setter Property="ext:FlexLayout.ColumnSpacing"
-                Value="{StaticResource OptionSpacing}" />
-    </Style>
-
-    <DataTemplate x:Key="ItemTypeSelectionTemplate">
-        <movies:SelectableOptionsLayout forms:Selection.SelectionMode="Multiple"
-                                        AlignItems="Center"
-                                        ext:FlexLayout.RowSpacing="{StaticResource OptionSpacing}"
-                                        ext:FlexLayout.ColumnSpacing="{StaticResource OptionSpacing}">
-            <BindableLayout.ItemTemplate>
-                <DataTemplate>
-                    <Button Text="{Binding Value.RHS, Converter={StaticResource FilterTypeConverter}}" />
-                </DataTemplate>
-            </BindableLayout.ItemTemplate>
-        </movies:SelectableOptionsLayout>
-    </DataTemplate>
-
-    <DataTemplate x:Key="DefaultSingleSelectionTemplate">
-        <movies:SelectableOptionsLayout forms:Selection.SelectionMode="Single"
-                                        AlignItems="Center"
-                                        ext:FlexLayout.RowSpacing="{StaticResource OptionSpacing}"
-                                        ext:FlexLayout.ColumnSpacing="{StaticResource OptionSpacing}" />
-    </DataTemplate>
-
-    <DataTemplate x:Key="DefaultMultiSelectionTemplate">
-        <movies:SelectableOptionsLayout forms:Selection.SelectionMode="Multiple"
-                                        AlignItems="Center"
-                                        ext:FlexLayout.RowSpacing="{StaticResource OptionSpacing}"
-                                        ext:FlexLayout.ColumnSpacing="{StaticResource OptionSpacing}" />
-    </DataTemplate>
-
     <templates:SelectorTemplateSelector x:Key="SelectorTemplateSelector"
-                                        ItemTypeTemplate="{StaticResource ItemTypeSelectionTemplate}"
+                                        ItemTypeTemplate="{StaticResource DefaultMultiSelectionTemplate}"
                                         MoneyTemplate="{StaticResource MoneyPickerTemplate}"
                                         ScoreTemplate="{StaticResource ScorePickerTemplate}"
                                         SearchTemplate="{StaticResource SearchTemplate}"
@@ -390,6 +421,8 @@
                                     Template="{StaticResource PersonListTemplate}" />
             <forms:TypeDataTemplate Type="{x:Type x:String}"
                                     Template="{StaticResource DefaultSingleSelectionTemplate}" />
+            <forms:TypeDataTemplate Type="{x:Type models:Keyword}"
+                                    Template="{StaticResource DefaultMultiSelectionTemplate}" />
 
             <forms:TypeDataTemplate Type="{x:Type sc:IEnumerable}"
                                     Template="{StaticResource DefaultMultiSelectionTemplate}" />
@@ -398,51 +431,126 @@
         </forms:TypeTemplateSelector.Templates>
     </templates:SelectorTemplateSelector>
 
-    <DataTemplate x:Key="MultiEditorTemplate">
-        <VerticalStackLayout Spacing="10"
-                             BindableLayout.ItemsSource="{Binding Editors}"
-                             BindableLayout.ItemTemplateSelector="{StaticResource EditorTemplateSelector}" />
-    </DataTemplate>
+    <ext:DataTypeTemplate x:Key="SearchPredicateBuilderTemplate"
+                          Type="{x:Type viewmodels:SearchPredicateBuilder}"
+                          Template="{StaticResource SearchTemplate}" />
+
+    <ext:DataTypeTemplate x:Key="ExpressionBuilderTemplate"
+                          Type="{x:Type viewmodels:ExpressionBuilder}">
+        <DataTemplate x:DataType="viewmodels:ExpressionBuilder">
+            <ContentView ext:ContentView.ItemSource="{Binding Editor}" />
+        </DataTemplate>
+    </ext:DataTypeTemplate>
+
+    <ControlTemplate x:Key="CompareControlTemplate">
+        <Grid BindingContext="{TemplateBinding BindingContext}"
+              ColumnDefinitions="Auto,*">
+            <VerticalStackLayout Grid.Column="0"
+                                 BindableLayout.ItemsSource="{Binding OperatorOptions, Converter={Static forms:ReverseListConverter.Instance}}"
+                                 Spacing="{StaticResource OptionSpacing}"
+                                 forms:Selection.SelectionMode="MandatorySingle"
+                                 forms:Selection.SelectedItems="{Binding Selected.Value.Operator, Converter={Static viewmodels:SingleItemListConverter.Instance}}">
+                <!--<BindableLayout.ItemTemplate>
+        <DataTemplate>
+            <Frame Style="{StaticResource SelectableTextStyle}">
+                <Label Style="{StaticResource DefaultComparisonStyle}">
+                    <VisualElement.Triggers>
+                        <DataTrigger TargetType="Label"
+                                     Binding="{Binding Parent.Parent.BindingContext.Selected.Value.LHS.Type, Source={RelativeSource Self}}"
+                                     Value="{x:Type sys:DateTime}">
+                            <Setter Property="Style"
+                                    Value="{StaticResource DateTimeComparisonStyle}" />
+                        </DataTrigger>
+                    </VisualElement.Triggers>
+                </Label>
+            </Frame>
+        </DataTemplate>
+    </BindableLayout.ItemTemplate>-->
+            </VerticalStackLayout>
+
+            <ContentPresenter Grid.Column="1"
+                              VerticalOptions="Center" />
+        </Grid>
+    </ControlTemplate>
+
+    <ext:DataTypeTemplate x:Key="OperatorEditorTemplate"
+                          Type="{x:Type viewmodels:OperatorEditor}">
+        <DataTemplate x:DataType="viewmodels:OperatorEditor">
+            <views:SectionView Title="{Binding LHSOptions[0].Name}">
+                <views:SectionView.Header>
+                    <ContentView>
+                        <Button Text="Reset"
+                                HorizontalOptions="End"
+                                Command="{Binding ResetCommand}" />
+                    </ContentView>
+                </views:SectionView.Header>
+
+                <VisualElement.Triggers>
+                    <DataTrigger TargetType="ContentView"
+                                 Binding="{Binding Title.Length, Source={RelativeSource Self}, FallbackValue='0'}"
+                                 Value="0">
+                        <Setter Property="ControlTemplate"
+                                Value="{x:Null}" />
+                    </DataTrigger>
+                </VisualElement.Triggers>
+
+                <VerticalStackLayout Spacing="10">
+                    <!--<StackLayout Orientation="Vertical"
+                                 BindableLayout.ItemsSource="{Binding Presets}"
+                                 Style="{StaticResource HideIfNoChildrenStyle}">
+                        <BindableLayout.ItemTemplate>
+                            <DataTemplate x:DataType="viewmodels:Preset">
+                                <views:LabeledContentView Label="{Binding Text}"
+                                                          LabelPosition="Left">
+                                    <CheckBox IsChecked="{Binding IsActive}" />
+                                </views:LabeledContentView>
+                            </DataTemplate>
+                        </BindableLayout.ItemTemplate>
+                    </StackLayout>-->
+
+                    <ContentView ext:ContentView.ItemSource="{Binding RHSOptions.Predicate}"
+                                 IsVisible="{Binding Content, Source={RelativeSource Self}, Converter={Static forms:ObjectToFalseConverter.Instance}}" />
+
+                    <ContentView Content="{ext:ViewBinding Template={StaticResource SelectorTemplateSelector}}">
+                        <!--<VisualElement.Behaviors>
+                            <ext:AutoSelectContentViewTemplateBehavior TemplateSelector="{StaticResource SelectorTemplateSelector}" />
+                        </VisualElement.Behaviors>-->
+                        
+                        <TemplatedView.ControlTemplate>
+                            <Binding Path="OperatorOptions.Count"
+                                     ConverterParameter="{Static viewmodels:CollectionViewModel.GreaterThanOnePredicate}">
+                                <Binding.Converter>
+                                    <forms:BoolToObjectConverter TrueObject="{StaticResource CompareControlTemplate}" />
+                                </Binding.Converter>
+                            </Binding>
+                        </TemplatedView.ControlTemplate>
+                    </ContentView>
+                </VerticalStackLayout>
+            </views:SectionView>
+        </DataTemplate>
+    </ext:DataTypeTemplate>
+
+    <ext:DataTypeTemplate x:Key="EditorTemplate"
+                          Type="{x:Type viewmodels:Editor}">
+        <DataTemplate x:DataType="viewmodels:Editor">
+            <ContentView ext:ContentView.ItemSource="{Binding Selected.Value}" />
+        </DataTemplate>
+    </ext:DataTypeTemplate>
+
+    <ext:DataTypeTemplate x:Key="MultiEditorTemplate"
+                          Type="{x:Type viewmodels:MultiEditor}">
+        <DataTemplate x:DataType="viewmodels:MultiEditor">
+            <VerticalStackLayout Spacing="10"
+                                 BindableLayout.ItemsSource="{Binding Editors}" />
+        </DataTemplate>
+    </ext:DataTypeTemplate>
 
     <DataTemplate x:Key="MultiEditorTemplate1">
-        <CollectionView ItemsSource="{Binding Editors}"
-                        ItemTemplate="{StaticResource EditorTemplateSelector}">
+        <CollectionView ItemsSource="{Binding Editors}">
             <CollectionView.ItemsLayout>
                 <LinearItemsLayout Orientation="Vertical"
                                    ItemSpacing="10" />
             </CollectionView.ItemsLayout>
         </CollectionView>
     </DataTemplate>
-
-    <DataTemplate x:Key="EditorTemplate">
-        <ContentView ext:ContentView.ItemSource="{Binding Selected.Value}"
-                     ext:ContentView.ContentTemplate="{StaticResource PredicateTemplateSelector}" />
-    </DataTemplate>
-
-    <forms:TypeTemplateSelector x:Key="EditorTemplateSelector">
-        <forms:TypeTemplateSelector.Templates>
-            <forms:TypeDataTemplate Type="{x:Type viewmodels:OperatorEditor}"
-                                    Template="{StaticResource SelectorTemplate}" />
-            <forms:TypeDataTemplate Type="{x:Type viewmodels:MultiEditor}"
-                                    Template="{StaticResource MultiEditorTemplate}" />
-            <forms:TypeDataTemplate Type="{x:Type viewmodels:Editor}"
-                                    Template="{StaticResource EditorTemplate}" />
-        </forms:TypeTemplateSelector.Templates>
-    </forms:TypeTemplateSelector>
-
-    <DataTemplate x:Key="ExpressionPredicateTemplate">
-        <ContentView ext:ContentView.ItemSource="{Binding Editor}"
-                     ext:ContentView.ContentTemplate="{StaticResource EditorTemplateSelector}" />
-    </DataTemplate>
-
-    <forms:TypeTemplateSelector x:Key="PredicateTemplateSelector">
-        <forms:TypeTemplateSelector.Templates>
-            <forms:TypeDataTemplate Type="{x:Type viewmodels:OperatorPredicateBuilder}"
-                                    Template="{StaticResource SelectorTemplate}" />
-            <forms:TypeDataTemplate Type="{x:Type viewmodels:SearchPredicateBuilder}"
-                                    Template="{StaticResource SearchTemplate}" />
-            <forms:TypeDataTemplate Type="{x:Type viewmodels:ExpressionBuilder}"
-                                    Template="{StaticResource ExpressionPredicateTemplate}" />
-        </forms:TypeTemplateSelector.Templates>
-    </forms:TypeTemplateSelector>
 </ResourceDictionary>

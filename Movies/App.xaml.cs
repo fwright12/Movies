@@ -1,4 +1,3 @@
-﻿using Microsoft.Maui.Controls.Compatibility;
 using Movies.Data;
 using Movies.Data.Local;
 using Movies.Models;
@@ -285,6 +284,14 @@ namespace Movies
             DataService.Instance.Controller
                 .SetNext(new AsyncCacheAsideProcessor<KeyValueRequestArgs<Uri>>(new UriBufferedCache(tmdbLocalCache)))
                 .SetNext(tmdbHandlers);
+
+            if (Media.KEYWORDS.Values is FilterListViewModel<Keyword> filter && filter.Predicate is SearchPredicateBuilder search)
+            {
+                search.PredicateChanged += async (sender, e) =>
+                {
+                    await filter.LoadMore(int.MaxValue);
+                };
+            }
 
 #if DEBUG
             async IAsyncEnumerable<Item> test(IAsyncEnumerable<Item> items)
