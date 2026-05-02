@@ -53,6 +53,58 @@ namespace Movies.ViewModels
         public Operators DefaultOperator { get; set; } = Operators.Equal;
         public object DefaultRHS { get; set; }
 
+        public object? Value
+        {
+            get => ConverterContext.Collection2;// ?? (Selected.Value as OperatorPredicate)?.RHS;
+            set
+            {
+                if (value is IEnumerable<object> items)
+                {
+                    ConverterContext.Collection2 = items;
+                }
+                else
+                {
+                    //(ConverterContext.Collection2 as ICollection<object>)?.Clear();
+                    ConverterContext.Collection2 = new ObservableCollection<object> { (Selected.Value as OperatorPredicate)?.RHS = value };
+                }
+            }
+        }
+
+        private CollectionConverterContext<ObservableNode<object>, object> ConverterContext;
+
+        public OperatorEditor()
+        {
+            ConverterContext = new TreeConverterContext(this)
+            {
+                Collection2 = new ObservableCollection<object>()
+            };
+            ConverterContext.SetBinding(CollectionConverterContext.Collection1Property, new Binding(string.Join(".", nameof(Selected), nameof(ObservableNode<>.Children)), source: this));
+        }
+
+        private class TreeConverterContext : CollectionConverterContext<ObservableNode<object>, object>
+        {
+            private OperatorEditor Editor { get; }
+
+            public TreeConverterContext(OperatorEditor editor)
+            {
+                Editor = editor;
+            }
+
+            protected override object Convert(ObservableNode<object> item) => (item.Value as OperatorPredicateBuilder)?.RHS!;
+
+            protected override ObservableNode<object> Convert(object item)
+            {
+                var builder = Editor.CreateNew();
+                if (builder is OperatorPredicateBuilder temp)
+                {
+                    temp.LHS = Editor.LHSOptions.OfType<Property>().FirstOrDefault(property => property.Values?.OfType<object>().Contains(item) == true) ?? Editor.DefaultLHS;
+                    temp.RHS = item;
+                }
+
+                return new ObservableNode<object>(builder);
+            }
+        }
+
         public override void Reset()
         {
             if (Selected.Value is OperatorPredicateBuilder builder)

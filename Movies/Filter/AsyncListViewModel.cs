@@ -184,8 +184,8 @@ namespace Movies.ViewModels
             Items = items;
 
             Source = source;
-            LoadMoreCommand = new Command<int?>(count => Task.Run(() => LoadMore(count ?? 1)));
-            RefreshCommand = new Command(() => Task.Run(Refresh));
+            LoadMoreCommand = new Command<int?>(count => _ = LoadMore(count ?? 1));
+            RefreshCommand = new Command(() => _ = Refresh());
 
             PropertyChanged += (sender, e) =>
             {
