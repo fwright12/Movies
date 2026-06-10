@@ -156,6 +156,9 @@
   <data name="EmptyItemListText" xml:space="preserve">
     <value>No items!</value>
   </data>
+  <data name="EmptyFilterOptions" xml:space="preserve">
+    <value>Search for options to filter by</value>
+  </data>
   <data name="ExpandContentHint" xml:space="preserve">
     <value>Tap for more</value>
   </data>

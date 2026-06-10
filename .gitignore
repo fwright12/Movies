@@ -8,3 +8,5 @@ packages/
 TestResults/
 
 Keys.cs
+
+.Designer.cs

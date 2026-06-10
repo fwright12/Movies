@@ -87,11 +87,10 @@
     <DataTemplate x:Key="WatchProviderTemplate"
                   x:DataType="models:WatchProvider">
         <VerticalStackLayout>
-            <ext:ImageView Source="{Binding Company.LogoPath}"
-                           ext:VisualElement.AspectRequest="1"
-                           HorizontalOptions="Center"
-                           WidthRequest="33"
-                           FlexLayout.Grow="1" />
+            <views:WatchProviderThumbnailView HorizontalOptions="Center"
+                                              AltView="{x:Null}"
+                                              WidthRequest="33"
+                                              FlexLayout.Grow="1" />
 
             <Label Text="{Binding Company.Name}"
                    HorizontalTextAlignment="Center"

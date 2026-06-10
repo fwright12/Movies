@@ -395,9 +395,9 @@ namespace Movies
         {
             [Movie.CONTENT_RATING] = new Dictionary<Operators, Parameter>
             {
-                [Operators.LessThan] = "certification.lte",
-                [Operators.Equal] = "certification",
-                [Operators.GreaterThan] = "certification.gte"
+                [Operators.LessThan] = new Parameter("certification.lte") { AllowsMultiple = true },
+                [Operators.Equal] = new Parameter("certification") { AllowsMultiple = true },
+                [Operators.GreaterThan] = new Parameter("certification.gte") { AllowsMultiple = true },
             },
             /*["Primary " + Movie.RELEASE_DATE.Name] = new Dictionary<int, string>
             {

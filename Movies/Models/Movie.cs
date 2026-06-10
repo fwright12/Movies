@@ -24,7 +24,7 @@ namespace Movies.Models
         });
         public static readonly Property<Collection> PARENT_COLLECTION = new Property<Collection>("Parent Collection");
 
-        public static readonly Property<string> CONTENT_RATING = new Property<string>("Content Rating", new ObservableCollection<string>());
+        public static readonly Property<string> CONTENT_RATING = new MultiProperty<string>("Content Rating", new ObservableCollection<string>());
         //public static readonly Property<string> CONTENT_RATING = new Property<string>("Content Rating", new List<string> { "G", "PG", "PG-13", "R", "NC-17" });
         public static readonly MultiProperty<Genre> GENRES = new MultiProperty<Genre>("Genres", new ObservableCollection<Genre>());
         //public static readonly MultiProperty<Genre> GENRES = new MultiProperty<Genre>("Genres", System.Linq.Enumerable.Select(new List<string> { "Action", "Adventure", "Romance", "Comedy", "Thriller", "Mystery", "Sci-Fi", "Horror", "Documentary" }, name => new Genre { Name = name }));

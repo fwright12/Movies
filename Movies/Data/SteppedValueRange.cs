@@ -32,42 +32,48 @@ namespace Movies
             public SteppedValueRange Range { get; }
             private int Direction { get; }
 
+            private static readonly object ENUMERATION_NOT_STARTED = new object();
+
             public Enumerator(SteppedValueRange range, bool reverse = false)
             {
                 Range = range;
                 Direction = reverse ? -1 : 1;
+                Reset();
             }
 
             public bool MoveNext()
             {
-                // TODO Cannot rely on null Current to indicate enumeration hasn't started
-                return false;
+                if (Current == ENUMERATION_NOT_STARTED)
+                {
+                    Current = Direction == -1 ? Range.Last : Range.First;
+                    return true;
+                }
+
+                object end;
                 try
                 {
-                    if (Current == null)
-                    {
-                        Reset();
-                    }
-                    else if (Direction == -1)
+                    if (Direction == -1)
                     {
                         Current = (dynamic)Current - (dynamic)Range.Step;
+                        end = Range.First;
                     }
                     else
                     {
                         Current = (dynamic)Current + (dynamic)Range.Step;
+                        end = Range.Last;
                     }
-
-                    return true;
                 }
                 catch
                 {
                     return false;
                 }
+
+                return Current == end;
             }
 
             public void Reset()
             {
-                Current = Direction == -1 ? Range.Last : Range.First;
+                Current = ENUMERATION_NOT_STARTED;
             }
         }
 

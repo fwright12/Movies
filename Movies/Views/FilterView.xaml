@@ -20,35 +20,6 @@
     <VisualElement.Resources>
         <ResourceDictionary>
             <x:Int32 x:Key="zero">0</x:Int32>
-
-            <maui:MappingConverter x:Key="OperatorConverter">
-                <maui:Mapping Key="{Static movies:Operators.LessThan}">
-                    <maui:MappingConverter Default="Under">
-                        <maui:Mapping Key="{x:Type sys:DateTime}">Before</maui:Mapping>
-                    </maui:MappingConverter>
-                </maui:Mapping>
-
-                <maui:Mapping Key="{Static movies:Operators.Equal}">Exactly</maui:Mapping>
-
-                <maui:Mapping Key="{Static movies:Operators.GreaterThan}">
-                    <maui:MappingConverter Default="Over">
-                        <maui:Mapping Key="{x:Type sys:DateTime}">After</maui:Mapping>
-                    </maui:MappingConverter>
-                </maui:Mapping>
-            </maui:MappingConverter>
-
-            <maui:MappingConverter x:Key="FilterTypeConverter">
-                <maui:Mapping Key="{x:Type models:Movie}">Movies</maui:Mapping>
-                <maui:Mapping Key="{x:Type models:TVShow}">Shows</maui:Mapping>
-                <maui:Mapping Key="{x:Type models:Person}">People</maui:Mapping>
-                <maui:Mapping Key="{x:Type models:Collection}">Collections</maui:Mapping>
-            </maui:MappingConverter>
-
-            <Style TargetType="Button"
-                   CanCascade="True">
-                <Setter Property="FontSize"
-                        Value="{OnPlatform iOS=Medium, Android=Small}" />
-            </Style>
         </ResourceDictionary>
     </VisualElement.Resources>
 
@@ -120,34 +91,60 @@
                     <maui:Mapping Key="{x:Type sys:TimeSpan}">
                         <movies:HrMinConverter />
                     </maui:Mapping>
-                    <maui:Mapping Key="{x:Type sys:Type}"
-                                  Value="{StaticResource FilterTypeConverter}" />
+                    <!--<maui:Mapping Key="{x:Type sys:Type}"
+                                  Value="{StaticResource FilterTypeConverter}" />-->
                 </maui:MappingConverter>
             </movies:TypeDisplayConverter>
 
             <DataTemplate x:Key="PredicateTemplate">
-                <Label>
-                    <Label.Text>
-                        <MultiBinding Converter="{Static maui:StringJoinConverter.Instance}"
-                                      ConverterParameter=" ">
-                            <Binding Path="Value"
-                                     Converter="{maui:ServicesInstance Type={x:Type movies:OperatorPredicateLHSConverter}}" />
+                <HorizontalStackLayout x:DataType="viewmodels:OperatorPredicateBuilder">
+                    <Label IsVisible="False">
+                        <Label.Triggers>
+                            <DataTrigger TargetType="Label"
+                                         Binding="{Binding Converter={maui:Converter Type={x:Type movies:ShowPredicateLHSConverter}}}"
+                                         Value="True">
+                                <Setter Property="IsVisible"
+                                        Value="True" />
+                                <Setter Property="Text"
+                                        Value="{Binding LHS, StringFormat='{0}: '}" />
+                            </DataTrigger>
+                        </Label.Triggers>
+                    </Label>
 
-                            <MultiBinding Converter="{StaticResource OperatorConverter}">
-                                <Binding Path="Value"
-                                         Converter="{maui:ServicesInstance Type={x:Type movies:OperatorPredicateOperatorConverter}}" />
-                                <Binding Path="Value.LHS.Type" />
+                    <!--<Label IsVisible="False">
+                        <Label.Triggers>
+                            <DataTrigger TargetType="Label"
+                                         Binding="{Binding Converter={maui:Converter Type={x:Type movies:ShowPredicateOperatorConverter}}}"
+                                         Value="True">
+                                <Setter Property="IsVisible"
+                                        Value="True" />
+                                <Setter Property="Text">
+                                    <MultiBinding Converter="{StaticResource OperatorConverter}"
+                                                  StringFormat="{}{0} ">
+                                        <Binding Path="Operator" />
+                                        <Binding Path="LHS.Type" />
+                                    </MultiBinding>
+                                </Setter>
+                            </DataTrigger>
+                        </Label.Triggers>
+                    </Label>-->
+
+                    <Label IsVisible="{Binding Converter={maui:Converter Type={x:Type movies:ShowPredicateOperatorConverter}}}">
+                        <Label.Text>
+                            <MultiBinding Converter="{StaticResource OperatorConverter}"
+                                          StringFormat="{}{0} ">
+                                <Binding Path="Operator" />
+                                <Binding Path="LHS.Type" />
                             </MultiBinding>
+                        </Label.Text>
+                    </Label>
 
-                            <Binding Path="Value.RHS"
-                                     Converter="{StaticResource OperatorPredicateRHSConverter}" />
-                        </MultiBinding>
-                    </Label.Text>
-                </Label>
+                    <Label Text="{Binding RHS, Converter={StaticResource OperatorPredicateRHSConverter}}" />
+                </HorizontalStackLayout>
             </DataTemplate>
 
             <DataTemplate x:Key="INodeTemplate">
-                <Border>
+                <Border BackgroundColor="Red">
                     <Label Text="{Binding Children[0].Value.RHS}" />
                 </Border>
             </DataTemplate>
@@ -162,7 +159,7 @@
                         StrokeShape="RoundRectangle 10"
                         Stroke="{StaticResource Primary}"
                         Padding="5">
-                    <ContentView Content="{ext:ViewBinding Template={StaticResource NodeSelector}}">
+                    <ContentView Content="{ext:ViewBinding Value, Template={StaticResource PredicateTemplate}}">
                         <ContentView.ControlTemplate>
                             <ControlTemplate>
                                 <HorizontalStackLayout BindingContext="{TemplateBinding BindingContext}"
@@ -187,7 +184,7 @@
                     </ContentView>
                 </Border>
             </DataTemplate>
-            
+
             <Style x:Key="FilterExpressionStyle"
                    TargetType="Layout">
                 <Setter Property="BindingContext"
@@ -247,7 +244,7 @@
         </VisualElement.Resources>
 
         <Button Text="{Static strings:AppResources.ClearAction}"
-                StyleClass="Destructive"
+                Style="{StaticResource DestructiveButtonStyle}"
                 Command="{Binding ClearCommand}"
                 VerticalOptions="Start" />
     </ContentView>
@@ -256,58 +253,7 @@
                 ext:ScrollView.Content="{ext:ViewBinding Template={Static ext:ResourceDataTemplateSelector.Instance}}"
                 Grid.Row="1">
         <VisualElement.Resources>
-            <ResourceDictionary>
-                <ResourceDictionary.MergedDictionaries>
-                    <movies:PredicateEditorResources />
-                </ResourceDictionary.MergedDictionaries>
-
-                <ext:DataTypeTemplate x:Key="TypeTemplate"
-                                      Type="{x:Type sys:Type}">
-                    <DataTemplate>
-                        <Button Text="{Binding Converter={StaticResource FilterTypeConverter}}"
-                                Style="{StaticResource SelectableButtonStyle}" />
-                    </DataTemplate>
-                </ext:DataTypeTemplate>
-
-                <ext:DataTypeTemplate x:Key="GenreTemplate"
-                                      Type="{x:Type models:Genre}">
-                    <DataTemplate x:DataType="models:Genre">
-                        <Button Text="{Binding Name}"
-                                Style="{StaticResource SelectableButtonStyle}" />
-                    </DataTemplate>
-                </ext:DataTypeTemplate>
-
-                <ext:DataTypeTemplate x:Key="KeywordTemplate"
-                                      Type="{x:Type models:Keyword}">
-                    <DataTemplate x:DataType="models:Keyword">
-                        <Button Text="{Binding Name}"
-                                Style="{StaticResource SelectableButtonStyle}" />
-                    </DataTemplate>
-                </ext:DataTypeTemplate>
-
-                <ext:DataTypeTemplate x:Key="OperatorTemplate"
-                                      Type="{x:Type movies:Operators}">
-                    <DataTemplate>
-                        <Button Style="{StaticResource SelectableButtonStyle}">
-                            <Button.Text>
-                                <MultiBinding Converter="{StaticResource OperatorConverter}">
-                                    <Binding />
-                                    <Binding Path="Selected.Value.LHS.Type"
-                                             Source="{RelativeSource AncestorType={x:Type viewmodels:OperatorEditor}}" />
-                                </MultiBinding>
-                            </Button.Text>
-                        </Button>
-                    </DataTemplate>
-                </ext:DataTypeTemplate>
-
-                <ext:DataTypeTemplate x:Key="DefaultOptionTemplate"
-                                      Type="{x:Type sys:Object}">
-                    <DataTemplate>
-                        <Button Text="{Binding}"
-                                Style="{StaticResource SelectableButtonStyle}" />
-                    </DataTemplate>
-                </ext:DataTypeTemplate>
-            </ResourceDictionary>
+            <movies:PredicateEditorResources />
         </VisualElement.Resources>
     </ScrollView>
 </Grid>

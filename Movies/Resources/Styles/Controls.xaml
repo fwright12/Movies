@@ -347,6 +347,7 @@
     </DataTemplate>
 
     <Style TargetType="ext:ImageView"
+           ApplyToDerivedTypes="True"
            x:Key="ImageStyle">
         <Setter Property="AltViewTemplate"
                 Value="{StaticResource ImageAltViewTemplate}" />

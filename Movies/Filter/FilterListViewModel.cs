@@ -249,11 +249,14 @@ namespace Movies.ViewModels
 
         private static readonly HashSet<Property> MultiSelectableProperties = new HashSet<Property>
         {
+            Movie.CONTENT_RATING,
             Movie.GENRES,
             TVShow.GENRES,
             Movie.WATCH_PROVIDERS,
             TVShow.WATCH_PROVIDERS,
             ViewModels.CollectionViewModel.MonetizationType,
+            CollectionViewModel.People,
+            Media.KEYWORDS
         };
 
         private static readonly Dictionary<Property, object> DefaultValues = new Dictionary<Property, object>

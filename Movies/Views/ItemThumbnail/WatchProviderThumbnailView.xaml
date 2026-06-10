@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ext:ImageView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+               xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+               xmlns:ext="clr-namespace:Microsoft.Maui.Controls.Extensions;assembly=MauiExtensions"
+               xmlns:maui="clr-namespace:Microsoft.Maui.Controls;assembly=MauiExtensions"
+               xmlns:models="clr-namespace:Movies.Models"
+               xmlns:movies="clr-namespace:Movies"
+               x:Class="Movies.Views.WatchProviderThumbnailView"
+               x:DataType="models:WatchProvider"
+               Source="{Binding Company.LogoPath, Converter={Static maui:UrlToUriImageSourceConverter.Instance}, ConverterParameter={Static movies:TMDB.PROPERTY_VALUES_CACHE_DURATION}}"
+               AltView="{Binding Company.Name}"
+               AltViewTemplate="{StaticResource ImageAltViewTemplate}"
+               ext:VisualElement.AspectRequest="1" />

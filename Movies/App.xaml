@@ -6,9 +6,11 @@
              xmlns:ext="clr-namespace:Microsoft.Maui.Controls.Extensions;assembly=MauiExtensions"
              xmlns:views="clr-namespace:Movies.Views"
              xmlns:viewmodels="clr-namespace:Movies.ViewModels"
+             xmlns:maui="clr-namespace:Microsoft.Maui.Controls;assembly=MauiExtensions"
              xmlns:models="clr-namespace:Movies.Models"
              xmlns:movies="clr-namespace:Movies"
              xmlns:templates="clr-namespace:Movies.Templates"
+             xmlns:sys="clr-namespace:System;assembly=mscorlib"
              x:Class="Movies.App">
     <Application.Resources>
         <ResourceDictionary>
@@ -22,6 +24,22 @@
                 <forms:ControlStyles />
             </ResourceDictionary.MergedDictionaries>
 
+            <maui:MappingConverter x:Key="OperatorConverter">
+                <maui:Mapping Key="{Static movies:Operators.LessThan}">
+                    <maui:MappingConverter Default="Under">
+                        <maui:Mapping Key="{x:Type sys:DateTime}">Before</maui:Mapping>
+                    </maui:MappingConverter>
+                </maui:Mapping>
+
+                <maui:Mapping Key="{Static movies:Operators.Equal}">Exactly</maui:Mapping>
+
+                <maui:Mapping Key="{Static movies:Operators.GreaterThan}">
+                    <maui:MappingConverter Default="Over">
+                        <maui:Mapping Key="{x:Type sys:DateTime}">After</maui:Mapping>
+                    </maui:MappingConverter>
+                </maui:Mapping>
+            </maui:MappingConverter>
+            
             <Style x:Key="ContentPresenterFix"
                    TargetType="ContentPresenter">
                 <Setter Property="BindingContext"
