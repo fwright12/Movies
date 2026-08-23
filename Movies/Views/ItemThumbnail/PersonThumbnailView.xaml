@@ -1,20 +1,23 @@
 <?xml version="1.0" encoding="utf-8" ?>
-<VerticalStackLayout xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
-                     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-                     xmlns:ext="clr-namespace:Microsoft.Maui.Controls.Extensions;assembly=MauiExtensions"
-                     xmlns:movies="clr-namespace:Movies"
-                     xmlns:views="clr-namespace:Movies.Views"
-                     xmlns:viewmodels="clr-namespace:Movies.ViewModels"
-                     x:Class="Movies.Views.PersonThumbnailView"
-                     x:DataType="viewmodels:PersonViewModel">
+<Grid xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+      xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+      xmlns:ext="clr-namespace:Microsoft.Maui.Controls.Extensions;assembly=MauiExtensions"
+      xmlns:movies="clr-namespace:Movies"
+      xmlns:views="clr-namespace:Movies.Views"
+      xmlns:viewmodels="clr-namespace:Movies.ViewModels"
+      x:Class="Movies.Views.PersonThumbnailView"
+      x:DataType="viewmodels:PersonViewModel"
+      RowDefinitions="*, Auto">
     <Border StrokeShape="Ellipse"
-            Style="{StaticResource ThumbnailStyle}">
+            Style="{StaticResource ThumbnailStyle}"
+            ext:VisualElement.AspectRequest="1"
+            Grid.Row="0">
         <ext:ImageView AltView="{Binding Name, Converter={Static movies:InitialsConverter.Instance}}"
-                       Source="{Binding ProfilePath}"
-                       ext:VisualElement.AspectRequest="1" />
+                       Source="{Binding ProfilePath}" />
     </Border>
 
     <Label Text="{Binding Name}"
            Style="{StaticResource CaptionStyle}"
-           MaxLines="2" />
-</VerticalStackLayout>
+           MaxLines="2"
+           Grid.Row="1" />
+</Grid>

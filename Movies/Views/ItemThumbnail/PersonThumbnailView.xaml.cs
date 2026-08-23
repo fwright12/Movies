@@ -1,6 +1,6 @@
 namespace Movies.Views;
 
-public partial class PersonThumbnailView : VerticalStackLayout
+public partial class PersonThumbnailView : Grid
 {
     public PersonThumbnailView()
     {
