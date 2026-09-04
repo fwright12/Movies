@@ -249,4 +249,16 @@
   <data name="YearsActiveLabel" xml:space="preserve">
     <value>Years Active</value>
   </data>
+  <data name="ListsPageTitle" xml:space="preserve">
+    <value>My Lists</value>
+  </data>
+  <data name="CustomListsTitle" xml:space="preserve">
+    <value>Custom Lists</value>
+  </data>
+  <data name="EditAction" xml:space="preserve">
+    <value>Edit</value>
+  </data>
+  <data name="DeleteAction" xml:space="preserve">
+    <value>Delete</value>
+  </data>
 </root>

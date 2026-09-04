@@ -519,8 +519,13 @@ namespace Movies.Views
             ItemTemplateChanged(collectionView, new PropertyChangedEventArgs(ItemsView.ItemTemplateProperty.PropertyName));
         }
 
-        private static void ItemTemplateChanged(object sender, PropertyChangedEventArgs e)
+        private static void ItemTemplateChanged(object? sender, PropertyChangedEventArgs e)
         {
+            if (sender == null || e.PropertyName != ItemsView.ItemTemplateProperty.PropertyName)
+            {
+                return;
+            }
+
             CollectionView collection = (CollectionView)sender;
 
             if (collection.IsSet(ItemsView.ItemTemplateProperty) && collection.ItemTemplate is EditDataTemplateSelector editTemplate)
@@ -562,23 +567,41 @@ namespace Movies.Views
 
     public class DecoratorDataTemplateSelector : DataTemplateSelector
     {
-        public DataTemplate Main { get; set; }
-        public DataTemplate Decorator { get; set; }
+        public DataTemplate? Main { get; set; }
+        public DataTemplate? Decorator { get; set; }
+
+        private IDictionary<(DataTemplate, DataTemplate), DataTemplate> DataTemplates = new Dictionary<(DataTemplate, DataTemplate), DataTemplate>();
 
         protected override DataTemplate OnSelectTemplate(object item, BindableObject container)
         {
             var main = (Main as DataTemplateSelector)?.SelectTemplate(item, container) ?? Main;
-            var decorator = ((Decorator as DataTemplateSelector)?.SelectTemplate(item, container) ?? Decorator)?.CreateContent() as ContentView;
+            var decorator = (Decorator as DataTemplateSelector)?.SelectTemplate(item, container) ?? Decorator;
 
-            if (decorator != null && main?.CreateContent() is View view)
+            if (main != null && decorator != null)
             {
-                decorator.Content = view;
+                var key = (main, decorator);
+                if (!DataTemplates.TryGetValue(key, out var template))
+                {
+                    DataTemplates[key] = template = new DataTemplate(() =>
+                    {
+                        var content = main?.CreateContent();
+                        if (decorator?.CreateContent() is ContentView cv && content is View view)
+                        {
+                            cv.Content = view;
+                            return cv;
+                        }
+                        else
+                        {
+                            return content;
+                        }
+                    });
+                }
 
-                return new DataTemplate(() => decorator);
+                return template;
             }
             else
             {
-                return main;
+                return main!;
             }
         }
     }
@@ -791,6 +814,12 @@ namespace Movies.Views
             CollectionView.PropertyChanged += ToggleEditMode;
             CollectionView.ChildAdded += (sender, e) =>
             {
+                var cv = (CollectionView)sender!;
+                if (e.Element == cv.Header || e.Element == cv.Footer)
+                {
+                    return;
+                }
+
                 Children.Add(e.Element);
             };
             CollectionView.ChildRemoved += (sender, e) =>
@@ -799,7 +828,7 @@ namespace Movies.Views
             };
         }
 
-        private void ToggleEditMode(object sender, PropertyChangedEventArgs e)
+        private void ToggleEditMode(object? sender, PropertyChangedEventArgs e)
         {
             if (e.PropertyName != SelectableItemsView.SelectionModeProperty.PropertyName)
             {

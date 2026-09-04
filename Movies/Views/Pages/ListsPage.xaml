@@ -1,13 +1,14 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:ext="clr-namespace:Microsoft.Maui.Controls.Extensions;assembly=MauiExtensions"
              xmlns:maui="clr-namespace:Microsoft.Maui.Controls;assembly=MauiExtensions"
              xmlns:movies="clr-namespace:Movies"
              xmlns:strings="clr-namespace:Movies.Resources.Strings"
              xmlns:templates="clr-namespace:Movies.Templates"
              xmlns:views="clr-namespace:Movies.Views"
              x:Class="Movies.Views.ListsPage"
-             Title="My Lists">
+             Title="{Static strings:AppResources.ListsPageTitle}">
     <Grid RowDefinitions="*, Auto">
         <CollectionView views:CollectionViewExt.IsEditing="False"
                         Style="{StaticResource CustomListsStyle}"
@@ -19,28 +20,21 @@
             </CollectionView.ItemTemplate>
 
             <View.Margin>
-                <MultiBinding Converter="{Static maui:ThicknessConverter.Instance}"
-                              ConverterParameter="horizontal">
-                    <Binding Source="{StaticResource PagePadding}" />
-                </MultiBinding>
+                <ext:Thickness Horizontal="{StaticResource PagePadding}" />
             </View.Margin>
 
             <CollectionView.Header>
-                <StackLayout Orientation="Vertical">
+                <VerticalStackLayout>
                     <maui:AdView Style="{StaticResource BannerAdStyle}"
                                  AdUnitID="{Static movies:App.TopBannerAdUnitID}" />
 
-                    <StackLayout Orientation="Vertical">
+                    <VerticalStackLayout>
                         <BindableLayout.ItemsSource>
-                            <MultiBinding>
-                                <MultiBinding.Converter>
-                                    <maui:ObservableConverter />
-                                </MultiBinding.Converter>
-
+                            <ext:ObservableMultiBinding>
                                 <Binding Path="Watchlist" />
                                 <Binding Path="Favorites" />
                                 <Binding Path="History" />
-                            </MultiBinding>
+                            </ext:ObservableMultiBinding>
                         </BindableLayout.ItemsSource>
 
                         <BindableLayout.ItemTemplate>
@@ -48,18 +42,19 @@
                                 <views:ItemListCompactView BaseItemHeight="200" />
                             </DataTemplate>
                         </BindableLayout.ItemTemplate>
-                    </StackLayout>
+                    </VerticalStackLayout>
 
-                    <views:SectionView Title="Custom Lists">
-                        <StackLayout Orientation="Horizontal"
-                                     BindingContext="{Binding SelectionMode, Source={RelativeSource AncestorType={x:Type CollectionView}}, Converter={Static views:SelectionModeToBoolConverter.Instance}}">
+                    <views:SectionView Title="{Static strings:AppResources.CustomListsTitle}">
+                        <FlexLayout BindingContext="{Binding SelectionMode, Source={RelativeSource AncestorType={x:Type CollectionView}}, Converter={Static views:SelectionModeToBoolConverter.Instance}}"
+                                    Direction="Row"
+                                    JustifyContent="SpaceBetween">
                             <Button Command="{Static views:CollectionViewExt.ToggleSelectionModeCommand}"
                                     CommandParameter="{Binding Source={RelativeSource AncestorType={x:Type CollectionView}}}">
                                 <Button.Text>
                                     <Binding>
                                         <Binding.Converter>
-                                            <maui:BoolToObjectConverter TrueObject="Done"
-                                                                        FalseObject="Edit" />
+                                            <maui:BoolToObjectConverter TrueObject="{Static strings:AppResources.DoneAction}"
+                                                                        FalseObject="{Static strings:AppResources.EditAction}" />
                                         </Binding.Converter>
                                     </Binding>
                                 </Button.Text>
@@ -68,11 +63,10 @@
                             <Button Text="+"
                                     FontSize="Title"
                                     IsVisible="{Binding Converter={Static maui:NegateBoolConverter.Instance}}"
-                                    HorizontalOptions="EndAndExpand"
                                     Style="{StaticResource CreateListStyle}" />
-                        </StackLayout>
+                        </FlexLayout>
                     </views:SectionView>
-                </StackLayout>
+                </VerticalStackLayout>
             </CollectionView.Header>
 
             <CollectionView.Footer>
@@ -83,11 +77,12 @@
             </CollectionView.Footer>
         </CollectionView>
 
-        <HorizontalStackLayout BindingContext="{Binding Parent.Children[0], Source={RelativeSource Self}}"
-                               StyleClass="SecondaryBackground"
-                               IsVisible="{Binding SelectionMode, Converter={Static views:SelectionModeToBoolConverter.Instance}}"
-                               Padding="10, 5"
-                               Grid.Row="1">
+        <FlexLayout BindingContext="{Binding Parent.Children[0], Source={RelativeSource Self}}"
+                    StyleClass="SecondaryBackground"
+                    IsVisible="{Binding SelectionMode, Converter={Static views:SelectionModeToBoolConverter.Instance}}"
+                    Padding="10, 5"
+                    Direction="RowReverse"
+                    Grid.Row="1">
             <!--<Button CommandParameter="{Binding}">
     <VisualStateManager.VisualStateGroups>
         <VisualStateGroup>
@@ -112,10 +107,10 @@
     </VisualStateManager.VisualStateGroups>
 </Button>-->
 
-            <Button Text="Delete"
-                    HorizontalOptions="End"
+            <Button Text="{Static strings:AppResources.DeleteAction}"
+                    StyleClass="Destructive"
                     Command="{Static views:CollectionViewExt.DeleteSelectedCommand}"
                     CommandParameter="{Binding}" />
-        </HorizontalStackLayout>
+        </FlexLayout>
     </Grid>
 </ContentPage>

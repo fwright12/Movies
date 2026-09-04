@@ -232,19 +232,10 @@
                                 ext:FlexLayout.ColumnSpacing="{StaticResource NodeSpacing}" />
                 </VerticalStackLayout>
             </ControlTemplate>
-
-            <Style TargetType="Button"
-                   x:Key="DestructiveButtonStyle"
-                   Class="Destructive">
-                <Setter Property="TextColor"
-                        Value="{OnPlatform iOS='Red'}" />
-                <Setter Property="BackgroundColor"
-                        Value="Red" />
-            </Style>
         </VisualElement.Resources>
 
         <Button Text="{Static strings:AppResources.ClearAction}"
-                Style="{StaticResource DestructiveButtonStyle}"
+                StyleClass="Destructive"
                 Command="{Binding ClearCommand}"
                 VerticalOptions="Start" />
     </ContentView>

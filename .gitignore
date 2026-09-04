@@ -9,4 +9,4 @@ TestResults/
 
 Keys.cs
 
-.Designer.cs
+*.Designer.cs
