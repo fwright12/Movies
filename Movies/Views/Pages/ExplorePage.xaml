@@ -9,7 +9,7 @@
              x:Class="Movies.Views.ExplorePage"
              Padding="{StaticResource PagePadding}">
     <Page.ToolbarItems>
-        <ToolbarItem Text="{Static strings:AppResources.SettingsToolbar}">
+        <ToolbarItem Text="{Static strings:AppResources.SettingsText}">
             <ToolbarItem.Command>
                 <views:PushPageCommand PageTemplate="{DataTemplate views:SettingsPage}" />
             </ToolbarItem.Command>

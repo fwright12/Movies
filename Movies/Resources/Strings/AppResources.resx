@@ -231,7 +231,7 @@
   <data name="SeeReviewsText" xml:space="preserve">
     <value>See Reviews</value>
   </data>
-  <data name="SettingsToolbar" xml:space="preserve">
+  <data name="SettingsText" xml:space="preserve">
     <value>Settings</value>
   </data>
   <data name="SummaryHeader" xml:space="preserve">
@@ -260,5 +260,38 @@
   </data>
   <data name="DeleteAction" xml:space="preserve">
     <value>Delete</value>
+  </data>
+  <data name="LogoutAction" xml:space="preserve">
+    <value>Logout</value>
+  </data>
+  <data name="LoginAction" xml:space="preserve">
+    <value>Login</value>
+  </data>
+  <data name="LoginHintText" xml:space="preserve">
+    <value>Not signed in</value>
+  </data>
+  <data name="AccountSectionTitle" xml:space="preserve">
+    <value>My Accounts</value>
+  </data>
+  <data name="PersonalizationSectionTitle" xml:space="preserve">
+    <value>Personalization</value>
+  </data>
+  <data name="LocalizationSectionTitle" xml:space="preserve">
+    <value>Localization</value>
+  </data>
+  <data name="RatingsBuilderText" xml:space="preserve">
+    <value>Ratings Builder</value>
+  </data>
+  <data name="LanguageText" xml:space="preserve">
+    <value>Language</value>
+  </data>
+  <data name="RegionText" xml:space="preserve">
+    <value>Region</value>
+  </data>
+  <data name="ApplySettingsInstruction" xml:space="preserve">
+    <value>Please restart the app for changes to take effect</value>
+  </data>
+  <data name="TMDBAttributionText" xml:space="preserve">
+    <value>This product uses the TMDB API but is not endorsed or certified by TMDB.</value>
   </data>
 </root>
